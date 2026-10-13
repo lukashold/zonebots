@@ -1,0 +1,11 @@
+{
+  "name": "zonebots",
+  "version": "0.2.0",
+  "description": "Browser real-time strategy game about sectors, flags and factories",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "node tools/simtest.js",
+    "start": "python -m http.server 8000"
+  }
+}
