@@ -28,42 +28,43 @@
   button.primary { background: linear-gradient(180deg, #ffe066, #d9a920); color: #1b1b1b; text-shadow: none; border-color: #fff2a8 #7a5d0a #7a5d0a #fff2a8; }
   button.on { background: linear-gradient(180deg, #3a3416, #57491a); border-color: #22262b #ffd23a #ffd23a #22262b; color: var(--accent); }
 
-  /* ---------- bottom command bar ---------- */
-  #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 132px; display: flex; gap: 8px; padding: 8px; align-items: stretch; }
-  #bar::before { content: ""; position: absolute; left: 0; right: 0; top: -4px; height: 4px; background: repeating-linear-gradient(90deg, #ffd23a 0 12px, #1a1a1a 12px 24px); }
-  #miniWrap { flex: none; padding: 3px; display: flex; align-items: center; justify-content: center; }
-  #mini { display: block; cursor: crosshair; }
-  #sel { flex: none; width: 290px; display: flex; gap: 8px; padding: 6px; }
-  #portrait { flex: none; width: 96px; height: 96px; background: #1b2620; border: 2px solid; border-color: var(--steel-lo) var(--steel-hi) var(--steel-hi) var(--steel-lo); }
-  #info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  #infoName { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #infoSub { color: var(--dim); font-size: 18px; line-height: 1; }
-  .hp { height: 8px; background: #000; border: 1px solid #000; }
-  .hp i { display: block; height: 100%; background: var(--green); }
-  #cmd { flex: 1; min-width: 0; padding: 6px; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-  #cmdTitle { color: var(--dim); font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #prods { display: flex; flex-wrap: wrap; gap: 4px; }
-  .prod { width: 54px; height: 54px; padding: 0; position: relative; }
-  .prod canvas { width: 50px; height: 50px; display: block; }
-  .prod b { position: absolute; right: 2px; bottom: 0; font-weight: normal; font-size: 16px; color: var(--accent); }
-  #pbar { height: 6px; background: #000; margin-top: auto; }
-  #pbar i { display: block; height: 100%; width: 0; background: var(--accent); }
-  #acts { display: flex; flex-wrap: wrap; gap: 4px; }
-  #side { flex: none; width: 168px; padding: 6px; display: flex; flex-direction: column; gap: 6px; }
-  #terr { display: flex; height: 16px; border: 2px solid #000; background: #2a2a2a; }
+  /* ---------- in-game display, laid out like the original: clock and messages on top, panels on demand ---------- */
+  .plaque { position: absolute; left: 50%; transform: translateX(-50%); padding: 1px 12px; color: #e8ecf4; text-shadow: 1px 1px 0 #000;
+    background: linear-gradient(180deg, #8d95a6 0%, #5b6274 50%, #444a59 100%); border: 2px solid; border-color: #c3c9d6 #23262e #23262e #c3c9d6; box-shadow: 0 2px 0 #000; }
+  #clockBox { top: 6px; font-size: 20px; letter-spacing: 1px; }
+  #msgBox { top: 36px; min-width: 220px; text-align: center; font-size: 22px; letter-spacing: 1px; transition: opacity 0.4s; }
+  #msgBox.good { color: #b9ffb0; } #msgBox.bad { color: #ffb3a8; }
+  #msgBox.fade { opacity: 0; }
+  #terrBox { left: 8px; top: 6px; transform: none; display: flex; gap: 8px; align-items: center; font-size: 18px; }
+  #terr { width: 110px; height: 10px; display: flex; border: 1px solid #000; background: #2a2a2a; }
   #terr i { display: block; height: 100%; transition: width 0.4s; }
   #terrR { background: var(--red); } #terrN { flex: 1; } #terrB { background: var(--blue); }
-  #sideRow { display: flex; justify-content: space-between; align-items: center; color: var(--dim); }
-  #clock { color: var(--text); }
-  #sideBtns { display: flex; gap: 4px; margin-top: auto; }
-  #sideBtns button { flex: 1; padding: 2px 0; }
-  #lvTitle { font-size: 18px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lvTitle { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cfd5e2; }
+  #topBtns { position: absolute; top: 6px; right: 8px; display: flex; gap: 4px; }
+  #topBtns button { padding: 0 8px; }
+  #mode { position: absolute; top: 66px; left: 50%; transform: translateX(-50%); background: var(--red); padding: 1px 10px; border: 2px solid #000; }
+  #acts { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 60vw; }
+  #miniBtn { position: absolute; right: 8px; bottom: 8px; width: 44px; height: 44px; padding: 0; font-size: 26px; border-radius: 50%; }
+  #miniPanel { position: absolute; right: 8px; bottom: 60px; padding: 4px; }
+  #mini { display: block; cursor: crosshair; }
 
-  #toasts { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
-  .toast { background: rgba(10, 12, 14, 0.85); border: 2px solid #000; border-left: 6px solid var(--dim); padding: 2px 12px; animation: fade 3.2s forwards; text-shadow: 1px 1px 0 #000; }
-  .toast.good { border-left-color: var(--green); } .toast.bad { border-left-color: var(--red); }
-  @keyframes fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
-  #mode { position: absolute; top: 10px; left: 10px; background: var(--red); padding: 2px 10px; border: 2px solid #000; }
+  /* building panel, opened next to the building */
+  #bpanel { position: absolute; display: flex; gap: 2px; z-index: 2; }
+  .zarrows { display: flex; flex-direction: column; gap: 2px; padding-top: 22px; }
+  .zarrows button { width: 26px; height: 40px; padding: 0; font-size: 16px; }
+  .zbody { padding: 3px 5px 6px; background: linear-gradient(180deg, #9ba1ad 0%, #6c727f 100%); border: 2px solid; border-color: #d3d8e1 #2a2d34 #2a2d34 #d3d8e1; box-shadow: 2px 3px 0 rgba(0,0,0,0.6); }
+  .zhead { display: flex; gap: 8px; align-items: center; padding: 0 4px; margin-bottom: 4px; background: #3d4352; border: 1px solid #1c1f26; color: #f2f4f8; white-space: nowrap; }
+  .zhead #bpStars { color: var(--accent); }
+  .zhead #bpPct { margin-left: auto; background: #7a1d16; padding: 0 4px; }
+  .zrow { display: flex; gap: 6px; }
+  .zport { position: relative; width: 84px; display: flex; flex-direction: column; border: 2px solid; border-color: #2a2d34 #d3d8e1 #d3d8e1 #2a2d34; background: #1d2420; }
+  .zport canvas { width: 80px; height: 72px; display: block; }
+  .zport b { position: absolute; left: 3px; top: 0; font-weight: normal; color: var(--accent); text-shadow: 1px 1px 0 #000; }
+  #bpUnit { background: #8a1c13; color: #fff; text-align: center; font-size: 16px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .zbtns { display: flex; flex-direction: column; gap: 3px; min-width: 92px; }
+  .zbtns button { padding: 0 6px; font-size: 18px; background: linear-gradient(180deg, #6d7891, #4a5368); }
+  #bpTime { background: #2b303c; border: 1px solid #14161b; text-align: center; font-size: 18px; color: #e8ecf4; }
+  #bpOk { color: var(--accent); }
 
   /* ---------- menus ---------- */
   .screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 16px;
@@ -98,39 +99,31 @@
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; margin: 12px auto; width: fit-content; text-align: left; color: var(--dim); }
   .stats b { color: var(--text); text-align: right; font-weight: normal; }
   #endBest { color: var(--accent); min-height: 22px; }
-  @media (max-width: 900px) { #sel { width: 210px; } #portrait { width: 72px; height: 72px; } #side { width: 128px; } }
-  @media (max-width: 640px) { #miniWrap { display: none; } .world { grid-template-columns: repeat(4, 1fr); } .world .wn { grid-column: 1 / -1; } h1 { font-size: 52px; } }
+  @media (max-width: 640px) { .world { grid-template-columns: repeat(4, 1fr); } .world .wn { grid-column: 1 / -1; } h1 { font-size: 52px; } }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="hud" class="hidden">
-  <div id="toasts"></div>
+  <div id="terrBox" class="plaque"><div id="terr"><i id="terrR"></i><i id="terrN"></i><i id="terrB"></i></div><span id="terrTxt"></span><span id="lvTitle"></span></div>
+  <div id="clockBox" class="plaque"><span id="clock">0:00:00</span></div>
+  <div id="msgBox" class="plaque fade"></div>
   <div id="mode" class="hidden"></div>
-  <div id="bar" class="steel">
-    <div id="miniWrap" class="well"><canvas id="mini"></canvas></div>
-    <div id="sel" class="well">
-      <canvas id="portrait" width="48" height="48"></canvas>
-      <div id="info">
-        <div id="infoName"></div>
-        <div class="hp" id="infoHp"><i></i></div>
-        <div id="infoSub"></div>
+  <div id="topBtns"><button id="btnMenu" title="Menü">☰</button><button id="btnSpeed">1×</button><button id="btnSound">♪</button></div>
+  <div id="bpanel" class="hidden">
+    <div class="zarrows"><button id="bpUp">▲</button><button id="bpDown">▼</button></div>
+    <div class="zbody">
+      <div class="zhead"><span id="bpName"></span><span id="bpStars"></span><span id="bpPct"></span></div>
+      <div class="zrow">
+        <div class="zport"><canvas id="bpPort" width="40" height="36"></canvas><b id="bpCount"></b><div id="bpUnit"></div></div>
+        <div class="zbtns"><button id="bpRally"></button><button id="bpCancel"></button><div id="bpTime"></div><button id="bpOk">Ok</button></div>
       </div>
     </div>
-    <div id="cmd" class="well">
-      <div id="cmdTitle"></div>
-      <div id="prods"></div>
-      <div id="acts"></div>
-      <div id="pbar" class="hidden"><i></i></div>
-    </div>
-    <div id="side" class="well">
-      <div id="lvTitle"></div>
-      <div id="terr"><i id="terrR"></i><i id="terrN"></i><i id="terrB"></i></div>
-      <div id="sideRow"><span id="terrTxt"></span><span id="clock">0:00</span></div>
-      <div id="sideBtns"><button id="btnMenu" title="Menü">☰</button><button id="btnSpeed">1×</button><button id="btnSound">♪</button></div>
-    </div>
   </div>
+  <div id="acts"></div>
+  <button id="miniBtn" title="Karte">▦</button>
+  <div id="miniPanel" class="steel hidden"><canvas id="mini"></canvas></div>
 </div>
 
 <div id="menu" class="screen">

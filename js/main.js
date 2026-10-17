@@ -13,7 +13,7 @@
   let L = ZG.TEXT[lang];
   let G = null, R = null, cur = 0, paused = false, speed = 1, zoom = 2, dpr = 1;
   const cam = { x: 0, y: 0 }, view = { x: 0, y: 0, w: 0, h: 0 };
-  const ui = { selB: null, drag: null, marks: [], rally: null };
+  const ui = { selB: null, drag: null, marks: [], rally: null, paths: [] };
   const mouse = { x: 0, y: 0, inside: false }, keys = {}, groups = {};
   let mode = null, panelSig = '', lastClick = { t: 0, type: null }, miniDrag = false;
 
@@ -41,21 +41,20 @@
   const onScreen = e => e.x > view.x - 100 && e.y > view.y - 100 && e.x < view.x + view.w + 100 && e.y < view.y + view.h + 100;
 
   // ---------- view ----------
-  const barH = () => G && !$('hud').classList.contains('hidden') ? $('bar').offsetHeight : 0;
   function resize() {
     dpr = window.devicePixelRatio || 1;
     cv.width = Math.floor(innerWidth * dpr); cv.height = Math.floor(innerHeight * dpr);
     if (G) sizeMini();
   }
   function sizeMini() {
-    const mh = 106, mw = Math.min(220, Math.round(mh * G.map.W / G.map.H)), h = Math.round(mw * G.map.H / G.map.W);
+    const mh = Math.min(300, innerHeight * 0.45), mw = Math.min(innerWidth * 0.5, Math.round(mh * G.map.W / G.map.H)), h = Math.round(mw * G.map.H / G.map.W);
     mini.style.width = mw + 'px'; mini.style.height = h + 'px';
     mini.width = Math.round(mw * dpr); mini.height = Math.round(h * dpr);
   }
   const scale = () => zoom * dpr; // device pixels per art pixel
   function clampCam() {
     const S = scale();
-    view.w = cv.width / S * A; view.h = (cv.height - barH() * dpr) / S * A;
+    view.w = cv.width / S * A; view.h = cv.height / S * A;
     const mw = G.map.W * TS, mh = G.map.H * TS;
     cam.x = view.w >= mw ? (mw - view.w) / 2 : ZG.clamp(cam.x, 0, mw - view.w);
     cam.y = view.h >= mh ? (mh - view.h) / 2 : ZG.clamp(cam.y, 0, mh - view.h);
@@ -89,10 +88,11 @@
     ui.selB = null;
     for (const v of G.units) if (v.team === 0 && v.def.sp && (!type || v.t === type) && v.x > view.x && v.y > view.y && v.x < view.x + view.w && v.y < view.y + view.h) v.sel = true;
   }
+  // messages appear on the plaque under the clock, like in the original
+  let msgTimer = 0;
   function toast(msg, cls) {
-    const d = document.createElement('div'); d.className = 'toast ' + (cls || ''); d.textContent = msg;
-    $('toasts').appendChild(d); setTimeout(() => d.remove(), 3200);
-    while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+    const m = $('msgBox'); m.textContent = msg; m.className = 'plaque ' + (cls || '');
+    clearTimeout(msgTimer); msgTimer = setTimeout(() => m.classList.add('fade'), 2600);
   }
 
   // ---------- orders ----------
@@ -115,6 +115,8 @@
       ZG.orderStruct(G, us, st); ZG.orderMove(G, us.filter(u => !u.order || u.order.k !== 'hit'), st.x, st.y);
     } else { atk = attackMode; ZG.orderMove(G, us, p.x, p.y, attackMode ? 'amove' : 'move'); }
     ui.marks.push({ x: p.x, y: p.y, t: 0, atk: atk });
+    // show the routes as dotted lines for a moment
+    ui.paths = us.filter(u => u.path).slice(0, 12).map(u => ({ pts: [{ x: u.x, y: u.y }].concat(u.path), t: 0 }));
     tone('square', 520, 620, 0.05, 0.04);
     return true;
   }
@@ -258,100 +260,98 @@
   window.addEventListener('keyup', e => { keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
   window.addEventListener('resize', function () { resize(); if (G) clampCam(); });
 
-  // ---------- command bar ----------
-  const pctx = $('portrait').getContext('2d');
-  function portrait(img, sw, sh) {
-    pctx.imageSmoothingEnabled = false;
-    pctx.fillStyle = '#16231b'; pctx.fillRect(0, 0, 48, 48);
-    pctx.fillStyle = 'rgba(80,255,120,0.06)'; for (let y = 0; y < 48; y += 2) pctx.fillRect(0, y, 48, 1);
-    if (img) { const f = Math.min(44 / sw, 44 / sh); pctx.drawImage(img, 0, 0, sw, sh, (48 - sw * f) / 2, (48 - sh * f) / 2, sw * f, sh * f); }
+  // ---------- building panel and unit actions ----------
+  const portCtx = $('bpPort').getContext('2d');
+  // picture of a unit type: the original sprite when the player loaded Z, our own pixel art otherwise
+  function unitPicture(t) {
+    const d = ZG.UNITS[t];
+    if (R && R.zs) {
+      const L = R.zs.unit({ t: t, def: d, team: 0, ang: Math.PI / 2, tang: Math.PI / 2, moving: false, walk: 0, cd: 0, tgt: null });
+      if (L) {
+        const c = document.createElement('canvas'); c.width = 40; c.height = 36;
+        const x = c.getContext('2d');
+        for (const l of L) x.drawImage(l[0], 20 + l[1], (d.cls === 'robot' ? 30 : 18) + l[2]);
+        return c;
+      }
+    }
+    return ZG.unitIcon(t, 0);
   }
   function actBtn(label, fn, on) {
     const b = document.createElement('button'); b.textContent = label; if (on) b.className = 'on';
     b.onclick = fn; $('acts').appendChild(b);
   }
+  function cycleProd(b, step) {
+    const list = ZG.products(b);
+    if (!list.length) return;
+    const i = list.indexOf(b.prod);
+    b.prod = list[((i < 0 ? 0 : i) + step + list.length) % list.length]; b.progress = 0; b.paused = false;
+    panelSig = '';
+  }
+  $('bpUp').onclick = () => ui.selB && cycleProd(ui.selB, -1);
+  $('bpDown').onclick = () => ui.selB && cycleProd(ui.selB, 1);
+  $('bpOk').onclick = () => { ui.selB = null; };
+  $('bpRally').onclick = () => setMode(mode === 'rally' ? null : 'rally');
+  $('bpCancel').onclick = function () {
+    const b = ui.selB; if (!b || b.team !== 0) return;
+    // stop or resume production; the chosen product is kept
+    if (b.prod) { b.held = b.prod; b.prod = null; b.progress = 0; } else { b.prod = b.held || ZG.products(b)[0]; }
+    panelSig = '';
+  };
   function updatePanel() {
-    const b = ui.selB, us = mineSel(), all = selUnits();
-    const sig = (b ? 'b' + b.id + ':' + b.team + ':' + b.prod + ':' + b.dead : '') + '|' + all.map(u => u.id + (u.team === 0 ? '' : 'e') + (u.cargo ? u.cargo.length : '')).join(',') + lang + mode + classic;
+    const b = ui.selB, us = mineSel();
+    const sig = (b ? b.id + ':' + b.team + ':' + b.prod + ':' + b.dead : '') + '|' + us.map(u => u.id + ':' + (u.cargo ? u.cargo.length : '')).join(',') + lang + mode + (R && R.zs ? 'z' : '');
     if (sig !== panelSig) {
       panelSig = sig;
-      $('prods').innerHTML = ''; $('acts').innerHTML = ''; $('cmdTitle').textContent = '';
-      $('pbar').classList.add('hidden');
+      $('acts').innerHTML = '';
+      if (us.length) {
+        actBtn(L.stop, () => ZG.orderStop(G, mineSel()));
+        actBtn(L.amoveBtn, () => setMode(mode === 'attack' ? null : 'attack'), mode === 'attack');
+        if (us.some(u => u.cargo && u.cargo.length)) actBtn(L.unload, () => ZG.orderUnload(G, mineSel().filter(u => u.cargo)));
+        actBtn(L.selNone, () => clearSel());
+      }
+      $('bpanel').classList.toggle('hidden', !b);
       if (b) {
-        portrait(ZG.buildingIcon(b), ZG.buildingIcon(b).width, ZG.buildingIcon(b).height);
-        $('infoName').textContent = L.b[b.kind] + (b.kind !== 'repair' ? ' ' + '★'.repeat(b.tech) : '');
-        const mine = b.team === 0 && !b.dead, list = mine ? ZG.products(b) : [];
-        if (list.length) {
-          $('cmdTitle').textContent = L.choose;
-          for (const k of list) {
-            const btn = document.createElement('button'); btn.className = 'prod' + (k === b.prod ? ' on' : '');
-            const d = ZG.UNITS[k], im = document.createElement('canvas'), ic = ZG.unitIcon(k, 0);
-            im.width = ic.width; im.height = ic.height; im.getContext('2d').drawImage(ic, 0, 0);
-            btn.appendChild(im);
-            if (d.n > 1) { const n = document.createElement('b'); n.textContent = '×' + d.n; btn.appendChild(n); }
-            btn.title = L.units[k] + ' · ' + d.time + ' s';
-            btn.onclick = () => { if (b.prod !== k) { b.prod = k; b.progress = 0; } };
-            $('prods').appendChild(btn);
-          }
-          $('pbar').classList.remove('hidden');
-          actBtn(L.rally.split(' ')[0], () => setMode(mode === 'rally' ? null : 'rally'), mode === 'rally');
+        const mine = b.team === 0 && !b.dead, list = mine ? ZG.products(b) : [], shown = b.prod || b.held || (list[0] || null);
+        $('bpName').textContent = L.b[b.kind];
+        $('bpStars').textContent = b.kind === 'repair' || b.kind === 'radar' ? '' : '★'.repeat(b.tech);
+        for (const id of ['bpUp', 'bpDown', 'bpRally', 'bpCancel']) $(id).classList.toggle('hidden', !list.length);
+        $('bpRally').textContent = L.rally.split(' ')[0]; $('bpRally').className = mode === 'rally' ? 'on' : '';
+        $('bpCancel').textContent = b.prod ? L.cancel : L.resume;
+        portCtx.imageSmoothingEnabled = false;
+        portCtx.fillStyle = '#1d2420'; portCtx.fillRect(0, 0, 40, 36);
+        if (shown) {
+          const img = unitPicture(shown), f = Math.min(36 / img.width, 34 / img.height);
+          portCtx.drawImage(img, (40 - img.width * f) / 2, (36 - img.height * f) / 2, img.width * f, img.height * f);
         }
-        b._left = -1;
-      } else if (all.length) {
-        const cnt = {};
-        for (const u of all) cnt[u.t] = (cnt[u.t] || 0) + 1;
-        const main = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0], first = all.find(u => u.t === main);
-        const ic = ZG.unitIcon(main, first.team);
-        portrait(ic, ic.width, ic.height);
-        $('infoName').textContent = L.units[main] + (cnt[main] > 1 ? ' ×' + cnt[main] : '') + (Object.keys(cnt).length > 1 ? ' +' : '');
-        if (us.length) {
-          actBtn(L.stop, () => ZG.orderStop(G, mineSel()));
-          actBtn(L.amoveBtn, () => setMode(mode === 'attack' ? null : 'attack'), mode === 'attack');
-          if (us.some(u => u.cargo && u.cargo.length)) actBtn(L.unload, () => ZG.orderUnload(G, mineSel().filter(u => u.cargo)));
-          actBtn(L.selNone, () => clearSel());
-          $('cmdTitle').textContent = us.some(u => u.def.crane) ? L.craneHint : us.some(u => u.cargo) ? L.apcHint : '';
-        }
-      } else {
-        portrait(null);
-        $('infoName').textContent = '';
-        actBtn(L.selAll, () => selOnScreen(null));
+        $('bpUnit').textContent = shown ? L.units[shown] : (b.dead ? L.destroyed : b.team < 0 ? L.neutral : b.team === 1 ? L.enemy : L.b[b.kind]);
+        $('bpCount').textContent = shown && ZG.UNITS[shown].n > 1 ? ZG.UNITS[shown].n : '';
       }
     }
-    // live values
     if (b) {
-      $('infoHp').firstElementChild.style.width = (b.dead ? 0 : b.hp / b.maxhp * 100) + '%';
-      let sub = b.dead ? L.destroyed : b.team < 0 ? L.neutral : b.team === 1 ? L.enemy : b.kind === 'repair' ? L.repairHint : '';
+      $('bpPct').textContent = (b.dead ? 0 : Math.round(b.hp / b.maxhp * 100)) + '%';
+      let tt = '';
       if (!b.dead && b.team === 0 && b.prod) {
         const left = Math.ceil((1 - b.progress) * ZG.UNITS[b.prod].time / (ZG.prodRate(G, 0) * (0.4 + 0.6 * b.hp / b.maxhp)));
-        sub = L.units[b.prod] + ' · ' + L.left + ' ' + left + ' s';
-        $('pbar').firstElementChild.style.width = (b.progress * 100) + '%';
-      }
-      if ($('infoSub').textContent !== sub) $('infoSub').textContent = sub;
-    } else {
-      const all2 = selUnits();
-      let hp = 0, mx = 0;
-      for (const u of all2) { hp += Math.max(0, u.hp); mx += u.def.hp; }
-      $('infoHp').firstElementChild.style.width = (mx ? hp / mx * 100 : 0) + '%';
-      let sub = '';
-      if (all2.length) {
-        const u = all2[0];
-        if (u.team < 0) sub = L.empty;
-        else if (u.team === 1) sub = L.enemy;
-        else if (u.cargo) sub = u.cargo.length + '/' + u.def.cargo + ' ' + L.aboard;
-        else if (u.def.cls === 'gun') sub = L.gunHint;
-        else if (u.squad) sub = L.squad + ' · ' + ZG.squadOf(G, u).length;
-      } else sub = levelName(cur);
-      if ($('infoSub').textContent !== sub) $('infoSub').textContent = sub;
+        tt = L.time + ' ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+      } else if (b.kind === 'repair') tt = '';
+      if ($('bpTime').textContent !== tt) $('bpTime').textContent = tt;
+      // keep the panel next to its building, inside the window
+      const S = scale() / dpr, p = $('bpanel'), w = p.offsetWidth, h = p.offsetHeight;
+      let x = ((b.tx + b.w) * TS - cam.x) / A * S + 8, y = (b.ty * TS - cam.y) / A * S;
+      if (x + w > innerWidth - 8) x = (b.tx * TS - cam.x) / A * S - w - 8;
+      x = ZG.clamp(x, 8, innerWidth - w - 8); y = ZG.clamp(y, 34, innerHeight - h - 60);
+      p.style.left = Math.round(x) + 'px'; p.style.top = Math.round(y) + 'px';
     }
   }
   function updateSide() {
     const n = G.map.sectors.length; let a = 0, b = 0;
     for (const s of G.map.sectors) { if (s.owner === 0) a++; else if (s.owner === 1) b++; }
     $('terrR').style.width = (a / n * 100) + '%'; $('terrB').style.width = (b / n * 100) + '%';
-    const tt = a + ' : ' + b; if ($('terrTxt').textContent !== tt) $('terrTxt').textContent = tt;
-    const t = Math.floor(G.time), ct = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+    const tt = a + ':' + b; if ($('terrTxt').textContent !== tt) $('terrTxt').textContent = tt;
+    const t = Math.floor(G.time), ct = Math.floor(t / 3600) + ':' + String(Math.floor(t / 60) % 60).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
     if ($('clock').textContent !== ct) $('clock').textContent = ct;
   }
+  $('miniBtn').onclick = function () { $('miniPanel').classList.toggle('hidden'); if (G) sizeMini(); };
 
   function handleEvents() {
     for (const e of G.ev) {
@@ -417,7 +417,8 @@
     const th = ZG.THEMES[G.lv.theme];
     if (G.lv.original) { const t = ZG.Z.terrainCanvas(G.map); R = { terrain: t, mini: ZG.Z.miniCanvas(G.map, t), th: th, zs: ZG.Z.spriteSet(G.map) }; }
     else R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
-    ui.selB = null; ui.drag = null; ui.marks = []; panelSig = ''; paused = false; setMode(null);
+    ui.selB = null; ui.drag = null; ui.marks = []; ui.paths = []; panelSig = ''; paused = false; setMode(null);
+    $('miniPanel').classList.add('hidden');
     for (const k in groups) delete groups[k];
     zoom = innerWidth > 2600 ? 4 : innerWidth > 1500 ? 3 : 2;
     for (const id of ['menu', 'end', 'pause', 'help']) $(id).classList.add('hidden');
@@ -537,6 +538,7 @@
       while (left > 0.0001 && !G.over) { const st = Math.min(left, 0.04); ZG.step(G, st); left -= st; }
       if (G.over) for (const f of G.fx) f.t += rdt;
       for (const m of ui.marks) m.t += rdt;
+      if (ui.paths) { for (const q of ui.paths) q.t += rdt; ui.paths = ui.paths.filter(q => q.t < 1.4); }
       ui.marks = ui.marks.filter(m => m.t < 0.5);
       if (G.dirty.length) { R.terrain.redraw(G.dirty); ZG.redrawMini(R, G.map, R.th, G.dirty); G.dirty.length = 0; }
       handleEvents();

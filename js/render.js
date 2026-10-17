@@ -485,14 +485,15 @@
         const ph = (time * 3 + tx * 1.7 + ty * 2.3) % 6;
         if (ph < 2) { c.fillStyle = R.terrain.th.waterHi; c.fillRect(tx * TP + 3 + ((tx * 7) % 8), ty * TP + 4 + ((ty * 5) % 8), 3, 1); }
       }
-    // sector borders: dotted lines like survey markers
-    c.fillStyle = R.terrain.original ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.28)';
-    const sa = map.secAt;
+    // territory borders: a row of small markers in the owner's colour on each side, one per tile
+    const sa = map.secAt, own = j => { const s = map.sectors[sa[j]]; return s ? s.owner : -2; };
+    const DOT = { '-1': '#d8d8d0', 0: '#ff3a24', 1: '#3a7bff' };
+    const dot = (x, y, o) => { if (o < -1) return; c.fillStyle = '#000'; c.fillRect(x, y + 1, 2, 1); c.fillStyle = DOT[o]; c.fillRect(x, y, 2, 1); };
     for (let ty = Math.max(0, vy0 / TP | 0); ty < Math.min(map.H, vy1 / TP + 1); ty++)
       for (let tx = Math.max(0, vx0 / TP | 0); tx < Math.min(W, vx1 / TP + 1); tx++) {
-        const s0 = sa[ty * W + tx];
-        if (tx + 1 < W && sa[ty * W + tx + 1] !== s0) for (let k = 0; k < TP; k += 4) c.fillRect((tx + 1) * TP, ty * TP + k, 1, 2);
-        if (ty + 1 < map.H && sa[(ty + 1) * W + tx] !== s0) for (let k = 0; k < TP; k += 4) c.fillRect(tx * TP + k, (ty + 1) * TP, 2, 1);
+        const j = ty * W + tx, s0 = sa[j];
+        if (tx + 1 < W && sa[j + 1] !== s0) { dot(tx * TP + 12, ty * TP + 7, own(j)); dot((tx + 1) * TP + 2, ty * TP + 7, own(j + 1)); }
+        if (ty + 1 < map.H && sa[j + W] !== s0) { dot(tx * TP + 7, ty * TP + 12, own(j)); dot(tx * TP + 7, (ty + 1) * TP + 2, own(j + W)); }
       }
     if (R.terrain.original) for (let j = 0; j < map.tiles.length; j++) if (map.tiles[j] === T.BOULDER) {
       const tx = j % W, ty = (j / W) | 0;
@@ -520,7 +521,7 @@
         if (b.dead && (time * 5 + b.id) % 3 < 1) { c.fillStyle = '#ff6a1c'; c.fillRect(b.tx * TP + 8 + (b.id * 7) % 20, b.ty * TP + 6, 2, 2); }
         if (ui.selB === b) brackets(c, b.tx * TP - 2, b.ty * TP - LIFT - 2, b.w * TP + 4, b.h * TP + LIFT + 4, '#fff');
         if (!b.dead && b.team >= 0 && (ui.selB === b || b.hp < b.maxhp)) bar(c, b.tx * TP + 4, b.ty * TP - LIFT - 4, b.w * TP - 8, b.hp / b.maxhp);
-        if (!b.dead && b.team >= 0 && b.prod) {
+        if (!b.dead && b.team >= 0 && b.prod && !zs) {
           const x0 = b.tx * TP + 2, y0 = (b.ty + b.h) * TP + 2, w = b.w * TP - 4;
           c.fillStyle = '#000'; c.fillRect(x0, y0, w, 2); c.fillStyle = '#ffd23a'; c.fillRect(x0, y0, Math.round(w * b.progress), 2);
         }
@@ -577,6 +578,18 @@
         disc(c, f.x / A, f.y / A - 2, r, cols[ci]);
         if (ci < 3) disc(c, f.x / A, f.y / A - 2, Math.max(0, r - 2), cols[ci + 1 > 3 ? 3 : ci + 1]);
         if (p > 0.5) { c.fillStyle = 'rgba(80,80,80,' + (1 - p) + ')'; c.fillRect(Math.round(f.x / A) - 2, Math.round(f.y / A - r - 4 * p), 4, 3); }
+      }
+    }
+    // routes of the last order, as dotted lines
+    if (ui.paths) for (const q of ui.paths) {
+      if (q.t > 1.2) continue;
+      let n = 0;
+      for (let i = 1; i < q.pts.length; i++) {
+        const a = q.pts[i - 1], b = q.pts[i], len = Math.hypot(b.x - a.x, b.y - a.y) / A;
+        for (let s = 0; s < len; s += 4) {
+          const x = Math.round((a.x + (b.x - a.x) * s / len) / A), y = Math.round((a.y + (b.y - a.y) * s / len) / A);
+          c.fillStyle = n++ % 2 ? '#ff3a24' : '#ffd23a'; c.fillRect(x, y, 1, 1);
+        }
       }
     }
     // order markers and drag box

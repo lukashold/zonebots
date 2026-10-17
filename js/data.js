@@ -126,7 +126,7 @@
       bridgeDown: 'Brücke zerstört', bridgeUp: 'Brücke wieder aufgebaut', ourBldDead: 'Eigenes Gebäude zerstört', bldDead: 'Gegnerisches Gebäude zerstört',
       stormed: 'Fort erstürmt!', boarded: 'Eingestiegen', unloaded: 'Ausgestiegen', fixed: 'Reparatur fertig', rockGone: 'Felsbrocken gesprengt',
       craneHint: 'Gebäude oder zerstörte Brücke anklicken', apcHint: 'Roboter hierher schicken zum Einsteigen', gunHint: 'Feste Stellung', destroyed: 'zerstört', neutral: 'neutral',
-      enemy: 'Gegner', choose: 'Bauauftrag wählen',
+      enemy: 'Gegner', choose: 'Bauauftrag wählen', cancel: 'Anhalten',
       zTitle: 'Original-Z (optional)', zPick: 'Z-Ordner wählen…', zForget: 'Entfernen', zLoading: 'Lese Dateien…',
       zHint: 'Besitzt du das Originalspiel Z (z. B. von GOG)? Wähle seinen Installationsordner, dann spielst du die 20 Originalkarten mit deren Gelände-Grafik. Die Dateien werden nur in deinem Browser gelesen und gespeichert, nichts wird hochgeladen.',
       zNone: 'In diesem Ordner wurden keine Z-Karten gefunden.', zLoaded: 'Originalkarten geladen:'
@@ -166,7 +166,7 @@
       bridgeDown: 'Bridge destroyed', bridgeUp: 'Bridge rebuilt', ourBldDead: 'Our building destroyed', bldDead: 'Enemy building destroyed',
       stormed: 'Fort stormed!', boarded: 'Boarded', unloaded: 'Unloaded', fixed: 'Repair complete', rockGone: 'Boulder blasted',
       craneHint: 'Click a building or a destroyed bridge', apcHint: 'Send robots here to board', gunHint: 'Fixed emplacement', destroyed: 'destroyed', neutral: 'neutral',
-      enemy: 'Enemy', choose: 'Choose production',
+      enemy: 'Enemy', choose: 'Choose production', cancel: 'Halt',
       zTitle: 'Original Z (optional)', zPick: 'Choose Z folder…', zForget: 'Remove', zLoading: 'Reading files…',
       zHint: 'Do you own the original game Z (e.g. from GOG)? Pick its installation folder to play the 20 original maps with their terrain graphics. The files are only read and stored in your browser, nothing is uploaded.',
       zNone: 'No Z maps found in that folder.', zLoaded: 'Original maps loaded:'
