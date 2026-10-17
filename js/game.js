@@ -16,7 +16,7 @@
   ZG.newGame = function (idx, opt) {
     opt = opt || {};
     const df = ZG.DIFF[opt.diff == null ? 1 : opt.diff];
-    const lv = Object.assign({}, typeof idx === 'object' ? idx : ZG.LEVELS[idx], { bonus: df.bonus }), map = ZG.genMap(lv);
+    const lv = Object.assign({}, typeof idx === 'object' ? idx : ZG.LEVELS[idx], { bonus: df.bonus }), map = lv.original ? ZG.Z.genMap(lv) : ZG.genMap(lv);
     const G = { lv: lv, map: map, units: [], shots: [], fx: [], ev: [], dirty: [], time: 0, over: null, nid: 1,
       aiTeams: opt.aiTeams || [1], aiT: 1, rnd: ZG.rng(lv.seed ^ 0x9e3779b9), alertT: 0,
       stats: [{ kills: 0, losses: 0 }, { kills: 0, losses: 0 }],

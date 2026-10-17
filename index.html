@@ -88,6 +88,11 @@
   .sk label { display: flex; flex-direction: column; gap: 2px; color: var(--dim); }
   select, input { font: inherit; color: var(--text); background: var(--well); border: 2px solid; border-color: var(--steel-lo) var(--steel-hi) var(--steel-hi) var(--steel-lo); padding: 2px 6px; }
   input#skSeed { width: 90px; }
+  label.btn { font: inherit; color: var(--text); background: linear-gradient(180deg, #6a727d, #4b525b); border: 2px solid; border-color: #9aa3ae #22262b #22262b #9aa3ae; padding: 2px 10px; cursor: pointer; text-shadow: 1px 1px 0 #000; }
+  label.btn:hover { background: linear-gradient(180deg, #7d8692, #59616b); }
+  #zBtns { display: flex; gap: 4px; align-items: center; }
+  .zl { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+  .zl button { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #helpBody p { margin: 0 0 10px; color: #d8d3c2; user-select: text; }
   #helpBody b { color: var(--accent); font-weight: normal; }
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; margin: 12px auto; width: fit-content; text-align: left; color: var(--dim); }
@@ -144,6 +149,9 @@
       <button id="btnSeed" title="Random">⚄</button>
       <button id="btnSkirmish" class="primary"></button>
     </div>
+    <h4><span id="zTitle"></span><span id="zBtns"><label class="btn" id="zPickLabel"><input type="file" id="zPick" webkitdirectory directory multiple hidden><span id="zPickText"></span></label><button id="zForget" class="hidden"></button></span></h4>
+    <div id="zHint" class="tag"></div>
+    <div id="zLevels" class="zl"></div>
     <h4><span id="ctrlTitle"></span><span id="ctrlBtns"></span></h4>
     <div class="row">
       <button id="btnHelp"></button>
@@ -188,6 +196,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/map.js"></script>
+<script src="js/zdata.js"></script>
 <script src="js/game.js"></script>
 <script src="js/render.js"></script>
 <script src="js/main.js"></script>

@@ -4,9 +4,14 @@ A real-time strategy game for the browser. Two robot armies fight over a map tha
 sectors. Touch a sector's flag and its factory, workshop and guns are yours; the more sectors you
 hold, the faster your factories build. Destroy the enemy fort to win.
 
-The sector-and-flag gameplay is inspired by a mid-90s RTS classic. Zonebots is an independent,
-from-scratch implementation: all code, the procedurally drawn graphics, the synthesised sounds and
-all levels are original. It contains no code, artwork, audio, maps or other data from any other game.
+The rules and controls follow the 1996 RTS classic *Z*. Zonebots is an independent, from-scratch
+implementation: all code, the procedurally drawn pixel graphics, the synthesised sounds and its own
+levels are original. The repository contains no code, artwork, audio, maps or other data from *Z*.
+
+**Original data mode (optional):** if you own *Z* (for example the GOG release), you can pick its
+installation folder in the menu. The browser then reads the original 20 maps and their terrain graphics
+from your copy and you play them with this engine. The files are read and stored locally in your
+browser only; nothing is uploaded and nothing from the game is part of this project.
 
 **Everybody is welcome to contribute – see [CONTRIBUTING.md](CONTRIBUTING.md).**
 
@@ -19,23 +24,32 @@ tablets), or serve the folder with any static web server:
 
 ## Features
 
-- campaign with 20 levels in 5 worlds (desert, volcano, arctic, jungle, city)
+- Z rules: capture sectors by their flags, factories build faster the more you hold, a robot walking
+  through the enemy fort's gate wins, losing every robot and crewed vehicle loses
+- robot squads, crews for vehicles and guns, snipers that take out crews, destructible buildings,
+  bridges and boulders, a crane that repairs and rebuilds, personnel carriers, grenade crates
+- classic one-button controls like the original, or modern left/right-click controls
+- campaign with 20 own levels in 5 worlds (desert, volcano, arctic, jungle, city)
+- optional: the 20 original maps from your own copy of *Z*
 - skirmish mode on generated maps: pick size, world, tech level and a map number
 - three difficulty levels, best times per level
-- 6 robot types, 5 vehicles, 3 gun emplacements, tech levels per factory
-- abandoned vehicles to crew, workshops that repair, grenade crates, factory rally points
+- 6 robot types, 7 vehicles, 4 gun emplacements, tech levels per factory
 - computer opponent that scales with level and difficulty
 - mouse, keyboard and touch controls, minimap, zoom, game speed
 - German and English, progress saved in the browser
 
 ## Controls
 
+Classic (default, like the original): left click your unit to select it, left click anywhere else to
+give an order, right click to deselect. Modern (switch in the menu): left click selects, right click orders.
+
 | Input | Action |
 | --- | --- |
-| Left click / drag box | select units or a building |
-| Right click | move, attack, board an abandoned vehicle, assault the fort |
-| Right click with a factory selected | set its rally point |
-| Ctrl + right click, or F then click | attack-move |
+| Drag a box | select several units |
+| Order on an enemy / empty vehicle or gun / own carrier / enemy fort | attack / crew it / board / storm or shell it |
+| Crane order on a damaged building or a destroyed bridge | repair / rebuild |
+| F then click | attack order, also on bridges and boulders |
+| U | unload a personnel carrier |
 | Double click | select all units of that type on screen |
 | Ctrl+A | select all units |
 | Ctrl+1–9 / 1–9 | assign / recall groups |
@@ -48,7 +62,8 @@ tablets), or serve the folder with any static web server:
 
 ## Development
 
-    npm test    # headless: generates every level, checks reachability, runs AI vs AI
+    npm test                              # headless: every level, reachability, AI vs AI
+    node tools/ztest.js "C:/GOG Games/Z"  # same for the original maps, needs your own copy of Z
 
 The code layout, the rules for contributions and a list of open ideas are in
 [CONTRIBUTING.md](CONTRIBUTING.md). The repository includes a workflow that publishes the game to

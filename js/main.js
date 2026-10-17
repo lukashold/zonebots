@@ -9,7 +9,7 @@
   };
   let lang = store.get('lang', (navigator.language || 'en').slice(0, 2) === 'de' ? 'de' : 'en');
   let unlocked = +store.get('unlocked', 0), sound = store.get('sound', '1') === '1', diff = +store.get('diff', 1), skDef = null;
-  let classic = store.get('ctrl', '0') === '0';
+  let classic = store.get('ctrl', '0') === '0', zUnlocked = +store.get('zunlocked', 0), zIdx = -1;
   let L = ZG.TEXT[lang];
   let G = null, R = null, cur = 0, paused = false, speed = 1, zoom = 2, dpr = 1;
   const cam = { x: 0, y: 0 }, view = { x: 0, y: 0, w: 0, h: 0 };
@@ -389,8 +389,9 @@
   function setPause(v) { paused = v; $('pause').classList.toggle('hidden', !v); }
   function showEnd() {
     if (!G || !G.over) return;
-    const win = G.over.winner === 0, last = cur === ZG.LEVELS.length - 1, camp = cur >= 0;
+    const orig = zIdx >= 0, win = G.over.winner === 0, last = orig ? zIdx === ZG.Z.levels.length - 1 : cur === ZG.LEVELS.length - 1, camp = cur >= 0;
     if (win && camp && cur + 1 > unlocked) { unlocked = Math.min(cur + 1, ZG.LEVELS.length); store.set('unlocked', unlocked); }
+    if (win && orig && zIdx + 1 > zUnlocked) { zUnlocked = zIdx + 1; store.set('zunlocked', zUnlocked); }
     let bestTxt = '';
     if (win && camp) {
       const key = 'best' + cur + 'd' + diff, old = +store.get(key, 0), now = Math.floor(G.over.time);
@@ -402,18 +403,20 @@
     const t = Math.floor(G.over.time);
     $('endStats').innerHTML = '<span>' + L.time + '</span><b>' + fmt(t) + '</b><span>' + L.diffLabel + '</span><b>' + L.diff[diff] + '</b><span>' + L.kills + '</span><b>' + G.stats[0].kills + '</b><span>' + L.losses + '</span><b>' + G.stats[0].losses + '</b>';
     $('endBest').textContent = bestTxt;
-    $('btnNext').classList.toggle('hidden', !win || last || !camp);
+    $('btnNext').classList.toggle('hidden', !win || last || !(camp || orig));
     $('btnRetry').classList.toggle('primary', !win);
     $('end').classList.remove('hidden');
     if (win) { tone('triangle', 523, 523, 0.15, 0.1); setTimeout(() => tone('triangle', 784, 784, 0.3, 0.1), 160); } else tone('sawtooth', 220, 80, 0.8, 0.08);
   }
   const fmt = t => Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
-  const levelName = i => i < 0 ? L.skirmish + ' · ' + L.worlds[skDef.theme] + ' #' + skDef.seed : L.worlds[ZG.LEVELS[i].theme] + ' · ' + L.level + ' ' + (i + 1);
+  const levelName = i => i < 0 ? (skDef.original ? 'Z ' + skDef.zlevel + ' · ' + skDef.zname : L.skirmish + ' · ' + L.worlds[skDef.theme] + ' #' + skDef.seed) : L.worlds[ZG.LEVELS[i].theme] + ' · ' + L.level + ' ' + (i + 1);
 
   function start(i, def) {
-    cur = def ? -1 : i; skDef = def || null; G = ZG.newGame(def || i, { diff: diff });
+    cur = def ? -1 : i; skDef = def || null; zIdx = def && def.original ? i : -1;
+    G = ZG.newGame(def || i, { diff: diff });
     const th = ZG.THEMES[G.lv.theme];
-    R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
+    if (G.lv.original) { const t = ZG.Z.terrainCanvas(G.map); R = { terrain: t, mini: ZG.Z.miniCanvas(G.map, t), th: th }; }
+    else R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
     ui.selB = null; ui.drag = null; ui.marks = []; panelSig = ''; paused = false; setMode(null);
     for (const k in groups) delete groups[k];
     zoom = innerWidth > 2600 ? 4 : innerWidth > 1500 ? 3 : 2;
@@ -461,6 +464,19 @@
       names.forEach(function (name, k) { const b = document.createElement('button'); b.textContent = name; if (k === curIdx) b.className = 'primary'; b.onclick = () => fn(k); db.appendChild(b); });
     };
     seg('diffBtns', L.diff, diff, k => { diff = k; store.set('diff', k); buildMenu(); });
+    $('zTitle').textContent = L.zTitle; $('zPickText').textContent = L.zPick; $('zForget').textContent = L.zForget;
+    const zl = $('zLevels'); zl.innerHTML = '';
+    $('zForget').classList.toggle('hidden', !ZG.Z.ready());
+    if (ZG.Z.ready()) {
+      $('zHint').textContent = L.zLoaded;
+      ZG.Z.levels.forEach(function (lv, k) {
+        const b = document.createElement('button');
+        b.textContent = lv.n + ' · ' + lv.name; b.disabled = k > zUnlocked; b.title = k > zUnlocked ? L.locked : lv.name;
+        if (k === zUnlocked) b.className = 'primary';
+        b.onclick = () => start(k, ZG.Z.makeLevel(k));
+        zl.appendChild(b);
+      });
+    } else if (!$('zHint').dataset.msg) $('zHint').textContent = L.zHint;
     $('ctrlTitle').textContent = L.ctrlTitle;
     seg('ctrlBtns', L.ctrl, classic ? 0 : 1, k => { classic = k === 0; store.set('ctrl', k); buildMenu(); });
     const fill = (id, label, names, keep) => {
@@ -479,14 +495,25 @@
     start(-1, ZG.makeLevel(SK_STR[+$('skTech').value], sz[0], sz[1], { theme: +$('skWorld').value, seed: seed, river: seed % 4, custom: true }));
   };
   $('btnSeed').onclick = () => { $('skSeed').value = 1 + Math.floor(Math.random() * 9999); };
+  $('zPick').onchange = async function () {
+    const list = this.files; if (!list || !list.length) return;
+    $('zHint').textContent = L.zLoading;
+    const files = await ZG.Z.readPicked(list);
+    this.value = '';
+    if (!ZG.Z.use(files)) { $('zHint').dataset.msg = 1; $('zHint').textContent = L.zNone; buildMenu(); return; }
+    delete $('zHint').dataset.msg;
+    try { await ZG.Z.save(files); } catch (e) { /* storage full or blocked: still usable this session */ }
+    buildMenu();
+  };
+  $('zForget').onclick = async function () { await ZG.Z.forget(); buildMenu(); };
   $('btnLang').onclick = () => { lang = lang === 'de' ? 'en' : 'de'; store.set('lang', lang); buildMenu(); };
   $('btnHelp').onclick = $('btnPauseHelp').onclick = () => $('help').classList.remove('hidden');
   $('btnHelpBack').onclick = () => $('help').classList.add('hidden');
   $('btnMenu').onclick = () => setPause(true);
   $('btnResume').onclick = () => setPause(false);
-  $('btnRestart').onclick = $('btnRetry').onclick = () => start(cur, skDef);
+  $('btnRestart').onclick = $('btnRetry').onclick = () => zIdx >= 0 ? start(zIdx, ZG.Z.makeLevel(zIdx)) : start(cur, skDef);
   $('btnQuit').onclick = $('btnEndMenu').onclick = showMenu;
-  $('btnNext').onclick = () => start(cur + 1);
+  $('btnNext').onclick = () => zIdx >= 0 ? start(zIdx + 1, ZG.Z.makeLevel(zIdx + 1)) : start(cur + 1);
   $('btnSpeed').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; $('btnSpeed').textContent = speed + '×'; };
   $('btnSound').onclick = () => { sound = !sound; store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4; };
   $('btnSound').style.opacity = sound ? 1 : 0.4;
@@ -532,4 +559,5 @@
 
   window.ZGdebug = { get G() { return G; }, start: start, get cam() { return cam; }, get view() { return view; } };
   resize(); buildMenu(); requestAnimationFrame(frame);
+  ZG.Z.restore().then(n => { if (n && G === null) buildMenu(); });
 })();

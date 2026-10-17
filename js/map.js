@@ -151,7 +151,10 @@
     for (const b of buildings)
       for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) block[y * W + x] = 1;
 
-    const map = { W: W, H: H, tiles: tiles, block: block, sectors: sectors, buildings: buildings, spawns: spawns, crates: crates, pid: pid, eid: eid, sw: sw, sh: sh, cols: cols, rows: rows };
+    const map = { W: W, H: H, tiles: tiles, block: block, sectors: sectors, buildings: buildings, spawns: spawns, crates: crates, pid: pid, eid: eid, sw: sw, sh: sh, cols: cols, rows: rows, world: lv.theme };
+    // sector of every tile (generated maps use a grid, original Z maps use free shapes)
+    map.secAt = new Int16Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) map.secAt[y * W + x] = Math.floor(y / sh) * cols + Math.floor(x / sw);
 
     // bridges: connected bridge tiles form one destructible bridge
     map.bridgeAt = new Int16Array(N).fill(-1); map.bridges = [];

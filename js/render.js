@@ -374,6 +374,13 @@
   }
 
   ZG.buildingIcon = b => buildingSprite(b);
+  function rockSprite(th) {
+    return cached('rock' + th.key, function () {
+      const c = canvas(TP, TP), x = c.getContext('2d'), C = themeColors(th);
+      boulderPixels({ c: C, put(px2, py2, col) { x.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; x.fillRect(px2, py2, 1, 1); } }, 0, 0, 0, 3);
+      return c;
+    });
+  }
 
   // ---------- drawing helpers in art pixels ----------
   function line(c, x0, y0, x1, y1, col) {
@@ -459,17 +466,25 @@
     c.drawImage(R.terrain.canvas, 0, 0);
     // shimmering water
     const W = map.W;
-    for (let ty = Math.max(0, vy0 / TP | 0); ty < Math.min(map.H, vy1 / TP + 1); ty++)
+    if (!R.terrain.original) for (let ty = Math.max(0, vy0 / TP | 0); ty < Math.min(map.H, vy1 / TP + 1); ty++)
       for (let tx = Math.max(0, vx0 / TP | 0); tx < Math.min(W, vx1 / TP + 1); tx++) {
         if (map.tiles[ty * W + tx] !== T.WATER) continue;
         const ph = (time * 3 + tx * 1.7 + ty * 2.3) % 6;
         if (ph < 2) { c.fillStyle = R.terrain.th.waterHi; c.fillRect(tx * TP + 3 + ((tx * 7) % 8), ty * TP + 4 + ((ty * 5) % 8), 3, 1); }
       }
     // sector borders: dotted lines like survey markers
-    c.fillStyle = 'rgba(0,0,0,0.28)';
-    const sw = map.sw * TP, sh = map.sh * TP;
-    for (let k = 1; k < map.cols; k++) for (let y = Math.max(0, vy0 | 0); y < Math.min(map.H * TP, vy1); y += 4) c.fillRect(k * sw, y - (y % 4), 1, 2);
-    for (let k = 1; k < map.rows; k++) for (let x = Math.max(0, vx0 | 0); x < Math.min(W * TP, vx1); x += 4) c.fillRect(x - (x % 4), k * sh, 2, 1);
+    c.fillStyle = R.terrain.original ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.28)';
+    const sa = map.secAt;
+    for (let ty = Math.max(0, vy0 / TP | 0); ty < Math.min(map.H, vy1 / TP + 1); ty++)
+      for (let tx = Math.max(0, vx0 / TP | 0); tx < Math.min(W, vx1 / TP + 1); tx++) {
+        const s0 = sa[ty * W + tx];
+        if (tx + 1 < W && sa[ty * W + tx + 1] !== s0) for (let k = 0; k < TP; k += 4) c.fillRect((tx + 1) * TP, ty * TP + k, 1, 2);
+        if (ty + 1 < map.H && sa[(ty + 1) * W + tx] !== s0) for (let k = 0; k < TP; k += 4) c.fillRect(tx * TP + k, (ty + 1) * TP, 2, 1);
+      }
+    if (R.terrain.original) for (let j = 0; j < map.tiles.length; j++) if (map.tiles[j] === T.BOULDER) {
+      const tx = j % W, ty = (j / W) | 0;
+      if (tx * TP > vx0 - TP && tx * TP < vx1 && ty * TP > vy0 - TP && ty * TP < vy1) c.drawImage(rockSprite(R.terrain.th), tx * TP, ty * TP);
+    }
 
     // everything that stands on the map, sorted by its foot line
     const items = [];
@@ -567,7 +582,18 @@
     const map = G.map, sx = cw / (map.W * TS), sy = ch / (map.H * TS);
     c.imageSmoothingEnabled = false;
     c.drawImage(R.mini, 0, 0, cw, ch);
-    for (const s of map.sectors) if (s.owner >= 0) { c.fillStyle = s.owner === 0 ? 'rgba(210,59,42,0.32)' : 'rgba(47,98,214,0.36)'; c.fillRect(s.x0 * TS * sx, s.y0 * TS * sy, map.sw * TS * sx, map.sh * TS * sy); }
+    const sig = map.sectors.map(s => s.owner).join('');
+    if (!R.own || R.ownSig !== sig) {
+      R.ownSig = sig; R.own = R.own || canvas(map.W, map.H);
+      const oc = R.own.getContext('2d'), id = oc.createImageData(map.W, map.H), d = id.data;
+      for (let j = 0; j < map.secAt.length; j++) {
+        const s = map.sectors[map.secAt[j]], o = s ? s.owner : -1;
+        if (o < 0) continue;
+        d[j * 4] = o === 0 ? 210 : 47; d[j * 4 + 1] = o === 0 ? 59 : 98; d[j * 4 + 2] = o === 0 ? 42 : 214; d[j * 4 + 3] = 95;
+      }
+      oc.putImageData(id, 0, 0);
+    }
+    c.drawImage(R.own, 0, 0, cw, ch);
     for (const b of map.buildings) { c.fillStyle = b.dead ? '#222' : b.team < 0 ? '#bbb' : ZG.TEAMCOL[b.team]; c.fillRect(b.tx * TS * sx, b.ty * TS * sy, b.w * TS * sx, b.h * TS * sy); }
     for (const s of map.sectors) if (s.flag) { c.fillStyle = s.owner < 0 ? '#fff' : s.owner === 0 ? '#ff9a88' : '#9ec0ff'; c.fillRect(s.flag.x * sx - 1, s.flag.y * sy - 1, 3, 3); }
     for (const u of G.units) { c.fillStyle = u.team < 0 ? '#ddd' : u.team === 0 ? '#ff5544' : '#5c8fff'; const z = u.def.cls === 'robot' ? 2 : 3; c.fillRect(u.x * sx - z / 2, u.y * sy - z / 2, z, z); }

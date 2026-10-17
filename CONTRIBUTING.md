@@ -22,11 +22,13 @@ There is no build step and there are no dependencies.
 | File | Contents |
 | --- | --- |
 | `js/data.js` | unit stats, colour themes, level parameters, difficulty, all UI texts (German and English) |
-| `js/map.js` | map generator (sectors, roads, rivers, buildings) and A* pathfinding |
+| `js/map.js` | map generator (sectors, roads, rivers, buildings, bridges, boulders) and A* pathfinding |
+| `js/zdata.js` | optional loader for the original *Z* data files a player owns (format notes at the top) |
 | `js/game.js` | the simulation: orders, combat, production, flags, computer opponent. No DOM access, so it runs in Node |
 | `js/render.js` | all drawing. Graphics are canvas code, there are no image files |
 | `js/main.js` | browser front end: input, HUD, menus, sound, main loop |
 | `tools/simtest.js` | the headless test |
+| `tools/ztest.js` | the same checks for the original maps, run against your own copy of *Z* |
 
 Everything hangs off one global object, `ZG`. Scripts are plain `<script>` files so the game also
 works when `index.html` is opened straight from disk.
@@ -35,8 +37,10 @@ works when `index.html` is opened straight from disk.
 
 - **Original work only.** Do not add code, graphics, sounds, music, maps, names or texts taken from
   commercial games or from any source whose licence does not allow it. This includes "extracted" or
-  "converted" files from a game you own. Draw it, synthesise it or write it yourself, or use material
-  that is clearly licensed for reuse and say where it comes from in the pull request.
+  "converted" files from a game you own. The loader in `js/zdata.js` reads a player's own copy at
+  runtime; the data itself must never enter the repository (`.gitignore` blocks the usual file types).
+  Draw it, synthesise it or write it yourself, or use material that is clearly licensed for reuse and
+  say where it comes from in the pull request.
 - **Keep it dependency-free** unless there is a strong reason. No frameworks, no bundler.
 - **Keep `js/game.js` free of DOM and browser APIs** so the headless test keeps working.
 - **Every user-visible text goes into `ZG.TEXT`** in `js/data.js`, in both German and English.
@@ -48,8 +52,8 @@ By contributing you agree that your contribution is released under the MIT licen
 
 ## Ideas that need somebody
 
-- personnel carrier that transports robots
-- repair crane, destructible bridges and rocks
+- original data mode: object types of the later worlds (flags and rocks are only recognised in the
+  desert), bridges, which building is which, and drawing the original sprites
 - radar building and fog of war
 - map editor and hand-made levels (the generator in `js/map.js` can already load parameters)
 - two-player mode (hot seat, or over WebRTC)

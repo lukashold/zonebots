@@ -1,0 +1,16 @@
+# Never commit data files of the original game "Z" (or extracted pictures of them).
+*.MAP
+*.map
+*.BLK
+*.blk
+*.PAL
+*.pal
+*.DAT
+*.dat
+*.rsc
+*.RSC
+*.RAW
+*.jvv
+*.jvi
+zdata-local/
+node_modules/
