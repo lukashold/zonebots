@@ -98,7 +98,7 @@
       helpText: [
         '<b>Ziel:</b> Schicke einen Roboter durch das Tor des gegnerischen Forts, zerstöre das Fort oder vernichte alle Roboter und bemannten Fahrzeuge des Gegners. Umgekehrt gilt dasselbe für dich.',
         '<b>Sektoren:</b> Berührt eine Einheit die Flagge, gehört dir der Sektor samt Fabrik oder Werkstatt. Je mehr Sektoren du hältst, desto schneller bauen deine Fabriken. Beschädigte Fabriken bauen langsamer.',
-        '<b>Trupps:</b> Roboter kommen als Trupp aus der Fabrik und werden gemeinsam ausgewählt.',
+        '<b>Trupps:</b> Roboter kommen als Trupp aus der Fabrik. Ein Klick wählt den ganzen Trupp, ein zweiter Klick auf ein Mitglied nur diesen Roboter, Umschalt+Klick nimmt einzelne dazu oder weg. Schickst du nur einen Teil los, wird er zu einem eigenen Trupp.',
         '<b>Besatzung:</b> Fahrzeuge und Geschütze brauchen einen Roboter. Leere (graue) Fahrzeuge und Geschütze bemannst du, indem du einen Roboter hinschickst. Scharfschützen können Besatzungen ausschalten.',
         '<b>Transporter:</b> Roboter auf den eigenen Transporter schicken – bis zu 6 steigen ein. Mit U oder dem Knopf „Aussteigen“ wieder absetzen.',
         '<b>Kran:</b> Repariert beschädigte eigene Gebäude und baut zerstörte Brücken wieder auf – Kran auswählen und auf das Gebäude oder die Brückenstelle klicken.',
@@ -129,7 +129,8 @@
       enemy: 'Gegner', choose: 'Bauauftrag wählen', cancel: 'Anhalten',
       zTitle: 'Original-Z (optional)', zPick: 'Z-Ordner wählen…', zForget: 'Entfernen', zLoading: 'Lese Dateien…',
       zHint: 'Besitzt du das Originalspiel Z (z. B. von GOG)? Wähle seinen Installationsordner, dann spielst du die 20 Originalkarten mit deren Gelände-Grafik. Die Dateien werden nur in deinem Browser gelesen und gespeichert, nichts wird hochgeladen.',
-      zNone: 'In diesem Ordner wurden keine Z-Karten gefunden.', zLoaded: 'Originalkarten geladen:'
+      zNone: 'In diesem Ordner wurden keine Z-Karten gefunden.', zLoaded: 'Originalkarten geladen:',
+      mPlay: 'Neues Spiel', mOrig: 'Originalkarten', mSkirm: 'Freies Gefecht', mOpts: 'Optionen', langTitle: 'Sprache'
     },
     en: {
       sub: 'Real-time strategy about sectors, flags and factories',
@@ -138,7 +139,7 @@
       helpText: [
         '<b>Goal:</b> Send a robot through the enemy fort\'s gate, destroy the fort, or wipe out all enemy robots and crewed vehicles. The same goes for you.',
         '<b>Sectors:</b> Touch a flag with any unit to own the sector with its factory or workshop. The more sectors you hold, the faster your factories build. Damaged factories build slower.',
-        '<b>Squads:</b> Robots leave the factory as a squad and are selected together.',
+        '<b>Squads:</b> Robots leave the factory as a squad. One click selects the whole squad, a second click on a member selects just that robot, Shift+click adds or removes single units. Sending only part of a squad makes it a squad of its own.',
         '<b>Crews:</b> Vehicles and guns need a robot. Crew an empty (grey) vehicle or gun by sending a robot to it. Snipers can take out crews.',
         '<b>Personnel carrier:</b> Send robots onto your carrier – up to 6 climb in. Press U or the "Unload" button to drop them off.',
         '<b>Crane:</b> Repairs your damaged buildings and rebuilds destroyed bridges – select the crane and click the building or the bridge site.',
@@ -169,7 +170,8 @@
       enemy: 'Enemy', choose: 'Choose production', cancel: 'Halt',
       zTitle: 'Original Z (optional)', zPick: 'Choose Z folder…', zForget: 'Remove', zLoading: 'Reading files…',
       zHint: 'Do you own the original game Z (e.g. from GOG)? Pick its installation folder to play the 20 original maps with their terrain graphics. The files are only read and stored in your browser, nothing is uploaded.',
-      zNone: 'No Z maps found in that folder.', zLoaded: 'Original maps loaded:'
+      zNone: 'No Z maps found in that folder.', zLoaded: 'Original maps loaded:',
+      mPlay: 'New Game', mOrig: 'Original Maps', mSkirm: 'Skirmish', mOpts: 'Options', langTitle: 'Language'
     }
   };
 })();

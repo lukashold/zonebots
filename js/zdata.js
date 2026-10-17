@@ -40,7 +40,7 @@
   const str = (d, o, n) => { let s = ''; for (let i = 0; i < n && d[o + i]; i++) s += String.fromCharCode(d[o + i]); return s; };
 
   // ---------- reading the folder ----------
-  const NEED = /^(level\d\d\.map|build\d\d\.dat|object\d\d\.dat|cpuplr\d\d\.dat|bridge\d\d\.dat|[a-z]+\.pal|[a-z]+\.blk|levels\.dat|sprites\.rsc)$/i;
+  const NEED = /^(level\d\d\.map|build\d\d\.dat|object\d\d\.dat|cpuplr\d\d\.dat|bridge\d\d\.dat|[a-z]+\.pal|[a-z]+\.blk|levels\.dat|sprites\.rsc|background\.png|boxcentrewide\.png)$/i;
   Z.wanted = name => NEED.test(name);
   // files: { lowercased name: Uint8Array }
   Z.use = function (files) {
@@ -59,6 +59,12 @@
     return Z.levels.length;
   };
   Z.ready = () => !!(Z.levels && Z.levels.length);
+  // a picture from the player's copy (menu background, panel plate) as an object URL
+  const urls = {};
+  Z.image = function (name) {
+    if (!Z.files || !Z.files[name] || typeof Blob === 'undefined') return null;
+    return urls[name] || (urls[name] = URL.createObjectURL(new Blob([Z.files[name]], { type: 'image/png' })));
+  };
 
   // keep the picked files in IndexedDB so the folder does not have to be picked every time
   const DB = 'zonebots-z', STORE = 'files';

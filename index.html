@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zonebots</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Audiowide&family=VT323&display=swap">
 <style>
   :root {
     --bg: #0d0f12; --steel: #4a5059; --steel-hi: #7b838e; --steel-lo: #23272d; --well: #101317;
@@ -68,7 +68,30 @@
 
   /* ---------- menus ---------- */
   .screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 16px;
-    background: radial-gradient(ellipse at 50% 35%, #3a2a1a 0%, #120d09 75%); }
+    background: radial-gradient(ellipse at 62% 30%, rgba(255, 214, 120, 0.85) 0%, rgba(214, 120, 40, 0.55) 18%, rgba(90, 52, 26, 0.6) 42%, transparent 70%),
+      radial-gradient(ellipse at 20% 85%, rgba(160, 130, 90, 0.35) 0%, transparent 55%),
+      linear-gradient(180deg, #4a3a2a 0%, #2a2016 60%, #17110b 100%);
+    background-size: cover; background-position: center; }
+  /* menu like the original: big yellow chrome words over a battle scene, pages on a plate with warning stripes */
+  .zmenu { flex-direction: column; }
+  .mtitle { font: 64px/1 "Audiowide", var(--font); letter-spacing: 4px; margin: 0 0 18px; text-align: center;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffe25a 35%, #e3a400 60%, #fff3a0 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #2a1a00) drop-shadow(0 0 6px rgba(255, 200, 40, 0.5)); }
+  .mlist { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .mitem { font: 38px/1.15 "Audiowide", var(--font); background: none; border: none; padding: 0 4px; cursor: pointer; text-shadow: none;
+    background-image: linear-gradient(180deg, #fff6c0 0%, #ffd400 45%, #b37a00 75%, #ffe680 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #3b2400); }
+  .mitem:hover:not(:disabled), .mitem:active:not(:disabled), .mitem:focus-visible { border: none; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(180deg, #ffffff 0%, #fff27a 45%, #ffcc00 75%, #ffffff 100%); filter: drop-shadow(3px 3px 0 #3b2400) drop-shadow(0 0 8px #ffe000); }
+  .mitem:disabled { opacity: 0.4; }
+  .box { position: relative; padding: 22px 22px 24px; color: #efe7d2;
+    background: radial-gradient(ellipse at 50% 45%, rgba(70, 50, 34, 0.9), rgba(52, 46, 42, 0.96) 70%), #3c3833; background-size: 100% 100%;
+    border: 2px solid #15120f; box-shadow: 0 0 0 1px #6b6359 inset, 6px 8px 0 rgba(0, 0, 0, 0.55); }
+  .box::before, .box::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background: repeating-linear-gradient(-45deg, #d9b21c 0 10px, #1b1712 10px 20px); opacity: 0.85; }
+  .box::before { top: 4px; } .box::after { bottom: 4px; }
+  .box.zskin { background-color: transparent; }
+  .box.zskin::before, .box.zskin::after { display: none; }
+  .mpanel { width: min(780px, 100%); max-height: 100%; overflow: auto; }
+  .mback { margin-top: 14px; }
   .overlay { background: rgba(5, 6, 8, 0.72); }
   .card { width: min(760px, 100%); padding: 20px 22px; max-height: 100%; overflow: auto; }
   .card.small { width: min(420px, 100%); text-align: center; }
@@ -126,13 +149,31 @@
   <div id="miniPanel" class="steel hidden"><canvas id="mini"></canvas></div>
 </div>
 
-<div id="menu" class="screen">
-  <div class="card steel">
-    <h1><b>ZONE</b><i>BOTS</i></h1>
-    <div class="tag" id="tagline"></div>
-    <h4><span id="campTitle"></span><span id="diffBtns"></span></h4>
+<div id="menu" class="screen zmenu">
+  <div id="mMain">
+    <div class="mtitle">ZONEBOTS</div>
+    <div class="mlist">
+      <button class="mitem" data-go="mPlay" id="miPlay"></button>
+      <button class="mitem" data-go="mOrig" id="miOrig"></button>
+      <button class="mitem" data-go="mSkirm" id="miSkirm"></button>
+      <button class="mitem" data-go="mOpts" id="miOpts"></button>
+      <button class="mitem" id="btnHelp"></button>
+    </div>
+    <div class="tag" id="tagline" style="text-align:center;margin-top:18px"></div>
+  </div>
+  <div id="mPlay" class="mpanel box hidden">
+    <h4><span id="campTitle"></span></h4>
     <span id="diffLabel" class="hidden"></span>
     <div id="worlds"></div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mOrig" class="mpanel box hidden">
+    <h4><span id="zTitle"></span><span id="zBtns"><label class="btn" id="zPickLabel"><input type="file" id="zPick" webkitdirectory directory multiple hidden><span id="zPickText"></span></label><button id="zForget" class="hidden"></button></span></h4>
+    <div id="zHint" class="tag"></div>
+    <div id="zLevels" class="zl"></div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mSkirm" class="mpanel box hidden">
     <h4><span id="skTitle"></span></h4>
     <div class="sk">
       <label><span></span><select id="skSize"></select></label>
@@ -142,19 +183,18 @@
       <button id="btnSeed" title="Random">⚄</button>
       <button id="btnSkirmish" class="primary"></button>
     </div>
-    <h4><span id="zTitle"></span><span id="zBtns"><label class="btn" id="zPickLabel"><input type="file" id="zPick" webkitdirectory directory multiple hidden><span id="zPickText"></span></label><button id="zForget" class="hidden"></button></span></h4>
-    <div id="zHint" class="tag"></div>
-    <div id="zLevels" class="zl"></div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mOpts" class="mpanel box hidden">
+    <h4><span id="optDiffTitle"></span><span id="diffBtns"></span></h4>
     <h4><span id="ctrlTitle"></span><span id="ctrlBtns"></span></h4>
-    <div class="row">
-      <button id="btnHelp"></button>
-      <button id="btnLang"></button>
-    </div>
+    <h4><span id="langTitle"></span><button id="btnLang"></button></h4>
+    <button class="mback" data-go="mMain"></button>
   </div>
 </div>
 
 <div id="help" class="screen overlay hidden">
-  <div class="card steel">
+  <div class="card box">
     <h2 id="helpTitle"></h2>
     <div id="helpBody"></div>
     <div class="row center"><button class="primary" id="btnHelpBack"></button></div>
@@ -162,7 +202,7 @@
 </div>
 
 <div id="pause" class="screen overlay hidden">
-  <div class="card small steel">
+  <div class="card small box">
     <h2 id="pauseTitle"></h2>
     <div class="row center">
       <button class="primary" id="btnResume"></button>
@@ -174,7 +214,7 @@
 </div>
 
 <div id="end" class="screen overlay hidden">
-  <div class="card small steel">
+  <div class="card small box">
     <h2 id="endTitle"></h2>
     <div id="endSub" class="tag"></div>
     <div class="stats" id="endStats"></div>

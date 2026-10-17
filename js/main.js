@@ -68,11 +68,23 @@
   const selUnits = () => G.units.filter(u => u.sel && !u.dead);
   const mineSel = () => selUnits().filter(u => u.team === 0);
   function clearSel() { for (const u of G.units) u.sel = false; ui.selB = null; }
+  // first click: the whole squad; clicking a member of the selected squad again: just that robot
   function selectUnit(u, add) {
-    if (!add) clearSel();
-    const on = !(add && u.sel);
-    for (const v of ZG.squadOf(G, u)) v.sel = on;
+    const squad = ZG.squadOf(G, u), sel = mineSel();
+    const wholeSquad = squad.length > 1 && u.sel && sel.length === squad.length && squad.every(v => v.sel);
+    if (add) { const on = !u.sel; u.sel = on; ui.selB = null; return; }
+    clearSel();
+    if (wholeSquad) u.sel = true; else for (const v of squad) v.sel = true;
     ui.selB = null;
+  }
+  // units sent away from their squad form a squad of their own
+  function splitSquads(us) {
+    const by = {};
+    for (const u of us) if (u.squad) (by[u.squad] = by[u.squad] || []).push(u);
+    for (const k in by) {
+      const part = by[k];
+      if (part.length < ZG.squadOf(G, part[0]).length) { const id = G.nid++; for (const u of part) u.squad = id; }
+    }
   }
   function unitAt(p, pred) {
     let best = null, bd = 1e9;
@@ -99,6 +111,7 @@
   function order(p, attackMode) {
     const us = mineSel();
     if (!us.length) return false;
+    splitSquads(us);
     const robots = us.some(u => u.def.cls === 'robot'), cranes = us.filter(u => u.def.crane);
     const enemy = unitAt(p, u => u.team === 1);
     const apc = unitAt(p, u => u.team === 0 && u.def.cargo && !u.sel);
@@ -177,7 +190,7 @@
     const hit = G.units.filter(u => u.team === 0 && u.def.sp && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
     if (!hit.length) return;
     if (!d.shift) clearSel();
-    for (const u of hit) for (const v of ZG.squadOf(G, u)) v.sel = true;
+    for (const u of hit) u.sel = true;
     ui.selB = null;
   });
   cv.addEventListener('wheel', function (e) {
@@ -428,7 +441,10 @@
     const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0);
     centerOn(f.cx, f.cy + 40);
   }
+  function showPanel(id) { for (const p of ['mMain', 'mPlay', 'mOrig', 'mSkirm', 'mOpts']) $(p).classList.toggle('hidden', p !== id); }
+  for (const b of document.querySelectorAll('[data-go]')) b.addEventListener('click', () => showPanel(b.dataset.go));
   function showMenu() {
+    showPanel('mMain');
     G = null; $('hud').classList.add('hidden');
     for (const id of ['end', 'pause', 'help']) $(id).classList.add('hidden');
     $('menu').classList.remove('hidden');
@@ -437,6 +453,13 @@
   function buildMenu() {
     L = ZG.TEXT[lang]; document.documentElement.lang = lang;
     $('tagline').textContent = L.sub;
+    $('miPlay').textContent = L.mPlay; $('miOrig').textContent = L.mOrig; $('miSkirm').textContent = L.mSkirm; $('miOpts').textContent = L.mOpts;
+    $('optDiffTitle').textContent = L.diffLabel; $('langTitle').textContent = L.langTitle;
+    for (const b of document.querySelectorAll('.mback')) b.textContent = L.back;
+    // with the player's own Z files the menu uses the original background and panel plate
+    const bg = ZG.Z.image('background.png'), plate = ZG.Z.image('boxcentrewide.png');
+    for (const el of document.querySelectorAll('.screen')) el.style.backgroundImage = bg ? 'url(' + bg + ')' : '';
+    for (const el of document.querySelectorAll('.box')) { el.classList.toggle('zskin', !!plate); el.style.backgroundImage = plate ? 'url(' + plate + ')' : ''; }
     $('btnHelp').textContent = L.help; $('btnLang').textContent = L.lang; $('helpTitle').textContent = L.help;
     $('btnHelpBack').textContent = L.back; $('helpBody').innerHTML = L.helpText.map(t => '<p>' + t + '</p>').join('');
     $('pauseTitle').textContent = L.paused; $('btnResume').textContent = L.resume; $('btnRestart').textContent = L.retry;
@@ -563,7 +586,7 @@
   resize(); buildMenu(); requestAnimationFrame(frame);
   // ?z=<folder url>: load the original Z files from a local server (see tools/zplay.py)
   async function loadZFrom(base) {
-    const names = ['levels.dat', 'en.lproj/sprites.rsc'];
+    const names = ['levels.dat', 'en.lproj/sprites.rsc', 'PNG/Background.png', 'PNG/BoxCentreWide.png'];
     for (let i = 1; i <= 20; i++) { const n = String(i).padStart(2, '0'); names.push('LEVEL' + n + '.MAP', 'BUILD' + n + '.DAT', 'OBJECT' + n + '.DAT', 'CPUPLR' + n + '.DAT', 'BRIDGE' + n + '.DAT'); }
     for (const w of ['DESERT', 'VOLCAN', 'ARCTIC', 'JUNGLE', 'CITY']) names.push(w + '.PAL', w + '.BLK');
     $('zHint').textContent = L.zLoading;
