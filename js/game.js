@@ -11,6 +11,8 @@
   // chance that a sniper hit kills the crew of a vehicle or gun
   const SNIPE = { jeep: 0.3, crane: 0.3, apc: 0.15, light: 0.15, launcher: 0.15, medium: 0.08, heavy: 0.04, gatling: 0.2, cannon: 0.2, howitzer: 0.2, mturret: 0.2 };
   const EXPLOSIVE = { shell: 1, rocket: 1, missile: 1 };
+  // idle units go for enemies this far beyond their weapon range, and give up the chase twice as far from where they stood
+  const SIGHT = 150;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
   ZG.newGame = function (idx, opt) {
@@ -364,7 +366,11 @@
     if (o) {
       if (o.k === 'attack') {
         const v = o.u;
-        if (v.dead || v.team === u.team || v.team < 0) { u.order = null; u.path = null; }
+        const home = o.auto ? { x: o.hx, y: o.hy } : null;
+        if (v.dead || v.team === u.team || v.team < 0 || (home && Math.hypot(v.x - home.x, v.y - home.y) > d.range + SIGHT * 2)) {
+          u.order = null; u.path = null;
+          if (home && Math.hypot(u.x - home.x, u.y - home.y) > 40) { const p = setPath(G, u, home.x, home.y); if (p) u.order = { k: 'move', x: p.x, y: p.y }; }
+        }
         else {
           const dd = dist(u, v);
           if (dd <= d.range * 0.92 && dd >= (d.minRange || 0)) { hold = true; u.path = null; u.tgt = v; }
@@ -442,6 +448,11 @@
         u.scan = 0.3;
         const ov = u.order && u.order.k === 'attack' ? u.order.u : null;
         u.tgt = ov && dist(u, ov) <= d.range && dist(u, ov) >= (d.minRange || 0) ? ov : nearestEnemy(G, u, d.range, d.minRange);
+        // standing units defend themselves: they go for enemies that come into sight
+        if (!u.tgt && !u.order && d.sp && u.team >= 0 && !u.cargo) {
+          const v = nearestEnemy(G, u, d.range + SIGHT, d.minRange);
+          if (v) u.order = { k: 'attack', u: v, rp: 0, auto: true, hx: u.x, hy: u.y };
+        }
       }
       if (u.tgt) {
         u.tang = Math.atan2(u.tgt.y - u.y, u.tgt.x - u.x);

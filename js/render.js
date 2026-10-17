@@ -386,6 +386,34 @@
   }
 
   ZG.buildingIcon = b => buildingSprite(b);
+
+  // a 3x5 pixel font for the factory clocks
+  const DIGITS = {
+    0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001',
+    5: '111100111001111', 6: '111100111101111', 7: '111001001010010', 8: '111101111101111', 9: '111101111001111', ':': '000010000010000'
+  };
+  function pixText(c, s, x, y, col) {
+    for (const ch of s) {
+      const g = DIGITS[ch];
+      if (g) for (let i = 0; i < 15; i++) if (g[i] === '1') { c.fillStyle = '#000'; c.fillRect(x + i % 3 + 1, y + (i / 3 | 0) + 1, 1, 1); c.fillStyle = col; c.fillRect(x + i % 3, y + (i / 3 | 0), 1, 1); }
+      x += ch === ':' ? 3 : 4;
+    }
+  }
+  // green symbols for what a factory is making: robot, vehicle or gun
+  const SYM = {
+    robot: ['.ggg.', 'g.g.g', 'ggggg', '.g.g.', 'g...g'],
+    vehicle: ['..g..', 'ggggg', 'g.g.g', 'ggggg', 'g...g'],
+    gun: ['..g..', '..g..', '.ggg.', 'ggggg', 'g.g.g']
+  };
+  function prodBadge(c, b, G) {
+    const d = ZG.UNITS[b.prod], left = Math.max(0, Math.ceil((1 - b.progress) * d.time / (ZG.prodRate(G, b.team) * (0.4 + 0.6 * b.hp / b.maxhp))));
+    const t = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+    const x = b.tx * TP + 3, y = (b.ty + b.h) * TP - 11, w = 9 + t.length * 4;
+    c.fillStyle = 'rgba(0,0,0,0.65)'; c.fillRect(x - 1, y - 1, w, 8);
+    const sym = SYM[d.cls] || SYM.robot;
+    for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) if (sym[j][i] === 'g') { c.fillStyle = '#39e83a'; c.fillRect(x + i, y + j + 1, 1, 1); }
+    pixText(c, t, x + 7, y + 1, '#ffe14a');
+  }
   function rockSprite(th) {
     return cached('rock' + th.key, function () {
       const c = canvas(TP, TP), x = c.getContext('2d'), C = themeColors(th);
@@ -530,6 +558,7 @@
         if (b.dead && (time * 5 + b.id) % 3 < 1) { c.fillStyle = '#ff6a1c'; c.fillRect(b.tx * TP + 8 + (b.id * 7) % 20, b.ty * TP + 6, 2, 2); }
         if (ui.selB === b) brackets(c, b.tx * TP - 2, b.ty * TP - LIFT - 2, b.w * TP + 4, b.h * TP + LIFT + 4, '#fff');
         if (!b.dead && b.team >= 0 && (ui.selB === b || b.hp < b.maxhp)) bar(c, b.tx * TP + 4, b.ty * TP - LIFT - 4, b.w * TP - 8, b.hp / b.maxhp);
+        if (!b.dead && b.team === 0 && b.prod) prodBadge(c, b, G);
         if (!b.dead && b.team >= 0 && b.prod && !zs) {
           const x0 = b.tx * TP + 2, y0 = (b.ty + b.h) * TP + 2, w = b.w * TP - 4;
           c.fillStyle = '#000'; c.fillRect(x0, y0, w, 2); c.fillStyle = '#ffd23a'; c.fillRect(x0, y0, Math.round(w * b.progress), 2);
