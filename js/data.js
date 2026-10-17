@@ -3,7 +3,7 @@
   const ZG = globalThis.ZG = globalThis.ZG || {};
 
   ZG.TILE = 32;
-  ZG.T = { GROUND: 0, ROAD: 1, ROCK: 2, WATER: 3, ROUGH: 4, BRIDGE: 5 };
+  ZG.T = { GROUND: 0, ROAD: 1, ROCK: 2, WATER: 3, ROUGH: 4, BRIDGE: 5, BOULDER: 6 };
 
   // deterministic PRNG (mulberry32)
   ZG.rng = function (seed) {
@@ -30,9 +30,12 @@
     light:    { cls: 'vehicle', tech: 2, time: 50,  n: 1, hp: 260, sp: 88,  range: 165, dmg: 32, rl: 1.5,  w: 'shell',   r: 14, armor: 0.6, splash: 22 },
     medium:   { cls: 'vehicle', tech: 3, time: 72,  n: 1, hp: 420, sp: 68,  range: 185, dmg: 48, rl: 1.7,  w: 'shell',   r: 15, armor: 0.7, splash: 26 },
     heavy:    { cls: 'vehicle', tech: 4, time: 100, n: 1, hp: 680, sp: 48,  range: 205, dmg: 75, rl: 2.0,  w: 'shell',   r: 17, armor: 0.8, splash: 30 },
-    launcher: { cls: 'vehicle', tech: 4, time: 90,  n: 1, hp: 200, sp: 58,  range: 310, dmg: 85, rl: 3.6,  w: 'missile', r: 14, armor: 0.4, splash: 38 },
+    launcher: { cls: 'vehicle', tech: 4, time: 90,  n: 1, hp: 200, sp: 58,  range: 310, dmg: 85, rl: 3.6,  w: 'missile', r: 14, armor: 0.4, splash: 38, minRange: 70 },
+    apc:      { cls: 'vehicle', tech: 2, time: 45,  n: 1, hp: 300, sp: 82,  range: 0,   dmg: 0,  rl: 1,    w: null,      r: 15, armor: 0.6, cargo: 6 },
+    crane:    { cls: 'vehicle', tech: 1, time: 40,  n: 1, hp: 200, sp: 70,  range: 0,   dmg: 0,  rl: 1,    w: null,      r: 14, armor: 0.5, crane: true },
     gatling:  { cls: 'gun',     tech: 1, time: 35,  n: 1, hp: 260, sp: 0,   range: 175, dmg: 5,  rl: 0.14, w: 'bullet',  r: 13, armor: 0.5 },
     cannon:   { cls: 'gun',     tech: 2, time: 55,  n: 1, hp: 380, sp: 0,   range: 215, dmg: 42, rl: 1.6,  w: 'shell',   r: 14, armor: 0.6, splash: 24 },
+    howitzer: { cls: 'gun',     tech: 3, time: 70,  n: 1, hp: 340, sp: 0,   range: 360, dmg: 60, rl: 3.0,  w: 'shell',   r: 14, armor: 0.6, splash: 34, minRange: 100 },
     mturret:  { cls: 'gun',     tech: 4, time: 80,  n: 1, hp: 320, sp: 0,   range: 300, dmg: 80, rl: 3.2,  w: 'missile', r: 14, armor: 0.5, splash: 36 }
   };
 
@@ -93,18 +96,21 @@
       worlds: ['Staubbecken', 'Glutfelder', 'Frostschelf', 'Grünes Labyrinth', 'Eisenstadt'],
       level: 'Level', locked: 'Gesperrt', help: 'Anleitung', back: 'Zurück', lang: 'English',
       helpText: [
-        '<b>Ziel:</b> Zerstöre das gegnerische Fort. Beschieße es oder schicke Roboter durch das Tor – jeder Saboteur richtet schweren Schaden an.',
-        '<b>Sektoren:</b> Die Karte ist in Sektoren geteilt. Berührt eine Einheit die Flagge, gehört dir der Sektor samt Fabrik, Werkstatt und Geschützen. Je mehr Sektoren du hältst, desto schneller produzieren deine Fabriken.',
-        '<b>Fabriken:</b> Fabrik anklicken und wählen, was gebaut wird. Die Sterne zeigen die Technikstufe.',
-        '<b>Herrenlose Fahrzeuge:</b> Roboter mit Rechtsklick hinschicken, um sie zu bemannen.',
-        '<b>Granatenkisten:</b> Roboter, die eine Kiste einsammeln, werfen Granaten auf Fahrzeuge, Geschütze und das Fort.',
-        '<b>Sammelpunkt:</b> Fabrik auswählen und Rechtsklick auf die Karte – neue Einheiten laufen dorthin.',
-        '<b>Touch:</b> Tippen = auswählen bzw. Befehl geben · Ziehen = Karte verschieben · zwei Finger = Zoom · Knöpfe unten für Alle/Abwählen/Stopp.',
-        '<b>Steuerung:</b> Linksklick / Rahmen ziehen = auswählen · Rechtsklick = bewegen, angreifen, einsteigen · Strg+Rechtsklick oder F = Angriffsbewegung · Doppelklick = alle gleichen Typs · Strg+A = alle · Strg+1–9 / 1–9 = Gruppen · Pfeile/WASD = scrollen · Mausrad = Zoom · Leertaste = zum Fort · X = Stopp · P = Pause'
+        '<b>Ziel:</b> Schicke einen Roboter durch das Tor des gegnerischen Forts, zerstöre das Fort oder vernichte alle Roboter und bemannten Fahrzeuge des Gegners. Umgekehrt gilt dasselbe für dich.',
+        '<b>Sektoren:</b> Berührt eine Einheit die Flagge, gehört dir der Sektor samt Fabrik oder Werkstatt. Je mehr Sektoren du hältst, desto schneller bauen deine Fabriken. Beschädigte Fabriken bauen langsamer.',
+        '<b>Trupps:</b> Roboter kommen als Trupp aus der Fabrik und werden gemeinsam ausgewählt.',
+        '<b>Besatzung:</b> Fahrzeuge und Geschütze brauchen einen Roboter. Leere (graue) Fahrzeuge und Geschütze bemannst du, indem du einen Roboter hinschickst. Scharfschützen können Besatzungen ausschalten.',
+        '<b>Transporter:</b> Roboter auf den eigenen Transporter schicken – bis zu 6 steigen ein. Mit U oder dem Knopf „Aussteigen“ wieder absetzen.',
+        '<b>Kran:</b> Repariert beschädigte eigene Gebäude und baut zerstörte Brücken wieder auf – Kran auswählen und auf das Gebäude oder die Brückenstelle klicken.',
+        '<b>Brücken und Felsbrocken:</b> Lassen sich mit Granaten, Raketen und Granaten-Geschossen zerstören. Angriffsbefehl (F) auf die Brücke bzw. den Felsen.',
+        '<b>Granatenkisten:</b> Roboter, die eine Kiste einsammeln, werfen Granaten auf Fahrzeuge, Geschütze und Gebäude.',
+        '<b>Steuerung klassisch (wie Z):</b> Linksklick auf eigene Einheit = auswählen · Linksklick woandershin = Befehl · Rechtsklick = Auswahl aufheben · Rahmen ziehen = mehrere auswählen.',
+        '<b>Steuerung modern:</b> Linksklick / Rahmen = auswählen · Rechtsklick = Befehl.',
+        '<b>Tasten:</b> F = Angriffsbefehl · X = Stopp · U = Aussteigen · Strg+1–9 / 1–9 = Gruppen · Strg+A = alle · Pfeile/WASD = scrollen · Mausrad = Zoom · Leertaste = zum Fort · P = Pause. Touch: Tippen = auswählen/Befehl, Ziehen = scrollen, zwei Finger = Zoom.'
       ],
       units: { grunt: 'Rekrut', psycho: 'Schnellfeuer', tough: 'Raketenschütze', sniper: 'Scharfschütze', pyro: 'Flammenwerfer', laser: 'Laserschütze',
         jeep: 'Jeep', light: 'Leichter Panzer', medium: 'Mittlerer Panzer', heavy: 'Schwerer Panzer', launcher: 'Raketenwerfer',
-        gatling: 'MG-Geschütz', cannon: 'Kanone', mturret: 'Raketenturm' },
+        gatling: 'MG-Geschütz', cannon: 'Kanone', mturret: 'Raketenturm', apc: 'Transporter', crane: 'Kran', howitzer: 'Haubitze' },
       b: { fort: 'Fort', robot: 'Roboterfabrik', vehicle: 'Fahrzeugfabrik', repair: 'Werkstatt' },
       builds: 'baut', tech: 'Technik', sectors: 'Sektoren', selected: 'ausgewählt',
       captured: 'Sektor erobert', lost: 'Sektor verloren', ready: 'fertig', alert: 'Dein Fort wird angegriffen!',
@@ -115,25 +121,33 @@
       diff: ['Leicht', 'Normal', 'Schwer'], diffLabel: 'Schwierigkeit', skirmish: 'Freies Gefecht', campaign: 'Kampagne',
       size: 'Größe', sizes: ['Klein', 'Mittel', 'Groß', 'Riesig'], world: 'Welt', strength: 'Technik', startSk: 'Gefecht starten',
       crate: 'Granaten aufgenommen', best: 'Bestzeit', newBest: 'Neue Bestzeit!', left: 'noch', rally: 'Sammelpunkt gesetzt',
-      selAll: 'Alle', selNone: 'Abwählen', stop: 'Stopp', amoveBtn: 'Angriff', seedLabel: 'Karten-Nr.'
+      selAll: 'Alle', selNone: 'Abwählen', stop: 'Stopp', amoveBtn: 'Angriff', seedLabel: 'Karten-Nr.',
+      unload: 'Aussteigen', ctrlTitle: 'Steuerung', ctrl: ['Klassisch (wie Z)', 'Modern'], squad: 'Trupp', empty: 'unbemannt', aboard: 'an Bord',
+      bridgeDown: 'Brücke zerstört', bridgeUp: 'Brücke wieder aufgebaut', ourBldDead: 'Eigenes Gebäude zerstört', bldDead: 'Gegnerisches Gebäude zerstört',
+      stormed: 'Fort erstürmt!', boarded: 'Eingestiegen', unloaded: 'Ausgestiegen', fixed: 'Reparatur fertig', rockGone: 'Felsbrocken gesprengt',
+      craneHint: 'Gebäude oder zerstörte Brücke anklicken', apcHint: 'Roboter hierher schicken zum Einsteigen', gunHint: 'Feste Stellung', destroyed: 'zerstört', neutral: 'neutral',
+      enemy: 'Gegner', choose: 'Bauauftrag wählen'
     },
     en: {
       sub: 'Real-time strategy about sectors, flags and factories',
       worlds: ['Dust Basin', 'Ember Fields', 'Frost Shelf', 'Green Maze', 'Iron City'],
       level: 'Level', locked: 'Locked', help: 'How to play', back: 'Back', lang: 'Deutsch',
       helpText: [
-        '<b>Goal:</b> Destroy the enemy fort. Shell it or send robots through the gate – every saboteur does heavy damage.',
-        '<b>Sectors:</b> The map is split into sectors. Touch a flag with any unit to own the sector with its factory, workshop and guns. The more sectors you hold, the faster your factories build.',
-        '<b>Factories:</b> Click a factory and choose what it builds. Stars show its tech level.',
-        '<b>Abandoned vehicles:</b> Right-click them with a robot selected to crew them.',
-        '<b>Grenade crates:</b> Robots that collect a crate throw grenades at vehicles, guns and the fort.',
-        '<b>Rally point:</b> Select a factory and right-click the map – new units walk there.',
-        '<b>Touch:</b> Tap = select or give an order · Drag = scroll · two fingers = zoom · buttons at the bottom for All/Deselect/Stop.',
-        '<b>Controls:</b> Left click / drag box = select · Right click = move, attack, board · Ctrl+right click or F = attack-move · Double click = all of that type · Ctrl+A = all · Ctrl+1–9 / 1–9 = groups · Arrows/WASD = scroll · Wheel = zoom · Space = jump to fort · X = stop · P = pause'
+        '<b>Goal:</b> Send a robot through the enemy fort\'s gate, destroy the fort, or wipe out all enemy robots and crewed vehicles. The same goes for you.',
+        '<b>Sectors:</b> Touch a flag with any unit to own the sector with its factory or workshop. The more sectors you hold, the faster your factories build. Damaged factories build slower.',
+        '<b>Squads:</b> Robots leave the factory as a squad and are selected together.',
+        '<b>Crews:</b> Vehicles and guns need a robot. Crew an empty (grey) vehicle or gun by sending a robot to it. Snipers can take out crews.',
+        '<b>Personnel carrier:</b> Send robots onto your carrier – up to 6 climb in. Press U or the "Unload" button to drop them off.',
+        '<b>Crane:</b> Repairs your damaged buildings and rebuilds destroyed bridges – select the crane and click the building or the bridge site.',
+        '<b>Bridges and boulders:</b> Can be destroyed with grenades, rockets and shells. Use the attack order (F) on the bridge or boulder.',
+        '<b>Grenade crates:</b> Robots that collect a crate throw grenades at vehicles, guns and buildings.',
+        '<b>Classic controls (like Z):</b> Left click own unit = select · left click elsewhere = order · right click = deselect · drag = select several.',
+        '<b>Modern controls:</b> Left click / drag = select · right click = order.',
+        '<b>Keys:</b> F = attack order · X = stop · U = unload · Ctrl+1–9 / 1–9 = groups · Ctrl+A = all · Arrows/WASD = scroll · Wheel = zoom · Space = jump to fort · P = pause. Touch: tap = select/order, drag = scroll, two fingers = zoom.'
       ],
       units: { grunt: 'Grunt', psycho: 'Rapid Gunner', tough: 'Rocketeer', sniper: 'Marksman', pyro: 'Flamer', laser: 'Laser Trooper',
         jeep: 'Jeep', light: 'Light Tank', medium: 'Medium Tank', heavy: 'Heavy Tank', launcher: 'Missile Truck',
-        gatling: 'MG Turret', cannon: 'Cannon', mturret: 'Missile Turret' },
+        gatling: 'MG Turret', cannon: 'Cannon', mturret: 'Missile Turret', apc: 'Personnel Carrier', crane: 'Crane', howitzer: 'Howitzer' },
       b: { fort: 'Fort', robot: 'Robot Factory', vehicle: 'Vehicle Factory', repair: 'Workshop' },
       builds: 'builds', tech: 'Tech', sectors: 'Sectors', selected: 'selected',
       captured: 'Sector captured', lost: 'Sector lost', ready: 'ready', alert: 'Your fort is under attack!',
@@ -144,7 +158,12 @@
       diff: ['Easy', 'Normal', 'Hard'], diffLabel: 'Difficulty', skirmish: 'Skirmish', campaign: 'Campaign',
       size: 'Size', sizes: ['Small', 'Medium', 'Large', 'Huge'], world: 'World', strength: 'Tech', startSk: 'Start skirmish',
       crate: 'Grenades picked up', best: 'Best time', newBest: 'New best time!', left: 'left', rally: 'Rally point set',
-      selAll: 'All', selNone: 'Deselect', stop: 'Stop', amoveBtn: 'Attack', seedLabel: 'Map no.'
+      selAll: 'All', selNone: 'Deselect', stop: 'Stop', amoveBtn: 'Attack', seedLabel: 'Map no.',
+      unload: 'Unload', ctrlTitle: 'Controls', ctrl: ['Classic (like Z)', 'Modern'], squad: 'Squad', empty: 'no crew', aboard: 'aboard',
+      bridgeDown: 'Bridge destroyed', bridgeUp: 'Bridge rebuilt', ourBldDead: 'Our building destroyed', bldDead: 'Enemy building destroyed',
+      stormed: 'Fort stormed!', boarded: 'Boarded', unloaded: 'Unloaded', fixed: 'Repair complete', rockGone: 'Boulder blasted',
+      craneHint: 'Click a building or a destroyed bridge', apcHint: 'Send robots here to board', gunHint: 'Fixed emplacement', destroyed: 'destroyed', neutral: 'neutral',
+      enemy: 'Enemy', choose: 'Choose production'
     }
   };
 })();

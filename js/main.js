@@ -1,19 +1,21 @@
-// Zonebots - browser front end: input, HUD, menus, sound, main loop
+// Zonebots - browser front end: input, command bar, menus, sound, main loop
 (function () {
-  const ZG = window.ZG, TS = ZG.TILE, $ = id => document.getElementById(id);
+  const ZG = window.ZG, TS = ZG.TILE, A = ZG.ART, $ = id => document.getElementById(id);
   const cv = $('game'), ctx = cv.getContext('2d'), mini = $('mini'), mctx = mini.getContext('2d');
+  const lo = document.createElement('canvas'), lctx = lo.getContext('2d');
   const store = {
     get(k, d) { try { const v = localStorage.getItem('zonebots.' + k); return v == null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('zonebots.' + k, v); } catch (e) { /* private mode */ } }
   };
   let lang = store.get('lang', (navigator.language || 'en').slice(0, 2) === 'de' ? 'de' : 'en');
   let unlocked = +store.get('unlocked', 0), sound = store.get('sound', '1') === '1', diff = +store.get('diff', 1), skDef = null;
+  let classic = store.get('ctrl', '0') === '0';
   let L = ZG.TEXT[lang];
-  let G = null, R = null, cur = 0, paused = false, speed = 1, zoom = 1, dpr = 1;
+  let G = null, R = null, cur = 0, paused = false, speed = 1, zoom = 2, dpr = 1;
   const cam = { x: 0, y: 0 }, view = { x: 0, y: 0, w: 0, h: 0 };
-  const ui = { selB: null, drag: null, marks: [] };
+  const ui = { selB: null, drag: null, marks: [], rally: null };
   const mouse = { x: 0, y: 0, inside: false }, keys = {}, groups = {};
-  let amove = false, panelSig = '', lastClick = { t: 0, type: null }, miniDrag = false;
+  let mode = null, panelSig = '', lastClick = { t: 0, type: null }, miniDrag = false;
 
   // ---------- sound (synthesised) ----------
   let ac = null, lastShot = 0;
@@ -38,39 +40,55 @@
   }
   const onScreen = e => e.x > view.x - 100 && e.y > view.y - 100 && e.x < view.x + view.w + 100 && e.y < view.y + view.h + 100;
 
-  // ---------- helpers ----------
+  // ---------- view ----------
+  const barH = () => G && !$('hud').classList.contains('hidden') ? $('bar').offsetHeight : 0;
   function resize() {
     dpr = window.devicePixelRatio || 1;
     cv.width = Math.floor(innerWidth * dpr); cv.height = Math.floor(innerHeight * dpr);
     if (G) sizeMini();
   }
   function sizeMini() {
-    const mw = Math.min(210, innerWidth * 0.3), mh = mw * G.map.H / G.map.W;
-    mini.style.width = mw + 'px'; mini.style.height = mh + 'px';
-    mini.width = Math.round(mw * dpr); mini.height = Math.round(mh * dpr);
+    const mh = 106, mw = Math.min(220, Math.round(mh * G.map.W / G.map.H)), h = Math.round(mw * G.map.H / G.map.W);
+    mini.style.width = mw + 'px'; mini.style.height = h + 'px';
+    mini.width = Math.round(mw * dpr); mini.height = Math.round(h * dpr);
   }
+  const scale = () => zoom * dpr; // device pixels per art pixel
   function clampCam() {
-    const S = zoom * dpr, top = 40 / zoom;
-    view.w = cv.width / S; view.h = cv.height / S;
+    const S = scale();
+    view.w = cv.width / S * A; view.h = (cv.height - barH() * dpr) / S * A;
     const mw = G.map.W * TS, mh = G.map.H * TS;
     cam.x = view.w >= mw ? (mw - view.w) / 2 : ZG.clamp(cam.x, 0, mw - view.w);
-    cam.y = view.h - top >= mh ? (mh - view.h - top) / 2 : ZG.clamp(cam.y, -top, mh - view.h);
+    cam.y = view.h >= mh ? (mh - view.h) / 2 : ZG.clamp(cam.y, 0, mh - view.h);
+    cam.x = Math.round(cam.x / A) * A; cam.y = Math.round(cam.y / A) * A;
     view.x = cam.x; view.y = cam.y;
   }
   const centerOn = (x, y) => { cam.x = x - view.w / 2; cam.y = y - view.h / 2; clampCam(); };
-  const world = e => ({ x: e.clientX / zoom + cam.x, y: e.clientY / zoom + cam.y });
+  const world = (cx, cy) => ({ x: cam.x + cx * dpr / scale() * A, y: cam.y + cy * dpr / scale() * A });
+
+  // ---------- selection ----------
   const selUnits = () => G.units.filter(u => u.sel && !u.dead);
+  const mineSel = () => selUnits().filter(u => u.team === 0);
   function clearSel() { for (const u of G.units) u.sel = false; ui.selB = null; }
+  function selectUnit(u, add) {
+    if (!add) clearSel();
+    const on = !(add && u.sel);
+    for (const v of ZG.squadOf(G, u)) v.sel = on;
+    ui.selB = null;
+  }
   function unitAt(p, pred) {
     let best = null, bd = 1e9;
     for (const u of G.units) {
       if (u.dead || !pred(u)) continue;
-      const d = Math.hypot(u.x - p.x, u.y - p.y);
-      if (d < u.def.r + 6 && d < bd) { bd = d; best = u; }
+      const oy = u.def.cls === 'robot' ? -8 : 0, d = Math.hypot(u.x - p.x, u.y + oy - p.y);
+      if (d < u.def.r + 8 && d < bd) { bd = d; best = u; }
     }
     return best;
   }
-  const buildingAt = p => G.map.buildings.find(b => p.x >= b.tx * TS && p.y >= b.ty * TS && p.x < (b.tx + b.w) * TS && p.y < (b.ty + b.h) * TS);
+  const buildingAt = p => G.map.buildings.find(b => p.x >= b.tx * TS && p.y >= b.ty * TS - 20 && p.x < (b.tx + b.w) * TS && p.y < (b.ty + b.h) * TS);
+  function selOnScreen(type) {
+    ui.selB = null;
+    for (const v of G.units) if (v.team === 0 && v.def.sp && (!type || v.t === type) && v.x > view.x && v.y > view.y && v.x < view.x + view.w && v.y < view.y + view.h) v.sel = true;
+  }
   function toast(msg, cls) {
     const d = document.createElement('div'); d.className = 'toast ' + (cls || ''); d.textContent = msg;
     $('toasts').appendChild(d); setTimeout(() => d.remove(), 3200);
@@ -78,39 +96,72 @@
   }
 
   // ---------- orders ----------
-  function order(p, forceAmove) {
-    const us = selUnits().filter(u => u.team === 0);
-    if (!us.length) {
-      const sb = ui.selB;
-      if (sb && sb.team === 0 && !sb.dead && ZG.products(sb).length) { sb.rally = { x: p.x, y: p.y }; ui.marks.push({ x: p.x, y: p.y, t: 0, atk: false }); toast(L.rally); }
-      return;
-    }
-    const enemy = unitAt(p, u => u.team === 1), neutral = unitAt(p, u => u.team < 0 && u.def.sp), b = buildingAt(p);
+  function order(p, attackMode) {
+    const us = mineSel();
+    if (!us.length) return false;
+    const robots = us.some(u => u.def.cls === 'robot'), cranes = us.filter(u => u.def.crane);
+    const enemy = unitAt(p, u => u.team === 1);
+    const apc = unitAt(p, u => u.team === 0 && u.def.cargo && !u.sel);
+    const empty = unitAt(p, u => u.team < 0);
+    const st = ZG.structAt(G, p.x, p.y);
     let atk = true;
     if (enemy) ZG.orderAttack(G, us, enemy);
-    else if (neutral && us.some(u => u.def.cls === 'robot')) { ZG.orderEnter(G, us, neutral); atk = false; }
-    else if (b && b.kind === 'fort' && b.team === 1 && !b.dead) ZG.orderFort(G, us, b);
-    else { atk = forceAmove; ZG.orderMove(G, us, p.x, p.y, forceAmove ? 'amove' : 'move'); }
+    else if (apc && robots) { ZG.orderBoard(G, us, apc); ZG.orderMove(G, us.filter(u => u.def.cls !== 'robot'), apc.x, apc.y); atk = false; }
+    else if (empty && robots) { ZG.orderEnter(G, us, empty); atk = false; }
+    else if (st && st.kind === 'b' && st.ref.team === 1 && !st.ref.dead) ZG.orderStruct(G, us, st);
+    else if (cranes.length && st && ((st.kind === 'b' && st.ref.team === 0 && !st.ref.dead && st.ref.hp < st.ref.maxhp) || (st.kind === 'br' && st.ref.dead))) {
+      ZG.orderRepair(G, cranes, st); ZG.orderMove(G, us.filter(u => !u.def.crane), st.x, st.y); atk = false;
+    } else if (st && (st.kind === 'rock' || (attackMode && st.kind === 'br' && !st.ref.dead))) {
+      ZG.orderStruct(G, us, st); ZG.orderMove(G, us.filter(u => !u.order || u.order.k !== 'hit'), st.x, st.y);
+    } else { atk = attackMode; ZG.orderMove(G, us, p.x, p.y, attackMode ? 'amove' : 'move'); }
     ui.marks.push({ x: p.x, y: p.y, t: 0, atk: atk });
     tone('square', 520, 620, 0.05, 0.04);
+    return true;
+  }
+  function setRally(p) {
+    const b = ui.selB;
+    if (b && b.team === 0 && !b.dead && ZG.products(b).length) { b.rally = { x: p.x, y: p.y }; ui.marks.push({ x: p.x, y: p.y, t: 0, atk: false }); toast(L.rally); }
+  }
+  function setMode(m) {
+    mode = m;
+    $('mode').classList.toggle('hidden', !m);
+    $('mode').textContent = m === 'attack' ? (lang === 'de' ? 'Angriff: Ziel anklicken' : 'Attack: click target') : m === 'rally' ? (lang === 'de' ? 'Sammelpunkt: Ort anklicken' : 'Rally point: click a spot') : '';
+    cv.style.cursor = m ? 'crosshair' : 'default';
+    panelSig = '';
+  }
+  // a plain click on the map (no drag)
+  function click(p, shift) {
+    if (mode === 'attack') { order(p, true); setMode(null); return; }
+    if (mode === 'rally') { setRally(p); setMode(null); return; }
+    const own = unitAt(p, v => v.team === 0 && v.def.sp) || unitAt(p, v => v.team === 0);
+    if (own && !(classic && mineSel().length && own.def.cargo && !own.sel && mineSel().some(u => u.def.cls === 'robot'))) {
+      const now = performance.now();
+      if (now - lastClick.t < 350 && lastClick.type === own.t) selOnScreen(own.t); else selectUnit(own, shift);
+      lastClick = { t: now, type: own.t };
+      return;
+    }
+    if (classic && mineSel().length) { order(p, false); return; }
+    const b = buildingAt(p);
+    if (b) { clearSel(); ui.selB = b; return; }
+    if (!shift) clearSel();
   }
 
-  // ---------- input ----------
+  // ---------- mouse ----------
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('mousedown', function (e) {
     if (!G || paused || G.over) return;
-    const p = world(e);
-    if (e.button === 0) {
-      if (amove) { order(p, true); setAmove(false); return; }
-      ui.drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, sx: e.clientX, sy: e.clientY, shift: e.shiftKey };
-    } else if (e.button === 2) {
-      if (amove) { setAmove(false); return; }
-      order(p, e.ctrlKey || e.altKey || e.metaKey);
+    const p = world(e.clientX, e.clientY);
+    if (e.button === 0) ui.drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, sx: e.clientX, sy: e.clientY, shift: e.shiftKey };
+    else if (e.button === 2) {
+      if (mode) { setMode(null); return; }
+      if (classic) { clearSel(); return; }
+      if (mineSel().length) order(p, e.ctrlKey || e.altKey || e.metaKey);
+      else setRally(p);
     }
   });
   window.addEventListener('mousemove', function (e) {
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true;
-    if (G && ui.drag) { const p = world(e); ui.drag.x1 = p.x; ui.drag.y1 = p.y; }
+    if (G && ui.drag) { const p = world(e.clientX, e.clientY); ui.drag.x1 = p.x; ui.drag.y1 = p.y; }
     if (G && miniDrag) miniTo(e);
   });
   document.addEventListener('mouseleave', () => { mouse.inside = false; });
@@ -119,56 +170,30 @@
     miniDrag = false;
     if (!G || !ui.drag || e.button !== 0) return;
     const d = ui.drag; ui.drag = null;
+    if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) { click({ x: d.x1, y: d.y1 }, d.shift); return; }
+    const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
+    const hit = G.units.filter(u => u.team === 0 && u.def.sp && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
+    if (!hit.length) return;
     if (!d.shift) clearSel();
-    if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) {
-      const p = { x: d.x1, y: d.y1 }, u = unitAt(p, v => v.team === 0);
-      if (u) {
-        const now = performance.now();
-        if (now - lastClick.t < 350 && lastClick.type === u.t) selOnScreen(u.t);
-        else u.sel = !(d.shift && u.sel);
-        lastClick = { t: now, type: u.t }; ui.selB = null;
-      } else {
-        const b = buildingAt(p);
-        if (b && !b.dead) { for (const v of G.units) v.sel = false; ui.selB = b; }
-      }
-    } else {
-      const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
-      let any = false;
-      for (const u of G.units) if (u.team === 0 && u.def.sp && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1) { u.sel = true; any = true; }
-      if (any) ui.selB = null;
-    }
+    for (const u of hit) for (const v of ZG.squadOf(G, u)) v.sel = true;
+    ui.selB = null;
   });
   cv.addEventListener('wheel', function (e) {
     if (!G) return;
     e.preventDefault();
-    const p = world(e), z = ZG.clamp(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.5, 2.5);
-    zoom = z; cam.x = p.x - e.clientX / zoom; cam.y = p.y - e.clientY / zoom; clampCam();
+    const p = world(e.clientX, e.clientY), z = ZG.clamp(zoom + (e.deltaY < 0 ? 1 : -1), 1, 5);
+    if (z === zoom) return;
+    zoom = z; const q = world(e.clientX, e.clientY); cam.x += p.x - q.x; cam.y += p.y - q.y; clampCam();
   }, { passive: false });
 
-  function selOnScreen(type) {
-    ui.selB = null;
-    for (const v of G.units) if (v.team === 0 && v.def.sp && (!type || v.t === type) && v.x > view.x && v.y > view.y && v.x < view.x + view.w && v.y < view.y + view.h) v.sel = true;
-  }
-
-  // touch: tap = select / order, drag = scroll, pinch = zoom
+  // ---------- touch: tap = like a click, drag = scroll, pinch = zoom ----------
   let touch = null;
-  function tap(p) {
-    if (amove) { order(p, true); setAmove(false); return; }
-    const u = unitAt(p, v => v.team === 0 && v.def.sp), b = buildingAt(p), have = selUnits().length > 0;
-    if (u) {
-      const now = performance.now();
-      if (now - lastClick.t < 400 && lastClick.type === u.t) selOnScreen(u.t); else { u.sel = !u.sel; ui.selB = null; }
-      lastClick = { t: now, type: u.t };
-    } else if (b && !b.dead && !have && b !== ui.selB) { clearSel(); ui.selB = b; }
-    else if (have || (ui.selB && ui.selB.team === 0)) order(p, false);
-    else clearSel();
-  }
   cv.addEventListener('touchstart', function (e) {
     if (!G || paused || G.over) return;
     e.preventDefault();
     const t = e.touches;
     if (t.length === 1) touch = { x: t[0].clientX, y: t[0].clientY, sx: t[0].clientX, sy: t[0].clientY, moved: false, pinch: 0 };
-    else if (t.length === 2) touch = { moved: true, pinch: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) };
+    else if (t.length === 2) touch = { moved: true, pinch: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), z: zoom };
   }, { passive: false });
   cv.addEventListener('touchmove', function (e) {
     if (!G || !touch) return;
@@ -176,116 +201,156 @@
     const t = e.touches;
     if (t.length === 2 && touch.pinch) {
       const d = Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), cx = (t[0].clientX + t[1].clientX) / 2, cy = (t[0].clientY + t[1].clientY) / 2;
-      const p = { x: cx / zoom + cam.x, y: cy / zoom + cam.y };
-      zoom = ZG.clamp(zoom * d / touch.pinch, 0.5, 2.5); touch.pinch = d;
-      cam.x = p.x - cx / zoom; cam.y = p.y - cy / zoom; clampCam();
+      const p = world(cx, cy), z = ZG.clamp(Math.round(touch.z * d / touch.pinch), 1, 5);
+      if (z !== zoom) { zoom = z; const q = world(cx, cy); cam.x += p.x - q.x; cam.y += p.y - q.y; clampCam(); }
     } else if (t.length === 1 && !touch.pinch) {
       if (!touch.moved && Math.hypot(t[0].clientX - touch.sx, t[0].clientY - touch.sy) > 10) touch.moved = true;
-      if (touch.moved) { cam.x -= (t[0].clientX - touch.x) / zoom; cam.y -= (t[0].clientY - touch.y) / zoom; clampCam(); }
+      if (touch.moved) { const f = dpr / scale() * A; cam.x -= (t[0].clientX - touch.x) * f; cam.y -= (t[0].clientY - touch.y) * f; clampCam(); }
       touch.x = t[0].clientX; touch.y = t[0].clientY;
     }
   }, { passive: false });
   cv.addEventListener('touchend', function (e) {
     if (!G || !touch || e.touches.length) return;
     e.preventDefault();
-    if (!touch.moved) tap({ x: touch.sx / zoom + cam.x, y: touch.sy / zoom + cam.y });
+    if (!touch.moved) {
+      const was = classic; classic = true; // touch always works like the classic one-button scheme
+      click(world(touch.sx, touch.sy), false);
+      classic = was;
+    }
     touch = null;
   }, { passive: false });
 
-  function miniTo(e) {
-    const r = mini.getBoundingClientRect();
-    centerOn((e.clientX - r.left) / r.width * G.map.W * TS, (e.clientY - r.top) / r.height * G.map.H * TS);
-  }
+  // ---------- minimap ----------
+  function miniPos(e) { const r = mini.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * G.map.W * TS, y: (e.clientY - r.top) / r.height * G.map.H * TS }; }
+  function miniTo(e) { const p = miniPos(e); centerOn(p.x, p.y); }
   mini.addEventListener('mousedown', function (e) {
     if (!G) return;
     e.preventDefault();
-    if (e.button === 2) { const r = mini.getBoundingClientRect(); order({ x: (e.clientX - r.left) / r.width * G.map.W * TS, y: (e.clientY - r.top) / r.height * G.map.H * TS }, e.ctrlKey); }
+    if (e.button === 2 || (classic && e.button === 0 && mineSel().length && e.shiftKey)) order(miniPos(e), e.ctrlKey);
     else { miniDrag = true; miniTo(e); }
   });
   mini.addEventListener('contextmenu', e => e.preventDefault());
 
-  function setAmove(v) { amove = v; $('mode').classList.toggle('hidden', !v); $('mode').textContent = lang === 'de' ? 'Angriffsbewegung: Ziel anklicken' : 'Attack-move: click target'; cv.style.cursor = v ? 'crosshair' : 'default'; }
-
+  // ---------- keys ----------
   window.addEventListener('keydown', function (e) {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (!G || !$('menu').classList.contains('hidden')) return;
-    if (k === 'Escape' || k === 'p') { if (!$('help').classList.contains('hidden')) { $('help').classList.add('hidden'); return; } if (amove) setAmove(false); else if (!G.over) setPause(!paused); return; }
+    if (k === 'Escape' || k === 'p') { if (!$('help').classList.contains('hidden')) { $('help').classList.add('hidden'); return; } if (mode) setMode(null); else if (!G.over) setPause(!paused); return; }
     if (paused || G.over) return;
     if (e.ctrlKey && k === 'a') { e.preventDefault(); clearSel(); for (const u of G.units) if (u.team === 0 && u.def.sp) u.sel = true; return; }
     if (k >= '1' && k <= '9') {
       e.preventDefault();
-      if (e.ctrlKey || e.metaKey) groups[k] = selUnits();
+      if (e.ctrlKey || e.metaKey) groups[k] = mineSel();
       else if (groups[k]) {
         const g = groups[k].filter(u => !u.dead && u.team === 0);
-        if (g.length) { const twice = g.every(u => u.sel) && selUnits().length === g.length; clearSel(); for (const u of g) u.sel = true; if (twice) centerOn(g[0].x, g[0].y); }
+        if (g.length) { const twice = g.every(u => u.sel) && mineSel().length === g.length; clearSel(); for (const u of g) u.sel = true; if (twice) centerOn(g[0].x, g[0].y); }
       }
       return;
     }
     if (e.ctrlKey || e.metaKey) return;
-    if (k === 'f') { if (selUnits().length) setAmove(!amove); return; }
-    if (k === 'x') { ZG.orderStop(G, selUnits().filter(u => u.team === 0)); return; }
-    if (k === ' ') { e.preventDefault(); const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0); centerOn(f.cx, f.cy + 60); return; }
+    if (k === 'f') { if (mineSel().length) setMode(mode === 'attack' ? null : 'attack'); return; }
+    if (k === 'x') { ZG.orderStop(G, mineSel()); return; }
+    if (k === 'u') { ZG.orderUnload(G, mineSel().filter(u => u.cargo)); return; }
+    if (k === ' ') { e.preventDefault(); const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0); centerOn(f.cx, f.cy + 40); return; }
     keys[k] = true;
     if (k.indexOf('Arrow') === 0) e.preventDefault();
   });
   window.addEventListener('keyup', e => { keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', function () { resize(); if (G) clampCam(); });
 
-  // ---------- HUD ----------
-  const iconCache = {};
-  function icon(t) {
-    if (iconCache[t]) return iconCache[t];
-    const c = document.createElement('canvas'); c.width = c.height = 88;
-    const x = c.getContext('2d'), d = ZG.UNITS[t], sc = d.cls === 'robot' ? 2.8 : 2;
-    x.scale(sc, sc);
-    ZG.drawUnit(x, { x: 44 / sc, y: 46 / sc, def: d, t: t, team: 0, ang: -Math.PI / 2, tang: -Math.PI / 2, hit: 0, moving: false, walk: 0 });
-    return (iconCache[t] = c);
+  // ---------- command bar ----------
+  const pctx = $('portrait').getContext('2d');
+  function portrait(img, sw, sh) {
+    pctx.imageSmoothingEnabled = false;
+    pctx.fillStyle = '#16231b'; pctx.fillRect(0, 0, 48, 48);
+    pctx.fillStyle = 'rgba(80,255,120,0.06)'; for (let y = 0; y < 48; y += 2) pctx.fillRect(0, y, 48, 1);
+    if (img) { const f = Math.min(44 / sw, 44 / sh); pctx.drawImage(img, 0, 0, sw, sh, (48 - sw * f) / 2, (48 - sh * f) / 2, sw * f, sh * f); }
+  }
+  function actBtn(label, fn, on) {
+    const b = document.createElement('button'); b.textContent = label; if (on) b.className = 'on';
+    b.onclick = fn; $('acts').appendChild(b);
   }
   function updatePanel() {
-    const b = ui.selB, us = selUnits();
-    const sig = (b ? 'b' + b.id + ':' + b.team + ':' + b.prod : '') + '|' + us.length + ':' + us.map(u => u.t).sort().join(',') + lang;
-    const panel = $('panel');
+    const b = ui.selB, us = mineSel(), all = selUnits();
+    const sig = (b ? 'b' + b.id + ':' + b.team + ':' + b.prod + ':' + b.dead : '') + '|' + all.map(u => u.id + (u.team === 0 ? '' : 'e') + (u.cargo ? u.cargo.length : '')).join(',') + lang + mode + classic;
     if (sig !== panelSig) {
       panelSig = sig;
-      panel.classList.toggle('hidden', !b && !us.length);
-      $('bldInfo').classList.toggle('hidden', !b);
-      $('selinfo').innerHTML = '';
+      $('prods').innerHTML = ''; $('acts').innerHTML = ''; $('cmdTitle').textContent = '';
+      $('pbar').classList.add('hidden');
       if (b) {
-        $('bName').textContent = L.b[b.kind];
-        $('bTech').textContent = b.kind === 'repair' ? '' : '★'.repeat(b.tech);
-        const mine = b.team === 0, list = mine ? ZG.products(b) : [];
-        $('bSub').textContent = b.kind === 'repair' ? L.repairHint : mine && b.prod ? L.builds + ': ' + L.units[b.prod] : b.team === 1 ? '—' : '';
-        const box = $('prods'); box.innerHTML = '';
-        for (const k of list) {
-          const btn = document.createElement('button'); btn.className = 'prod' + (k === b.prod ? ' on' : '');
-          const d = ZG.UNITS[k], im = document.createElement('canvas'); im.width = im.height = 88; im.getContext('2d').drawImage(icon(k), 0, 0);
-          btn.appendChild(im);
-          btn.appendChild(document.createTextNode(L.units[k] + (d.n > 1 ? ' ×' + d.n : '')));
-          btn.title = L.units[k] + ' · ' + d.time + ' s';
-          btn.onclick = () => { if (b.prod !== k) { b.prod = k; b.progress = 0; } };
-          box.appendChild(btn);
+        portrait(ZG.buildingIcon(b), ZG.buildingIcon(b).width, ZG.buildingIcon(b).height);
+        $('infoName').textContent = L.b[b.kind] + (b.kind !== 'repair' ? ' ' + '★'.repeat(b.tech) : '');
+        const mine = b.team === 0 && !b.dead, list = mine ? ZG.products(b) : [];
+        if (list.length) {
+          $('cmdTitle').textContent = L.choose;
+          for (const k of list) {
+            const btn = document.createElement('button'); btn.className = 'prod' + (k === b.prod ? ' on' : '');
+            const d = ZG.UNITS[k], im = document.createElement('canvas'), ic = ZG.unitIcon(k, 0);
+            im.width = ic.width; im.height = ic.height; im.getContext('2d').drawImage(ic, 0, 0);
+            btn.appendChild(im);
+            if (d.n > 1) { const n = document.createElement('b'); n.textContent = '×' + d.n; btn.appendChild(n); }
+            btn.title = L.units[k] + ' · ' + d.time + ' s';
+            btn.onclick = () => { if (b.prod !== k) { b.prod = k; b.progress = 0; } };
+            $('prods').appendChild(btn);
+          }
+          $('pbar').classList.remove('hidden');
+          actBtn(L.rally.split(' ')[0], () => setMode(mode === 'rally' ? null : 'rally'), mode === 'rally');
         }
-        $('pbar').classList.toggle('hidden', !mine || !list.length); b._left = -1;
-      } else if (us.length) {
+        b._left = -1;
+      } else if (all.length) {
         const cnt = {};
-        for (const u of us) cnt[u.t] = (cnt[u.t] || 0) + 1;
-        for (const k in cnt) { const s = document.createElement('span'); s.textContent = cnt[k] + '× ' + L.units[k]; $('selinfo').appendChild(s); }
+        for (const u of all) cnt[u.t] = (cnt[u.t] || 0) + 1;
+        const main = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0], first = all.find(u => u.t === main);
+        const ic = ZG.unitIcon(main, first.team);
+        portrait(ic, ic.width, ic.height);
+        $('infoName').textContent = L.units[main] + (cnt[main] > 1 ? ' ×' + cnt[main] : '') + (Object.keys(cnt).length > 1 ? ' +' : '');
+        if (us.length) {
+          actBtn(L.stop, () => ZG.orderStop(G, mineSel()));
+          actBtn(L.amoveBtn, () => setMode(mode === 'attack' ? null : 'attack'), mode === 'attack');
+          if (us.some(u => u.cargo && u.cargo.length)) actBtn(L.unload, () => ZG.orderUnload(G, mineSel().filter(u => u.cargo)));
+          actBtn(L.selNone, () => clearSel());
+          $('cmdTitle').textContent = us.some(u => u.def.crane) ? L.craneHint : us.some(u => u.cargo) ? L.apcHint : '';
+        }
+      } else {
+        portrait(null);
+        $('infoName').textContent = '';
+        actBtn(L.selAll, () => selOnScreen(null));
       }
     }
+    // live values
     if (b) {
-      $('pbar').firstElementChild.style.width = (b.progress * 100) + '%';
-      if (b.team === 0 && b.prod) {
-        const left = Math.ceil((1 - b.progress) * ZG.UNITS[b.prod].time / ZG.prodRate(G, 0));
-        if (left !== b._left) { b._left = left; $('bSub').textContent = L.builds + ': ' + L.units[b.prod] + ' · ' + L.left + ' ' + left + ' s'; }
+      $('infoHp').firstElementChild.style.width = (b.dead ? 0 : b.hp / b.maxhp * 100) + '%';
+      let sub = b.dead ? L.destroyed : b.team < 0 ? L.neutral : b.team === 1 ? L.enemy : b.kind === 'repair' ? L.repairHint : '';
+      if (!b.dead && b.team === 0 && b.prod) {
+        const left = Math.ceil((1 - b.progress) * ZG.UNITS[b.prod].time / (ZG.prodRate(G, 0) * (0.4 + 0.6 * b.hp / b.maxhp)));
+        sub = L.units[b.prod] + ' · ' + L.left + ' ' + left + ' s';
+        $('pbar').firstElementChild.style.width = (b.progress * 100) + '%';
       }
+      if ($('infoSub').textContent !== sub) $('infoSub').textContent = sub;
+    } else {
+      const all2 = selUnits();
+      let hp = 0, mx = 0;
+      for (const u of all2) { hp += Math.max(0, u.hp); mx += u.def.hp; }
+      $('infoHp').firstElementChild.style.width = (mx ? hp / mx * 100 : 0) + '%';
+      let sub = '';
+      if (all2.length) {
+        const u = all2[0];
+        if (u.team < 0) sub = L.empty;
+        else if (u.team === 1) sub = L.enemy;
+        else if (u.cargo) sub = u.cargo.length + '/' + u.def.cargo + ' ' + L.aboard;
+        else if (u.def.cls === 'gun') sub = L.gunHint;
+        else if (u.squad) sub = L.squad + ' · ' + ZG.squadOf(G, u).length;
+      } else sub = levelName(cur);
+      if ($('infoSub').textContent !== sub) $('infoSub').textContent = sub;
     }
   }
-  function updateTop() {
+  function updateSide() {
     const n = G.map.sectors.length; let a = 0, b = 0;
     for (const s of G.map.sectors) { if (s.owner === 0) a++; else if (s.owner === 1) b++; }
     $('terrR').style.width = (a / n * 100) + '%'; $('terrB').style.width = (b / n * 100) + '%';
-    $('terrTxt').textContent = a + ' : ' + b;
-    const t = Math.floor(G.time); $('clock').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+    const tt = a + ' : ' + b; if ($('terrTxt').textContent !== tt) $('terrTxt').textContent = tt;
+    const t = Math.floor(G.time), ct = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+    if ($('clock').textContent !== ct) $('clock').textContent = ct;
   }
 
   function handleEvents() {
@@ -308,6 +373,13 @@
       else if (e.k === 'enter' && e.team === 0) toast(L.crewed, 'good');
       else if (e.k === 'crate' && e.team === 0) { toast(L.crate, 'good'); tone('sine', 660, 990, 0.15, 0.07); }
       else if (e.k === 'driver' && e.team === 0) toast(L.driver, 'good');
+      else if (e.k === 'bridge') toast(e.up ? L.bridgeUp : L.bridgeDown, e.up ? 'good' : '');
+      else if (e.k === 'bdead') toast(e.team === 0 ? L.ourBldDead : L.bldDead, e.team === 0 ? 'bad' : 'good');
+      else if (e.k === 'stormed') toast(L.stormed, e.team === 0 ? 'good' : 'bad');
+      else if (e.k === 'board' && e.team === 0) tone('sine', 500, 700, 0.08, 0.05);
+      else if (e.k === 'unload' && e.team === 0) toast(L.unloaded);
+      else if (e.k === 'fixed' && e.team === 0) toast(L.fixed, 'good');
+      else if (e.k === 'rock') { toast(L.rockGone); if (onScreen(e)) tone('noise', 400, 40, 0.6, 0.18); }
       else if (e.k === 'over') setTimeout(showEnd, 1300);
     }
     G.ev.length = 0;
@@ -325,7 +397,7 @@
       if (!old || now < old) { store.set(key, now); bestTxt = L.newBest; } else bestTxt = L.best + ': ' + fmt(old);
     }
     $('endTitle').textContent = win ? L.win : L.lose;
-    $('endTitle').style.color = win ? '#4bd04b' : '#e0432f';
+    $('endTitle').style.color = win ? '#3ed43e' : '#ee3a24';
     $('endSub').textContent = win && last ? L.allDone : levelName(cur);
     const t = Math.floor(G.over.time);
     $('endStats').innerHTML = '<span>' + L.time + '</span><b>' + fmt(t) + '</b><span>' + L.diffLabel + '</span><b>' + L.diff[diff] + '</b><span>' + L.kills + '</span><b>' + G.stats[0].kills + '</b><span>' + L.losses + '</span><b>' + G.stats[0].losses + '</b>';
@@ -341,17 +413,16 @@
   function start(i, def) {
     cur = def ? -1 : i; skDef = def || null; G = ZG.newGame(def || i, { diff: diff });
     const th = ZG.THEMES[G.lv.theme];
-    R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th) };
-    ui.selB = null; ui.drag = null; ui.marks = []; panelSig = ''; paused = false; setAmove(false);
+    R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
+    ui.selB = null; ui.drag = null; ui.marks = []; panelSig = ''; paused = false; setMode(null);
     for (const k in groups) delete groups[k];
-    zoom = innerWidth > 2600 ? 2 : innerWidth > 1700 ? 1.5 : 1;
+    zoom = innerWidth > 2600 ? 4 : innerWidth > 1500 ? 3 : 2;
     for (const id of ['menu', 'end', 'pause', 'help']) $(id).classList.add('hidden');
     $('hud').classList.remove('hidden');
     $('lvTitle').textContent = levelName(cur);
-    for (const a of [['actAll', L.selAll], ['actNone', L.selNone], ['actStop', L.stop], ['actAtk', L.amoveBtn]]) $(a[0]).textContent = a[1];
     resize(); clampCam();
     const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0);
-    centerOn(f.cx, f.cy + 60);
+    centerOn(f.cx, f.cy + 40);
   }
   function showMenu() {
     G = null; $('hud').classList.add('hidden');
@@ -385,12 +456,13 @@
       box.appendChild(row);
     }
     $('campTitle').textContent = L.campaign; $('skTitle').textContent = L.skirmish; $('diffLabel').textContent = L.diffLabel;
-    const db = $('diffBtns'); db.innerHTML = '';
-    L.diff.forEach(function (name, k) {
-      const b = document.createElement('button'); b.textContent = name; if (k === diff) b.className = 'primary';
-      b.onclick = () => { diff = k; store.set('diff', k); buildMenu(); };
-      db.appendChild(b);
-    });
+    const seg = (id, names, curIdx, fn) => {
+      const db = $(id); db.innerHTML = '';
+      names.forEach(function (name, k) { const b = document.createElement('button'); b.textContent = name; if (k === curIdx) b.className = 'primary'; b.onclick = () => fn(k); db.appendChild(b); });
+    };
+    seg('diffBtns', L.diff, diff, k => { diff = k; store.set('diff', k); buildMenu(); });
+    $('ctrlTitle').textContent = L.ctrlTitle;
+    seg('ctrlBtns', L.ctrl, classic ? 0 : 1, k => { classic = k === 0; store.set('ctrl', k); buildMenu(); });
     const fill = (id, label, names, keep) => {
       const sel = $(id), v = keep && sel.value !== '' ? sel.value : null; sel.innerHTML = '';
       names.forEach((n, k) => { const o = document.createElement('option'); o.value = k; o.textContent = n; sel.appendChild(o); });
@@ -407,10 +479,6 @@
     start(-1, ZG.makeLevel(SK_STR[+$('skTech').value], sz[0], sz[1], { theme: +$('skWorld').value, seed: seed, river: seed % 4, custom: true }));
   };
   $('btnSeed').onclick = () => { $('skSeed').value = 1 + Math.floor(Math.random() * 9999); };
-  $('actAll').onclick = () => { if (G) selOnScreen(null); };
-  $('actNone').onclick = () => { if (G) clearSel(); };
-  $('actStop').onclick = () => { if (G) ZG.orderStop(G, selUnits().filter(u => u.team === 0)); };
-  $('actAtk').onclick = () => { if (G && selUnits().length) setAmove(!amove); };
   $('btnLang').onclick = () => { lang = lang === 'de' ? 'en' : 'de'; store.set('lang', lang); buildMenu(); };
   $('btnHelp').onclick = $('btnPauseHelp').onclick = () => $('help').classList.remove('hidden');
   $('btnHelpBack').onclick = () => $('help').classList.add('hidden');
@@ -430,8 +498,7 @@
     const rdt = Math.min(0.1, (now - last) / 1000); last = now;
     if (!G) return;
     if (!paused) {
-      // scrolling
-      const sp = 900 / zoom * rdt; let dx = 0, dy = 0;
+      const sp = 700 * rdt * 2 / zoom; let dx = 0, dy = 0;
       if (keys.ArrowLeft || keys.a) dx -= 1; if (keys.ArrowRight || keys.d) dx += 1;
       if (keys.ArrowUp || keys.w) dy -= 1; if (keys.ArrowDown || keys.s) dy += 1;
       if (mouse.inside && !ui.drag && document.hasFocus()) {
@@ -444,20 +511,25 @@
       if (G.over) for (const f of G.fx) f.t += rdt;
       for (const m of ui.marks) m.t += rdt;
       ui.marks = ui.marks.filter(m => m.t < 0.5);
+      if (G.dirty.length) { R.terrain.redraw(G.dirty); ZG.redrawMini(R, G.map, R.th, G.dirty); G.dirty.length = 0; }
       handleEvents();
     }
     clampCam();
-    const S = zoom * dpr;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#0c0e11'; ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.setTransform(S, 0, 0, S, -Math.round(cam.x * S), -Math.round(cam.y * S));
-    ctx.imageSmoothingEnabled = zoom !== 1;
-    ZG.draw(ctx, G, R, view, ui);
+    const S = scale(), lw = Math.ceil(cv.width / S) + 1, lh = Math.ceil(cv.height / S) + 1;
+    if (lo.width !== lw || lo.height !== lh) { lo.width = lw; lo.height = lh; }
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.fillStyle = '#0a0b0d'; lctx.fillRect(0, 0, lw, lh);
+    lctx.setTransform(1, 0, 0, 1, -cam.x / A, -cam.y / A);
+    lctx.imageSmoothingEnabled = false;
+    ui.rally = ui.selB && ui.selB.team === 0 ? ui.selB.rally : null;
+    ZG.draw(lctx, G, R, view, ui, G.time);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(lo, 0, 0, lw * S, lh * S);
     mctx.setTransform(1, 0, 0, 1, 0, 0);
     ZG.drawMini(mctx, G, R, view, mini.width, mini.height);
-    updatePanel(); updateTop();
+    updatePanel(); updateSide();
   }
 
-  window.ZGdebug = { get G() { return G; }, start: start };
+  window.ZGdebug = { get G() { return G; }, start: start, get cam() { return cam; }, get view() { return view; } };
   resize(); buildMenu(); requestAnimationFrame(frame);
 })();

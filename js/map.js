@@ -66,11 +66,13 @@
     };
     const carveH = (xa, xb, y) => { for (let x = Math.min(xa, xb); x <= Math.max(xa, xb) + 1; x++) { road(x, y); road(x, y + 1); } };
     const carveV = (x, ya, yb) => { for (let y = Math.min(ya, yb); y <= Math.max(ya, yb) + 1; y++) { road(x, y); road(x + 1, y); } };
-    const done = new Set();
-    const carveEdge = (ia, ib) => {
+    const done = new Set(), rockSpots = [];
+    const carveEdge = (ia, ib, extra) => {
       if (ia > ib) { const t = ia; ia = ib; ib = t; }
       const key = ia * 1000 + ib; if (done.has(key)) return; done.add(key);
       const a = sectors[ia], b = sectors[ib];
+      // optional links may get blocked by destructible boulders later
+      if (extra && a.r === b.r) rockSpots.push([Math.round((a.fx + b.fx) / 2), a.fy + 1]);
       if (a.r === b.r) { carveH(a.fx, b.fx, a.fy + 1); carveV(b.fx, a.fy + 1, b.fy + 1); }
       else { const vx = b.fx + 3; carveH(a.fx, vx, a.fy + 1); carveV(vx, a.fy + 1, b.fy + 1); carveH(b.fx, vx, b.fy + 1); }
     };
@@ -84,7 +86,7 @@
     for (const e of edges) {
       const a = find(e[0]), b = find(e[1]), join = a !== b;
       if (join || rnd() < 0.45) {
-        carveEdge(e[0], e[1]); carveEdge(n - 1 - e[1], n - 1 - e[0]);
+        carveEdge(e[0], e[1], !join); carveEdge(n - 1 - e[1], n - 1 - e[0], !join);
         uf[a] = b; uf[find(n - 1 - e[0])] = find(n - 1 - e[1]);
       }
     }
@@ -95,7 +97,7 @@
       const fort = kind === 'fort';
       const b = { id: buildings.length, kind: kind, tech: tech, team: team, sector: s.id,
         tx: fort ? s.fx - 2 : s.fx - 1, ty: fort ? s.fy - 4 : s.fy - 3, w: fort ? 4 : 3, h: fort ? 3 : 2,
-        door: { tx: s.fx, ty: s.fy - 1 }, hp: fort ? 4000 : 0, maxhp: fort ? 4000 : 0, prod: null, progress: 0, dead: false, hit: 0 };
+        door: { tx: s.fx, ty: s.fy - 1 }, hp: fort ? 4000 : 1500, maxhp: fort ? 4000 : 1500, prod: null, progress: 0, dead: false, hit: 0 };
       b.cx = (b.tx + b.w / 2) * TS; b.cy = (b.ty + b.h / 2) * TS;
       buildings.push(b); s.b = b; return b;
     };
@@ -149,11 +151,57 @@
     for (const b of buildings)
       for (let y = b.ty; y < b.ty + b.h; y++) for (let x = b.tx; x < b.tx + b.w; x++) block[y * W + x] = 1;
 
-    return { W: W, H: H, tiles: tiles, block: block, sectors: sectors, buildings: buildings, spawns: spawns, crates: crates, pid: pid, eid: eid, sw: sw, sh: sh, cols: cols, rows: rows };
+    const map = { W: W, H: H, tiles: tiles, block: block, sectors: sectors, buildings: buildings, spawns: spawns, crates: crates, pid: pid, eid: eid, sw: sw, sh: sh, cols: cols, rows: rows };
+
+    // bridges: connected bridge tiles form one destructible bridge
+    map.bridgeAt = new Int16Array(N).fill(-1); map.bridges = [];
+    for (let i = 0; i < N; i++) {
+      if (tiles[i] !== T.BRIDGE || map.bridgeAt[i] >= 0) continue;
+      const br = { id: map.bridges.length, tiles: [], hp: 0, maxhp: 0, dead: false, hit: 0 }, st = [i];
+      map.bridgeAt[i] = br.id;
+      while (st.length) {
+        const j = st.pop(), x = j % W, y = (j / W) | 0; br.tiles.push(j);
+        for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + d[0], ny = y + d[1], k = ny * W + nx;
+          if (nx >= 0 && ny >= 0 && nx < W && ny < H && tiles[k] === T.BRIDGE && map.bridgeAt[k] < 0) { map.bridgeAt[k] = br.id; st.push(k); }
+        }
+      }
+      br.hp = br.maxhp = 300 + 60 * br.tiles.length;
+      let sx = 0, sy = 0; for (const j of br.tiles) { sx += j % W; sy += (j / W) | 0; }
+      br.x = (sx / br.tiles.length + 0.5) * TS; br.y = (sy / br.tiles.length + 0.5) * TS;
+      map.bridges.push(br);
+    }
+
+    // boulders on optional roads, only where they never cut a flag or a fort off
+    map.rockHp = new Float32Array(N);
+    const reachAll = () => {
+      const seen = new Uint8Array(N), f0 = buildings[0].door, q = [f0.ty * W + f0.tx]; seen[q[0]] = 1;
+      while (q.length) {
+        const j = q.pop(), x = j % W, y = (j / W) | 0;
+        for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + d[0], ny = y + d[1], k = ny * W + nx;
+          if (nx >= 0 && ny >= 0 && nx < W && ny < H && !block[k] && !seen[k]) { seen[k] = 1; q.push(k); }
+        }
+      }
+      for (const s of sectors) if (s.flag && !seen[s.fy * W + s.fx]) return false;
+      const f1 = buildings[1].door; return !!seen[f1.ty * W + f1.tx];
+    };
+    for (const p of rockSpots) {
+      const put = [];
+      for (const q of [[p[0], p[1]], [p[0], p[1] + 1]]) {
+        const j = q[1] * W + q[0];
+        if (q[0] >= 0 && q[1] >= 0 && q[0] < W && q[1] < H && tiles[j] === T.ROAD && !block[j]) put.push(j);
+      }
+      if (put.length < 2) continue;
+      for (const j of put) block[j] = 1;
+      if (reachAll()) for (const j of put) { tiles[j] = T.BOULDER; map.rockHp[j] = 260; }
+      else for (const j of put) block[j] = 0;
+    }
+    return map;
   };
 
   // ---------- A* on the tile grid ----------
-  const COST = [1, 0.75, 9, 9, 1.7, 0.8];
+  const COST = [1, 0.75, 9, 9, 1.7, 0.8, 9];
   const DX = [1, -1, 0, 0, 1, 1, -1, -1], DY = [0, 0, 1, -1, 1, -1, 1, -1];
   let stamp = null, gs, par, cl, gen = 0;
   const hn = [], hf = [];
