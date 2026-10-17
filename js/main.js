@@ -38,6 +38,32 @@
       }
     } catch (e) { /* audio unavailable */ }
   }
+  // original sound effects and music, when the player loaded their own Z files
+  const SHOT = { sniper: 'RIFLE3', jeep: 'JEEPMGUN', gatling: 'GATTGUN', light: 'LTANKGUN', medium: 'MTANKGUN', cannon: 'MTANKGUN', heavy: 'HTANKGUN', howitzer: 'HTANKGUN' };
+  const WSHOT = { bullet: 'MACHGUN2', laser: 'LASERGUN', flame: 'FLAMER', rocket: 'MOBIMIS2', missile: 'MOBIMISS', shell: 'MTANKGUN' };
+  const sfxBuf = {};
+  function zsfx(name, vol) {
+    if (!sound || !ZG.Z.files) return false;
+    const raw = ZG.Z.files[name.toLowerCase() + '.raw'];
+    if (!raw) return false;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      let b = sfxBuf[name];
+      if (!b) { b = sfxBuf[name] = ac.createBuffer(1, raw.length, 11025); const ch = b.getChannelData(0); for (let i = 0; i < raw.length; i++) ch[i] = (raw[i] - 128) / 128; }
+      const s = ac.createBufferSource(), g = ac.createGain(); g.gain.value = vol == null ? 0.6 : vol;
+      s.buffer = b; s.connect(g); g.connect(ac.destination); s.start();
+      return true;
+    } catch (e) { return false; }
+  }
+  const music = new Audio(); music.loop = true; music.volume = 0.45;
+  let musicName = '';
+  function playMusic(name, loop) {
+    const url = sound && ZG.Z.music(name);
+    if (!url) { music.pause(); musicName = ''; return; }
+    if (musicName === name && !music.paused) return;
+    musicName = name; music.src = url; music.loop = loop !== false; music.play().catch(() => { musicName = ''; });
+  }
+  const gameMusic = () => ['aa16.ogg', 'ac16.ogg', 'aj16.ogg'][(zIdx >= 0 ? zIdx : Math.max(0, cur)) % 3];
   const onScreen = e => e.x > view.x - 100 && e.y > view.y - 100 && e.x < view.x + view.w + 100 && e.y < view.y + view.h + 100;
 
   // ---------- view ----------
@@ -130,7 +156,7 @@
     ui.marks.push({ x: p.x, y: p.y, t: 0, atk: atk });
     // show the routes as dotted lines for a moment
     ui.paths = us.filter(u => u.path).slice(0, 12).map(u => ({ pts: [{ x: u.x, y: u.y }].concat(u.path), t: 0 }));
-    tone('square', 520, 620, 0.05, 0.04);
+    if (!zsfx('CLICK1L', 0.5)) tone('square', 520, 620, 0.05, 0.04);
     return true;
   }
   function setRally(p) {
@@ -179,8 +205,9 @@
     if (G && ui.drag) { const p = world(e.clientX, e.clientY); ui.drag.x1 = p.x; ui.drag.y1 = p.y; }
     if (G && miniDrag) miniTo(e);
   });
-  document.addEventListener('mouseleave', () => { mouse.inside = false; });
-  window.addEventListener('blur', () => { mouse.inside = false; for (const k in keys) keys[k] = false; });
+  document.addEventListener('mouseleave', () => { mouse.inside = false; mouse.left = true; });
+  document.addEventListener('mouseenter', () => { mouse.left = false; });
+  window.addEventListener('blur', () => { mouse.inside = false; mouse.left = false; for (const k in keys) keys[k] = false; });
   window.addEventListener('mouseup', function (e) {
     miniDrag = false;
     if (!G || !ui.drag || e.button !== 0) return;
@@ -372,22 +399,26 @@
         const now = performance.now();
         if (now - lastShot > 55 && onScreen(e)) {
           lastShot = now;
-          if (e.w === 'laser') tone('sawtooth', 1400, 300, 0.12, 0.03);
+          if (zsfx(SHOT[e.t] || WSHOT[e.w] || 'MACHGUN2', 0.35)) { /* original sound */ }
+          else if (e.w === 'laser') tone('sawtooth', 1400, 300, 0.12, 0.03);
           else if (e.w === 'flame') tone('noise', 900, 300, 0.12, 0.03);
           else if (e.w === 'bullet') tone('noise', 3000, 900, 0.05, 0.05);
           else tone('noise', 700, 120, 0.22, 0.09);
         }
-      } else if (e.k === 'boom') { if (onScreen(e)) tone('noise', e.big ? 500 : 900, 50, e.big ? 0.7 : 0.3, e.big ? 0.22 : 0.1); }
+      } else if (e.k === 'boom') {
+        const n = e.big ? ['ZEXPLO3', 'ZEXPLO4', 'ZEXPLO5'][Math.random() * 3 | 0] : (Math.random() < 0.5 ? 'EXP1' : 'EXP2');
+        if (onScreen(e) && !zsfx(n, e.big ? 0.8 : 0.5)) tone('noise', e.big ? 500 : 900, 50, e.big ? 0.7 : 0.3, e.big ? 0.22 : 0.1);
+      }
       else if (e.k === 'capture') {
         if (e.team === 0) { toast(L.captured, 'good'); tone('triangle', 520, 1040, 0.25, 0.1); }
         else if (e.prev === 0) { toast(L.lost, 'bad'); tone('triangle', 400, 160, 0.3, 0.1); }
-      } else if (e.k === 'ready' && e.team === 0) { toast(L.units[e.t] + ' ' + L.ready); tone('sine', 880, 1320, 0.12, 0.06); }
+      } else if (e.k === 'ready' && e.team === 0) { toast(L.units[e.t] + ' ' + L.ready); if (!zsfx('ROBFACT5', 0.5)) tone('sine', 880, 1320, 0.12, 0.06); }
       else if (e.k === 'alert') { toast(L.alert, 'bad'); tone('square', 660, 440, 0.4, 0.08); }
       else if (e.k === 'enter' && e.team === 0) toast(L.crewed, 'good');
       else if (e.k === 'crate' && e.team === 0) { toast(L.crate, 'good'); tone('sine', 660, 990, 0.15, 0.07); }
       else if (e.k === 'driver' && e.team === 0) toast(L.driver, 'good');
       else if (e.k === 'bridge') toast(e.up ? L.bridgeUp : L.bridgeDown, e.up ? 'good' : '');
-      else if (e.k === 'bdead') toast(e.team === 0 ? L.ourBldDead : L.bldDead, e.team === 0 ? 'bad' : 'good');
+      else if (e.k === 'bdead') { zsfx('OBJDEST3', 0.8); toast(e.team === 0 ? L.ourBldDead : L.bldDead, e.team === 0 ? 'bad' : 'good'); }
       else if (e.k === 'stormed') toast(L.stormed, e.team === 0 ? 'good' : 'bad');
       else if (e.k === 'board' && e.team === 0) tone('sine', 500, 700, 0.08, 0.05);
       else if (e.k === 'unload' && e.team === 0) toast(L.unloaded);
@@ -419,6 +450,7 @@
     $('btnNext').classList.toggle('hidden', !win || last || !(camp || orig));
     $('btnRetry').classList.toggle('primary', !win);
     $('end').classList.remove('hidden');
+    playMusic(win ? 'ipwin.ogg' : 'iplose.ogg', false);
     if (win) { tone('triangle', 523, 523, 0.15, 0.1); setTimeout(() => tone('triangle', 784, 784, 0.3, 0.1), 160); } else tone('sawtooth', 220, 80, 0.8, 0.08);
   }
   const fmt = t => Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
@@ -437,6 +469,7 @@
     for (const id of ['menu', 'end', 'pause', 'help']) $(id).classList.add('hidden');
     $('hud').classList.remove('hidden');
     $('lvTitle').textContent = levelName(cur);
+    playMusic(gameMusic());
     resize(); clampCam();
     const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0);
     centerOn(f.cx, f.cy + 40);
@@ -445,6 +478,7 @@
   for (const b of document.querySelectorAll('[data-go]')) b.addEventListener('click', () => showPanel(b.dataset.go));
   function showMenu() {
     showPanel('mMain');
+    playMusic('ipoptions16.ogg');
     G = null; $('hud').classList.add('hidden');
     for (const id of ['end', 'pause', 'help']) $(id).classList.add('hidden');
     $('menu').classList.remove('hidden');
@@ -539,7 +573,15 @@
   $('btnQuit').onclick = $('btnEndMenu').onclick = showMenu;
   $('btnNext').onclick = () => zIdx >= 0 ? start(zIdx + 1, ZG.Z.makeLevel(zIdx + 1)) : start(cur + 1);
   $('btnSpeed').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; $('btnSpeed').textContent = speed + '×'; };
-  $('btnSound').onclick = () => { sound = !sound; store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4; };
+  $('btnSound').onclick = () => {
+    sound = !sound; store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4;
+    if (!sound) { music.pause(); musicName = ''; } else if (G) playMusic(gameMusic());
+  };
+  $('btnFull').onclick = function () {
+    if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  };
+  // the menu music needs a first click before browsers allow sound
+  document.addEventListener('pointerdown', () => { if (!G && !musicName) playMusic('ipoptions16.ogg'); }, { capture: true });
   $('btnSound').style.opacity = sound ? 1 : 0.4;
 
   // ---------- main loop ----------
@@ -552,9 +594,11 @@
       const sp = 700 * rdt * 2 / zoom; let dx = 0, dy = 0;
       if (keys.ArrowLeft || keys.a) dx -= 1; if (keys.ArrowRight || keys.d) dx += 1;
       if (keys.ArrowUp || keys.w) dy -= 1; if (keys.ArrowDown || keys.s) dy += 1;
-      if (mouse.inside && !ui.drag && document.hasFocus()) {
-        if (mouse.x < 4) dx -= 1; else if (mouse.x > innerWidth - 5) dx += 1;
-        if (mouse.y < 4) dy -= 1; else if (mouse.y > innerHeight - 5) dy += 1;
+      // screen-edge scrolling; it goes on when the mouse slips past the edge of the window
+      if ((mouse.inside || mouse.left) && !ui.drag && document.hasFocus()) {
+        const E = 14;
+        if (mouse.x < E) dx -= 1; else if (mouse.x > innerWidth - E) dx += 1;
+        if (mouse.y < E) dy -= 1; else if (mouse.y > innerHeight - E) dy += 1;
       }
       if (dx || dy) { cam.x += dx * sp; cam.y += dy * sp; }
       let left = rdt * speed;
@@ -586,7 +630,8 @@
   resize(); buildMenu(); requestAnimationFrame(frame);
   // ?z=<folder url>: load the original Z files from a local server (see tools/zplay.py)
   async function loadZFrom(base) {
-    const names = ['levels.dat', 'en.lproj/sprites.rsc', 'PNG/Background.png', 'PNG/BoxCentreWide.png'];
+    const names = ['levels.dat', 'en.lproj/sprites.rsc', 'PNG/Background.png', 'PNG/BoxCentreWide.png', 'AA16.ogg', 'aC16.ogg', 'aJ16.ogg', 'ipOPTIONS16.ogg', 'ipWIN.ogg', 'ipLOSE.ogg'];
+    for (const n of ZG.Z.SFX) names.push('audio/' + n + '.RAW');
     for (let i = 1; i <= 20; i++) { const n = String(i).padStart(2, '0'); names.push('LEVEL' + n + '.MAP', 'BUILD' + n + '.DAT', 'OBJECT' + n + '.DAT', 'CPUPLR' + n + '.DAT', 'BRIDGE' + n + '.DAT'); }
     for (const w of ['DESERT', 'VOLCAN', 'ARCTIC', 'JUNGLE', 'CITY']) names.push(w + '.PAL', w + '.BLK');
     $('zHint').textContent = L.zLoading;

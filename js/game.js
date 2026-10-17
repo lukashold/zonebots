@@ -335,7 +335,7 @@
     const d = u.def, w = d.w, tx = v ? v.x : st.x, ty = v ? v.y : st.y;
     u.cd = d.rl * (0.9 + G.rnd() * 0.2);
     const a = Math.atan2(ty - u.y, tx - u.x), mx = u.x + Math.cos(a) * (d.r + 3), my = u.y + Math.sin(a) * (d.r + 3);
-    G.ev.push({ k: 'shot', w: w, x: u.x, y: u.y });
+    G.ev.push({ k: 'shot', w: w, t: u.t, x: u.x, y: u.y });
     if (!EXPLOSIVE[w]) {
       const jx = (G.rnd() - 0.5) * 8, jy = (G.rnd() - 0.5) * 8;
       if (w === 'flame') G.fx.push({ k: 'flame', x: mx, y: my, x2: tx + jx, y2: ty + jy, t: 0, life: 0.3 });

@@ -6,6 +6,7 @@ The Z files never leave your computer.
     python tools/zplay.py "C:/GOG Games/Z"
 
 The server stops by itself after 30 minutes without requests.
+Set ZPLAY_NO_BROWSER=1 to only start the server.
 """
 import functools, http.server, os, sys, threading, time, webbrowser
 
@@ -44,6 +45,7 @@ if __name__ == '__main__':
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Handler, directory=GAME))
     url = 'http://127.0.0.1:%d/?z=zdata/' % server.server_address[1]
     threading.Thread(target=watchdog, daemon=True).start()
-    webbrowser.open(url)
+    if not os.environ.get('ZPLAY_NO_BROWSER'):
+        webbrowser.open(url)
     print('Zonebots with original Z data:', url)
     server.serve_forever()

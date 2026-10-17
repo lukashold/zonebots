@@ -40,8 +40,12 @@
   const str = (d, o, n) => { let s = ''; for (let i = 0; i < n && d[o + i]; i++) s += String.fromCharCode(d[o + i]); return s; };
 
   // ---------- reading the folder ----------
-  const NEED = /^(level\d\d\.map|build\d\d\.dat|object\d\d\.dat|cpuplr\d\d\.dat|bridge\d\d\.dat|[a-z]+\.pal|[a-z]+\.blk|levels\.dat|sprites\.rsc|background\.png|boxcentrewide\.png)$/i;
-  Z.wanted = name => NEED.test(name);
+  const NEED = /^(level\d\d\.map|build\d\d\.dat|object\d\d\.dat|cpuplr\d\d\.dat|bridge\d\d\.dat|[a-z]+\.pal|[a-z]+\.blk|levels\.dat|sprites\.rsc|background\.png|boxcentrewide\.png|[a-z0-9]+16\.ogg|ipwin\.ogg|iplose\.ogg)$/i;
+  // sound effects we use, from the audio folder (8-bit unsigned mono, 11025 Hz)
+  Z.SFX = ['GATTGUN', 'MACHGUN2', 'RIFLE3', 'JEEPMGUN', 'LASERGUN', 'FLAMER', 'LTANKGUN', 'MTANKGUN', 'HTANKGUN', 'MOBIMISS', 'MOBIMIS2',
+    'GRENLOBX', 'GRENADE', 'EXP1', 'EXP2', 'ZEXPLO3', 'ZEXPLO4', 'ZEXPLO5', 'OBJDEST3', 'ROBFACT5', 'RADBLIP', 'CLICK1L'];
+  const SFXSET = new Set(Z.SFX.map(n => n.toLowerCase() + '.raw'));
+  Z.wanted = name => NEED.test(name) || SFXSET.has(name.toLowerCase());
   // files: { lowercased name: Uint8Array }
   Z.use = function (files) {
     Z.files = files;
@@ -61,6 +65,10 @@
   Z.ready = () => !!(Z.levels && Z.levels.length);
   // a picture from the player's copy (menu background, panel plate) as an object URL
   const urls = {};
+  Z.music = function (name) {
+    if (!Z.files || !Z.files[name] || typeof Blob === 'undefined') return null;
+    return urls[name] || (urls[name] = URL.createObjectURL(new Blob([Z.files[name]], { type: 'audio/ogg' })));
+  };
   Z.image = function (name) {
     if (!Z.files || !Z.files[name] || typeof Blob === 'undefined') return null;
     return urls[name] || (urls[name] = URL.createObjectURL(new Blob([Z.files[name]], { type: 'image/png' })));
