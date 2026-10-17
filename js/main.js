@@ -415,7 +415,7 @@
     cur = def ? -1 : i; skDef = def || null; zIdx = def && def.original ? i : -1;
     G = ZG.newGame(def || i, { diff: diff });
     const th = ZG.THEMES[G.lv.theme];
-    if (G.lv.original) { const t = ZG.Z.terrainCanvas(G.map); R = { terrain: t, mini: ZG.Z.miniCanvas(G.map, t), th: th }; }
+    if (G.lv.original) { const t = ZG.Z.terrainCanvas(G.map); R = { terrain: t, mini: ZG.Z.miniCanvas(G.map, t), th: th, zs: ZG.Z.spriteSet(G.map) }; }
     else R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
     ui.selB = null; ui.drag = null; ui.marks = []; panelSig = ''; paused = false; setMode(null);
     for (const k in groups) delete groups[k];

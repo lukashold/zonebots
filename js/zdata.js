@@ -21,11 +21,17 @@
 
   const WORLDS = { DESERT: 0, VOLCAN: 1, ARTIC: 2, ARCTIC: 2, JUNGLE: 3, CITY: 4 };
   // terrain codes (plane B bits 0-6)
-  const C_ROAD = 7, C_CLIFF = 19, WATER = { 9: 1, 38: 1, 39: 1 };
+  const C_ROAD = 7, C_CLIFF = 19, C_DECK = 23, C_RAIL = 43, WATER = { 9: 1, 39: 1, 40: 1 }; // 40 = lava, 38 = shore (walkable)
   const FORT = { 16: 1, 20: 1, 21: 1, 30: 1, 63: 1 }, FORT_GATE = { 30: 1, 63: 1 }, BLD = { 27: 1, 31: 1, 32: 1 };
   const O_FLAG = 0x0a, O_ROCK = 0x0b, O_VEHICLE = 0x21;
-  // BUILD record type -> our building kind (best guess, see CONTRIBUTING for open questions)
-  const BKIND = { 1: 'robot', 4: 'vehicle', 0: 'vehicle', 8: 'repair' };
+  // BUILD record type -> building kind (0 and 8 are recognised by their look only)
+  const BKIND = { 4: 'robot', 1: 'vehicle', 0: 'radar', 8: 'repair' };
+  // unit type numbers used by BUILD (+16, first production) and OBJECT (byte 5, neutral units)
+  const UNIT_IDS = { 0: 'cannon', 1: 'medium', 2: 'grunt', 3: 'tough', 4: 'sniper', 5: 'heavy', 6: 'psycho', 7: 'launcher', 8: 'light',
+    9: 'mturret', 10: 'gatling', 11: 'jeep', 12: 'jeep', 13: 'apc', 14: 'howitzer', 15: 'jeep', 16: 'crane', 17: 'pyro', 18: 'laser' };
+  const PALNAME = { ARTIC: 'arctic', ARCTIC: 'arctic' };
+  const palFile = w => Z.files[(PALNAME[w] || w.toLowerCase()) + '.pal'];
+  const blkFile = w => Z.files[(PALNAME[w] || w.toLowerCase()) + '.blk'];
 
   const u16 = (d, o) => d[o] | (d[o + 1] << 8);
   const str = (d, o, n) => { let s = ''; for (let i = 0; i < n && d[o + i]; i++) s += String.fromCharCode(d[o + i]); return s; };
@@ -109,19 +115,31 @@
   Z.palette = function (d) { const p = new Uint8Array(768); for (let i = 0; i < 768; i++) p[i] = Math.min(255, d[i] * 4 + (d[i] >> 4)); return p; };
 
   // ---------- building an engine map from a Z level ----------
+  // CPUPLRxx.DAT holds the territories: 30-byte records, u16 x1,y1,x2,y2 (tiles), +8 owner
+  // (0 player, 1 computer, 4 neutral), +18/+19 a tile point (the flag, or the fort gate).
+  Z.parseTerritories = function (d) {
+    const out = [];
+    if (!d) return out;
+    for (let o = 0; o + 30 <= d.length; o += 30) {
+      const x1 = u16(d, o);
+      if (x1 === 0xffff) break;
+      out.push({ x1: x1, y1: u16(d, o + 2), x2: u16(d, o + 4), y2: u16(d, o + 6), owner: d[o + 8], px: d[o + 18], py: d[o + 19] });
+    }
+    return out;
+  };
+
   Z.genMap = function (lv) {
     const f = Z.files, nn = lv.zlevel, zm = Z.parseMap(f['level' + nn + '.map']);
     const W = zm.W, H = zm.H, N = W * H, tiles = new Uint8Array(N), block = new Uint8Array(N);
     for (let i = 0; i < N; i++) {
       const c = zm.code[i];
-      tiles[i] = c === C_ROAD ? T.ROAD : c === C_CLIFF ? T.ROCK : WATER[c] ? T.WATER : T.GROUND;
+      tiles[i] = c === C_ROAD ? T.ROAD : c === C_CLIFF || c === C_RAIL ? T.ROCK : WATER[c] ? T.WATER : c === C_DECK ? T.BRIDGE : T.GROUND;
       if (tiles[i] === T.ROCK || tiles[i] === T.WATER) block[i] = 1;
     }
     const objs = Z.parseRecords(f['object' + nn + '.dat'], 10, (d, o) => ({ x: u16(d, o), y: u16(d, o + 2), type: d[o + 4], b5: d[o + 5] }));
-    const blds = Z.parseRecords(f['build' + nn + '.dat'], 80, (d, o) => ({ x: u16(d, o), y: u16(d, o + 2), type: d[o + 4] }));
-    const cpu = [];
-    const cd = f['cpuplr' + nn + '.dat'];
-    if (cd) for (let o = 0; o + 8 <= Math.min(cd.length, 240); o += 30) { const r = [u16(cd, o), u16(cd, o + 2), u16(cd, o + 4), u16(cd, o + 6)]; if (r[2] > r[0] && r[3] > r[1] && r[2] < 200 && r[3] < 200) cpu.push(r); }
+    const blds = Z.parseRecords(f['build' + nn + '.dat'], 80, (d, o) => ({ x: u16(d, o), y: u16(d, o + 2), type: d[o + 4], prod: d[o + 16] }));
+    const brs = Z.parseRecords(f['bridge' + nn + '.dat'], 26, (d, o) => ({ x: u16(d, o), y: u16(d, o + 2), w: u16(d, o + 4), h: u16(d, o + 6), hp: u16(d, o + 8) }));
+    const terr = Z.parseTerritories(f['cpuplr' + nn + '.dat']);
 
     // forts: connected areas of fort footprint codes
     const seen = new Uint8Array(N), forts = [];
@@ -148,11 +166,25 @@
     if (forts.length < 2) throw new Error('Z level ' + nn + ': forts not found');
     forts.sort((a, b) => (b.x1 - b.x0) * (b.y1 - b.y0) - (a.x1 - a.x0) * (a.y1 - a.y0));
     forts.length = 2;
-    // the computer's fort lies inside its CPU area; otherwise the upper fort is the computer's
-    const inCpu = ft => cpu.some(r => ft.gate[0] >= r[0] && ft.gate[0] <= r[2] && ft.gate[1] >= r[1] && ft.gate[1] <= r[3]);
-    let eIdx = inCpu(forts[0]) && !inCpu(forts[1]) ? 0 : inCpu(forts[1]) && !inCpu(forts[0]) ? 1 : (forts[0].y0 < forts[1].y0 ? 0 : 1);
 
-    const buildings = [], spawns = [], crates = [], sectors = [];
+    // territories: the first rectangle that contains a tile owns it
+    const secAt = new Int16Array(N).fill(-1), sectors = [];
+    terr.forEach(function (t, k) {
+      sectors.push({ id: k, owner: t.owner === 0 ? 0 : t.owner === 1 ? 1 : -1, flag: null, fx: t.px, fy: t.py, home: false, rect: t });
+      for (let y = Math.max(0, t.y1); y < Math.min(H, t.y2); y++) for (let x = Math.max(0, t.x1); x < Math.min(W, t.x2); x++) if (secAt[y * W + x] < 0) secAt[y * W + x] = k;
+    });
+    const secOf = (x, y) => x >= 0 && y >= 0 && x < W && y < H ? secAt[y * W + x] : -1;
+    // which fort is whose: the owner of the territory around it, else the upper fort is the computer's
+    for (const ft of forts) {
+      const s = sectors[secOf(Math.round((ft.x0 + ft.x1) / 2), Math.round((ft.y0 + ft.y1) / 2))] || sectors[secOf(ft.gate[0], ft.gate[1])];
+      ft.team = s && s.owner >= 0 ? s.owner : -1; ft.sec = s;
+    }
+    if (forts[0].team < 0 || forts[1].team < 0 || forts[0].team === forts[1].team) {
+      const upper = forts[0].y0 < forts[1].y0 ? 0 : 1;
+      forts[upper].team = 1; forts[1 - upper].team = 0;
+    }
+
+    const buildings = [], spawns = [], crates = [];
     const addBuilding = (kind, tech, team, x0, y0, w, h, door) => {
       const b = { id: buildings.length, kind: kind, tech: tech, team: team, sector: -1, tx: x0, ty: y0, w: w, h: h, door: { tx: door[0], ty: door[1] },
         hp: kind === 'fort' ? 4000 : 1500, maxhp: kind === 'fort' ? 4000 : 1500, prod: null, progress: 0, dead: false, hit: 0 };
@@ -162,78 +194,85 @@
     };
     const freeNear = (tx, ty) => { for (let r = 0; r < 8; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const x = tx + dx, y = ty + dy; if (x >= 0 && y >= 0 && x < W && y < H && !block[y * W + x]) return [x, y]; } return [tx, ty]; };
 
-    // the two forts: both get their own sector without a flag
     const fortTech = Math.min(lv.maxTech, lv.fortTech);
-    [eIdx === 0 ? 1 : 0, eIdx].forEach(function (fi, team) {
-      const ft = forts[fi];
+    for (const team of [0, 1]) {
+      const ft = forts.find(x => x.team === team);
       const b = addBuilding('fort', fortTech, team, ft.x0, ft.y0, ft.x1 - ft.x0 + 1, ft.y1 - ft.y0 + 1, [0, 0]);
-      // the gate must stay walkable: the door is the first free tile in front of it
       const gate = freeNear(ft.gate[0], ft.y1 + 1);
       b.door = { tx: gate[0], ty: gate[1] };
-      ft.b = b; ft.team = team;
-    });
+      let s = ft.sec && ft.sec.owner === team ? ft.sec : null;
+      if (!s) { s = { id: sectors.length, owner: team, flag: null, fx: gate[0], fy: gate[1], home: true }; sectors.push(s); }
+      s.home = true; s.owner = team; s.fx = gate[0]; s.fy = gate[1];
+      b.sector = s.id; ft.b = b;
+      for (const j of ft.cells) if (secAt[j] < 0) secAt[j] = s.id;
+    }
     for (const r of blds) {
       const tx = Math.floor(r.x / 16), ty = Math.floor(r.y / 16);
       const wh = r.type === 0 ? [5, 4] : r.type === 1 || r.type === 4 ? [4, 5] : [4, 3];
-      const kind = BKIND[r.type] || 'robot';
+      const kind = BKIND[r.type] || 'radar';
       const door = freeNear(tx + (wh[0] >> 1), ty + wh[1]);
-      addBuilding(kind, 1, -1, tx, ty, wh[0], wh[1], door);
+      const b = addBuilding(kind, 1, -1, tx, ty, wh[0], wh[1], door);
+      b.ztype = r.type; b.zprod = UNIT_IDS[r.prod];
     }
 
-    // flags and territories: every flag and fort grows its territory over walkable ground
-    const flags = objs.filter(o => o.type === O_FLAG);
-    flags.forEach(function (o, k) {
-      const tx = Math.floor((o.x + 8) / 16), ty = Math.floor((o.y + 8) / 16);
-      sectors.push({ id: k, owner: -1, flag: { x: (tx + 0.5) * TS, y: (ty + 0.5) * TS }, fx: tx, fy: ty, home: false });
-    });
-    forts.forEach(function (ft) {
-      const s = { id: sectors.length, owner: ft.team, flag: null, fx: ft.b.door.tx, fy: ft.b.door.ty, home: true };
-      sectors.push(s); ft.b.sector = s.id;
-    });
-    const secAt = new Int16Array(N).fill(-1), q = [];
-    for (const s of sectors) { const j = s.fy * W + s.fx; if (secAt[j] < 0) { secAt[j] = s.id; q.push(j); } }
-    for (const ft of forts) for (const j of ft.cells) if (secAt[j] < 0) { secAt[j] = ft.b.sector; q.push(j); }
-    for (let pass = 0; pass < 2; pass++) {
-      for (let qi = 0; qi < q.length; qi++) {
-        const j = q[qi], x = j % W, y = (j / W) | 0;
-        for (const dd of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const nx = x + dd[0], ny = y + dd[1], k = ny * W + nx;
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H || secAt[k] >= 0) continue;
-          if (pass === 0 && block[k] && !buildings.some(b => nx >= b.tx && ny >= b.ty && nx < b.tx + b.w && ny < b.ty + b.h)) continue;
-          secAt[k] = secAt[j]; q.push(k);
-        }
-      }
+    // flags of the neutral territories, at the point the territory record gives
+    for (const s of sectors) {
+      if (s.home) continue;
+      const p = block[s.fy * W + s.fx] ? freeNear(s.fx, s.fy) : [s.fx, s.fy];
+      s.fx = p[0]; s.fy = p[1];
+      s.flag = { x: (p[0] + 0.5) * TS, y: (p[1] + 0.5) * TS };
     }
     // buildings belong to the territory they stand in; tech grows towards the middle of the map
     for (const b of buildings) {
       if (b.kind === 'fort') continue;
-      b.sector = secAt[b.door.ty * W + b.door.tx];
-      if (b.sector < 0) b.sector = secAt[(b.ty + (b.h >> 1)) * W + b.tx + (b.w >> 1)];
+      b.sector = secOf(b.tx + (b.w >> 1), b.ty + (b.h >> 1));
+      if (b.sector < 0) b.sector = secOf(b.door.tx, b.door.ty);
+      const s = sectors[b.sector];
+      if (s && !s.home && s.owner >= 0) b.team = s.owner;
       const mid = 1 - Math.min(1, Math.hypot(b.cx / TS - W / 2, b.cy / TS - H / 2) / (Math.hypot(W, H) / 2));
-      b.tech = b.kind === 'repair' ? 1 : ZG.clamp(Math.round(1 + (lv.maxTech - 1) * (0.3 + 0.8 * mid)), 1, lv.maxTech);
+      b.tech = b.kind === 'repair' || b.kind === 'radar' ? 1 : ZG.clamp(Math.round(1 + (lv.maxTech - 1) * (0.3 + 0.8 * mid)), 1, lv.maxTech);
     }
     for (const s of sectors) s.b = buildings.find(b => b.sector === s.id && b.kind !== 'fort') || null;
 
-    // rocks, vehicles, starting troops
+    // bridges: deck tiles inside each bridge record form one destructible bridge
+    const bridgeAt = new Int16Array(N).fill(-1), bridges = [];
+    for (const r of brs) {
+      const br = { id: bridges.length, tiles: [], hp: 0, maxhp: 0, dead: false, hit: 0 };
+      for (let y = r.y >> 4; y < (r.y + r.h + 15) >> 4; y++) for (let x = r.x >> 4; x < (r.x + r.w + 15) >> 4; x++) {
+        const j = y * W + x;
+        if (x < W && y < H && tiles[j] === T.BRIDGE && bridgeAt[j] < 0) { bridgeAt[j] = br.id; br.tiles.push(j); }
+      }
+      if (!br.tiles.length) continue;
+      br.hp = br.maxhp = r.hp > 0 && r.hp < 5000 ? r.hp * 2 : 1000;
+      br.x = (r.x + r.w / 2) * 2; br.y = (r.y + r.h / 2) * 2;
+      bridges.push(br);
+    }
+
+    // objects: neutral vehicles and guns carry their unit type in byte 5; scenery has 0xFF there
     const rockHp = new Float32Array(N);
     for (const o of objs) {
       const tx = Math.floor((o.x + 8) / 16), ty = Math.floor((o.y + 8) / 16), j = ty * W + tx;
-      if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
-      if (o.type === O_ROCK && !block[j]) { tiles[j] = T.BOULDER; block[j] = 1; rockHp[j] = 260; }
-      else if (o.type === O_VEHICLE && !block[j]) spawns.push({ t: lv.maxTech >= 2 && (o.b5 & 1) ? 'light' : 'jeep', team: -1, tx: tx, ty: ty });
+      if (tx < 0 || ty < 0 || tx >= W || ty >= H || block[j]) continue;
+      if (o.b5 !== 0xff) {
+        const t = UNIT_IDS[o.b5];
+        if (!t || ZG.UNITS[t].cls === 'robot') continue;
+        spawns.push({ t: t, team: -1, tx: tx, ty: ty, sector: secAt[j] });
+        if (ZG.UNITS[t].cls === 'gun') block[j] = 2;
+      } else if (zm.world === 'DESERT' && o.type === 0x0b) { tiles[j] = T.BOULDER; block[j] = 1; rockHp[j] = 260; }
+      else if (zm.world === 'DESERT' && o.type === 0x0a) crates.push({ x: (tx + 0.5) * TS, y: (ty + 0.5) * TS, taken: false });
     }
-    for (const ft of forts) {
-      const d = ft.b.door, cnt = lv.start[ft.team] + (ft.team === 0 ? lv.bonus || 0 : 0);
-      for (let k = 0; k < cnt; k++) { const p = freeNear(d.tx - 2 + (k % 5), d.ty + 1 + Math.floor(k / 5)); spawns.push({ t: 'grunt', team: ft.team, tx: p[0], ty: p[1] }); block[p[1] * W + p[0]] = 2; }
-      const g1 = freeNear(ft.b.tx - 1, d.ty), g2 = freeNear(ft.b.tx + ft.b.w, d.ty);
-      spawns.push({ t: 'gatling', team: ft.team, tx: g1[0], ty: g1[1], sector: ft.b.sector }); block[g1[1] * W + g1[0]] = 2;
-      spawns.push({ t: 'gatling', team: ft.team, tx: g2[0], ty: g2[1], sector: ft.b.sector }); block[g2[1] * W + g2[0]] = 2;
+    // starting troops: the data has no list of them, so every side starts with a squad and two guns
+    for (const team of [0, 1]) {
+      const b = buildings.find(x => x.kind === 'fort' && x.team === team), d = b.door, cnt = lv.start[team] + (team === 0 ? lv.bonus || 0 : 0);
+      for (let k = 0; k < cnt; k++) { const p = freeNear(d.tx - 2 + (k % 5), d.ty + 1 + Math.floor(k / 5)); spawns.push({ t: 'grunt', team: team, tx: p[0], ty: p[1] }); block[p[1] * W + p[0]] = 2; }
+      const g1 = freeNear(b.tx - 1, d.ty), g2 = freeNear(b.tx + b.w, d.ty);
+      spawns.push({ t: 'gatling', team: team, tx: g1[0], ty: g1[1], sector: b.sector }); block[g1[1] * W + g1[0]] = 2;
+      spawns.push({ t: 'gatling', team: team, tx: g2[0], ty: g2[1], sector: b.sector }); block[g2[1] * W + g2[0]] = 2;
     }
     for (let i = 0; i < N; i++) if (block[i] === 2) block[i] = 0;
 
     const map = { W: W, H: H, tiles: tiles, block: block, sectors: sectors, buildings: buildings, spawns: spawns, crates: crates,
-      sw: W, sh: H, cols: 1, rows: 1, secAt: secAt, rockHp: rockHp, bridges: [], bridgeAt: new Int16Array(N).fill(-1), z: zm, world: WORLDS[zm.world] != null ? WORLDS[zm.world] : 0 };
-    // forts first, as the generator does
+      sw: W, sh: H, cols: 1, rows: 1, secAt: secAt, rockHp: rockHp, bridges: bridges, bridgeAt: bridgeAt, z: zm, world: WORLDS[zm.world] != null ? WORLDS[zm.world] : 0 };
     buildings.sort((a, b) => (b.kind === 'fort') - (a.kind === 'fort') || a.team - b.team);
     buildings.forEach((b, i) => { b.id = i; });
     return map;
@@ -266,7 +305,7 @@
   Z.spriteCanvas = function (i, world) {
     const s = Z.sprite(i);
     if (!s || !s.w || !s.h) return null;
-    const nm = (world || 'DESERT').toLowerCase(), pd = Z.files[nm + '.pal'] || Z.files['desert.pal'], pal = Z.palette(pd);
+    const pal = Z.palette(palFile(world || 'DESERT') || Z.files['desert.pal']);
     const c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
     const x = c.getContext('2d'), id = x.createImageData(s.w, s.h), o = id.data;
     for (let k = 0; k < s.px.length; k++) { const v = s.px[k]; if (!v) continue; o[k * 4] = pal[v * 3]; o[k * 4 + 1] = pal[v * 3 + 1]; o[k * 4 + 2] = pal[v * 3 + 2]; o[k * 4 + 3] = 255; }
@@ -274,10 +313,37 @@
     return c;
   };
 
+  // original pictures for forts, buildings and flags (units are still drawn by Zonebots)
+  const FORT_BASE = { DESERT: [809, 1675], ARTIC: [2127, 2148], ARCTIC: [2127, 2148], CITY: [2304, 2431], JUNGLE: [2613, 2725], VOLCAN: [2800, 2845] };
+  // intact: vehicle factory, robot factory, type 0, type 8; destroyed: type 0, type 8, vehicle factory, robot factory
+  const BLD_BASE = { DESERT: [2089, 1879], JUNGLE: [2821, 2739], ARTIC: [2960, 2825], ARCTIC: [2960, 2825], CITY: [3093, 2964], VOLCAN: [4022, 3097] };
+  const BLD_SLOT = { vehicle: [0, 2], robot: [1, 3], radar: [2, 0], repair: [3, 1] };
+  Z.spriteSet = function (map) {
+    if (!Z.files || !Z.files['sprites.rsc']) return null;
+    const w = map.z.world, cache = {};
+    const get = (k, make) => k in cache ? cache[k] : (cache[k] = make());
+    return {
+      building(b) {
+        if (b.kind === 'fort') {
+          const fb = FORT_BASE[w]; if (!fb) return null;
+          return get('f' + b.dead, function () {
+            const base = fb[b.dead ? 1 : 0], c = document.createElement('canvas'); c.width = 160; c.height = 176;
+            const x = c.getContext('2d');
+            for (const pc of [[0, 0, 0], [1, 120, 0], [4, 0, 96], [5, 120, 96]]) { const s = Z.spriteCanvas(base + pc[0], w); if (s) x.drawImage(s, pc[1], pc[2]); }
+            return c;
+          });
+        }
+        const bb = BLD_BASE[w], slot = BLD_SLOT[b.kind];
+        if (!bb || !slot) return null;
+        return get(b.kind + b.dead, () => Z.spriteCanvas(bb[b.dead ? 1 : 0] + slot[b.dead ? 1 : 0], w));
+      },
+      flag(owner, frame) { return get('fl' + owner + frame, () => Z.spriteCanvas(1234 + (owner === 0 ? 0 : owner === 1 ? 4 : 8) + frame, w)); }
+    };
+  };
+
   // ---------- original terrain image ----------
   Z.terrainCanvas = function (map) {
-    const zm = map.z, pal = Z.palette(Z.files[zm.world.toLowerCase() + '.pal'] || Z.files[(zm.world === 'ARTIC' ? 'arctic' : zm.world.toLowerCase()) + '.pal']);
-    const blk = Z.files[zm.world.toLowerCase() + '.blk'] || Z.files[(zm.world === 'ARTIC' ? 'arctic' : zm.world.toLowerCase()) + '.blk'];
+    const zm = map.z, pal = Z.palette(palFile(zm.world)), blk = blkFile(zm.world);
     const W = map.W * 16, H = map.H * 16, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const cx = cv.getContext('2d'), id = cx.createImageData(W, H), d = id.data;
     const paint = function (tx, ty, ti, target, tw) {

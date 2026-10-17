@@ -26,7 +26,7 @@
       const u = ZG.spawn(G, s.t, s.team, (s.tx + 0.5) * TS, (s.ty + 0.5) * TS, s.sector);
       if (u.def.cls === 'robot' && u.team >= 0) { if (cnt[u.team]++ % 4 === 0) sq[u.team] = G.nid++; u.squad = sq[u.team]; }
     }
-    for (const b of map.buildings) if (b.team >= 0) b.prod = pickProd(G, b);
+    for (const b of map.buildings) { if (b.zprod) b.prod = b.zprod; if (b.team >= 0) b.prod = pickProd(G, b); }
     return G;
   };
 
@@ -42,7 +42,7 @@
   };
 
   ZG.products = function (b) {
-    if (b.kind === 'repair' || b.dead) return [];
+    if (b.kind === 'repair' || b.kind === 'radar' || b.dead) return [];
     const out = [];
     for (const k in ZG.UNITS) {
       const d = ZG.UNITS[k];
@@ -560,6 +560,7 @@
       if (b.hit > 0) b.hit -= dt;
       if (b.dead || b.team < 0) continue;
       const s = map.sectors[b.sector];
+      if (b.kind === 'radar') continue;
       if (b.kind === 'repair') {
         const px = (b.door.tx + 0.5) * TS, py = (b.door.ty + 0.5) * TS;
         for (const u of G.units) if (!u.dead && u.team === b.team && u.hp < u.def.hp && Math.hypot(u.x - px, u.y - py) < 100) u.hp = Math.min(u.def.hp, u.hp + 22 * dt);

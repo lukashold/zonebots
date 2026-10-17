@@ -364,11 +364,14 @@
         boxo(x, p, 'k', W / 2 - 10, H - 12, 20, 12);
         for (let i = 0; i < 4; i++) px(x, p, 'K', W / 2 - 9, H - 11 + i * 3, 18, 2);
         boxo(x, p, 'K', 4, 0, 6, 12); px(x, p, 'k', 5, 0, 4, 2);
+      } else if (b.kind === 'radar') {
+        px(x, p, 'k', W / 2 - 1, 4, 2, 10); boxo(x, p, 'm', W / 2 - 8, 2, 16, 8); px(x, p, 'M', W / 2 - 6, 4, 12, 3); px(x, p, 'r', W / 2 - 1, 0, 2, 2);
+        boxo(x, p, 'k', W - 16, H - 11, 12, 11); px(x, p, 'K', W - 14, H - 9, 8, 9);
       } else {
         px(x, p, 'w', W / 2 - 7, 6, 14, 12); px(x, p, 'k', W / 2 - 7, 6, 14, 1); px(x, p, 'g', W / 2 - 2, 7, 4, 10); px(x, p, 'g', W / 2 - 6, 10, 12, 4);
         boxo(x, p, 'k', W - 16, H - 11, 12, 11); px(x, p, 'K', W - 14, H - 9, 8, 9);
       }
-      if (b.kind !== 'repair') for (let i = 0; i < b.tech; i++) { px(x, p, 'k', W - 7 - i * 6, 7, 5, 5); px(x, p, 'y', W - 6 - i * 6, 8, 3, 3); }
+      if (b.kind !== 'repair' && b.kind !== 'radar') for (let i = 0; i < b.tech; i++) { px(x, p, 'k', W - 7 - i * 6, 7, 5, 5); px(x, p, 'y', W - 6 - i * 6, 8, 3, 3); }
       return c;
     });
   }
@@ -500,10 +503,10 @@
     const fr = (time * 6 | 0) % 3;
     for (const it of items) {
       if (it.b) {
-        const b = it.b, s = buildingSprite(b);
-        c.drawImage(s, b.tx * TP, b.ty * TP - LIFT);
+        const b = it.b, zs = R.zs && R.zs.building(b), s = zs || buildingSprite(b);
+        c.drawImage(s, b.tx * TP, b.ty * TP - (zs ? 0 : LIFT));
         if (b.hit > 0) { c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(b.tx * TP, b.ty * TP - LIFT, b.w * TP, b.h * TP + LIFT); }
-        if (b.kind === 'fort' && !b.dead) c.drawImage(flagSprite(b.team, fr), b.tx * TP + b.w * TP / 2 - 1, b.ty * TP - LIFT - 14);
+        if (b.kind === 'fort' && !b.dead && !zs) c.drawImage(flagSprite(b.team, fr), b.tx * TP + b.w * TP / 2 - 1, b.ty * TP - LIFT - 14);
         if (b.dead && (time * 5 + b.id) % 3 < 1) { c.fillStyle = '#ff6a1c'; c.fillRect(b.tx * TP + 8 + (b.id * 7) % 20, b.ty * TP + 6, 2, 2); }
         if (ui.selB === b) brackets(c, b.tx * TP - 2, b.ty * TP - LIFT - 2, b.w * TP + 4, b.h * TP + LIFT + 4, '#fff');
         if (!b.dead && b.team >= 0 && (ui.selB === b || b.hp < b.maxhp)) bar(c, b.tx * TP + 4, b.ty * TP - LIFT - 4, b.w * TP - 8, b.hp / b.maxhp);
@@ -514,7 +517,9 @@
       } else if (it.f) {
         const s = it.f;
         c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(s.flag.x / A - 2, s.flag.y / A + 2, 6, 2);
-        c.drawImage(flagSprite(s.owner, (fr + s.id) % 3), Math.round(s.flag.x / A) - 1, Math.round(s.flag.y / A) - 13);
+        const zf = R.zs && R.zs.flag(s.owner, ((time * 6 | 0) + s.id) % 4);
+        if (zf) c.drawImage(zf, Math.round(s.flag.x / A) - 16, Math.round(s.flag.y / A) - 18);
+        else c.drawImage(flagSprite(s.owner, (fr + s.id) % 3), Math.round(s.flag.x / A) - 1, Math.round(s.flag.y / A) - 13);
       } else if (it.crate) {
         c.drawImage(crateSprite(), Math.round(it.crate.x / A) - 5, Math.round(it.crate.y / A) - 5);
       } else {
