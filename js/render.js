@@ -122,6 +122,15 @@
       px(x, p, 'k', 1, 5, 12, 3); px(x, p, 'y', 2, 6, 10, 1); for (let i = 3; i < 12; i += 3) px(x, p, 'k', i, 6, 1, 1);
       px(x, p, 'K', 0, 4, 2, 5);
     }],
+    truck: [22, 13, function (x, p) {
+      for (const q of [[2, 0], [9, 0], [16, 0], [2, 10], [9, 10], [16, 10]]) boxo(x, p, 'K', q[0], q[1], 4, 3);
+      boxo(x, p, 'G', 1, 2, 15, 9); for (let i = 3; i < 15; i += 3) px(x, p, 'g', i, 3, 1, 7);
+      boxo(x, p, 'T', 15, 3, 6, 7); px(x, p, 'v', 18, 4, 2, 5);
+    }],
+    firetruck: [22, 13, function (x, p) {
+      for (const q of [[2, 0], [9, 0], [16, 0], [2, 10], [9, 10], [16, 10]]) boxo(x, p, 'K', q[0], q[1], 4, 3);
+      boxo(x, p, 'r', 1, 2, 15, 9); px(x, p, 'm', 2, 5, 13, 3); boxo(x, p, 'T', 15, 3, 6, 7); px(x, p, 'v', 18, 4, 2, 5);
+    }],
     launcher: [20, 13, function (x, p) {
       for (const q of [[2, 0], [13, 0], [2, 10], [13, 10]]) boxo(x, p, 'K', q[0], q[1], 4, 3);
       boxo(x, p, 'T', 1, 2, 18, 9); boxo(x, p, 'n', 13, 3, 5, 7); px(x, p, 'v', 16, 4, 1, 5); px(x, p, 't', 2, 3, 1, 7);
@@ -564,6 +573,8 @@
     // effects
     for (const f of G.fx) {
       const p = f.t / f.life;
+      const zf = curZS && curZS.fx(f);
+      if (zf) { c.drawImage(zf[0], Math.round(f.x / A + zf[1]), Math.round(f.y / A + zf[2])); continue; }
       if (f.k === 'line') { if (p < 0.6) line(c, f.x / A, f.y / A - 3, f.x2 / A, f.y2 / A - 3, '#fff3b0'); c.fillStyle = '#ffd23a'; c.fillRect(Math.round(f.x / A) - 1, Math.round(f.y / A) - 4, 2, 2); }
       else if (f.k === 'beam') { line(c, f.x / A, f.y / A - 3, f.x2 / A, f.y2 / A - 3, p < 0.5 ? '#ffffff' : '#66ffff'); }
       else if (f.k === 'flame') {

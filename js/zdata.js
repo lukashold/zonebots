@@ -31,7 +31,7 @@
   const BKIND = { 4: 'robot', 1: 'vehicle', 0: 'radar', 8: 'repair' };
   // unit type numbers used by BUILD (+16, first production) and OBJECT (byte 5, neutral units)
   const UNIT_IDS = { 0: 'cannon', 1: 'medium', 2: 'grunt', 3: 'tough', 4: 'sniper', 5: 'heavy', 6: 'psycho', 7: 'launcher', 8: 'light',
-    9: 'mturret', 10: 'gatling', 11: 'jeep', 12: 'jeep', 13: 'apc', 14: 'howitzer', 15: 'jeep', 16: 'crane', 17: 'pyro', 18: 'laser' };
+    9: 'mturret', 10: 'gatling', 11: 'jeep', 12: 'truck', 13: 'apc', 14: 'howitzer', 15: 'firetruck', 16: 'crane', 17: 'pyro', 18: 'laser' };
   const PALNAME = { ARTIC: 'arctic', ARCTIC: 'arctic' };
   const palFile = w => Z.files[(PALNAME[w] || w.toLowerCase()) + '.pal'];
   const blkFile = w => Z.files[(PALNAME[w] || w.toLowerCase()) + '.blk'];
@@ -348,6 +348,7 @@
   const BLD_BASE = { DESERT: [2089, 1879], JUNGLE: [2821, 2739], ARTIC: [2960, 2825], ARCTIC: [2960, 2825], CITY: [3093, 2964], VOLCAN: [4022, 3097] };
   const BLD_SLOT = { vehicle: [0, 2], robot: [1, 3], radar: [2, 0], repair: [3, 1] };
   // engine angle (0 = east, clockwise) -> Z direction (0 = north, clockwise, 8 steps)
+  const HULL4 = { light: 5719, medium: 5305, heavy: 5317, apc: 5655 }, TURRET4 = { light: 5731, medium: 5329, heavy: 5329 };
   const zdir = a => ((Math.round((a + Math.PI / 2) / (Math.PI / 4)) % 8) + 8) % 8;
   Z.spriteSet = function (map) {
     if (!Z.files || !Z.files['sprites.rsc']) return null;
@@ -368,6 +369,24 @@
         if (!bb || !slot) return null;
         return get(b.kind + b.dead, () => Z.spriteCanvas(bb[b.dead ? 1 : 0] + slot[b.dead ? 1 : 0], w));
       },
+      // explosions and robot deaths: [canvas, dx, dy] for an effect, or null to draw our own
+      fx(f) {
+        const seq = f.k === 'die' ? [422, 431] : f.k !== 'boom' ? null : f.r >= 50 ? [473, 479] : f.r >= 22 ? [395, 406] : [407, 414];
+        if (!seq) return null;
+        const i = seq[0] + Math.min(seq[1] - seq[0], Math.floor(f.t / f.life * (seq[1] - seq[0] + 1)));
+        const team = f.k === 'die' ? f.team : null, c = get('x' + i + '_' + team, () => Z.spriteCanvas(i, w, team));
+        return c ? [c, -(c.width >> 1), -(c.height >> 1) - (f.k === 'die' ? 6 : 0)] : null;
+      },
+      // mouse pointers of the original, as CSS cursor values
+      cursor(i, hx, hy) {
+        return get('c' + i, function () {
+          const s = Z.spriteCanvas(i, w);
+          if (!s) return '';
+          const c = document.createElement('canvas'); c.width = s.width * 2; c.height = s.height * 2;
+          const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(s, 0, 0, c.width, c.height);
+          return 'url(' + c.toDataURL() + ') ' + hx * 2 + ' ' + hy * 2 + ', auto';
+        });
+      },
       flag(owner, frame) { return get('fl' + owner + frame, () => Z.spriteCanvas(1234 + (owner === 0 ? 0 : owner === 1 ? 4 : 8) + frame, w)); },
       // layers to draw for a unit, as [canvas, dx, dy] relative to the unit's position in art pixels
       unit(u) {
@@ -378,10 +397,22 @@
         if (d.cls === 'robot') {
           const i = u.moving ? 74 + dir * 4 + (Math.floor(u.walk / 1.6) & 3) : fired ? 131 + 5 * aim : u.tgt ? 130 + 5 * aim : 66 + dir;
           const c = img(i); L = c ? [[c, -8, -15]] : null;
-        } else if (u.t === 'jeep') L = [centre(330 + dir)];
-        else if (u.t === 'light' || u.t === 'medium' || u.t === 'heavy') L = [centre(488 + dir * 3 + (u.moving ? Math.floor(u.walk / 1.2) % 3 : 0)), centre(5329 + aim)];
+        } else if (u.t === 'jeep') L = [centre(team < 0 ? 5606 + dir : 5590 + dir * 2 + (u.moving ? Math.floor(u.walk / 1.5) & 1 : 0))];
+        else if (HULL4[u.t]) {
+          // camouflaged hulls with team-coloured stripes; drawn in four orientations (N = S, NE = SW, ...)
+          const tr = u.moving ? Math.floor(u.walk / 1.2) % 3 : 0;
+          L = [centre(HULL4[u.t] + (dir % 4) * 3 + tr)];
+          if (TURRET4[u.t]) L.push(centre(TURRET4[u.t] + aim));
+        }
         else if (u.t === 'launcher') L = [centre(1845 + dir * 3 + (u.moving ? Math.floor(u.walk / 1.2) % 3 : 0)), centre(1869 + aim)];
-        else if (u.t === 'cannon' || u.t === 'gatling') L = [centre(team < 0 ? 1651 + aim : 1659 + 2 * aim + (fired ? 1 : 0))];
+        else if (u.t === 'gatling') L = [centre(330 + aim)];
+        else if (u.t === 'truck' || u.t === 'firetruck') {
+          // only one picture exists, looking west; mirrored when the truck heads east
+          const base = u.t === 'truck' ? 5213 : 5215, east = dir >= 1 && dir <= 3;
+          L = [centre(base)];
+          if (east && L[0]) L[0][0] = get('m' + base + team, () => { const s = img(base), c = document.createElement('canvas'); c.width = s.width; c.height = s.height; const x = c.getContext('2d'); x.translate(s.width, 0); x.scale(-1, 1); x.drawImage(s, 0, 0); return c; });
+        }
+        else if (u.t === 'cannon') L = [centre(team < 0 ? 1651 + aim : 1659 + 2 * aim + (fired ? 1 : 0))];
         else if (u.t === 'howitzer') L = [centre(team < 0 ? 5759 + aim : 5767 + 2 * aim + (fired ? 1 : 0))];
         else if (u.t === 'mturret') L = [centre((team < 0 ? 1635 : 1643) + aim)];
         return L && L.every(Boolean) ? L : null;

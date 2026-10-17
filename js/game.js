@@ -309,7 +309,7 @@
     if (u.hp <= 0) {
       u.dead = true;
       const big = u.def.cls !== 'robot';
-      G.fx.push({ k: 'boom', x: u.x, y: u.y, t: 0, life: big ? 0.6 : 0.35, r: big ? 26 : 12 });
+      G.fx.push(big ? { k: 'boom', x: u.x, y: u.y, t: 0, life: 0.6, r: 26 } : { k: 'die', x: u.x, y: u.y, t: 0, life: 0.7, r: 12, team: u.team });
       G.ev.push({ k: 'boom', x: u.x, y: u.y, big: big });
       if (u.def.cls === 'gun') G.map.block[Math.floor(u.y / TS) * G.map.W + Math.floor(u.x / TS)] = 0;
       if (u.team >= 0) G.stats[u.team].losses += 1 + (u.cargo ? u.cargo.length : 0);

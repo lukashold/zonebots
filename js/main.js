@@ -201,11 +201,22 @@
     const b = ui.selB;
     if (b && b.team === 0 && !b.dead && ZG.products(b).length) { b.rally = { x: p.x, y: p.y }; ui.marks.push({ x: p.x, y: p.y, t: 0, atk: false }); toast(L.rally); }
   }
+  // mouse pointer: the original arrow and cross-hairs when the player's Z files are loaded
+  function pointer(p) {
+    if (!R || !R.zs) return mode ? 'crosshair' : 'default';
+    if (mode) return R.zs.cursor(5, 8, 8) || 'crosshair';
+    if (p && mineSel().length) {
+      const enemy = unitAt(p, u => u.team === 1);
+      if (enemy) return R.zs.cursor(5, 8, 8) || 'crosshair';
+      return R.zs.cursor(4, 8, 8) || 'default';
+    }
+    return R.zs.cursor(0, 0, 0) || 'default';
+  }
   function setMode(m) {
     mode = m;
     $('mode').classList.toggle('hidden', !m);
     $('mode').textContent = m === 'attack' ? (lang === 'de' ? 'Angriff: Ziel anklicken' : 'Attack: click target') : m === 'rally' ? (lang === 'de' ? 'Sammelpunkt: Ort anklicken' : 'Rally point: click a spot') : '';
-    cv.style.cursor = m ? 'crosshair' : 'default';
+    cv.style.cursor = pointer(null);
     panelSig = '';
   }
   // a plain click on the map (no drag)
@@ -240,6 +251,7 @@
   });
   window.addEventListener('mousemove', function (e) {
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.inside = true;
+    if (G && e.target === cv) { const cur = pointer(world(e.clientX, e.clientY)); if (cv.style.cursor !== cur) cv.style.cursor = cur; }
     if (G && ui.drag) { const p = world(e.clientX, e.clientY); ui.drag.x1 = p.x; ui.drag.y1 = p.y; }
     if (G && miniDrag) miniTo(e);
   });
