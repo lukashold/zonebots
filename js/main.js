@@ -559,5 +559,20 @@
 
   window.ZGdebug = { get G() { return G; }, start: start, get cam() { return cam; }, get view() { return view; } };
   resize(); buildMenu(); requestAnimationFrame(frame);
-  ZG.Z.restore().then(n => { if (n && G === null) buildMenu(); });
+  // ?z=<folder url>: load the original Z files from a local server (see tools/zplay.py)
+  async function loadZFrom(base) {
+    const names = ['levels.dat', 'en.lproj/sprites.rsc'];
+    for (let i = 1; i <= 20; i++) { const n = String(i).padStart(2, '0'); names.push('LEVEL' + n + '.MAP', 'BUILD' + n + '.DAT', 'OBJECT' + n + '.DAT', 'CPUPLR' + n + '.DAT', 'BRIDGE' + n + '.DAT'); }
+    for (const w of ['DESERT', 'VOLCAN', 'ARCTIC', 'JUNGLE', 'CITY']) names.push(w + '.PAL', w + '.BLK');
+    $('zHint').textContent = L.zLoading;
+    const files = {};
+    await Promise.all(names.map(async function (n) {
+      try { const r = await fetch(base + n); if (r.ok) files[n.split('/').pop().toLowerCase()] = new Uint8Array(await r.arrayBuffer()); } catch (e) { /* missing file */ }
+    }));
+    if (ZG.Z.use(files)) { try { await ZG.Z.save(files); } catch (e) { /* storage blocked */ } }
+    if (G === null) buildMenu();
+  }
+  const zq = new URLSearchParams(location.search).get('z');
+  if (zq && /^[\w\/.-]+$/.test(zq)) loadZFrom(zq.endsWith('/') ? zq : zq + '/');
+  else ZG.Z.restore().then(n => { if (n && G === null) buildMenu(); });
 })();
