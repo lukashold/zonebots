@@ -545,7 +545,7 @@
     for (const u of G.units) {
       const ax = u.x / A, ay = u.y / A;
       if (ax < vx0 || ay < vy0 || ax > vx1 || ay > vy1) continue;
-      items.push({ y: ay + (u.def.cls === 'gun' ? -4 : 0), u: u, ax: ax, ay: ay });
+      items.push({ y: u.onFort ? u.onFort / A : ay + (u.def.cls === 'gun' ? -4 : 0), u: u, ax: ax, ay: ay });
     }
     items.sort((a, b) => a.y - b.y);
     const fr = (time * 6 | 0) % 3;

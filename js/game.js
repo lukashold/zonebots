@@ -23,10 +23,15 @@
       aiTeams: opt.aiTeams || [1], aiT: 1, rnd: ZG.rng(lv.seed ^ 0x9e3779b9), alertT: 0,
       stats: [{ kills: 0, losses: 0 }, { kills: 0, losses: 0 }],
       ai: { aiRate: lv.aiRate * df.rate, aiInt: lv.aiInt * df.int, aiWait: lv.aiWait * df.wait, aiRush: lv.aiRush, aiBatch: lv.aiBatch, aiMin: lv.aiMin } };
-    const sq = [G.nid++, G.nid++], cnt = [0, 0];
+    const sq = [G.nid++, G.nid++], cnt = [0, 0], keyed = {};
     for (const s of map.spawns) {
       const u = ZG.spawn(G, s.t, s.team, (s.tx + 0.5) * TS, (s.ty + 0.5) * TS, s.sector);
-      if (u.def.cls === 'robot' && u.team >= 0) { if (cnt[u.team]++ % 4 === 0) sq[u.team] = G.nid++; u.squad = sq[u.team]; }
+      // guns on a fort tower: drawn on top of the fort, and their tile stays part of the fort
+      if (s.onFort) u.onFort = (s.onFort.ty + s.onFort.h) * TS + 1;
+      if (u.def.cls === 'robot' && u.team >= 0) {
+        if (s.squadKey) u.squad = keyed[s.squadKey] || (keyed[s.squadKey] = G.nid++);
+        else { if (cnt[u.team]++ % 4 === 0) sq[u.team] = G.nid++; u.squad = sq[u.team]; }
+      }
     }
     for (const b of map.buildings) { if (b.zprod) b.prod = b.zprod; if (b.team >= 0) b.prod = pickProd(G, b); }
     return G;
@@ -313,7 +318,7 @@
       const big = u.def.cls !== 'robot';
       G.fx.push(big ? { k: 'boom', x: u.x, y: u.y, t: 0, life: 0.6, r: 26 } : { k: 'die', x: u.x, y: u.y, t: 0, life: 0.7, r: 12, team: u.team });
       G.ev.push({ k: 'boom', x: u.x, y: u.y, big: big });
-      if (u.def.cls === 'gun') G.map.block[Math.floor(u.y / TS) * G.map.W + Math.floor(u.x / TS)] = 0;
+      if (u.def.cls === 'gun' && !u.onFort) G.map.block[Math.floor(u.y / TS) * G.map.W + Math.floor(u.x / TS)] = 0;
       if (u.team >= 0) G.stats[u.team].losses += 1 + (u.cargo ? u.cargo.length : 0);
       if (src && src.team >= 0 && src.team !== u.team && u.team >= 0) G.ev.push({ k: 'kill', team: src.team, x: u.x, y: u.y });
       if (src && src.team >= 0 && src.team !== u.team && u.team >= 0) G.stats[src.team].kills += 1 + (u.cargo ? u.cargo.length : 0);

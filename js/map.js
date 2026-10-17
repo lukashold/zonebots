@@ -106,9 +106,11 @@
       const s = sectors[h[0]], team = h[1];
       s.owner = team; s.home = true;
       addB(s, 'fort', fortTech, team);
-      spawns.push({ t: 'gatling', team: team, tx: s.fx - 3, ty: s.fy - 1, sector: s.id });
-      spawns.push({ t: 'gatling', team: team, tx: s.fx + 3, ty: s.fy - 1, sector: s.id });
-      if (lv.idx >= 8) spawns.push({ t: 'cannon', team: team, tx: s.fx + 3, ty: s.fy - 3, sector: s.id });
+      // guns stand on the fort's towers, as in the original
+      const fb = buildings[buildings.length - 1];
+      spawns.push({ t: 'gatling', team: team, tx: fb.tx, ty: fb.ty, sector: s.id, onFort: fb });
+      spawns.push({ t: 'gatling', team: team, tx: fb.tx + fb.w - 1, ty: fb.ty, sector: s.id, onFort: fb });
+      if (lv.idx >= 8) spawns.push({ t: 'cannon', team: team, tx: fb.tx, ty: fb.ty + fb.h - 1, sector: s.id, onFort: fb });
       const cnt = lv.start[team] + (team === 0 ? lv.bonus || 0 : 0);
       for (let k = 0; k < cnt; k++) spawns.push({ t: 'grunt', team: team, tx: s.fx - 2 + (k % 5), ty: s.fy + Math.floor(k / 5) });
       if (lv.idx >= 6) spawns.push({ t: 'jeep', team: team, tx: s.fx - 2, ty: s.fy + 2 });

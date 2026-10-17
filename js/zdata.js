@@ -55,11 +55,16 @@
     for (let i = 1; i <= 20; i++) {
       const nn = String(i).padStart(2, '0');
       if (!files['level' + nn + '.map']) continue;
-      let name = 'Level ' + i;
+      let name = 'Level ' + i, start = null;
       if (ld) {
-        for (let r = 0; r * 240 < ld.length; r++) if (str(ld, r * 240 + 0x14, 13).toLowerCase() === 'level' + nn + '.map') name = str(ld, r * 240, 20) || name;
+        for (let r = 0; r * 240 < ld.length; r++) if (str(ld, r * 240 + 0x14, 13).toLowerCase() === 'level' + nn + '.map') {
+          name = str(ld, r * 240, 20) || name;
+          // 12 unit type numbers from +0x55: the forces each side starts with (255 = empty slot)
+          start = [];
+          for (let k = 0; k < 12; k++) { const t = UNIT_IDS[ld[r * 240 + 0x55 + k]]; if (t) start.push(t); }
+        }
       }
-      Z.levels.push({ n: i, nn: nn, name: name });
+      Z.levels.push({ n: i, nn: nn, name: name, start: start });
     }
     return Z.levels.length;
   };
@@ -285,13 +290,28 @@
       } else if (zm.world === 'DESERT' && o.type === 0x0b) { tiles[j] = T.BOULDER; block[j] = 1; rockHp[j] = 260; }
       else if (zm.world === 'DESERT' && o.type === 0x0a) crates.push({ x: (tx + 0.5) * TS, y: (ty + 0.5) * TS, taken: false });
     }
-    // starting troops: the data has no list of them, so every side starts with a squad and two guns
+    // starting forces from levels.dat (the same for both sides); guns go onto the fort's towers
+    const startList = lv.zstart && lv.zstart.length ? lv.zstart : ['grunt', 'grunt', 'gatling', 'gatling'];
     for (const team of [0, 1]) {
-      const b = buildings.find(x => x.kind === 'fort' && x.team === team), d = b.door, cnt = lv.start[team] + (team === 0 ? lv.bonus || 0 : 0);
-      for (let k = 0; k < cnt; k++) { const p = freeNear(d.tx - 2 + (k % 5), d.ty + 1 + Math.floor(k / 5)); spawns.push({ t: 'grunt', team: team, tx: p[0], ty: p[1] }); block[p[1] * W + p[0]] = 2; }
-      const g1 = freeNear(b.tx - 1, d.ty), g2 = freeNear(b.tx + b.w, d.ty);
-      spawns.push({ t: 'gatling', team: team, tx: g1[0], ty: g1[1], sector: b.sector }); block[g1[1] * W + g1[0]] = 2;
-      spawns.push({ t: 'gatling', team: team, tx: g2[0], ty: g2[1], sector: b.sector }); block[g2[1] * W + g2[0]] = 2;
+      const b = buildings.find(x => x.kind === 'fort' && x.team === team), d = b.door;
+      // tower platforms of the 10x11 original fort (left and right round towers, then the top corners)
+      const towers = b.w >= 8 ? [[1, 2], [b.w - 2, 2], [1, 0], [b.w - 2, 0]] : [[0, 0], [b.w - 1, 0], [0, b.h - 1], [b.w - 1, b.h - 1]];
+      const list = startList.slice();
+      for (let k = 0; k < (team === 0 ? lv.bonus || 0 : 0); k++) list.push('grunt');
+      let n = 0, e = 0;
+      for (const t of list) {
+        e++;
+        const def = ZG.UNITS[t];
+        if (def.cls === 'gun') {
+          const tw = towers.shift();
+          if (tw) { spawns.push({ t: t, team: team, tx: b.tx + tw[0], ty: b.ty + tw[1], sector: b.sector, onFort: b }); continue; }
+        }
+        for (let k = 0; k < (def.cls === 'robot' ? def.n : 1); k++, n++) {
+          const p = freeNear(d.tx - 3 + (n % 7), d.ty + 1 + Math.floor(n / 7));
+          spawns.push({ t: t, team: team, tx: p[0], ty: p[1], sector: def.cls === 'gun' ? b.sector : undefined, squadKey: def.cls === 'robot' ? team + ':' + e : undefined });
+          block[p[1] * W + p[0]] = 2;
+        }
+      }
     }
     for (let i = 0; i < N; i++) if (block[i] === 2) block[i] = 0;
 
@@ -305,7 +325,7 @@
   // engine level definitions for the original campaign: our difficulty curve, their maps
   Z.makeLevel = function (k) {
     const zl = Z.levels[k], base = ZG.LEVELS[Math.min(k, ZG.LEVELS.length - 1)];
-    const lv = Object.assign({}, base, { zlevel: zl.nn, zname: zl.name, original: true });
+    const lv = Object.assign({}, base, { zlevel: zl.nn, zname: zl.name, original: true, zstart: zl.start });
     const zm = Z.parseMap(Z.files['level' + zl.nn + '.map']);
     lv.theme = WORLDS[zm.world] != null ? WORLDS[zm.world] : 0;
     return lv;
