@@ -45,7 +45,8 @@
   Z.SFX = ['GATTGUN', 'MACHGUN2', 'RIFLE3', 'JEEPMGUN', 'LASERGUN', 'FLAMER', 'LTANKGUN', 'MTANKGUN', 'HTANKGUN', 'MOBIMISS', 'MOBIMIS2',
     'GRENLOBX', 'GRENADE', 'EXP1', 'EXP2', 'ZEXPLO3', 'ZEXPLO4', 'ZEXPLO5', 'OBJDEST3', 'ROBFACT5', 'RADBLIP', 'CLICK1L'];
   const SFXSET = new Set(Z.SFX.map(n => n.toLowerCase() + '.raw'));
-  Z.wanted = name => NEED.test(name) || SFXSET.has(name.toLowerCase());
+  const VOICE = /^(rob|comp)\d\d\.raw$/i;
+  Z.wanted = name => NEED.test(name) || SFXSET.has(name.toLowerCase()) || VOICE.test(name);
   // files: { lowercased name: Uint8Array }
   Z.use = function (files) {
     Z.files = files;
@@ -107,6 +108,12 @@
       if (!Z.wanted(name)) continue;
       // prefer files from the top folder if a name appears twice; sprites.rsc exists once per language
       const path = (f.webkitRelativePath || '').toLowerCase();
+      if (VOICE.test(name)) {
+        // speech is kept per language: en/rob01.raw, de/rob01.raw
+        const lg = (path.match(/(^|\/)([a-z]{2})\.lproj\//) || [])[2];
+        if (lg === 'en' || lg === 'de') files[lg + '/' + name] = new Uint8Array(await f.arrayBuffer());
+        continue;
+      }
       if (name === 'sprites.rsc' ? files[name] && !path.includes('en.lproj') : files[name] && path.split('/').length > 2) continue;
       files[name] = new Uint8Array(await f.arrayBuffer());
     }

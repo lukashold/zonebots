@@ -294,7 +294,7 @@
     const b = s.b;
     if (b && !b.dead) { b.team = team; b.progress = 0; b.rally = null; b.prod = pickProd(G, b); }
     else if (b) b.team = team;
-    G.ev.push({ k: 'capture', team: team, prev: prev, x: s.flag.x, y: s.flag.y });
+    G.ev.push({ k: 'capture', team: team, prev: prev, x: s.flag.x, y: s.flag.y, radar: !!(b && b.kind === 'radar' && !b.dead) });
   }
 
   function killCrew(G, v, team) {
@@ -313,9 +313,11 @@
       G.ev.push({ k: 'boom', x: u.x, y: u.y, big: big });
       if (u.def.cls === 'gun') G.map.block[Math.floor(u.y / TS) * G.map.W + Math.floor(u.x / TS)] = 0;
       if (u.team >= 0) G.stats[u.team].losses += 1 + (u.cargo ? u.cargo.length : 0);
+      if (src && src.team >= 0 && src.team !== u.team && u.team >= 0) G.ev.push({ k: 'kill', team: src.team, x: u.x, y: u.y });
       if (src && src.team >= 0 && src.team !== u.team && u.team >= 0) G.stats[src.team].kills += 1 + (u.cargo ? u.cargo.length : 0);
       if (u.cargo) u.cargo = [];
-    } else if (!u.order && u.def.sp && u.def.dmg && u.team >= 0 && src && !src.dead && src.team !== u.team && src.team >= 0) {
+    } else if (u.team >= 0 && src && src.team >= 0 && src.team !== u.team) G.ev.push({ k: 'hurt', team: u.team, x: u.x, y: u.y });
+    if (!u.dead && !u.order && u.def.sp && u.def.dmg && u.team >= 0 && src && !src.dead && src.team !== u.team && src.team >= 0) {
       u.order = { k: 'attack', u: src, rp: 0 };
     }
   }
@@ -378,7 +380,7 @@
             G.ev.push({ k: 'board', x: v.x, y: v.y, team: u.team });
           } else {
             v.team = u.team; v.order = null; v.hp = Math.max(v.hp, v.def.hp * 0.5); u.dead = true;
-            G.ev.push({ k: 'enter', x: v.x, y: v.y, team: u.team });
+            G.ev.push({ k: 'enter', x: v.x, y: v.y, team: u.team, gun: v.def.cls === 'gun' });
           }
           return;
         } else if (!u.path || (o.rp -= dt) <= 0) { o.rp = 1.5; if (!setPath(G, u, v.x, v.y)) u.order = null; }

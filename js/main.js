@@ -55,6 +55,42 @@
       return true;
     } catch (e) { return false; }
   }
+  // voices of the original: COMPxx announcements and ROBxx robot replies, numbered as in the game
+  const VOICE = {
+    yes: ['ROB01', 'ROB02', 'ROB03', 'ROB04', 'ROB05', 'ROB06'],
+    report: { grunt: 'ROB07', psycho: 'ROB08', sniper: 'ROB09', tough: 'ROB10', laser: 'ROB11', pyro: 'ROB12' },
+    go: ['ROB13', 'ROB14', 'ROB15', 'ROB16', 'ROB17', 'ROB18', 'ROB19', 'ROB20', 'ROB21', 'ROB22', 'ROB23', 'ROB24'],
+    attacked: ['ROB25', 'ROB26', 'ROB27', 'ROB28', 'ROB29'],
+    hit: ['ROB37', 'ROB40', 'ROB41', 'ROB42', 'ROB43', 'ROB44', 'ROB45', 'ROB46'],
+    taunt: ['COMP10', 'COMP11', 'COMP13', 'COMP15', 'COMP17', 'COMP18']
+  };
+  const pick = a => a[Math.random() * a.length | 0];
+  let voiceSrc = null, voiceUntil = 0;
+  const vbuf = {};
+  function voice(name, urgent) {
+    if (!sound || !ZG.Z.files || !name) return;
+    const f = ZG.Z.files, key = name.toLowerCase() + '.raw', raw = f[(lang === 'de' ? 'de/' : 'en/') + key] || f['en/' + key];
+    if (!raw) return;
+    const now = performance.now();
+    if (now < voiceUntil && !urgent) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const id = lang + name;
+      let b = vbuf[id];
+      if (!b) { b = vbuf[id] = ac.createBuffer(1, raw.length, 11025); const ch = b.getChannelData(0); for (let i = 0; i < raw.length; i++) ch[i] = (raw[i] - 128) / 128; }
+      if (voiceSrc) try { voiceSrc.stop(); } catch (e) { /* already ended */ }
+      const s = ac.createBufferSource(), g = ac.createGain(); g.gain.value = 0.9;
+      s.buffer = b; s.connect(g); g.connect(ac.destination); s.start();
+      voiceSrc = s; voiceUntil = now + b.duration * 1000 + 150;
+    } catch (e) { /* audio unavailable */ }
+  }
+  const lastSaid = {};
+  // the same kind of remark at most every few seconds
+  function say(kind, name, gap, urgent) {
+    const now = performance.now();
+    if (lastSaid[kind] && now - lastSaid[kind] < gap * 1000) return;
+    lastSaid[kind] = now; voice(name, urgent);
+  }
   const music = new Audio(); music.loop = true; music.volume = 0.45;
   let musicName = '';
   function playMusic(name, loop) {
@@ -102,6 +138,7 @@
     clearSel();
     if (wholeSquad) u.sel = true; else for (const v of squad) v.sel = true;
     ui.selB = null;
+    say('select', VOICE.report[u.t] && Math.random() < 0.5 ? VOICE.report[u.t] : pick(VOICE.yes), 0, true);
   }
   // units sent away from their squad form a squad of their own
   function splitSquads(us) {
@@ -157,6 +194,7 @@
     // show the routes as dotted lines for a moment
     ui.paths = us.filter(u => u.path).slice(0, 12).map(u => ({ pts: [{ x: u.x, y: u.y }].concat(u.path), t: 0 }));
     if (!zsfx('CLICK1L', 0.5)) tone('square', 520, 620, 0.05, 0.04);
+    say('order', st && st.kind === 'b' && st.ref.kind === 'fort' && st.ref.team === 1 ? 'ROB54' : pick(VOICE.go), 0, true);
     return true;
   }
   function setRally(p) {
@@ -325,6 +363,7 @@
     if (!list.length) return;
     const i = list.indexOf(b.prod);
     b.prod = list[((i < 0 ? 0 : i) + step + list.length) % list.length]; b.progress = 0; b.paused = false;
+    say('prod', 'COMP04', 1, true);
     panelSig = '';
   }
   $('bpUp').onclick = () => ui.selB && cycleProd(ui.selB, -1);
@@ -334,7 +373,7 @@
   $('bpCancel').onclick = function () {
     const b = ui.selB; if (!b || b.team !== 0) return;
     // stop or resume production; the chosen product is kept
-    if (b.prod) { b.held = b.prod; b.prod = null; b.progress = 0; } else { b.prod = b.held || ZG.products(b)[0]; }
+    if (b.prod) { b.held = b.prod; b.prod = null; b.progress = 0; say('prod', 'COMP05', 0, true); } else { b.prod = b.held || ZG.products(b)[0]; say('prod', 'COMP04', 0, true); }
     panelSig = '';
   };
   function updatePanel() {
@@ -386,6 +425,7 @@
   function updateSide() {
     const n = G.map.sectors.length; let a = 0, b = 0;
     for (const s of G.map.sectors) { if (s.owner === 0) a++; else if (s.owner === 1) b++; }
+    if (b > a + 1 && G.time > 60 && !paused && !G.over) say('taunt', pick(VOICE.taunt), 120);
     $('terrR').style.width = (a / n * 100) + '%'; $('terrB').style.width = (b / n * 100) + '%';
     const tt = a + ':' + b; if ($('terrTxt').textContent !== tt) $('terrTxt').textContent = tt;
     const t = Math.floor(G.time), ct = Math.floor(t / 3600) + ':' + String(Math.floor(t / 60) % 60).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
@@ -409,20 +449,25 @@
         const n = e.big ? ['ZEXPLO3', 'ZEXPLO4', 'ZEXPLO5'][Math.random() * 3 | 0] : (Math.random() < 0.5 ? 'EXP1' : 'EXP2');
         if (onScreen(e) && !zsfx(n, e.big ? 0.8 : 0.5)) tone('noise', e.big ? 500 : 900, 50, e.big ? 0.7 : 0.3, e.big ? 0.22 : 0.1);
       }
+      else if (e.k === 'kill' && e.team === 0) say('hit', pick(VOICE.hit), 7);
+      else if (e.k === 'hurt' && e.team === 0) say('attacked', pick(VOICE.attacked), 25);
       else if (e.k === 'capture') {
-        if (e.team === 0) { toast(L.captured, 'good'); tone('triangle', 520, 1040, 0.25, 0.1); }
-        else if (e.prev === 0) { toast(L.lost, 'bad'); tone('triangle', 400, 160, 0.3, 0.1); }
-      } else if (e.k === 'ready' && e.team === 0) { toast(L.units[e.t] + ' ' + L.ready); if (!zsfx('ROBFACT5', 0.5)) tone('sine', 880, 1320, 0.12, 0.06); }
-      else if (e.k === 'alert') { toast(L.alert, 'bad'); tone('square', 660, 440, 0.4, 0.08); }
-      else if (e.k === 'enter' && e.team === 0) toast(L.crewed, 'good');
-      else if (e.k === 'crate' && e.team === 0) { toast(L.crate, 'good'); tone('sine', 660, 990, 0.15, 0.07); }
+        if (e.team === 0) { toast(L.captured, 'good'); tone('triangle', 520, 1040, 0.25, 0.1); say('capture', e.radar ? 'COMP09' : 'ROB49', 0, true); }
+        else if (e.prev === 0) { toast(L.lost, 'bad'); tone('triangle', 400, 160, 0.3, 0.1); say('lost', 'COMP08', 0, true); }
+      } else if (e.k === 'ready' && e.team === 0) {
+        toast(L.units[e.t] + ' ' + L.ready); if (!zsfx('ROBFACT5', 0.5)) tone('sine', 880, 1320, 0.12, 0.06);
+        const cls = ZG.UNITS[e.t].cls; say('ready', cls === 'robot' ? 'COMP02' : cls === 'gun' ? 'COMP03' : 'COMP01', 0);
+      }
+      else if (e.k === 'alert') { toast(L.alert, 'bad'); tone('square', 660, 440, 0.4, 0.08); say('alert', e.fort ? 'COMP16' : pick(VOICE.attacked), 0, true); }
+      else if (e.k === 'enter' && e.team === 0) { toast(L.crewed, 'good'); say('enter', e.gun ? 'ROB51' : 'ROB52', 0, true); }
+      else if (e.k === 'crate' && e.team === 0) { toast(L.crate, 'good'); tone('sine', 660, 990, 0.15, 0.07); say('crate', 'ROB53', 0, true); }
       else if (e.k === 'driver' && e.team === 0) toast(L.driver, 'good');
-      else if (e.k === 'bridge') toast(e.up ? L.bridgeUp : L.bridgeDown, e.up ? 'good' : '');
-      else if (e.k === 'bdead') { zsfx('OBJDEST3', 0.8); toast(e.team === 0 ? L.ourBldDead : L.bldDead, e.team === 0 ? 'bad' : 'good'); }
+      else if (e.k === 'bridge') { toast(e.up ? L.bridgeUp : L.bridgeDown, e.up ? 'good' : ''); say('bridge', e.up ? 'ROB47' : 'ROB38', 0, true); }
+      else if (e.k === 'bdead') { zsfx('OBJDEST3', 0.8); toast(e.team === 0 ? L.ourBldDead : L.bldDead, e.team === 0 ? 'bad' : 'good'); if (e.team !== 0) say('bdead', 'ROB39', 0, true); }
       else if (e.k === 'stormed') toast(L.stormed, e.team === 0 ? 'good' : 'bad');
       else if (e.k === 'board' && e.team === 0) tone('sine', 500, 700, 0.08, 0.05);
       else if (e.k === 'unload' && e.team === 0) toast(L.unloaded);
-      else if (e.k === 'fixed' && e.team === 0) toast(L.fixed, 'good');
+      else if (e.k === 'fixed' && e.team === 0) { toast(L.fixed, 'good'); say('fixed', 'ROB48', 0, true); }
       else if (e.k === 'rock') { toast(L.rockGone); if (onScreen(e)) tone('noise', 400, 40, 0.6, 0.18); }
       else if (e.k === 'over') setTimeout(showEnd, 1300);
     }
@@ -451,6 +496,7 @@
     $('btnRetry').classList.toggle('primary', !win);
     $('end').classList.remove('hidden');
     playMusic(win ? 'ipwin.ogg' : 'iplose.ogg', false);
+    voice(win ? 'ROB65' : 'COMP12', true);
     if (win) { tone('triangle', 523, 523, 0.15, 0.1); setTimeout(() => tone('triangle', 784, 784, 0.3, 0.1), 160); } else tone('sawtooth', 220, 80, 0.8, 0.08);
   }
   const fmt = t => Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
@@ -632,13 +678,29 @@
   async function loadZFrom(base) {
     const names = ['levels.dat', 'en.lproj/sprites.rsc', 'PNG/Background.png', 'PNG/BoxCentreWide.png', 'AA16.ogg', 'aC16.ogg', 'aJ16.ogg', 'ipOPTIONS16.ogg', 'ipWIN.ogg', 'ipLOSE.ogg'];
     for (const n of ZG.Z.SFX) names.push('audio/' + n + '.RAW');
+    const voices = [];
+    for (const lg of ['en', 'de']) {
+      for (let i = 1; i <= 75; i++) voices.push(lg + '.lproj/ROB' + String(i).padStart(2, '0') + '.RAW');
+      for (let i = 1; i <= 20; i++) voices.push(lg + '.lproj/COMP' + String(i).padStart(2, '0') + '.RAW');
+    }
     for (let i = 1; i <= 20; i++) { const n = String(i).padStart(2, '0'); names.push('LEVEL' + n + '.MAP', 'BUILD' + n + '.DAT', 'OBJECT' + n + '.DAT', 'CPUPLR' + n + '.DAT', 'BRIDGE' + n + '.DAT'); }
     for (const w of ['DESERT', 'VOLCAN', 'ARCTIC', 'JUNGLE', 'CITY']) names.push(w + '.PAL', w + '.BLK');
     $('zHint').textContent = L.zLoading;
     const files = {};
-    await Promise.all(names.map(async function (n) {
-      try { const r = await fetch(base + n); if (r.ok) files[n.split('/').pop().toLowerCase()] = new Uint8Array(await r.arrayBuffer()); } catch (e) { /* missing file */ }
+    // a few downloads at a time; hundreds at once make browsers drop requests
+    const queue = names.concat(voices);
+    await Promise.all(Array.from({ length: 8 }, async function () {
+      for (let n = queue.shift(); n; n = queue.shift()) if (!await fetchOne(n)) await fetchOne(n);
     }));
+    async function fetchOne(n) {
+      try {
+        const r = await fetch(base + n);
+        if (!r.ok) return r.status === 404;
+        const key = n.indexOf('.lproj/') > 0 && /(ROB|COMP)\d\d/.test(n) ? n.slice(0, 2) + '/' + n.split('/').pop().toLowerCase() : n.split('/').pop().toLowerCase();
+        files[key] = new Uint8Array(await r.arrayBuffer());
+        return true;
+      } catch (e) { return false; }
+    }
     if (ZG.Z.use(files)) { try { await ZG.Z.save(files); } catch (e) { /* storage blocked */ } }
     if (G === null) buildMenu();
   }
