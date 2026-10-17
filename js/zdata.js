@@ -14,7 +14,10 @@
 //   BUILDxx.DAT  80-byte records: u16 x, u16 y (pixels), byte type; x = 0xFFFF marks an empty slot
 //   OBJECTxx.DAT 10-byte records: u16 x, u16 y (pixels), byte type (0x0A flag, 0x0B rock, 0x21 vehicle)
 //   CPUPLRxx.DAT starts with u16 tile rectangles of the computer player's area
+//   CPUPLRxx.DAT territories: 30-byte records, u16 x1,y1,x2,y2 (tiles), +8 owner, +18/+19 flag tile
+//   BRIDGExx.DAT 26-byte records: u16 x, y, w, h (pixels), u16 hit points
 //   levels.dat   240-byte records: name (20 bytes) + file names
+//   sprites.rsc  see Z.sprite below; units face N, NE, E ... NW (clockwise)
 (function () {
   const ZG = globalThis.ZG, T = ZG.T, TS = ZG.TILE;
   const Z = ZG.Z = { files: null, levels: null };
@@ -302,13 +305,18 @@
     return { w: w, h: h, px: px };
   };
   // the sprite as a canvas in a world palette
-  Z.spriteCanvas = function (i, world) {
+  // units are drawn red (palette 16-31); blue is +16, neutral grey is (i - 16) + 80
+  Z.spriteCanvas = function (i, world, team) {
     const s = Z.sprite(i);
     if (!s || !s.w || !s.h) return null;
     const pal = Z.palette(palFile(world || 'DESERT') || Z.files['desert.pal']);
     const c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
     const x = c.getContext('2d'), id = x.createImageData(s.w, s.h), o = id.data;
-    for (let k = 0; k < s.px.length; k++) { const v = s.px[k]; if (!v) continue; o[k * 4] = pal[v * 3]; o[k * 4 + 1] = pal[v * 3 + 1]; o[k * 4 + 2] = pal[v * 3 + 2]; o[k * 4 + 3] = 255; }
+    for (let k = 0; k < s.px.length; k++) {
+      let v = s.px[k];
+      if (!v) continue;
+      if (team != null && v >= 16 && v < 32) v = team === 1 ? v + 16 : team < 0 ? v - 16 + 80 : v;
+      o[k * 4] = pal[v * 3]; o[k * 4 + 1] = pal[v * 3 + 1]; o[k * 4 + 2] = pal[v * 3 + 2]; o[k * 4 + 3] = 255; }
     x.putImageData(id, 0, 0);
     return c;
   };
@@ -318,6 +326,8 @@
   // intact: vehicle factory, robot factory, type 0, type 8; destroyed: type 0, type 8, vehicle factory, robot factory
   const BLD_BASE = { DESERT: [2089, 1879], JUNGLE: [2821, 2739], ARTIC: [2960, 2825], ARCTIC: [2960, 2825], CITY: [3093, 2964], VOLCAN: [4022, 3097] };
   const BLD_SLOT = { vehicle: [0, 2], robot: [1, 3], radar: [2, 0], repair: [3, 1] };
+  // engine angle (0 = east, clockwise) -> Z direction (0 = north, clockwise, 8 steps)
+  const zdir = a => ((Math.round((a + Math.PI / 2) / (Math.PI / 4)) % 8) + 8) % 8;
   Z.spriteSet = function (map) {
     if (!Z.files || !Z.files['sprites.rsc']) return null;
     const w = map.z.world, cache = {};
@@ -337,7 +347,24 @@
         if (!bb || !slot) return null;
         return get(b.kind + b.dead, () => Z.spriteCanvas(bb[b.dead ? 1 : 0] + slot[b.dead ? 1 : 0], w));
       },
-      flag(owner, frame) { return get('fl' + owner + frame, () => Z.spriteCanvas(1234 + (owner === 0 ? 0 : owner === 1 ? 4 : 8) + frame, w)); }
+      flag(owner, frame) { return get('fl' + owner + frame, () => Z.spriteCanvas(1234 + (owner === 0 ? 0 : owner === 1 ? 4 : 8) + frame, w)); },
+      // layers to draw for a unit, as [canvas, dx, dy] relative to the unit's position in art pixels
+      unit(u) {
+        const d = u.def, team = u.team, dir = zdir(u.ang), aim = zdir(u.tang), fired = u.team >= 0 && u.tgt && u.cd > d.rl - 0.15;
+        const img = i => get('u' + i + '_' + team, () => Z.spriteCanvas(i, w, team));
+        const centre = (i, ox, oy) => { const c = img(i); return c ? [c, (ox || 0) - (c.width >> 1), (oy || 0) - (c.height >> 1)] : null; };
+        let L = null;
+        if (d.cls === 'robot') {
+          const i = u.moving ? 74 + dir * 4 + (Math.floor(u.walk / 1.6) & 3) : fired ? 131 + 5 * aim : u.tgt ? 130 + 5 * aim : 66 + dir;
+          const c = img(i); L = c ? [[c, -8, -15]] : null;
+        } else if (u.t === 'jeep') L = [centre(330 + dir)];
+        else if (u.t === 'light' || u.t === 'medium' || u.t === 'heavy') L = [centre(488 + dir * 3 + (u.moving ? Math.floor(u.walk / 1.2) % 3 : 0)), centre(5329 + aim)];
+        else if (u.t === 'launcher') L = [centre(1845 + dir * 3 + (u.moving ? Math.floor(u.walk / 1.2) % 3 : 0)), centre(1869 + aim)];
+        else if (u.t === 'cannon' || u.t === 'gatling') L = [centre(team < 0 ? 1651 + aim : 1659 + 2 * aim + (fired ? 1 : 0))];
+        else if (u.t === 'howitzer') L = [centre(team < 0 ? 5759 + aim : 5767 + 2 * aim + (fired ? 1 : 0))];
+        else if (u.t === 'mturret') L = [centre((team < 0 ? 1635 : 1643) + aim)];
+        return L && L.every(Boolean) ? L : null;
+      }
     };
   };
 

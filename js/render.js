@@ -421,9 +421,17 @@
     return ['right', 'down', 'left', 'up'][d];
   }
 
+  let curZS = null; // original sprites for units, when the player loaded them
   // draw a unit at art-pixel position (ax, ay)
   function drawUnitAt(c, u, ax, ay, time) {
     const d = u.def, team = u.team;
+    const layers = curZS && curZS.unit(u);
+    if (layers) {
+      for (const l of layers) c.drawImage(l[0], ax + l[1], ay + l[2]);
+      if (u.hit > 0) { c.globalCompositeOperation = 'lighter'; c.drawImage(layers[0][0], ax + layers[0][1], ay + layers[0][2]); c.globalCompositeOperation = 'source-over'; }
+      if (u.working) { c.fillStyle = (time * 8 | 0) & 1 ? '#ffd23a' : '#fff'; c.fillRect(ax - 1, ay - 9, 2, 2); }
+      return;
+    }
     if (d.cls === 'robot') {
       const view = robotView(u.ang), frame = u.moving ? 1 + (Math.floor(u.walk / 2) & 1) : 0;
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(ax - 3, ay + 1, 7, 2);
@@ -455,6 +463,7 @@
   // product icons for the HUD (native pixel size, scaled by CSS)
   ZG.unitIcon = function (t, team) {
     return cached('icon' + t + team, function () {
+      curZS = null;
       const c = canvas(28, 28), x = c.getContext('2d'), d = ZG.UNITS[t];
       drawUnitAt(x, { t: t, def: d, team: team, ang: d.cls === 'robot' ? Math.PI / 2 : -Math.PI / 4, tang: -Math.PI / 4, moving: false, walk: 0, hit: 0 }, 14, d.cls === 'robot' ? 20 : 14, 0);
       return c;
@@ -467,6 +476,7 @@
   ZG.draw = function (c, G, R, view, ui, time) {
     const map = G.map, vx0 = view.x / A - 24, vy0 = view.y / A - 24, vx1 = (view.x + view.w) / A + 24, vy1 = (view.y + view.h) / A + 40;
     c.drawImage(R.terrain.canvas, 0, 0);
+    curZS = R.zs || null;
     // shimmering water
     const W = map.W;
     if (!R.terrain.original) for (let ty = Math.max(0, vy0 / TP | 0); ty < Math.min(map.H, vy1 / TP + 1); ty++)

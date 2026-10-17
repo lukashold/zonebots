@@ -52,8 +52,9 @@ By contributing you agree that your contribution is released under the MIT licen
 
 ## Ideas that need somebody
 
-- original data mode: object types of the later worlds (flags and rocks are only recognised in the
-  desert), bridges, which building is which, and drawing the original sprites
+- original data mode: tell the robot types apart in sprites.rsc (all robots share one look so far),
+  find the personnel carrier, crane and gatling sprites, rocks and crates outside the desert, which
+  water was walkable (some flags sit on islands), the starting units and what the radar station does
 - radar building and fog of war
 - map editor and hand-made levels (the generator in `js/map.js` can already load parameters)
 - two-player mode (hot seat, or over WebRTC)

@@ -9,8 +9,8 @@ implementation: all code, the procedurally drawn pixel graphics, the synthesised
 levels are original. The repository contains no code, artwork, audio, maps or other data from *Z*.
 
 **Original data mode (optional):** if you own *Z* (for example the GOG release), you can pick its
-installation folder in the menu. The browser then reads the original 20 maps and their terrain graphics
-from your copy and you play them with this engine. The files are read and stored locally in your
+installation folder in the menu. The browser then reads the original 20 maps, their terrain, forts,
+buildings, flags and unit sprites from your copy and you play them with this engine. The files are read and stored locally in your
 browser only; nothing is uploaded and nothing from the game is part of this project.
 
 **Everybody is welcome to contribute – see [CONTRIBUTING.md](CONTRIBUTING.md).**
