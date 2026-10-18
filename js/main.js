@@ -586,7 +586,7 @@
       names.forEach(function (name, k) { const b = document.createElement('button'); b.textContent = name; if (k === curIdx) b.className = 'primary'; b.onclick = () => fn(k); db.appendChild(b); });
     };
     seg('diffBtns', L.diff, diff, k => { diff = k; store.set('diff', k); buildMenu(); });
-    $('zTitle').textContent = L.zTitle; $('zPickText').textContent = L.zPick; $('zForget').textContent = L.zForget;
+    $('zTitle').textContent = L.zTitle; $('zPickText').textContent = L.zPick; $('zForget').textContent = L.zForget; $('zZipText').textContent = L.zZip;
     const zl = $('zLevels'); zl.innerHTML = '';
     $('zForget').classList.toggle('hidden', !ZG.Z.ready());
     if (ZG.Z.ready()) {
@@ -621,6 +621,17 @@
     const list = this.files; if (!list || !list.length) return;
     $('zHint').textContent = L.zLoading;
     const files = await ZG.Z.readPicked(list);
+    this.value = '';
+    if (!ZG.Z.use(files)) { $('zHint').dataset.msg = 1; $('zHint').textContent = L.zNone; buildMenu(); return; }
+    delete $('zHint').dataset.msg;
+    try { await ZG.Z.save(files); } catch (e) { /* storage full or blocked: still usable this session */ }
+    buildMenu();
+  };
+  $('zZip').onchange = async function () {
+    const f = this.files && this.files[0]; if (!f) return;
+    $('zHint').textContent = L.zLoading;
+    let files = {};
+    try { files = await ZG.Z.readZip(f); } catch (e) { files = {}; }
     this.value = '';
     if (!ZG.Z.use(files)) { $('zHint').dataset.msg = 1; $('zHint').textContent = L.zNone; buildMenu(); return; }
     delete $('zHint').dataset.msg;

@@ -108,23 +108,51 @@
     try { const db = await idb(); await new Promise(res => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).delete('all'); tx.oncomplete = res; tx.onerror = res; }); } catch (e) { /* nothing stored */ }
   };
   // from an <input type=file webkitdirectory> selection
-  Z.readPicked = async function (fileList) {
+  // entries: [{ path, read() -> Promise<Uint8Array> }] from a picked folder or a zip file
+  async function collect(entries) {
     const files = {};
-    for (const f of fileList) {
-      const name = f.name.toLowerCase();
+    for (const en of entries) {
+      const path = en.path.toLowerCase().replace(/\\/g, '/'), name = path.split('/').pop();
       if (!Z.wanted(name)) continue;
-      // prefer files from the top folder if a name appears twice; sprites.rsc exists once per language
-      const path = (f.webkitRelativePath || '').toLowerCase();
       if (VOICE.test(name)) {
         // speech is kept per language: en/rob01.raw, de/rob01.raw
         const lg = (path.match(/(^|\/)([a-z]{2})\.lproj\//) || [])[2];
-        if (lg === 'en' || lg === 'de') files[lg + '/' + name] = new Uint8Array(await f.arrayBuffer());
+        if (lg === 'en' || lg === 'de') files[lg + '/' + name] = await en.read();
         continue;
       }
+      // prefer files from the top folder if a name appears twice; sprites.rsc exists once per language
       if (name === 'sprites.rsc' ? files[name] && !path.includes('en.lproj') : files[name] && path.split('/').length > 2) continue;
-      files[name] = new Uint8Array(await f.arrayBuffer());
+      files[name] = await en.read();
     }
     return files;
+  }
+  Z.readPicked = function (fileList) {
+    return collect(Array.from(fileList, f => ({ path: f.webkitRelativePath || f.name, read: async () => new Uint8Array(await f.arrayBuffer()) })));
+  };
+  // a zip of the game folder (handy to bring one's copy to another computer, e.g. a Mac)
+  Z.readZip = async function (file) {
+    const d = new Uint8Array(await file.arrayBuffer()), dv = new DataView(d.buffer);
+    let e = d.length - 22;
+    while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('not a zip file');
+    const count = dv.getUint16(e + 10, true);
+    let p = dv.getUint32(e + 16, true);
+    const entries = [];
+    for (let i = 0; i < count && dv.getUint32(p, true) === 0x02014b50; i++) {
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true);
+      const xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), local = dv.getUint32(p + 42, true);
+      const path = new TextDecoder().decode(d.subarray(p + 46, p + 46 + nlen));
+      p += 46 + nlen + xlen + clen;
+      if (path.endsWith('/')) continue;
+      entries.push({ path: path, read: async function () {
+        const start = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true), raw = d.subarray(start, start + csize);
+        if (method === 0) return raw.slice();
+        if (method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('unsupported zip compression');
+        const out = new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw')));
+        return new Uint8Array(await out.arrayBuffer());
+      } });
+    }
+    return collect(entries);
   };
 
   // ---------- parsing ----------

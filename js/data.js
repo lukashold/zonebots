@@ -131,10 +131,10 @@
       craneHint: 'Gebäude oder zerstörte Brücke anklicken', apcHint: 'Roboter hierher schicken zum Einsteigen', gunHint: 'Feste Stellung', destroyed: 'zerstört', neutral: 'neutral',
       enemy: 'Gegner', choose: 'Bauauftrag wählen', cancel: 'Anhalten',
       zTitle: 'Original-Z (optional)', zPick: 'Z-Ordner wählen…', zForget: 'Entfernen', zLoading: 'Lese Dateien…',
-      zHint: 'Besitzt du das Originalspiel Z (z. B. von GOG)? Wähle seinen Installationsordner, dann spielst du die 20 Originalkarten mit deren Gelände-Grafik. Die Dateien werden nur in deinem Browser gelesen und gespeichert, nichts wird hochgeladen.',
+      zHint: 'Besitzt du das Originalspiel Z (z. B. von GOG)? Wähle seinen Installationsordner oder eine ZIP-Datei davon (praktisch für den Mac), dann spielst du die 20 Originalkarten mit Originalgrafik, Musik und Stimmen. Die Dateien werden nur in deinem Browser gelesen und gespeichert, nichts wird hochgeladen.',
       zNone: 'In diesem Ordner wurden keine Z-Karten gefunden.', zLoaded: 'Originalkarten geladen:',
       mPlay: 'Neues Spiel', mOrig: 'Originalkarten', mSkirm: 'Freies Gefecht', mOpts: 'Optionen', langTitle: 'Sprache',
-      fullHint: 'Vollbild: F11 (Mac: Ctrl+Cmd+F) oder ⛶ im Spiel'
+      fullHint: 'Vollbild: F11 (Mac: Ctrl+Cmd+F) oder ⛶ im Spiel', zZip: 'ZIP-Datei wählen…'
     },
     en: {
       sub: 'Real-time strategy about sectors, flags and factories',
@@ -173,10 +173,10 @@
       craneHint: 'Click a building or a destroyed bridge', apcHint: 'Send robots here to board', gunHint: 'Fixed emplacement', destroyed: 'destroyed', neutral: 'neutral',
       enemy: 'Enemy', choose: 'Choose production', cancel: 'Halt',
       zTitle: 'Original Z (optional)', zPick: 'Choose Z folder…', zForget: 'Remove', zLoading: 'Reading files…',
-      zHint: 'Do you own the original game Z (e.g. from GOG)? Pick its installation folder to play the 20 original maps with their terrain graphics. The files are only read and stored in your browser, nothing is uploaded.',
+      zHint: 'Do you own the original game Z (e.g. from GOG)? Pick its installation folder or a zip of it (handy on a Mac) to play the 20 original maps with original graphics, music and voices. The files are only read and stored in your browser, nothing is uploaded.',
       zNone: 'No Z maps found in that folder.', zLoaded: 'Original maps loaded:',
       mPlay: 'New Game', mOrig: 'Original Maps', mSkirm: 'Skirmish', mOpts: 'Options', langTitle: 'Language',
-      fullHint: 'Full screen: F11 (Mac: Ctrl+Cmd+F) or ⛶ in the game'
+      fullHint: 'Full screen: F11 (Mac: Ctrl+Cmd+F) or ⛶ in the game', zZip: 'Choose zip file…'
     }
   };
 })();
