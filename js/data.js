@@ -133,7 +133,8 @@
       zTitle: 'Original-Z (optional)', zPick: 'Z-Ordner wählen…', zForget: 'Entfernen', zLoading: 'Lese Dateien…',
       zHint: 'Besitzt du das Originalspiel Z (z. B. von GOG)? Wähle seinen Installationsordner, dann spielst du die 20 Originalkarten mit deren Gelände-Grafik. Die Dateien werden nur in deinem Browser gelesen und gespeichert, nichts wird hochgeladen.',
       zNone: 'In diesem Ordner wurden keine Z-Karten gefunden.', zLoaded: 'Originalkarten geladen:',
-      mPlay: 'Neues Spiel', mOrig: 'Originalkarten', mSkirm: 'Freies Gefecht', mOpts: 'Optionen', langTitle: 'Sprache'
+      mPlay: 'Neues Spiel', mOrig: 'Originalkarten', mSkirm: 'Freies Gefecht', mOpts: 'Optionen', langTitle: 'Sprache',
+      fullHint: 'Vollbild: F11 (Mac: Ctrl+Cmd+F) oder ⛶ im Spiel'
     },
     en: {
       sub: 'Real-time strategy about sectors, flags and factories',
@@ -174,7 +175,8 @@
       zTitle: 'Original Z (optional)', zPick: 'Choose Z folder…', zForget: 'Remove', zLoading: 'Reading files…',
       zHint: 'Do you own the original game Z (e.g. from GOG)? Pick its installation folder to play the 20 original maps with their terrain graphics. The files are only read and stored in your browser, nothing is uploaded.',
       zNone: 'No Z maps found in that folder.', zLoaded: 'Original maps loaded:',
-      mPlay: 'New Game', mOrig: 'Original Maps', mSkirm: 'Skirmish', mOpts: 'Options', langTitle: 'Language'
+      mPlay: 'New Game', mOrig: 'Original Maps', mSkirm: 'Skirmish', mOpts: 'Options', langTitle: 'Language',
+      fullHint: 'Full screen: F11 (Mac: Ctrl+Cmd+F) or ⛶ in the game'
     }
   };
 })();

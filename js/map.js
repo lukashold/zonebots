@@ -276,6 +276,31 @@
     if (cl[e] !== gen) return null;
     const out = [last];
     for (let nd = par[e]; nd !== -1 && nd !== s; nd = par[nd]) out.push({ x: (nd % W + 0.5) * TS, y: (((nd / W) | 0) + 0.5) * TS });
-    return out.reverse();
+    out.reverse();
+    return smooth(map, { x: sx, y: sy }, out);
   };
+
+  // straight lines instead of tile-by-tile zigzag: skip waypoints while the direct way stays clear
+  function clear(map, a, b) {
+    const d = Math.hypot(b.x - a.x, b.y - a.y), n = Math.ceil(d / 6), R = 7;
+    for (let i = 1; i <= n; i++) {
+      const x = a.x + (b.x - a.x) * i / n, y = a.y + (b.y - a.y) * i / n;
+      for (const o of [[0, 0], [R, R], [-R, R], [R, -R], [-R, -R]]) {
+        const tx = Math.floor((x + o[0]) / TS), ty = Math.floor((y + o[1]) / TS);
+        if (tx < 0 || ty < 0 || tx >= map.W || ty >= map.H || map.block[ty * map.W + tx]) return false;
+      }
+    }
+    return true;
+  }
+  function smooth(map, start, pts) {
+    if (pts.length < 2) return pts;
+    const out = [];
+    let anchor = start, i = 0;
+    while (i < pts.length) {
+      let j = i;
+      while (j + 1 < pts.length && clear(map, anchor, pts[j + 1])) j++;
+      out.push(pts[j]); anchor = pts[j]; i = j + 1;
+    }
+    return out;
+  }
 })();

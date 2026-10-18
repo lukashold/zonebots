@@ -544,7 +544,8 @@
   }
   function buildMenu() {
     L = ZG.TEXT[lang]; document.documentElement.lang = lang;
-    $('tagline').textContent = L.sub;
+    $('tagline').textContent = L.sub + ' · ' + L.fullHint;
+    $('btnFull').title = L.fullHint;
     $('miPlay').textContent = L.mPlay; $('miOrig').textContent = L.mOrig; $('miSkirm').textContent = L.mSkirm; $('miOpts').textContent = L.mOpts;
     $('optDiffTitle').textContent = L.diffLabel; $('langTitle').textContent = L.langTitle;
     for (const b of document.querySelectorAll('.mback')) b.textContent = L.back;

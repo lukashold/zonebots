@@ -493,7 +493,7 @@
         if (++u.pi >= u.path.length) u.path = null;
       } else {
         u.x += dx / dd * st; u.y += dy / dd * st;
-        u.ang = Math.atan2(dy, dx); u.moving = true; u.walk += dt * 10;
+        u.ang = Math.atan2(dy, dx); u.moving = true; u.walk += st * 0.2;
         if (!u.tgt && !tst) u.tang = u.ang;
       }
     }
@@ -514,7 +514,8 @@
         if (af && bf) continue;
         let d = Math.sqrt(d2), nx, ny;
         if (d < 0.01) { const an = (a.id * 2.4 + b.id) % 6.28; nx = Math.cos(an); ny = Math.sin(an); d = 0; } else { nx = dx / d; ny = dy / d; }
-        const push = (rr - d) * 0.5, pa = af ? 0 : bf ? push * 2 : push, pb = bf ? 0 : af ? push * 2 : push;
+        if (!a.path && !b.path && rr - d < 3) continue;
+        const push = Math.min(1.5, (rr - d) * 0.35), pa = af ? 0 : bf ? push * 2 : push, pb = bf ? 0 : af ? push * 2 : push;
         if (pa) { const x = a.x - nx * pa, y = a.y - ny * pa; if (!blockedPx(map, x, y)) { a.x = x; a.y = y; } }
         if (pb) { const x = b.x + nx * pb, y = b.y + ny * pb; if (!blockedPx(map, x, y)) { b.x = x; b.y = y; } }
       }
