@@ -26,6 +26,7 @@ There is no build step and there are no dependencies.
 | `js/zdata.js` | optional loader for the original *Z* data files a player owns (format notes at the top) |
 | `js/game.js` | the simulation: orders, combat, production, flags, computer opponent. No DOM access, so it runs in Node |
 | `js/render.js` | all drawing. Graphics are canvas code, there are no image files |
+| `js/sound.js` | our own sound: synthesised effects, the music band, spoken robot lines |
 | `js/main.js` | browser front end: input, HUD, menus, sound, main loop |
 | `tools/simtest.js` | the headless test |
 | `tools/ztest.js` | the same checks for the original maps, run against your own copy of *Z* |

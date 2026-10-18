@@ -36,6 +36,8 @@ tablets), or serve the folder with any static web server:
 - 6 robot types, 7 vehicles, 4 gun emplacements, tech levels per factory
 - computer opponent that scales with level and difficulty
 - mouse, keyboard and touch controls, minimap, zoom, game speed
+- own soundtrack (a synthesised rock band), synthesised weapon sounds, and robot voice lines spoken
+  by the browser; with your own copy of *Z* the original music, sounds and voices are used instead
 - German and English, progress saved in the browser
 
 ## Controls

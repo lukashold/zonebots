@@ -68,11 +68,12 @@
   let voiceSrc = null, voiceUntil = 0;
   const vbuf = {};
   function voice(name, urgent) {
-    if (!sound || !ZG.Z.files || !name) return;
-    const f = ZG.Z.files, key = name.toLowerCase() + '.raw', raw = f[(lang === 'de' ? 'de/' : 'en/') + key] || f['en/' + key];
-    if (!raw) return;
+    if (!sound || !name) return;
+    const f = ZG.Z.files || {}, key = name.toLowerCase() + '.raw', raw = f[(lang === 'de' ? 'de/' : 'en/') + key] || f['en/' + key];
     const now = performance.now();
     if (now < voiceUntil && !urgent) return;
+    // without the original recordings the browser speaks the line
+    if (!raw) { const d = ZG.Synth.say(name, lang); if (d) voiceUntil = now + d * 1000; return; }
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
       const id = lang + name;
@@ -93,12 +94,20 @@
   }
   const music = new Audio(); music.loop = true; music.volume = 0.45;
   let musicName = '';
+  const OWN_SONG = { 'ipoptions16.ogg': 'menu', 'aa16.ogg': 'battle', 'ac16.ogg': 'battle2', 'aj16.ogg': 'battle', 'ipwin.ogg': 'win', 'iplose.ogg': 'lose' };
   function playMusic(name, loop) {
     const url = sound && ZG.Z.music(name);
-    if (!url) { music.pause(); musicName = ''; return; }
+    if (!url) {
+      music.pause(); musicName = '';
+      if (sound) { try { ZG.Synth.music(OWN_SONG[name]); } catch (e) { /* audio unavailable */ } } else ZG.Synth.stopMusic();
+      return;
+    }
+    ZG.Synth.stopMusic();
     if (musicName === name && !music.paused) return;
     musicName = name; music.src = url; music.loop = loop !== false; music.play().catch(() => { musicName = ''; });
   }
+  // our own effects when the original ones are missing
+  function sfx(orig, own, vol) { if (!zsfx(orig, vol)) try { ZG.Synth.sfx(own, vol); } catch (e) { /* audio unavailable */ } }
   const gameMusic = () => ['aa16.ogg', 'ac16.ogg', 'aj16.ogg'][(zIdx >= 0 ? zIdx : Math.max(0, cur)) % 3];
   const onScreen = e => e.x > view.x - 100 && e.y > view.y - 100 && e.x < view.x + view.w + 100 && e.y < view.y + view.h + 100;
 
@@ -193,7 +202,7 @@
     ui.marks.push({ x: p.x, y: p.y, t: 0, atk: atk });
     // show the routes as dotted lines for a moment
     ui.paths = us.filter(u => u.path).slice(0, 12).map(u => ({ pts: [{ x: u.x, y: u.y }].concat(u.path), t: 0 }));
-    if (!zsfx('CLICK1L', 0.5)) tone('square', 520, 620, 0.05, 0.04);
+    if (sound) sfx('CLICK1L', 'click', 0.5);
     say('order', st && st.kind === 'b' && st.ref.kind === 'fort' && st.ref.team === 1 ? 'ROB54' : pick(VOICE.go), 0, true);
     return true;
   }
@@ -451,15 +460,12 @@
         const now = performance.now();
         if (now - lastShot > 55 && onScreen(e)) {
           lastShot = now;
-          if (zsfx(SHOT[e.t] || WSHOT[e.w] || 'MACHGUN2', 0.35)) { /* original sound */ }
-          else if (e.w === 'laser') tone('sawtooth', 1400, 300, 0.12, 0.03);
-          else if (e.w === 'flame') tone('noise', 900, 300, 0.12, 0.03);
-          else if (e.w === 'bullet') tone('noise', 3000, 900, 0.05, 0.05);
-          else tone('noise', 700, 120, 0.22, 0.09);
+          const own = e.w === 'bullet' ? (e.t === 'sniper' ? 'rifle' : 'mg') : e.w === 'shell' ? 'cannon' : e.w === 'laser' || e.w === 'flame' ? e.w : 'rocket';
+          if (sound) sfx(SHOT[e.t] || WSHOT[e.w] || 'MACHGUN2', own, 0.35);
         }
       } else if (e.k === 'boom') {
         const n = e.big ? ['ZEXPLO3', 'ZEXPLO4', 'ZEXPLO5'][Math.random() * 3 | 0] : (Math.random() < 0.5 ? 'EXP1' : 'EXP2');
-        if (onScreen(e) && !zsfx(n, e.big ? 0.8 : 0.5)) tone('noise', e.big ? 500 : 900, 50, e.big ? 0.7 : 0.3, e.big ? 0.22 : 0.1);
+        if (onScreen(e) && sound) sfx(n, e.big ? 'boomL' : 'boomS', e.big ? 0.8 : 0.5);
       }
       else if (e.k === 'kill' && e.team === 0) say('hit', pick(VOICE.hit), 7);
       else if (e.k === 'hurt' && e.team === 0) say('attacked', pick(VOICE.attacked), 25);
@@ -467,7 +473,7 @@
         if (e.team === 0) { toast(L.captured, 'good'); tone('triangle', 520, 1040, 0.25, 0.1); say('capture', e.radar ? 'COMP09' : 'ROB49', 0, true); }
         else if (e.prev === 0) { toast(L.lost, 'bad'); tone('triangle', 400, 160, 0.3, 0.1); say('lost', 'COMP08', 0, true); }
       } else if (e.k === 'ready' && e.team === 0) {
-        toast(L.units[e.t] + ' ' + L.ready); if (!zsfx('ROBFACT5', 0.5)) tone('sine', 880, 1320, 0.12, 0.06);
+        toast(L.units[e.t] + ' ' + L.ready); if (sound) sfx('ROBFACT5', 'ready', 0.5);
         const cls = ZG.UNITS[e.t].cls; say('ready', cls === 'robot' ? 'COMP02' : cls === 'gun' ? 'COMP03' : 'COMP01', 0);
       }
       else if (e.k === 'alert') { toast(L.alert, 'bad'); tone('square', 660, 440, 0.4, 0.08); say('alert', e.fort ? 'COMP16' : pick(VOICE.attacked), 0, true); }
@@ -480,7 +486,7 @@
       else if (e.k === 'board' && e.team === 0) tone('sine', 500, 700, 0.08, 0.05);
       else if (e.k === 'unload' && e.team === 0) toast(L.unloaded);
       else if (e.k === 'fixed' && e.team === 0) { toast(L.fixed, 'good'); say('fixed', 'ROB48', 0, true); }
-      else if (e.k === 'rock') { toast(L.rockGone); if (onScreen(e)) tone('noise', 400, 40, 0.6, 0.18); }
+      else if (e.k === 'rock') { toast(L.rockGone); if (onScreen(e) && sound) sfx('ZEXPLO3', 'boomL', 0.7); }
       else if (e.k === 'over') setTimeout(showEnd, 1300);
     }
     G.ev.length = 0;
@@ -509,7 +515,6 @@
     $('end').classList.remove('hidden');
     playMusic(win ? 'ipwin.ogg' : 'iplose.ogg', false);
     voice(win ? 'ROB65' : 'COMP12', true);
-    if (win) { tone('triangle', 523, 523, 0.15, 0.1); setTimeout(() => tone('triangle', 784, 784, 0.3, 0.1), 160); } else tone('sawtooth', 220, 80, 0.8, 0.08);
   }
   const fmt = t => Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
   const levelName = i => i < 0 ? (skDef.original ? 'Z ' + skDef.zlevel + ' · ' + skDef.zname : L.skirmish + ' · ' + L.worlds[skDef.theme] + ' #' + skDef.seed) : L.worlds[ZG.LEVELS[i].theme] + ' · ' + L.level + ' ' + (i + 1);
@@ -634,7 +639,7 @@
   $('btnSpeed').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; $('btnSpeed').textContent = speed + '×'; };
   $('btnSound').onclick = () => {
     sound = !sound; store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4;
-    if (!sound) { music.pause(); musicName = ''; } else if (G) playMusic(gameMusic());
+    if (!sound) { music.pause(); musicName = ''; ZG.Synth.stopMusic(); if ('speechSynthesis' in window) speechSynthesis.cancel(); } else playMusic(G ? gameMusic() : 'ipoptions16.ogg');
   };
   $('btnFull').onclick = function () {
     if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
