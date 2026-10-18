@@ -91,6 +91,8 @@
     });
   }
   Z.save = async function (files) {
+    // ask the browser to keep this data even when the disk gets full
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) { /* not supported */ }
     const db = await idb();
     await new Promise((res, rej) => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(files, 'all'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
   };
