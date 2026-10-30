@@ -1,0 +1,12 @@
+/target/
+*.log
+*.exe
+*.pdb
+*.MAP
+*.DAT
+*.PAL
+*.BLK
+*.rsc
+*.RAW
+*.ogg
+/local-data/

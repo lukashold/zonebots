@@ -17,6 +17,25 @@ browser only; nothing is uploaded and nothing from the game is part of this proj
 
 ## Play
 
+### Rust / WebAssembly version
+
+The new [Rust browser version](rust-browser/LIESMICH.txt) lives in `rust-browser/`.
+Its simulation runs in Rust/WebAssembly; JavaScript handles rendering, input and original-data loading.
+The compiled Wasm file is included. From `rust-browser/`, run:
+
+    python3 tools/serve.py
+
+On Windows, double-click `rust-browser/Start-Spiel.cmd`. On macOS or Linux, use the
+command above with Python 3 installed. To load your own original game files automatically:
+
+    python3 tools/serve.py --zdir "/path/to/Z"
+
+The browser also accepts your original game folder from the menu. No original game assets
+are included. macOS browser operation has not yet been tested. This reconstruction is not
+yet a verified 1:1 recreation; see [limitations and test results](rust-browser/TESTERGEBNIS.txt).
+
+### JavaScript version
+
 No build step, no dependencies. Open `index.html` in any current browser (Windows, macOS, Linux,
 tablets), or serve the folder with any static web server:
 

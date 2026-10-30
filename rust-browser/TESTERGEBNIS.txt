@@ -1,0 +1,31 @@
+Prüfstand 30.10.2026
+
+Rust: 10 Integrationstests bestanden.
+- Gebietseroberung überträgt alle Fabriken des Gebiets.
+- Identische Eingaben ergeben identische Simulationszustände.
+- Wegsuche respektiert Wände und findet eine vorhandene Öffnung.
+- Roboter bemannen neutrale Fahrzeuge.
+- Ein-/Aussteigen erhält die Einheit und ihre Identität.
+- Forttor-Eroberung beendet das Spiel.
+- Produktion berücksichtigt Besitz und kann abgebrochen werden.
+- Kran repariert zerstörte Brücken.
+- Ungültige Karten werden zurückgewiesen.
+- Originale Fabrik-Anforderungen überschreiben generische Technikstufen.
+
+Wasm: 20/20 Original-Kampagnenkarten nach den letzten Änderungen bestanden.
+Je Karte: Initialisierung, Bewegungsbefehl, mehrere einzelne Ticks, stabile
+JavaScript-Objektidentität und eine vollständige KI-Partie. Alle Positionen und
+Lebenspunkte bleiben endlich und innerhalb der Karte. Partien endeten nach
+94 bis 584 simulierten Sekunden. Dies beweist keinen ausgeglichenen Schwierigkeitsgrad.
+
+20/20 generierte Karten bestanden vor der Ergänzung des optionalen
+Originaldaten-Produktionsfilters; dieser Zweig wird für generierte Karten nicht genutzt.
+
+robots.dat direkt gelesen: Truppgrößen 3/2/3/3/4/4 für
+Grunt/Tough/Sniper/Psycho/Pyro/Laser; Roboterfabrik-Level 1/3/3/2/4/5.
+JavaScript-Syntaxprüfungen erfolgreich. HTTP-Auslieferung von index.html und
+engine.wasm mit Status 200, Wasm-MIME-Type application/wasm geprüft.
+
+Nicht bestätigt: sichtbare Bedienung, Rendering im echten Browser, Audioausgabe,
+Bildwiederholrate und 1:1-Vergleich mit dem Original. Browser-Automation scheiterte
+an nicht verbundenem Debugger; nativer Computerzugang hatte einen Freigabe-Timeout.

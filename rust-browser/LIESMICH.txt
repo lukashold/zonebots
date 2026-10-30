@@ -1,0 +1,65 @@
+Z – Rust/Wasm Browserfassung
+Stand: 30.10.2026
+
+START
+Start-Spiel.cmd doppelklicken. Python startet einen lokalen Webserver und
+öffnet den Browser. Die vorhandene Installation C:\GOG Games\Z wird automatisch
+eingelesen. Das Serverfenster zum Beenden schließen. Nicht index.html direkt öffnen:
+WebAssembly und Ressourcen benötigen HTTP.
+
+Alternativ: python tools/serve.py --zdir "C:\GOG Games\Z" --port 8765
+Ohne Originalinstallation gibt es die prozedural erzeugte Kampagne mit Ersatzgrafik.
+Auf der gehosteten Fassung im Menü den eigenen Z-Installationsordner auswählen.
+Originaldateien werden lokal vom Browser gelesen; sie sind nicht im Webpaket enthalten.
+
+SPIEL
+Einheiten auswählen, mit Rechtsklick Befehle geben. Gebiete über Flaggen erobern,
+Fabriken auswählen und produzieren. Neutrale Fahrzeuge können bemannt werden.
+Brücken und Gebäude sind zerstörbar/reparierbar. Das gegnerische Fort erobern oder
+zerstören. Weitere Tastenkürzel stehen in der Hilfe im Spiel.
+
+UMSETZUNG
+Die Simulation läuft in Rust, im Browser als engine.wasm: Wegsuche, Bewegung,
+Kampf, Geschosse, Eroberung, Produktion, KI und Siegbedingungen.
+JavaScript übernimmt Canvas-Darstellung, Bedienung, Audio und das Lesen der
+Originalformate. Es gibt keine zweite JavaScript-Spielsimulation als Fallback.
+Der Rust-Kern lässt sich auch nativ als JSON-Zeilen-Programm z-sim bauen;
+eine eigenständige native grafische Anwendung ist nicht enthalten.
+
+20 Original-Kampagnenkarten werden unterstützt, außerdem 20 generierte Karten.
+Original-Terrain, Gebäude, Einheitenbilder und Audio kommen aus der eigenen Kopie.
+robots.dat liefert die Truppgrößen und Fabrik-Anforderungen; BUILDxx.DAT die
+Fabrikstufen. Roboterschussfolgen wurden mit dem dekompilierten Programm abgeglichen.
+
+ORIGINALTREUE – OFFENE PUNKTE
+Dies ist eine spielbare Rekonstruktion, noch keine nachgewiesene 1:1-Portierung.
+Schaden, Reichweiten, Geschwindigkeiten, Produktionszeiten, KI, Fort-Technikstufen,
+einige Kollisionsregeln und Animationstiming beruhen noch auf dem Zonebots-Modell.
+Menüs und Bedienoberfläche entsprechen ebenfalls nicht exakt dem Original.
+Die fünf zusätzlichen Kartendateien neben der 20-Level-Kampagne sind nicht integriert.
+Videos, Mehrspieler und vollständige Spielstandkompatibilität fehlen.
+Automatische Simulationsprüfungen ersetzen keinen visuellen Spieltest. Der lokale
+Browser-Debugger war während dieser Umsetzung nicht erreichbar; sichtbare Bedienung,
+Ton und Darstellung sind deshalb noch nicht als vollständig geprüft ausgewiesen.
+
+BAUEN
+Voraussetzungen: Rust/Cargo, Target wasm32-unknown-unknown; Python 3 für lokalen Start.
+  rustup target add wasm32-unknown-unknown
+  powershell -ExecutionPolicy Bypass -File build.ps1
+build.ps1 legt Build-Zwischendateien außerhalb dieses Ausgabeordners unter work ab.
+Die gebaute engine.wasm ist bereits enthalten, zum Spielen ist Rust nicht erforderlich.
+
+PRÜFEN
+  cargo test --locked
+  node tools/wasm-test.cjs
+  node tools/wasm-test.cjs "C:\GOG Games\Z"
+Der Wasm-Test prüft die Browser-Engine-Schnittstelle, stabile Objektidentitäten,
+gültige Positionen/Zustände und vollständige KI-Partien bis zum Sieg.
+
+QUELLEN UND LIZENZ
+Grundlage: https://github.com/lukashold/zonebots
+Übernommener Stand: 49bc876a57f6b7fa548e683fa57fe85fdfb9c0fa (MIT, siehe LICENSE).
+Vorhandene JavaScript-Darstellung und Datenleser wurden übernommen und angepasst;
+die Simulation wurde in Rust übertragen. Das ursprüngliche Repository blieb unverändert.
+Reverse-Engineering-Unterlagen liegen im benachbarten Ordner Z-Reverse-Engineering.
+Das MIT-Lizenzdokument bezieht sich auf den Programmcode, nicht auf Z-Spielressourcen.
