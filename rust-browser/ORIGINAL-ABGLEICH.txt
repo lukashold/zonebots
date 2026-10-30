@@ -227,3 +227,27 @@ aus dem Rust-Kern. Die dauerhafte Zielmarkierung und ihr8-fps-Takt sind Webfeedb
 Original-Hover und Klickbilder sind belegt. Mit dieser Cursorergänzung werden
 keine neuen Originalregeln zu Kapazität oder robotertypabhängigen Inventarlimits
 behauptet; die vorhandene Aufnahmelogik bleibt unverändert.
+
+FADENKREUZ UND GEZIELTER ANGRIFF
+FUN00434c60 wählt für Angriffsziele Cursor4, mit nativem Hotspot(8,8).
+Die Webansicht verwendet32x30 Cursorpixel und Hotspot(16,16). FUN00441430
+ordnet dem Cursor die Bestätigungsbilder2783..2786 zu. Eine rote Variante als
+gewöhnlicher Reichweitenindikator ist nicht belegt und wird nicht angenommen.
+Die Zielmarkierung bleibt an ausgewählten laufenden Angriffen und folgt dem
+Gegner. Zentrierung und8-fps-Animation sind Webfeedback-Anpassungen; die
+Originalbilder und ihr Hotspot sind belegt. Trefferflächen folgen dem aktuell
+gezeichneten Körper, einschließlich Roboterkopf und zusammengesetzten Fahrzeugen.
+
+Der Browser filtert kampffähige Einheiten anhand positiver Schadens- und
+Reichweitenwerte aus dem Rust-Katalog. Transporte und Kräne werden bei gemischter
+Auswahl nicht als Angreifer losgeschickt. F/Angriff schaltet den Zielmodus,
+Esc verlässt ihn. Ein leeres Kartenziel löst weiterhin den bestehenden
+Angriffsmarsch aus, keinen behaupteten gezielten Bodenschuss.
+
+Ein Fehler in der Zielwahl wurde korrigiert: Ein manuell gewählter erreichbarer
+Einheitengegner wird vor einem näheren automatischen Gegner beschossen. Ebenso
+hat ein gültiges Gebäudeziel in Reichweite Vorrang vor nahe stehenden Einheiten.
+Außerhalb der Reichweite bleiben Verfolgung und bisheriges Gegenfeuer erhalten.
+Das ist die Korrektur der zugesagten Zielbedienung, kein zusätzlicher Beleg
+für vollständige ursprüngliche Zielpriorität. Waffenwerte und Schadensformeln
+wurden dabei nicht verändert.

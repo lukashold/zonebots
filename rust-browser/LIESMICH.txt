@@ -51,3 +51,8 @@ Lagerplatz frei. Roboter und Fahrzeuge erscheinen weiterhin automatisch.
 Roboter auswählen und auf eine Granatenkiste zeigen: Die Originalhand zeigt den
 Aufsammelbefehl an. Ein Klick schickt nur die ausgewählten Roboter zur Kiste.
 Im modernen Modus wird der Befehl mit Rechtsklick erteilt.
+
+Bei ausgewählten Kampfeinheiten zeigt das Original-Fadenkreuz gültige Angriffsziele
+an. Klassisch mit Linksklick, modern mit Rechtsklick angreifen. F oder Angriff
+aktiviert den Zielmodus; Esc verlässt ihn. Der angegriffene Gegner bleibt mit
+einem Fadenkreuz markiert. Ein leeres Ziel im Angriffsmodus ist ein Angriffsmarsch.

@@ -1,6 +1,6 @@
 Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-48 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+53 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
 Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
 Besatzungen, Schwierigkeit und HP-Grenzen. Sieben weitere Fälle prüfen lokale
 Zielsuche, Reservierungen, Besatzungserhaltung, Reichweitengrenzen und Befehlsvorrang.
@@ -100,3 +100,20 @@ Fahnenregressionen bestanden. Der Rust-Kern wurde dafür nicht geändert.
 Auf der lokalen Originalkarte wurden der aktive Handcursor als Cursor-Datenbild,
 der Klick am sichtbaren Kistenrand, Roboterauftrag und sichtbare Greifhand am Ziel
 zusätzlich im Browser geprüft. Keine Warnungen oder Fehler im Browserprotokoll.
+
+Fadenkreuz: Fünf zusätzliche Rust-Verhaltenstests prüfen gezielte Einheit vor
+näherem Autoziel, Gebäudeziel trotz naher Einheit, Verfolgung/Gegenfeuer,
+Sichtlinienhindernis und unveränderte automatische bzw. Boden-Angriffsmarschziele,
+jeweils im ursprünglichen und prozeduralen Modus. Alle53 Rust-Tests bestanden.
+Portable Frontendtests prüfen Kampfeinheitenfilter, Ziele und laufende Markierungen,
+stationäre Geschütze, bewegte Gegner, Brücken, Abbruch und Zielverlust.55 Cursor-/
+Markierungsfälle über fünf Welten prüfen die Originalbilder und getrennte Caches.
+Angriffstrefferflächen:36.561 Fälle für alle19 Typen, fünf Welten, Richtungen,
+Zielwinkel und Animationszustände bestanden. Eingabetest mit echtem Wasm besteht
+klassisch und modern: Kampfeinheitenfilter, Körperrand, bewegtes Ziel, Gebäude-
+Route/Markermitte, Stopp, erzwungener Angriffsmarsch über Handzielen und Escape
+ohne Pause. Bestehende Granaten-, Fahrzeug-, Platzierungs-, Fahnen-,20-Karten-
+und Roboterautomatik-Prüfungen bestanden.
+Auf der lokalen Originalkarte aktiven Originalcursor über einem gegnerischen
+Fort, den bestätigten Gebäudeangriff und die sichtbare Zielmarkierung geprüft.
+Keine Warnungen oder Fehler im Browserprotokoll.

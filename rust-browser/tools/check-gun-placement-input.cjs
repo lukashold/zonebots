@@ -38,7 +38,7 @@ async function check(mode){
   OriginalArt:art,IndependentArt:new Proxy({},{get:()=>()=>true}),BattlefieldVisibility:{radarDetects:()=>true,radarRadius:()=>100},
   RadioAudio:new Proxy({load:async()=>true},{get:(o,k)=>o[k]||(()=>{})})};
  vm.createContext(env);
- for(const file of ['flag-command.js','vehicle-command.js','pickup-command.js']){vm.runInContext(fs.readFileSync(path.join(root,'dist/independent',file),'utf8'),env);Object.assign(env,env.window);}
+ for(const file of ['flag-command.js','vehicle-command.js','pickup-command.js','attack-command.js']){vm.runInContext(fs.readFileSync(path.join(root,'dist/independent',file),'utf8'),env);Object.assign(env,env.window);}
  vm.runInContext(fs.readFileSync(path.join(root,'dist/independent/app.js'),'utf8'),env);
  await new Promise(resolve=>setImmediate(resolve));assert.equal(element('start').disabled,false);
  element('start').onclick();element('classic').onchange();element('cycleR').onclick();

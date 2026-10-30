@@ -864,17 +864,28 @@ impl Game {
                     }
                 }
             }
+            // An aimed target takes precedence over opportunistic fire once it
+            // is reachable by the weapon. Outside that range the existing
+            // pursuit and nearby return fire continue unchanged.
+            let building_target_in_range = u.order == "attackBuilding"
+                && u.target.and_then(|id| self.buildings.get(id)).is_some_and(|b| {
+                    b.team != u.team && b.hp > 0.
+                        && (u.x - (b.x + b.w / 2.)).hypot(u.y - (b.y + b.h / 2.)) <= d.range
+                });
+            let explicit_target = if u.order == "attack" { u.target } else { None };
             let enemy = snapshot
                 .iter()
                 .filter(|v| {
-                    original_combat::alive(self.map.original,v.hp)
+                    !building_target_in_range
+                        && original_combat::alive(self.map.original,v.hp)
                         && v.team >= 0
                         && v.team != u.team
                         && (v.x - u.x).hypot(v.y - u.y) <= d.range
                         && self.los(u.x, u.y, v.x, v.y)
                 })
                 .min_by(|a, b| {
-                    ((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y))
+                    (Some(b.id) == explicit_target).cmp(&(Some(a.id) == explicit_target))
+                        .then_with(|| ((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y)))
                 });
             if let Some(v) =
                 enemy.filter(|_| !(d.cls == 0 && u.order == "move" && !u.path.is_empty()))
@@ -1164,7 +1175,7 @@ pub fn request(v: Value) -> Value {
             _ => {},
         }
         let mut value = serde_json::to_value(&*g).unwrap();
-        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
+        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
         value["productionSeconds"] = json!(g.buildings.iter().map(|b| g.remaining_seconds(b)).collect::<Vec<_>>());
         value["buildMenus"] = json!(g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>());
         if let Some(result) = placement { value["placementResult"] = serde_json::to_value(result).unwrap(); }
@@ -1206,6 +1217,8 @@ mod fort_mount_tests;
 mod production_tests;
 #[cfg(test)]
 mod gun_placement_tests;
+#[cfg(test)]
+mod attack_target_tests;
 
 fn production_sector()->bool{true}
 

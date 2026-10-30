@@ -22,7 +22,7 @@ async function check(mode){
   document:{getElementById:element,createElement:()=>node(),querySelector:()=>element('overlayButtons'),querySelectorAll:()=>[],currentScript:{src:'http://test/independent/app.js'}},WebAssembly:{instantiate:async()=>({instance:{exports}})},
   fetch:async()=>({ok:true,arrayBuffer:async()=>binary,json:async()=>({missions:[mission()]})}),OriginalArt:art,IndependentArt:new Proxy({},{get:()=>()=>true}),BattlefieldVisibility:{radarDetects:()=>true,radarRadius:()=>100},
   RadioAudio:new Proxy({load:async()=>true,say:(kind,detail)=>spoken.push({kind,detail})},{get:(o,k)=>o[k]||(()=>{})})};
- vm.createContext(env);for(const file of ['flag-command.js','vehicle-command.js','pickup-command.js']){vm.runInContext(fs.readFileSync(path.join(root,'dist/independent',file),'utf8'),env);Object.assign(env,env.window);}
+ vm.createContext(env);for(const file of ['flag-command.js','vehicle-command.js','pickup-command.js','attack-command.js']){vm.runInContext(fs.readFileSync(path.join(root,'dist/independent',file),'utf8'),env);Object.assign(env,env.window);}
  vm.runInContext(fs.readFileSync(path.join(root,'dist/independent/app.js'),'utf8'),env);await new Promise(resolve=>setImmediate(resolve));assert.equal(element('start').disabled,false);
  element('start').onclick();element('classic').onchange();element('cycleV').onclick();
  const canvas=element('world'),render=(dt=1)=>{now+=dt;hands=[];frame(now);},commands=()=>calls.filter(c=>c.op==='command');
