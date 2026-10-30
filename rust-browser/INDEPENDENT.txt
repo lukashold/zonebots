@@ -3,7 +3,7 @@ Independent Edition – 30.10.2026
 AKTIVE FASSUNG
 Ein neuer Rust-Kern in independent-engine/ und eine neue Oberfläche, Grafik und
 Audio in dist/independent/. Die Browserfassung lädt ausschließlich diese Dateien.
-Die Vorgängermodule src/, legacy-web/ und deren Datenleser werden nicht eingebunden.
+Die Vorgaengermodule unter src/ und die Legacy-Dateien ausserhalb von dist/ werden nicht eingebunden.
 Sie bleiben als Entwicklungsbestand vorhanden; das neue Webpaket enthält sie nicht.
 
 START UND BAU
