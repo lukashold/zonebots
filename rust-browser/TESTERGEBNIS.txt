@@ -1,6 +1,6 @@
 Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-39 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+48 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
 Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
 Besatzungen, Schwierigkeit und HP-Grenzen. Sieben weitere Fälle prüfen lokale
 Zielsuche, Reservierungen, Besatzungserhaltung, Reichweitengrenzen und Befehlsvorrang.
@@ -75,3 +75,16 @@ Realer Wasm-Automatiktest: alle 20 Missionen, 48 anfänglich eigene Fabriken und
 alle 89 neutralen Roboterfabriken beim Erobern geprüft. Jede startet mit Grunts,
 Timer und sinkender Restarbeit; Übernahme, Standardwahl und zwei fertige Gruppen
 bleiben ohne erneuten Produktionsbefehl funktionsfähig.
+
+Geschützplatzierung: Neun zusätzliche Rust-Tests bestanden. Geprüft wurden vier
+Speicherplätze, fehlendes automatisches Erscheinen, Fortsetzung nach Platzierung,
+Produktwechsel und Eroberung, gültige/ungültige Flächen, alle vier Geschütztypen,
+sechs Fortsockel, obere Turmplätze trotz Gebäudeversatz, KI sowie schreibgeschützte
+Vorschauen. Ein abgelehntes Ziel verbraucht keinen Bestand.
+Eingabetest mit echtem Wasm besteht klassisch und modern: Vorschau, gesperrter
+Klick ohne Roboterbefehl, Rechts-/Esc-Abbruch, Fabrik- und Sammelknopf, einzelne
+Platzierung und Aufräumen nach Fabrikverlust. Alle 20 Karten, Roboterautomatik,
+89 Eroberungen, bestehende Fahrzeugbefehle, Fortdarstellung und Fabrikuhren weiter
+erfolgreich geprüft. Im Browser auf lokaler Originalkarte mit vorbereitetem Lager
+grüne Vorschau und tatsächliches Setzen auf einem freien Fortturm geprüft; Bestand
+sank von vier auf drei. Keine Warnungen oder Fehler in den Browserprotokollen.

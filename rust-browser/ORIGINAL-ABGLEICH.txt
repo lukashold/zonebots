@@ -182,3 +182,31 @@ Neutrale, zerstörte und nicht produzierende Gebäude bleiben ausgenommen; die
 bestehenden Schadens- und Gebietsregeln für Produktionsgeschwindigkeit gelten
 weiter. Der automatische Start ist die gewünschte Verhaltenskorrektur; damit
 wird keine zusätzliche belegte Originalregel für neutrale Fabriken behauptet.
+
+FERTIGE GESCHÜTZE PLATZIEREN
+FUN0040c180/0040c0a0 legen fertiggestellte Geschütze für den Spieler in vier
+Gebäudespeicherplätzen (+0x52..0x55) ab. Die Webfassung verwendet eine entsprechende
+Warteliste. Eine weitere Geschützproduktion läuft weiter, bis alle vier Plätze
+belegt sind; dann wartet sie auf freie Lagerplätze. Produktwechsel löschen den
+Bestand nicht. Roboter und Fahrzeuge werden weiterhin am Fabrikausgang erstellt.
+
+FUN004126e0 bindet die Bodenplatzierung an das Gebiet der produzierenden Fabrik.
+Der 16-Pixel-Raster im Original wird zu 32 Weltpixeln, mit 64x64 Weltpixeln
+Freifläche für vier Geländeecken. Die gesperrten Geländearten stammen aus
+FUN00412640 und Tabelle00499788. Gebäude, Einheiten, Fahnen, Kisten und Objekte
+werden zusätzlich durch den Rust-Kern geprüft. Vorschau und Bestätigung verwenden
+dieselbe Prüfung; ein abgelehnter Platz verbraucht kein fertiges Geschütz.
+
+Fortplatzierung benutzt die sechs nativen Turmanker00479bb4, mit dem bestehenden
+Typversatz für Nicht-Kanonen. Der neue Verband erhält die Fort-ID und wird auf
+dem Dach gezeichnet. Besetzte Turmplätze bleiben gesperrt, auch bei neutraler
+Besatzung. Die Web-Trefferfläche umfasst zusätzlich 48 Weltpixel um die Turmanker,
+damit die oberen Türme außerhalb des versetzten Gebäude-Kollisionsrechtecks
+angeklickt werden können. Dieses Toleranzmaß ist eine Bedienungsanpassung.
+
+Fertige Bestände folgen in der Webfassung dem Gebäude beim Besitzerwechsel;
+das ist aus den gebäudegebundenen Originalspeicherplätzen abgeleitet. Die KI
+platziert ihre Geschütze selbstständig. Die genaue ursprüngliche KI-Platzwahl,
+Objekt-/Einheitenradien und die vollständige Vier-Geschütze-pro-Gebiet-Zählung
+bleiben vereinfacht; die vier Speicherplätze sind keine Behauptung dieser
+vollständigen ursprünglichen Kapazitätsrechnung.

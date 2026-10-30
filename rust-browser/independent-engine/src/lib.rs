@@ -7,6 +7,7 @@ const TILE: f64 = 32.;
 mod original_stats;
 pub mod original_combat;
 mod original_initiative;
+mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Map {
@@ -51,6 +52,8 @@ pub struct Building {
     pub max_hp: f64,
     pub product: Option<String>,
     pub progress: f64,
+    #[serde(default)]
+    pub ready_guns: Vec<String>,
     #[serde(default)] pub gate:Option<(f64,f64)>,
     #[serde(default)] pub orientation:String,
     #[serde(default)] pub remaining_work:Option<f64>,
@@ -334,7 +337,7 @@ impl Game {
                 hp,
                 max_hp: hp,
                 product: if s.home { Some("grunt".into()) } else { None },
-                progress: 0., gate:None,orientation:String::new(),remaining_work:None,raw_base:None,
+                progress: 0., ready_guns: Vec::new(), gate:None,orientation:String::new(),remaining_work:None,raw_base:None,
             });
         }
         for j in 0..n {
@@ -480,10 +483,11 @@ impl Game {
         let fort_id=spawn["fortId"].as_u64().map(|id|id as usize).filter(|id|stats(kind).cls==2&&self.buildings.iter().any(|b|b.id==*id&&b.kind=="fort"));
         self.units.last_mut().unwrap().fort_id=fort_id;
       }
+      for b in &mut self.buildings { b.ready_guns.retain(|k| gun_placement::is_gun(k)); b.ready_guns.truncate(gun_placement::READY_GUN_CAPACITY); }
       self.ensure_production();
       Ok(())
     }
-    pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
+    pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
 
     fn passable(&self, x: i32, y: i32, swim: bool) -> bool {
         if x < 1 || y < 1 || x >= self.map.width as i32 - 1 || y >= self.map.height as i32 - 1 {
@@ -674,6 +678,7 @@ impl Game {
     fn ai(&mut self) {
         let teams = self.ai_teams.clone();
         for team in teams {
+            self.place_ai_guns(team);
             for bi in 0..self.buildings.len() {
                 let b = self.buildings[bi].clone();
                 if b.team != team || b.hp <= 0. {
@@ -1076,6 +1081,7 @@ impl Game {
                 continue;
             }
             if let Some(k) = b.product.clone() {
+                if gun_placement::is_gun(&k) && b.ready_guns.len() >= gun_placement::READY_GUN_CAPACITY { continue; }
                 let owned = self.sectors.iter().filter(|s| s.owner == b.team && (!self.map.original || s.counts_for_production)).count();
                 let mult = if b.team == 1 {
                     [0.55, 1., 1.45, 1.85][self.difficulty]
@@ -1086,14 +1092,23 @@ impl Game {
                   let rate=original_stats::rate(b.hp,b.max_hp,owned,total);let workload=original_stats::workload(&k)as f64;
                   let work=b.remaining_work.get_or_insert(workload);*work-=(rate*production_ticks)as f64;
                   b.progress=(1.-*work/workload).clamp(0.,1.);
-                  if *work<0.{b.remaining_work=Some(workload);b.progress=0.;let(gx,gy)=b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h));completed.push((k,b.team,gx,gy+if b.orientation=="north"{-30.}else{30.}));}
+                  if *work<0.{b.remaining_work=Some(workload);b.progress=0.;let(gx,gy)=b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h));completed.push((k,b.team,gx,gy+if b.orientation=="north"{-30.}else{30.},b.id));}
                 }else{
                   b.progress+=dt*(0.65+owned as f64*0.32)*(b.hp/b.max_hp).max(0.15)*mult/stats(&k).seconds;
-                  if b.progress>=1.{b.progress-=1.;completed.push((k,b.team,b.x+b.w/2.,b.y+b.h+30.));}
+                  if b.progress>=1.{b.progress-=1.;completed.push((k,b.team,b.x+b.w/2.,b.y+b.h+30.,b.id));}
                 }
             }
         }
-        for (k, team, x, y) in completed {
+        for (k, team, x, y, factory) in completed {
+            if gun_placement::is_gun(&k) {
+                if let Some(b) = self.buildings.iter_mut().find(|b| b.id == factory) {
+                    if b.ready_guns.len() < gun_placement::READY_GUN_CAPACITY {
+                        b.ready_guns.push(k.clone());
+                        self.events.push(json!({"kind":"ready","team":team,"type":k,"factory":factory}));
+                    }
+                }
+                continue;
+            }
             if self
                 .units
                 .iter()
@@ -1120,8 +1135,43 @@ impl Game {
 }
 thread_local! {static GAME:RefCell<Option<Game>>=const{RefCell::new(None)};static OUT:RefCell<Vec<u8>>=const{RefCell::new(Vec::new())};}
 pub fn request(v: Value) -> Value {
-    GAME.with(|cell|{let mut state=cell.borrow_mut();if v["op"]=="init"{let mut g=Game::new(v["mission"].as_u64().unwrap_or(0)as usize,v["difficulty"].as_u64().unwrap_or(1)as usize,v["seed"].as_u64().unwrap_or(7163)as u32);if !v["originalMission"].is_null(){if let Err(e)=g.apply_original(&v["originalMission"]){return json!({"error":e});}}if let Some(a)=v["aiTeams"].as_array(){g.ai_teams=a.iter().filter_map(|x|x.as_i64().map(|x|x as i32)).collect();}*state=Some(g);}let Some(g)=state.as_mut()else{return json!({"error":"Initialize first"})};g.events.clear();match v["op"].as_str().unwrap_or(""){"tick"=>g.step(v["dt"].as_f64().unwrap_or(0.04)),"advance"=>for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000){g.step(0.1);},"command"=>g.command(&v),"produce"=>g.produce(v["id"].as_u64().unwrap_or(usize::MAX as u64)as usize,v["product"].as_str()),_=>{}}let mut value=serde_json::to_value(&*g).unwrap();value["catalog"]=json!(TYPES.iter().map(|k|{let d=stats(k);json!({"type":k,"hp":d.hp,"range":d.range,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}})}).collect::<Vec<_>>());value["productionSeconds"]=json!(g.buildings.iter().map(|b|g.remaining_seconds(b)).collect::<Vec<_>>());value["buildMenus"]=json!(g.buildings.iter().map(|b|g.products(b)).collect::<Vec<_>>());value})
+    GAME.with(|cell| {
+        let mut state = cell.borrow_mut();
+        if v["op"] == "init" {
+            let mut g = Game::new(v["mission"].as_u64().unwrap_or(0) as usize, v["difficulty"].as_u64().unwrap_or(1) as usize, v["seed"].as_u64().unwrap_or(7163) as u32);
+            if !v["originalMission"].is_null() {
+                if let Err(e) = g.apply_original(&v["originalMission"]) { return json!({"error":e}); }
+            }
+            if let Some(a) = v["aiTeams"].as_array() { g.ai_teams = a.iter().filter_map(|x| x.as_i64().map(|x| x as i32)).collect(); }
+            *state = Some(g);
+        }
+        let Some(g) = state.as_mut() else { return json!({"error":"Initialize first"}); };
+        let id = v["id"].as_u64().unwrap_or(usize::MAX as u64) as usize;
+        let slot = v.get("slot").map(|n| n.as_u64().map(|i| i as usize).unwrap_or(usize::MAX)).unwrap_or(0);
+        let x = v["x"].as_f64().unwrap_or(f64::NAN);
+        let y = v["y"].as_f64().unwrap_or(f64::NAN);
+        if v["op"] == "previewGun" {
+            return serde_json::to_value(g.gun_placement_preview(id, slot, x, y, 0)).unwrap();
+        }
+        g.events.clear();
+        let mut placement = None;
+        match v["op"].as_str().unwrap_or("") {
+            "tick" => g.step(v["dt"].as_f64().unwrap_or(0.04)),
+            "advance" => for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000) { g.step(0.1); },
+            "command" => g.command(&v),
+            "produce" => g.produce(id, v["product"].as_str()),
+            "placeGun" => placement = Some(g.place_gun_for_team(id, slot, x, y, 0)),
+            _ => {},
+        }
+        let mut value = serde_json::to_value(&*g).unwrap();
+        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
+        value["productionSeconds"] = json!(g.buildings.iter().map(|b| g.remaining_seconds(b)).collect::<Vec<_>>());
+        value["buildMenus"] = json!(g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>());
+        if let Some(result) = placement { value["placementResult"] = serde_json::to_value(result).unwrap(); }
+        value
+    })
 }
+
 #[no_mangle]
 pub extern "C" fn alloc(n: usize) -> *mut u8 {
     let b = vec![0u8; n].into_boxed_slice();
@@ -1154,6 +1204,8 @@ mod tests;
 mod fort_mount_tests;
 #[cfg(test)]
 mod production_tests;
+#[cfg(test)]
+mod gun_placement_tests;
 
 fn production_sector()->bool{true}
 

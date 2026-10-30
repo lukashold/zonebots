@@ -39,3 +39,11 @@ Eroberte Roboterfabriken beginnen sofort automatisch mit Grunts und wiederholen
 ihren Auftrag nach jeder fertigen Gruppe. Auch Forts wählen standardmäßig Roboter.
 Standardproduktion kehrt zum automatischen Standard zurück, statt die Fabrik
 anzuhalten. Ein selbst gewählter gültiger Einheitentyp bleibt in der Wiederholung.
+
+Fertige Geschütze werden in der Fabrik gelagert, statt automatisch am Ausgang
+zu erscheinen. Geschütze platzieren oder den Knopf an der Fabrik anklicken,
+danach mit Linksklick einen grünen Platz im Gebiet dieser Fabrik bestätigen.
+Rot zeigt einen gesperrten Platz. Rechtsklick oder Esc beendet nur die Auswahl;
+das Geschütz bleibt erhalten. Auf Forts werden freie Turmplätze benutzt.
+Bis zu vier fertige Geschütze bleiben pro Fabrik bereit; Platzieren gibt wieder
+Lagerplatz frei. Roboter und Fahrzeuge erscheinen weiterhin automatisch.
