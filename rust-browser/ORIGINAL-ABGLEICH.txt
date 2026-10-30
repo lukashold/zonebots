@@ -1,0 +1,41 @@
+Originalabgleich: Sicht und Bedienung – 30.10.2026
+
+KORREKTUREN
+Die Hauptkarte ist von Beginn an vollständig hell und aufgedeckt. Gegner werden
+im Hauptfenster unabhängig von eigenen Einheiten und Radar gezeichnet.
+Nur gegnerische Kontakte auf der Minikarte benötigen ein eigenes funktionsfähiges
+Radar. Reichweite wächst mit Gebietsbesitz und sinkt bei Radarschäden.
+
+Klassische Steuerung ist jetzt voreingestellt:
+- Linksklick wählt einen Trupp; ein weiterer Linksklick gibt den Kontextbefehl.
+- Rechtsziehen scrollt die Karte; alternativ kann moderne Bedienung gewählt werden.
+- Leertaste bzw. mittlere Maustaste hebt die Auswahl auf und stellt sie wieder her.
+- R/V/B/G und F1/F2/F3/F4 schalten Roboter, Fahrzeuge, Gebäude und Geschütze durch.
+- F5 schaltet kürzlich angegriffene eigene Einheiten durch.
+- A wählt eigene Einheiten auf dem Bildschirm, Rahmen bildet eine Auswahlgruppe.
+- Statusportrait, Auftragsanzeige und Grenaden-/Lebenspunktanzeige im rechten Panel.
+- Gepunktete Route aus dem tatsächlichen Rust-Weg und Reichweitenkreis bei Auswahl.
+- Minikarte unterstützt Ziehen sowie T/D/Z für Gelände, Beschreibung und Gebiete.
+- Fabriken zeigen verbleibende Produktionszeit sowie Fortschritt und Sterne.
+
+BELEGE
+Die Kartenkorrektur folgt zusätzlich der ausdrücklichen Beobachtung des Nutzers.
+Original-DOS-Handbuch, öffentlich indizierte Abschnitte des Play Screen und
+Selecting/Giving Orders, gedruckte Seiten 6–9:
+https://evercade.info/wp-content/uploads/2024/09/Z_Manual_DOS.pdf
+Das Handbuch trennt Minikarten-Radar von der normalen Schlachtfeldansicht und
+beschreibt Kontext-Linksklick, Rechtsziehen, Auswahlwechsel und Einheitenzyklen.
+
+PRÜFUNG
+Neun Rust-Tests bestanden, einschließlich Export der tatsächlichen Bewegungspfade.
+Radar-Tests für Besitz, Reichweitenänderung, Zerstörung und fehlende Radarstation
+bestanden. Browserprüfung: Start, helle gegnerische Kartenseite ohne eigene Aufklärung,
+Einheitenzyklus, Auswahlportrait, Leertaste aufheben/wiederwählen und Minikartenpan.
+JavaScript-Syntax und Git-Diff-Prüfung bestanden.
+
+GRENZEN
+Die aktuelle Fassung ist noch nicht vollständig identisch zum Original. Insbesondere
+Kampagnenkarten, vollständige Grafik-/Animationsfolgen, numerische Balance und KI
+sind eigene Entwürfe bzw. noch nicht exakt abgeglichen. Das vollständige Statuspanel-
+Verhalten und alle Gruppierungs-Sonderfälle sind ebenfalls noch nicht vollständig
+reproduziert. Die vorhandene Provenienzdokumentation in INDEPENDENT.txt gilt weiter.

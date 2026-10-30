@@ -1,4 +1,15 @@
 use super::*;
+#[test]
+fn movement_snapshot_exports_the_actual_route() {
+    let mut g = game();
+    let id = g.units.iter().find(|u| u.team == 0 && u.kind == "grunt").unwrap().id;
+    g.command(&json!({"ids":[id],"kind":"move","x":400,"y":1100}));
+    let unit = g.units.iter().find(|u|u.id==id).unwrap();
+    assert!(!unit.path.is_empty());
+    let snapshot = serde_json::to_value(unit).unwrap();
+    assert_eq!(snapshot["path"].as_array().unwrap().len(),unit.path.len());
+    assert_eq!(snapshot["path"][0],json!(unit.path[0]));
+}
 fn game() -> Game {
     let mut g = Game::new(2, 1, 7291);
     g.ai_teams.clear();

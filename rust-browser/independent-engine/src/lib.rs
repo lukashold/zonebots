@@ -71,7 +71,7 @@ pub struct Unit {
     pub target: Option<usize>,
     pub dest: Option<(f64, f64)>,
     pub cooldown: f64,
-    #[serde(skip)]
+    #[serde(skip_deserializing)]
     pub path: VecDeque<(f64, f64)>,
 }
 #[derive(Clone, Serialize, Deserialize)]

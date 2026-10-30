@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+require('../dist/independent/visibility.js');
+const V=globalThis.BattlefieldVisibility;
+const sectors=[{owner:0},{owner:-1},{owner:1}];
+const radar={x:100,y:100,w:96,h:80,kind:'radar',team:0,hp:100,maxHp:100};
+assert(!V.radarDetects(sectors,[],150,150),'without a radar there are no enemy minimap contacts');
+assert(V.radarDetects(sectors,[radar],400,140));
+assert(!V.radarDetects(sectors,[radar],700,140));
+const range=V.radarRadius(sectors,radar);
+sectors[1].owner=0;
+assert(V.radarRadius(sectors,radar)>range,'territory expands the scanner');
+assert(!V.radarDetects(sectors,[{...radar,hp:0}],150,150),'destroyed radars do not scan');
+assert(!V.radarDetects(sectors,[{...radar,team:1}],150,150),'hostile radars never reveal enemy contacts');
+assert(!V.radarDetects(sectors,[{...radar,kind:'fort'}],150,150),'fort and robot vision do not substitute for radar');
+console.log('PASS: radar-only minimap contacts, ownership, territory scaling and destroyed stations.');
