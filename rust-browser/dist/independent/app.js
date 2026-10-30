@@ -49,6 +49,6 @@
  let radioTimer;window.addEventListener('radio',e=>{$('radio').textContent=e.detail;$('radio').hidden=false;clearTimeout(radioTimer);radioTimer=setTimeout(()=>$('radio').hidden=true,4500);});
  for(let i=0;i<20;i++){const o=document.createElement('option');o.value=i;o.textContent=`Mission ${i+1} / ${['Wüste','Vulkan','Eis','Dschungel','Stadt'][Math.floor(i/4)]}`;$('mission').append(o);}
  $('difficulty').onchange=()=>{$('difficultyInfo').textContent=['Mehr Startroboter, langsame KI.','Gleiche Produktionsbedingungen.','Schnellere KI-Produktion und Reaktion.','Hoher Produktionsdruck und schnelle Entscheidungen.'][+$('difficulty').value];};
- fetch('engine.wasm').then(r=>{if(!r.ok)throw Error('Engine nicht erreichbar');return r.arrayBuffer();}).then(bytes=>WebAssembly.instantiate(bytes,{})).then(r=>{engine=r.instance.exports;$('start').disabled=false;$('loading').textContent='Rust / WebAssembly bereit';}).catch(e=>$('loading').textContent=e.message);
+ fetch(new URL('engine.wasm',document.currentScript.src)).then(r=>{if(!r.ok)throw Error('Engine nicht erreichbar');return r.arrayBuffer();}).then(bytes=>WebAssembly.instantiate(bytes,{})).then(r=>{engine=r.instance.exports;$('start').disabled=false;$('loading').textContent='Rust / WebAssembly bereit';}).catch(e=>$('loading').textContent=e.message);
  requestAnimationFrame(draw);
 })();
