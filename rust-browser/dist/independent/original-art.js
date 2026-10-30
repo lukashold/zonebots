@@ -107,16 +107,20 @@ window.OriginalArt=(()=>{
  // Production-clock fields use the original green font, independently of the
  // selected factory window. Native anchors and character advance are verified
  // against0040b6b0/0040c490 and0040ab90 ->0040ac30 ->00467b80.
- function productionText(b,seconds){
+ function productionText(b,seconds,time=0){
   if(!b||b.team<0||b.hp<=0||!b.product||!['vehicle','robot','fort'].includes(b.kind))return null;
+  //0040ad60 holds68 native updates after completion. The producer draws
+  //0:00 only when00622d40&2;00434a70 advances that phase every other update.
+  //The17Hz global phase is the web clock adaptation, not a measured OS scheduler.
+  if(b.completionTicks>0)return ((Math.max(0,Math.floor(time*17))+1)>>1&2)?'0:00':null;
   if(seconds===null)return '*:**';
   if(!Number.isFinite(seconds))return null;
   const value=Math.min(599,Math.max(0,Math.trunc(seconds)));
   return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;
  }
- function production(ctx,b,seconds,map){
+ function production(ctx,b,seconds,map,time=0){
   if(!ready||!map.original)return false;
-  const text=productionText(b,seconds);if(text===null)return false;
+  const text=productionText(b,seconds,time);if(text===null)return false;
   const offset=({vehicle:[32,57],robot:[35,58],fort:[74,90]})[b.kind];
   const anchor=b.kind==='fort'&&b.rawBase?[b.rawBase[0]*2,b.rawBase[1]*2]:[b.x,b.y];
   let x=anchor[0]+offset[0]*2;const y=anchor[1]+offset[1]*2;

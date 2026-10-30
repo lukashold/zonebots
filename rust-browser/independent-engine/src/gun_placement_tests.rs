@@ -57,6 +57,7 @@ fn completed_guns_wait_in_four_slots_instead_of_appearing_at_the_factory_exit() 
     let mut game = fixture(0);
     let initial_units = game.units.len();
     for n in 1..=4 {
+        while game.buildings[0].completion_ticks>0 { game.step(1./17.); }
         game.events.clear();
         game.buildings[0].remaining_work = Some(1.);
         game.step(0.1);
@@ -76,6 +77,7 @@ fn completed_guns_wait_in_four_slots_instead_of_appearing_at_the_factory_exit() 
 
     // A full gun rack does not block a newly selected robot order or discard it.
     game.produce(0, Some("grunt"));
+    while game.buildings[0].completion_ticks>0 { game.step(1./17.); }
     game.buildings[0].remaining_work = Some(1.);
     game.step(0.1);
     assert_eq!(game.buildings[0].ready_guns.len(), 4);
@@ -166,6 +168,8 @@ fn placement_frees_a_queue_slot_and_the_factory_keeps_producing_guns() {
     assert_eq!(game.buildings[0].ready_guns, vec!["gatling"]);
     assert_eq!(gun_count(&game), 1, "The next completed gun stays in stock until another placement");
     assert_eq!(game.buildings[0].product.as_deref(), Some("gatling"));
+    assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
+    while game.buildings[0].completion_ticks>0 { game.step(1./17.); }
     assert!(game.remaining_seconds(&game.buildings[0]).unwrap() > 0);
 }
 

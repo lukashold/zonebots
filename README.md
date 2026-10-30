@@ -55,6 +55,10 @@ The menu now uses locally extracted original title, background and metal-panel t
 
 Use **Vollbild** in the menu or in battle to request native browser fullscreen. Escape or the same button exits. If embedding permissions prevent fullscreen, the game displays browser instructions. Chrome browser shortcuts: F11 on Windows/Linux, Ctrl+Command+F on macOS. Returning to the main menu pauses the current battle; **Fortsetzen** resumes it while the page remains open.
 
+The in-game sidebar now loads the original steel panel, German unit captions, portraits, health bars and control textures from a separate optional HUD pack. Its native 96×480 panel scales to the browser height; small screens retain the compact interface and minimap. `tools/extract-original-hud.py` prepares the locally owned indexed bitmaps and world palettes. The current communication portrait is static; the original speech/facial state machine remains incomplete.
+
+Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The existing immediate-hit model remains: the native throw wind-up, trajectory, scatter and blast area are not yet reconstructed. The howitzer also uses its proper original artillery profile.
+
 From `rust-browser/`, validate with:
 
     cargo test --manifest-path independent-engine/Cargo.toml
@@ -79,6 +83,8 @@ From `rust-browser/`, validate with:
     node tools/check-vehicle-input.cjs
     node tools/check-menu-shell.cjs
     node tools/check-fullscreen.cjs
+    node tools/check-original-hud.cjs
+    node tools/check-original-grenades.cjs
     node tools/check-original-audio.cjs
 
 Combat units show the original crosshair over attack targets. Confirm with the normal command button; **F / Attack** also enables aiming and **Escape** cancels it. A crosshair follows the selected attack target. Manual targets in weapon range now take precedence over opportunistic fire; transporters and cranes are filtered out of mixed attack selections. Empty-ground aiming retains the existing attack-move behavior.

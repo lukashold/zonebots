@@ -64,7 +64,7 @@ fn building_target_receives_fire_even_with_an_enemy_unit_nearby() {
                 id: 0, x: 468., y: 288., w: 64., h: 64., kind: "robot".into(),
                 team: owner, sector: 0, stars: 1, hp: 1000., max_hp: 1000.,
                 product: None, progress: 0., ready_guns: vec![], gate: None,
-                orientation: String::new(), remaining_work: None, raw_base: None,
+                orientation: String::new(), remaining_work: None, completion_ticks:0, raw_base: None,
             };
             game.buildings.push(building);
             let attacker = game.units[0].id;

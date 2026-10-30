@@ -136,3 +136,28 @@ die tatsächlichen Knopfzustände bestätigt; eine Vollbild-Screenshotaufnahme
 war dort nicht möglich. Die Menüansicht wurde zusätzlich in der Größe der
 Nutzervorlage (1046x686) geprüft und gespeichert. Keine Browserwarnungen oder
 Fehler bei Navigation und Spielstart; kein Hardwaretest auf einem Mac.
+
+WEITERER ORIGINALABGLEICH
+Alle66 Rust-Tests bestanden. Neue Produktionsprüfungen decken68 native Updates,
+exakte Wiederaufnahme, Zeitbündelung, Eroberung/Produktwechsel, Lagergrenzen und
+unveränderte prozedurale Produktion ab. Neue Kampftests prüfen361 Typkombinationen,
+50 Hüllenschaden ohne Kugel-Besatzungswurf, genau einen Granatenverbrauch,
+Abklingzeit, ungültige Ziele, Reichweite, Sichtlinie und das Haubitzenprofil.
+Wasm neu gebaut. Der zusätzliche echte ABI-Test durchläuft tatsächliche Aufnahme
+(+8), Anmarsch, Angriff(-1/50 Hüllenschaden), Waffenereignis und Abklingzeit sowie
+leeres Inventar, falsche Zielklasse, blockierte und eigene Ziele.
+
+Alle20 Originalmissionen, automatische Produktion (48 eigene Fabriken und89
+Eroberungen), fünf prozedurale Welten, Fabrikuhren und die vier Eingabeprüfungen
+für Angriff, Geschützplatzierung, Granatenaufnahme und Fahrzeuge bestanden.
+
+Original-HUD:177 Bitmaps und acht Quelldatei-/Palettenhashes gegen die lokale
+GOG-Kopie geprüft. Optionales/defektes Paket, ursprüngliche Typenschilder und alle
+zwölf Hardwarebild-Zuordnungen, unabhängige Roboter-Vorschau, Lebensbalken,
+Texturcache, Menüknopf, Seitenbreite und Minikartenwechsel breit/schmal bestanden.
+Der Bildvergleich deckte zunächst eine falsche Gatling-Zuordnung auf; sie und die
+übrigen Hardwarefamilien wurden anhand frischer Ghidra-Assembler-Tabellen korrigiert.
+Im Browser Originalkampagne, Roboter- und Geschützauswahl, korrigiertes Gatling-Bild,
+Menü/Pause sowie die sichtbare Minikarte bei750px Fensterbreite geprüft. Die
+Rückkehr zur Desktopansicht hält Karte und Panel passend. Keine Warnungen/Fehler
+im Browserprotokoll. Lautsprecherausgabe und echte Mac-Hardware bleiben ungeprüft.

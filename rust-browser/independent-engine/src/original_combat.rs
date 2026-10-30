@@ -45,6 +45,7 @@ fn profile(kind: &str) -> Profile {
         "launcher" => (1, 24, 80, 20, 20, 30, false),
         "missile" => (4, 21, 60, 0, 30, 30, false),
         "gatling" => (5, 22, 50, 0, 97, 30, true),
+        "howitzer" => (6, 23, 60, 0, 10, 30, false),
         "jeep" => (1, 34, 40, 60, 98, 30, true),
         "apc" => (1, 32, 60, 50, 80, 30, false),
         "crane" => (1, 36, 60, 50, 50, 40, false),
@@ -90,6 +91,9 @@ impl CombatState {
 }
 pub fn initial_crew_hp(kind: &str) -> f64 {
     f64::from(profile(kind).crew_hp)
+}
+pub fn runtime_class(kind: &str) -> u8 {
+    profile(kind).class
 }
 pub fn alive(original: bool, hp: f64) -> bool {
     if original {

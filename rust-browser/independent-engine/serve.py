@@ -26,6 +26,9 @@ def ensure_original_pack(game):
     if not (private / 'menu.json').is_file() and (game / 'PNG' / 'IPBackground.png').is_file():
         jobs.append(('menu', repo / 'tools' / 'extract-original-menu.py',
                      ['--game', str(game), '--output', str(private)]))
+    if not (private / 'hud.json').is_file() and (game / 'de.lproj' / 'NSNEWPAN.DAT').is_file():
+        jobs.append(('HUD', repo / 'tools' / 'extract-original-hud.py',
+                     ['--game', str(game), '--output', str(private)]))
     for label, script, arguments in jobs:
         print(f'Extracting original {label} from {game} ...', flush=True)
         try:

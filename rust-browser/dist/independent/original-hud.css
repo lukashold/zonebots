@@ -1,0 +1,36 @@
+#nativeHud{display:contents}#hudUnitArt,#hudCaption,#hudHealth,#hudMenu{display:none}
+.original-hud-ready #buttons button,.original-hud-ready #factory button{background:var(--hud-metal) center/100% 100% no-repeat #5c6060;border:1px solid;border-color:#aaa9a0 #242727 #242727 #aaa9a0;color:#fcf1d8;text-shadow:1px 1px #121414;box-shadow:1px 2px #0008;font-family:Arial,sans-serif}
+.original-hud-ready #buttons button{padding:7px 10px;font-size:11px}
+.original-hud-ready #status{background:linear-gradient(#191b1cb5,#191b1cb5),var(--hud-metal) center/100% 100% no-repeat #4b4c48;border:1px solid;border-color:#a7aaa5 #262928 #262928 #a7aaa5;color:#f1eee4;font:11px/1.5 Arial,sans-serif}
+.original-hud-ready #radio,.original-hud-ready #factory{background:linear-gradient(#202123c9,#202123c9),var(--hud-radio) center/100% 100% no-repeat #4a4b48;border-color:#a8a9a0 #292b2b #292b2b #a8a9a0;color:#f6ead0}
+.original-hud-ready #radio::before{color:#d3d1c7}.original-hud-ready #radio{border-left-color:#c8b57e}
+.original-hud-ready #selection,.original-hud-ready #orderMode{background:#202225e8;color:#f0e9d5;font-family:Arial,sans-serif}
+@media(min-width:761px){
+ .original-hud-ready #statusPanel{width:var(--sidebar-width);padding:0;border:0;background:#252421;box-shadow:-2px 0 #141414;overflow:hidden}
+ .original-hud-ready #nativeHud{position:absolute;right:0;top:0;display:block;width:96px;height:480px;transform:scale(var(--hud-scale));transform-origin:top right;background-repeat:no-repeat;background-size:96px 480px;image-rendering:pixelated}
+ .original-hud-ready #nativeHud .panelTitle{display:none}
+ .original-hud-ready #portrait{position:absolute;left:4px;top:39px;width:88px;height:78px;margin:0;border:0;background:#080808;box-shadow:none}
+ .original-hud-ready #hudCaption{display:block;position:absolute;left:0;top:119px;width:96px;height:14px;pointer-events:none}
+ .original-hud-ready #unitName{position:absolute;left:4px;top:121px;width:88px;font:7px Arial,sans-serif;color:transparent;pointer-events:none}
+ .original-hud-ready #hudUnitArt{display:block;position:absolute;left:0;top:142px;width:96px;height:78px;pointer-events:none}
+ .original-hud-ready #hudHealth{display:block;position:absolute;left:8px;top:222px;width:80px;height:6px;pointer-events:none}
+ .original-hud-ready #unitInfo{position:absolute;left:4px;top:231px;width:88px;margin:0;font:5.8px/1.25 Arial,sans-serif;color:#e4e3dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .original-hud-ready #unitOrderInfo{position:absolute;left:4px;top:240px;width:88px;margin:0;font:5.8px/1.25 Arial,sans-serif;color:#e4e3dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .original-hud-ready .cycleButtons{display:contents}
+ .original-hud-ready #nativeHud button{position:absolute;padding:0;border:0;box-shadow:none;background-color:transparent;background-repeat:no-repeat;background-size:100% 100%;color:transparent;text-shadow:none;overflow:hidden;white-space:nowrap;image-rendering:pixelated}
+ .original-hud-ready #nativeHud button:focus-visible{outline:1px solid #fff28c;outline-offset:1px}
+ .original-hud-ready #cycleR{left:2px;top:259px;width:24px;height:20px}
+ .original-hud-ready #cycleG{left:34px;top:259px;width:24px;height:20px}
+ .original-hud-ready #cycleV{left:66px;top:259px;width:24px;height:20px}
+ .original-hud-ready #cycleB{left:67px;top:448px;width:24px;height:20px}
+ .original-hud-ready #mini{right:auto;bottom:auto;left:4px;top:300px;width:88px;height:88px;border:0;box-shadow:none;background:#050505}
+ .original-hud-ready .overlayButtons{position:absolute;left:0;right:0;top:405px;bottom:auto;display:block;height:20px}
+ .original-hud-ready #overlayT{left:2px;top:0;width:24px;height:20px}
+ .original-hud-ready #overlayD{left:34px;top:0;width:24px;height:20px}
+ .original-hud-ready #overlayZ{left:66px;top:0;width:24px;height:20px}
+ .original-hud-ready #hudMenu{display:block;left:4px;top:448px;width:56px;height:20px}
+ .original-hud-ready #world{right:var(--sidebar-width)}
+ .original-hud-ready #buttons,.original-hud-ready #status{max-width:calc(100vw - var(--sidebar-width) - 22px)}
+ .original-hud-ready #factory{right:calc(var(--sidebar-width) + 12px)}
+ .original-hud-ready #selection,.original-hud-ready #orderMode{max-width:calc(100vw - var(--sidebar-width) - 24px)}
+}

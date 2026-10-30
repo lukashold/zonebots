@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 const TILE: f64 = 32.;
 mod original_stats;
 pub mod original_combat;
+mod original_grenades;
 mod original_initiative;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
@@ -57,6 +58,8 @@ pub struct Building {
     #[serde(default)] pub gate:Option<(f64,f64)>,
     #[serde(default)] pub orientation:String,
     #[serde(default)] pub remaining_work:Option<f64>,
+    /// Native building +0x36: completion hold, decremented before each factory callback.
+    #[serde(default)] pub completion_ticks:u32,
     #[serde(default)] pub raw_base:Option<(f64,f64)>,
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -337,7 +340,7 @@ impl Game {
                 hp,
                 max_hp: hp,
                 product: if s.home { Some("grunt".into()) } else { None },
-                progress: 0., ready_guns: Vec::new(), gate:None,orientation:String::new(),remaining_work:None,raw_base:None,
+                progress: 0., ready_guns: Vec::new(), gate:None,orientation:String::new(),remaining_work:None,raw_base:None,completion_ticks:0,
             });
         }
         for j in 0..n {
@@ -487,7 +490,7 @@ impl Game {
       self.ensure_production();
       Ok(())
     }
-    pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
+    pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
 
     fn passable(&self, x: i32, y: i32, swim: bool) -> bool {
         if x < 1 || y < 1 || x >= self.map.width as i32 - 1 || y >= self.map.height as i32 - 1 {
@@ -893,6 +896,9 @@ impl Game {
                 self.units[i].aim = (v.y - u.y).atan2(v.x - u.x);
                 if d.damage > 0. && self.units[i].cooldown <= 0. {
                     self.units[i].cooldown = d.reload;
+                    let grenade = self.map.original
+                        .then(||original_grenades::try_throw(&mut self.units[i],v))
+                        .flatten();
                     let sniper = u.kind == "sniper" && stats(&v.kind).cls > 0 && v.crew.is_some();
                     let amt = if !self.map.original && u.grenades > 0 && stats(&v.kind).cls > 0 {
                         self.units[i].grenades -= 1;
@@ -901,7 +907,7 @@ impl Game {
                         d.damage
                     };
                     if self.map.original {
-                        original_damage.push(original_combat::Attack::from_unit(&u,v.id,amt,self.units[i].aim));
+                        original_damage.push(grenade.unwrap_or_else(||original_combat::Attack::from_unit(&u,v.id,amt,self.units[i].aim)));
                     } else {damage.push((v.id, amt, sniper));}
                     self.effects.push(Fx {
                         x: u.x,
@@ -913,7 +919,7 @@ impl Game {
                         x2: v.x,
                         y2: v.y,
                     });
-                    self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
+                    self.events.push(json!({"kind":"shot","type":u.kind,"weapon":if grenade.is_some(){"grenade"}else{"primary"},"x":u.x,"y":u.y,"team":u.team}));
                 }
             } else if u.order == "attackBuilding" {
                 if let Some(b) = u.target.and_then(|id| self.buildings.get(id)) {
@@ -1088,26 +1094,48 @@ impl Game {
         let total=self.sectors.iter().filter(|s|s.counts_for_production).count();
         let mut completed = vec![];
         for b in &mut self.buildings {
-            if b.team < 0 || b.hp <= 0. {
+            if self.map.original {
+                // Initialize an active order without spending work, including a
+                // zero-dt capture callback. A running completion hold stays intact.
+                if b.completion_ticks==0 && b.team>=0 && b.hp>0. {
+                    if let Some(k)=&b.product {
+                        if !gun_placement::is_gun(k) || b.ready_guns.len()<gun_placement::READY_GUN_CAPACITY {
+                            b.remaining_work.get_or_insert(original_stats::workload(k)as f64);
+                        }
+                    }
+                }
+                //0040ad60 decrements word+0x36 before the producer callback.
+                //0040b2a0/0040b6b0/0040c490 set68 at completion, then hold
+                //work while nonzero. Iterate native ticks so a completion early
+                //in a batched step also consumes its later hold ticks correctly.
+                for _ in 0..production_ticks {
+                    b.completion_ticks=b.completion_ticks.saturating_sub(1);
+                    if b.completion_ticks>0 || b.team<0 || b.hp<=0. { continue; }
+                    let Some(k)=b.product.clone() else { continue; };
+                    if gun_placement::is_gun(&k) && b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY { continue; }
+                    let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();
+                    let rate=original_stats::rate(b.hp,b.max_hp,owned,total);
+                    let workload=original_stats::workload(&k)as f64;
+                    let work=b.remaining_work.get_or_insert(workload);
+                    *work-=rate as f64;
+                    b.progress=(1.-*work/workload).clamp(0.,1.);
+                    if *work<0. {
+                        b.remaining_work=Some(workload);
+                        b.progress=0.;
+                        b.completion_ticks=68;
+                        let(gx,gy)=b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h));
+                        completed.push((k,b.team,gx,gy+if b.orientation=="north"{-30.}else{30.},b.id));
+                    }
+                }
                 continue;
             }
-            if let Some(k) = b.product.clone() {
-                if gun_placement::is_gun(&k) && b.ready_guns.len() >= gun_placement::READY_GUN_CAPACITY { continue; }
-                let owned = self.sectors.iter().filter(|s| s.owner == b.team && (!self.map.original || s.counts_for_production)).count();
-                let mult = if b.team == 1 {
-                    [0.55, 1., 1.45, 1.85][self.difficulty]
-                } else {
-                    1.
-                };
-                if self.map.original{
-                  let rate=original_stats::rate(b.hp,b.max_hp,owned,total);let workload=original_stats::workload(&k)as f64;
-                  let work=b.remaining_work.get_or_insert(workload);*work-=(rate*production_ticks)as f64;
-                  b.progress=(1.-*work/workload).clamp(0.,1.);
-                  if *work<0.{b.remaining_work=Some(workload);b.progress=0.;let(gx,gy)=b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h));completed.push((k,b.team,gx,gy+if b.orientation=="north"{-30.}else{30.},b.id));}
-                }else{
-                  b.progress+=dt*(0.65+owned as f64*0.32)*(b.hp/b.max_hp).max(0.15)*mult/stats(&k).seconds;
-                  if b.progress>=1.{b.progress-=1.;completed.push((k,b.team,b.x+b.w/2.,b.y+b.h+30.,b.id));}
-                }
+            if b.team < 0 || b.hp <= 0. { continue; }
+            if let Some(k)=b.product.clone() {
+                if gun_placement::is_gun(&k) && b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY { continue; }
+                let owned=self.sectors.iter().filter(|s|s.owner==b.team).count();
+                let mult=if b.team==1 {[0.55,1.,1.45,1.85][self.difficulty]}else{1.};
+                b.progress+=dt*(0.65+owned as f64*0.32)*(b.hp/b.max_hp).max(0.15)*mult/stats(&k).seconds;
+                if b.progress>=1. {b.progress-=1.;completed.push((k,b.team,b.x+b.w/2.,b.y+b.h+30.,b.id));}
             }
         }
         for (k, team, x, y, factory) in completed {

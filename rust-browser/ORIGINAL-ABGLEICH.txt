@@ -52,7 +52,7 @@ Die KI ist ein eigener Gegner. Originale Projektilflugbahnen, Streuung, Kollisio
 vollständige Explosionswirkung und Kontaktabfolge sind noch nicht vollständig
 nachgebildet. Bewegung, Animationsgeschwindigkeit, Schusskadenz und Formation sind
 teilweise geschätzt. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranimationen
-und das vollständige Original-Statuspanel fehlen bzw. sind unvollständig. Originale
+und die ursprüngliche Gesichtszustandsmaschine im Statuspanel fehlen bzw. sind unvollständig. Originale
 Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
 Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte
 Grafik; hier werden die semantisch passenden Wracks gezeichnet. Originalmusik und deutsche
@@ -70,7 +70,8 @@ FABRIKUHREN, ORIGINALTON UND LOKALE INITIATIVE
 Die Fabrikzeit erscheint direkt am Gebäude, mit den grünen Original-Ziffernsprites
 (ASCII+0x214), m:ss, Obergrenze 9:59 und Stillstand *:**. Originale Zeichenabstände
 und Positionen wurden aus0040ab90/0040ac30/00467b80 sowie den Fabrik-/Fortaufrufen
-übernommen. Das besondere Fertigstellungsblinken fehlt noch.
+übernommen. Das Fertigstellungsblinken und die zugehörige Produktionspause sind
+inzwischen ebenfalls übernommen; siehe den weiteren Abgleich unten.
 
 Das private Tonpaket enthält95 deutsche und95 englische Originalstimmen,115 Effekte
 und7 Musikaufnahmen. RAW ist unsigned 8-bit-Mono-PCM, Deskriptorfrequenz11025Hz;
@@ -270,3 +271,50 @@ wird vor dem Ausblenden dieses Ersatzes geladen.
 Vollbild verwendet die native Browser-API aus einem direkten Klick und zeigt
 den tatsächlichen Dokumentzustand an. Ablehnung oder fehlende Unterstützung
 öffnet die Browserhilfe. Das ist eine Browserfunktion, keine Originalspielregel.
+
+WEITERER ABGLEICH: FABRIKABSCHLUSS UND GRANATEN
+Fort0040b2a0, Fahrzeugfabrik0040b6b0 und Roboterfabrik0040c490 setzen nach Abschluss
+das Gebäudefeld+0x36 auf68. Gemeinsame Routine0040ad60 dekrementiert vor dem
+Fabrikaufruf; bei Restwert>0 wird keine neue Arbeit abgezogen. Im Update, das0
+erreicht, läuft die Produktion weiter. Die Rust-Fassung verarbeitet diese Updates
+einzeln, damit auch zusammengefasste Zeitabschnitte dieselbe Grenze einhalten.
+Eroberung und Produktauswahl löschen die laufende Abschlussphase nicht.
+Währenddessen zeichnen die Originalaufrufe0:00 nur bei global00622d40 &2; der
+Webrenderer nutzt dafür die entsprechende17-Hz-Simulationsphase. Deren Startphase
+ist weiterhin eine deterministische Webanpassung, kein vermessener Windows-Scheduler.
+
+Frischer Ghidra-/Assemblerabgleich0044aa3a..0044aa7e: Tough/Pyro/Laser wählen zuerst
+ihre eigene Waffe. Für Grunt/Psycho/Sniper mit Inventar+0x99>0 führen Zielklassen
+1 oder2 in Granatenzustand49. Das umfasst Fahrzeuge und die Kanone, nicht Gatling,
+Raketengeschütz oder Haubitze.00457120 verringert das Inventar erst nach erfolgreicher
+Projektilanlage.00464779 übernimmt den globalen Grundschaden0049ba74=50; der
+Explosionspfad0041f2d0->0041f260 benutzt Körperschaden statt des Kugel-Besatzungswurfs.
+Die Webfassung übernimmt Auswahl, Verbrauch und diesen Kontaktpfad nach gültiger
+Reichweiten-/Sichtlinienprüfung. Wie andere Projektile wird der Treffer weiterhin
+sofort auf das gewählte Ziel aufgelöst. Die native11-Update-Wurfvorbereitung,
+Flugbahn, Streuung, Projektilpool-Grenze und Flächenwirkung bleiben offen. Der
+Original-Granatenton wird über ein eigenes serialisiertes Waffenereignis ausgelöst.
+
+Das bisher fehlende Haubitzenprofil wurde aus robots.dat/0041ad30 ergänzt:
+Laufzeitklasse6, Animationsfamilie23, Zielwert60, Bewegung0, Feuerwert10, Besatzung30.
+Dadurch wird sie nicht länger als Standardroboter durch den Kontaktpfad geführt.
+
+ORIGINAL-STATUSPANEL
+NSNEWPAN.DAT liefert131 indizierte Bitmaps, SHEADBAK.DAT sechs Hintergründe und
+SHEADBI0.DAT40 Gesichtsteile;177 Bilder und fünf Weltpaletten liegen im privaten
+HUD-Paket.004620b0 lädt die Daten;00461ff0/00461f00/00461e00 decodieren das Format,
+00465620 bestätigt die Paletten- und Transparenzbehandlung. Pixel, Abmessungen und
+Transparenz sowie acht Quellen-Hashes wurden gegen die lokale GOG-Kopie geprüft.
+
+Die Stahlseitenleiste, Beschriftungen, Fahrzeugbilder, Lebensbalken und Knöpfe
+werden nun genutzt. Frischer Assemblerabgleich00469478: Tabelle0049c6c0 wird nach
+Animationsfamilie indiziert, nicht nach Produktreihenfolge.00469190 zeichnet
+Deskriptor[0] als Typenschild, [1] als Hardwarebild, [2] als vertikalen Versatz.
+Beispiel Gatling/Familie22: Schild92, Bild104, Versatz5; Jeep/Familie34:89/101/4.
+Die zwölf Hardwarefamilien werden anhand dieser Originaldeskriptoren zugeordnet.
+
+Die96x480-Leiste wird an die Browserhöhe angepasst. Minikarte, Auswahl und
+Bedienung bleiben funktional; in schmalen Fenstern bleibt die kompakte Oberfläche
+mit Minikarte erhalten. Schrift und einige Knopfpositionen sind Webanpassungen.
+Das Funkporträt verwendet ein statisches Original-Grunt-Bild; die ursprüngliche
+sprach-/ereignisgesteuerte Gesichtsanimation ist weiterhin nicht rekonstruiert.

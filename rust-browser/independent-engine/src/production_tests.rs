@@ -102,8 +102,9 @@ fn robot_production_repeats_after_each_completed_group() {
             assert_eq!(game.buildings[0].product.as_deref(), Some(kind));
             assert_eq!(game.buildings[0].remaining_work, Some(original_stats::workload(kind) as f64));
             assert!(game.events.iter().any(|e| e["kind"] == "ready" && e["type"] == kind));
-            game.step(0.1);
-            assert!(game.buildings[0].progress > 0., "Next group must start without another command");
+            assert!(game.buildings[0].completion_ticks>0);
+            while game.buildings[0].completion_ticks>0 { game.step(1./17.); }
+            assert!(game.buildings[0].progress > 0., "Next group starts automatically after the original completion hold");
         }
     }
 }
@@ -170,4 +171,131 @@ fn severely_damaged_factory_keeps_its_active_order_but_respects_zero_rate() {
     assert_eq!(game.buildings[0].remaining_work, Some(original_stats::workload("grunt") as f64));
     assert_eq!(game.buildings[0].progress, 0.);
     assert_eq!(game.remaining_seconds(&game.buildings[0]), None);
+}
+
+
+#[test]
+fn original_completion_holds_all_factory_classes_until_the_exact_native_resume_tick() {
+    for (factory,product) in [("robot","grunt"),("vehicle","jeep"),("fort","grunt")] {
+        let mut game=original_factory(factory,0,5,Some(product));
+        game.buildings[0].remaining_work=Some(1.);
+        game.step(1./17.);
+        let workload=original_stats::workload(product)as f64;
+        assert_eq!(game.buildings[0].completion_ticks,68,"{factory}");
+        assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
+        for ticks in (1..68).rev() {
+            game.step(1./17.);
+            assert_eq!(game.buildings[0].completion_ticks,ticks,"{factory}");
+            assert_eq!(game.buildings[0].remaining_work,Some(workload));
+            assert_eq!(game.buildings[0].progress,0.);
+        }
+        game.step(1./17.);
+        assert_eq!(game.buildings[0].completion_ticks,0);
+        assert!(game.buildings[0].remaining_work.unwrap()<workload);
+        assert!(game.buildings[0].progress>0.);
+        assert_eq!(game.buildings[0].product.as_deref(),Some(product));
+    }
+}
+
+#[test]
+fn completion_in_the_first_tick_of_a_batch_consumes_the_later_hold_tick() {
+    let mut batch=original_factory("robot",0,5,Some("grunt"));
+    batch.production_clock=0.4;
+    batch.buildings[0].remaining_work=Some(1.);
+    let mut split=original_factory("robot",0,5,Some("grunt"));
+    split.production_clock=0.4;
+    split.buildings[0].remaining_work=Some(1.);
+    batch.step(0.1); // two native production ticks from the initial fractional phase
+    split.step(1./17.);
+    split.step(0.1-1./17.);
+    assert_eq!(batch.buildings[0].completion_ticks,67);
+    assert_eq!(batch.buildings[0].completion_ticks,split.buildings[0].completion_ticks);
+    assert_eq!(batch.buildings[0].remaining_work,split.buildings[0].remaining_work);
+    // Resume on the second tick of a batch: that final tick must subtract work.
+    batch.buildings[0].completion_ticks=2;
+    batch.production_clock=0.4;
+    let full=batch.buildings[0].remaining_work.unwrap();
+    let rate=original_stats::rate(1000.,1000.,2,3)as f64;
+    batch.step(0.1);
+    assert_eq!(batch.buildings[0].completion_ticks,0);
+    assert_eq!(batch.buildings[0].remaining_work,Some(full-rate));
+}
+
+#[test]
+fn capture_and_valid_product_change_preserve_the_running_completion_hold() {
+    let mut game=original_factory("robot",1,5,Some("psycho"));
+    game.buildings[0].completion_ticks=30;
+    game.buildings[0].remaining_work=Some(777.);
+    capture_with_player(&mut game);
+    assert_eq!(game.buildings[0].completion_ticks,29);
+    assert_eq!(game.buildings[0].remaining_work,Some(777.));
+    game.produce(0,Some("grunt"));
+    assert_eq!(game.buildings[0].completion_ticks,29);
+    assert_eq!(game.buildings[0].remaining_work,None);
+    assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
+    game.buildings[0].completion_ticks=2;
+    game.step(1./17.);
+    assert_eq!(game.buildings[0].completion_ticks,1);
+    assert_eq!(game.buildings[0].remaining_work,None);
+    game.step(1./17.);
+    assert_eq!(game.buildings[0].completion_ticks,0);
+    assert!(game.buildings[0].progress>0.);
+    assert_eq!(game.buildings[0].product.as_deref(),Some("grunt"));
+}
+
+#[test]
+fn completion_hold_expires_even_when_gun_storage_is_full() {
+    let mut game=original_factory("robot",0,5,Some("gatling"));
+    game.buildings[0].ready_guns=vec!["gatling".into();4];
+    game.buildings[0].completion_ticks=2;
+    game.buildings[0].remaining_work=Some(999.);
+    assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
+    game.step(1./17.);
+    assert_eq!(game.buildings[0].completion_ticks,1);
+    game.step(1./17.);
+    assert_eq!(game.buildings[0].completion_ticks,0);
+    assert_eq!(game.buildings[0].remaining_work,Some(999.));
+    assert_eq!(game.remaining_seconds(&game.buildings[0]),None);
+    game.buildings[0].ready_guns.pop();
+    game.step(1./17.);
+    assert!(game.buildings[0].remaining_work.unwrap()<999.);
+}
+
+#[test]
+fn neutral_and_destroyed_buildings_drain_completion_state_without_producing() {
+    for destroyed in [false,true] {
+        let mut game=original_factory("robot",0,5,Some("grunt"));
+        if destroyed {game.buildings[0].hp=0.;} else {game.buildings[0].team=-1;game.sectors[0].owner=-1;}
+        game.buildings[0].completion_ticks=2;
+        game.buildings[0].remaining_work=Some(999.);
+        game.step(1./17.);
+        assert_eq!(game.buildings[0].completion_ticks,1);
+        game.step(1./17.);
+        assert_eq!(game.buildings[0].completion_ticks,0);
+        assert_eq!(game.buildings[0].remaining_work,Some(999.));
+        assert_eq!(game.buildings[0].progress,0.);
+    }
+}
+
+#[test]
+fn procedural_factories_keep_their_previous_continuous_repeat() {
+    let mut game=original_factory("robot",0,5,Some("grunt"));
+    game.map.original=false;
+    game.buildings[0].completion_ticks=13; // ignored even if a caller supplied it
+    game.buildings[0].progress=0.999999;
+    game.step(0.1);
+    assert!(game.events.iter().any(|e|e["kind"]=="ready"));
+    assert_eq!(game.buildings[0].completion_ticks,13);
+    let previous=game.buildings[0].progress;
+    game.step(0.1);
+    assert!(game.buildings[0].progress>previous);
+}
+
+#[test]
+fn older_campaign_buildings_default_to_no_completion_hold() {
+    let game=original_factory("robot",0,5,None);
+    let mut value=serde_json::to_value(&game.buildings[0]).unwrap();
+    value.as_object_mut().unwrap().remove("completionTicks");
+    let building:Building=serde_json::from_value(value).unwrap();
+    assert_eq!(building.completion_ticks,0);
 }

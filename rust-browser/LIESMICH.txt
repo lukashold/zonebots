@@ -68,3 +68,15 @@ Vollbild: Im Hauptmenü oder im Spiel auf Vollbild klicken; Esc oder der Knopf
 beendet es wieder. Browser-Vollbild unter Windows: F11; in Chrome auf macOS:
 Ctrl + Cmd + F. Wenn ein eingebettetes Fenster den Aufruf sperrt, die Spieladresse
 im normalen Browser öffnen. Das Spiel zeigt bei Ablehnung eine Anleitung.
+
+Weitere Originaldetails: Die rechte Stahlseitenleiste, deutsche Typenschilder,
+Funkporträt, Lebensbalken, Knöpfe und Minikartenrahmen stammen aus dem privaten
+Originalpaket. Das lokale Startskript bereitet fehlende HUD-Ressourcen automatisch
+vor. Ohne diese optionalen Dateien bleibt die vorherige Oberfläche nutzbar.
+
+Nach einer Produktion pausiert die Originalfabrik für 68 Spielupdates. Ihre Uhr
+blinkt dabei mit 0:00; danach beginnt automatisch die nächste Produktion.
+Gesammelte Granaten werden nun von Grunts, Psychos und Snipern gegen geeignete
+Fahrzeuge und Kanonen eingesetzt. Ein tatsächlicher Angriff verbraucht eine
+Granate und verwendet den belegten Explosionsschadenspfad. Native Wurfbewegung,
+Flugbahn und Flächenschaden sind weiterhin nicht vollständig rekonstruiert.
