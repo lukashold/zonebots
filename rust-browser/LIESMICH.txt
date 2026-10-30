@@ -22,5 +22,11 @@ Originalkampagne: node tools/check-original.cjs (benötigt privates Datenpaket)
 
 Der aktuelle Ansatz verwendet Ghidra und Originalressourcen mit Zustimmung des
 Nutzers. Er wird nicht als Clean-Room-Implementierung bezeichnet. Auf GitHub liegen
-Code, Werkzeuge und Dokumentation; Originalgrafik und Karten bleiben ausgeschlossen.
+Code, Werkzeuge und Dokumentation; Originalgrafik, Karten und Tonaufnahmen bleiben ausgeschlossen.
 Die belegten Regeln und verbleibenden Abweichungen stehen in ORIGINAL-ABGLEICH.txt.
+
+Originalton wird beim lokalen Start ebenfalls automatisch aus der GOG-Kopie
+vorbereitet. Optional installiertes FFmpeg bzw. imageio-ffmpeg erzeugt zusätzlich
+MP3-Versionen der Musik; die private Spielseite enthält diese bereits.
+Fabrikuhren stehen direkt auf den Gebäuden. Freie Einheiten sichern nahe Ziele
+selbstständig; X/Stopp hält sie an ihrer Position.

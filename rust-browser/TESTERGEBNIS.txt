@@ -1,8 +1,9 @@
 Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-21 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+28 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
 Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
-Besatzungen, Schwierigkeit und HP-Grenzen.
+Besatzungen, Schwierigkeit und HP-Grenzen. Sieben weitere Fälle prüfen lokale
+Zielsuche, Reservierungen, Besatzungserhaltung, Reichweitengrenzen und Befehlsvorrang.
 
 Wasm-Prüfung bestanden: 20/20 Originalmissionen, alle Kartenarrays, Startzahlen,
 Startpositionen, Gebäude-HP, Kisten und Produktionsmenüs. Je Mission 200 Updates
@@ -17,7 +18,13 @@ grenzen; Fahrzeugschichten und Positionen in acht Richtungen geprüft. JavaScrip
 Syntax und Git-Diff-Prüfung bestanden. Browser: Originalpaket geladen, Missionstart,
 Truppauswahl mit drei Grunts/30 HP, Fabrikmenü und korrekte Restzeitanzeige geprüft.
 
-Auffällig: Mission 15 endet im KI-Smoke-Test bereits nach 19,5 simulierten Sekunden
+Auffällig: Mission 15 endet im KI-Smoke-Test bereits nach 19,8 simulierten Sekunden
 mit Spielersieg. Die KI ist weiterhin eine eigene Implementierung. Die Prüfungen
 belegen keine vollständige Originalgleichheit oder ausgewogene Kampagnenschwierigkeit.
-Weitere Grenzen: ORIGINAL-ABGLEICH.txt. Audio und macOS sind nicht separat geprüft.
+Weitere Grenzen: ORIGINAL-ABGLEICH.txt. Lautsprecherausgabe und macOS-Hardware sind nicht separat geprüft.
+
+Zusätzlich bestanden: Fabrikuhr-Tests für Originalglyphen, Abstände, Positionen,
+Zeitformat, Obergrenze, Stillstand, Stopp und Zerstörung. Audio-Prüfung von 190 WAVs,
+115 Effektdeklarationen, sieben Musikstücken und MP3-Auswahl sowie Entsperren per
+Nutzeraktion, Sprachtrennung, Stummschalten, Abbruch der Queue und Szenenwechsel.
+Im Browser Originalmusik/Sprachdateien mit HTTP 200 geladen; Fabrikuhr sichtbar.

@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 const TILE: f64 = 32.;
 mod original_stats;
 pub mod original_combat;
+mod original_initiative;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Map {
@@ -85,6 +86,10 @@ pub struct Unit {
     pub cooldown: f64,
     #[serde(default)]
     pub original_combat: Option<original_combat::CombatState>,
+    #[serde(default)]
+    pub initiative: Option<original_initiative::Initiative>,
+    #[serde(default)]
+    pub hold_position: bool,
     #[serde(skip_deserializing)]
     pub path: VecDeque<(f64, f64)>,
 }
@@ -176,6 +181,7 @@ pub struct Game {
     #[serde(skip)]
     ai_teams: Vec<i32>,
     #[serde(skip)] production_clock:f64,
+    #[serde(skip)] initiative_clock:f64,
 }
 impl Game {
     fn random(&mut self) -> f64 {
@@ -210,7 +216,7 @@ impl Game {
             next_id: 1,
             ai_clock: 3.,
             rng: seed.max(1),
-            ai_teams: vec![1], production_clock:0.,
+            ai_teams: vec![1], production_clock:0., initiative_clock:0.,
         };
         // Own nine-territory layout. Voronoi edges and a meandering river avoid a square sector grid.
         let sites = [
@@ -419,6 +425,8 @@ impl Game {
             dest: None,
             cooldown: 0.,
             original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
+            initiative: None,
+            hold_position: false,
             path: VecDeque::new(),
         });
     }
@@ -562,6 +570,8 @@ impl Game {
             else {
                 continue;
             };
+            self.units[i].initiative=None;
+            self.units[i].hold_position=self.map.original&&kind=="stop";
             if kind == "unload" {
                 let u = self.units[i].clone();
                 if u.kind == "apc" {
@@ -577,6 +587,7 @@ impl Game {
                         );
                         let last = self.units.len() - 1;
                         self.units[last].hp = k.hp;
+                        self.units[last].hold_position=self.map.original;
                     }
                 } else if stats(&u.kind).cls > 0 {
                     if let Some(c) = self.units[i].crew.take() {
@@ -585,6 +596,7 @@ impl Game {
                         self.spawn(&c.kind, team, u.x + 26., u.y + 24., self.next_id, None);
                         let last = self.units.len() - 1;
                         self.units[last].hp = c.hp;
+                        self.units[last].hold_position=self.map.original;
                     }
                 }
                 continue;
@@ -642,7 +654,7 @@ impl Game {
                 .units
                 .iter()
                 .filter(|u| {
-                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty()
+                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && !u.hold_position
                 })
                 .map(|u| u.id)
                 .collect();
@@ -670,6 +682,7 @@ impl Game {
         self.time += dt;
         self.effects.iter_mut().for_each(|e| e.age += dt);
         self.effects.retain(|e| e.age < e.life);
+        self.update_initiative(dt);
         self.ai_clock -= dt;
         if self.ai_clock <= 0. {
             self.ai();
@@ -720,6 +733,7 @@ impl Game {
                         {
                             self.units[i].cooldown = d.reload;
                             self.map.bridge_hp[id] -= d.damage;
+                            self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                             if self.map.bridge_hp[id] <= 0. {
                                 for k in 0..self.map.tiles.len() {
                                     if self.map.bridge_base[k] == id as i32 {
@@ -758,6 +772,11 @@ impl Game {
                             }
                         }
                     } else if let Some(v) = snapshot.iter().find(|v| v.id == target && original_combat::alive(self.map.original,v.hp)) {
+                        if u.order=="enter"&&(v.team>=0||v.crew.is_some()||stats(&v.kind).cls==0) {
+                            self.units[i].order="guard".into();self.units[i].target=None;
+                            self.units[i].dest=None;self.units[i].path.clear();self.units[i].initiative=None;
+                            continue;
+                        }
                         dest = Some((v.x, v.y));
                         let dist = (u.x - v.x).hypot(u.y - v.y);
                         if dist < 28.
@@ -767,6 +786,13 @@ impl Game {
                         {
                             if let Some(vi) = self.units.iter().position(|v| v.id == target) {
                                 if u.order == "enter" {
+                                    // The snapshot may still show neutral hardware already crewed
+                                    // by an earlier squad member during this same update.
+                                    if self.units[vi].team>=0||self.units[vi].crew.is_some() {
+                                        self.units[i].order="guard".into();self.units[i].target=None;
+                                        self.units[i].dest=None;self.units[i].path.clear();self.units[i].initiative=None;
+                                        continue;
+                                    }
                                     self.units[vi].team = u.team;
                                     self.units[vi].crew = Some(Crew {
                                         kind: u.kind.clone(),
@@ -784,7 +810,7 @@ impl Game {
                                     continue;
                                 }
                                 self.units[i].hp = if self.map.original {-1.} else {0.};
-                                self.events.push(json!({"kind":"crewed","team":u.team}));
+                                self.events.push(json!({"kind":"crewed","team":u.team,"type":self.units[vi].kind}));
                                 continue;
                             }
                         }
@@ -838,14 +864,16 @@ impl Game {
                         x2: v.x,
                         y2: v.y,
                     });
+                    self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                 }
             } else if u.order == "attackBuilding" {
                 if let Some(b) = u.target.and_then(|id| self.buildings.get(id)) {
                     if b.team != u.team && b.hp > 0. {
                         let (x, y) = (b.x + b.w / 2., b.y + b.h / 2.);
-                        if (u.x - x).hypot(u.y - y) <= d.range && self.units[i].cooldown <= 0. {
+                        if (u.x - x).hypot(u.y - y) <= d.range && self.units[i].cooldown <= 0. && d.damage > 0. {
                             self.units[i].cooldown = d.reload;
                             bdamage.push((b.id, d.damage));
+                            self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                         } else if u.path.is_empty() {
                             self.units[i].path = self.route(
                                 u.x,
@@ -938,6 +966,7 @@ impl Game {
                     let u=&self.units[i];
                     self.effects.push(Fx{x:u.x,y:u.y,age:0.,life:0.8,kind:"explosion".into(),
                         radius:if stats(&u.kind).cls==0 {12.} else {30.},x2:0.,y2:0.});
+                    self.events.push(json!({"kind":"explosion","x":u.x,"y":u.y,"radius":if stats(&u.kind).cls==0 {12.} else {30.}}));
                 }
             }
         }
@@ -967,6 +996,7 @@ impl Game {
                         x2: 0.,
                         y2: 0.,
                     });
+                    self.events.push(json!({"kind":"explosion","x":u.x,"y":u.y,"radius":if stats(&u.kind).cls==0 {12.} else {30.}}));
                 }
             }
         }

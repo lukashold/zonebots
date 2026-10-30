@@ -5,6 +5,9 @@ import mimetypes, argparse, webbrowser, os, subprocess, sys
 from urllib.parse import unquote,urlsplit
 root = Path(__file__).resolve().parents[1] / 'dist' / 'independent'
 mimetypes.add_type('application/wasm', '.wasm')
+mimetypes.add_type('audio/wav', '.wav')
+mimetypes.add_type('audio/ogg', '.ogg')
+mimetypes.add_type('audio/mpeg', '.mp3')
 
 def ensure_original_pack(game):
     """Create missing private data locally; no original files enter the repository."""
@@ -16,6 +19,9 @@ def ensure_original_pack(game):
                      ['--game', str(game), '--output', str(private)]))
     if not all((private / name).is_file() for name in ('sprites.png', 'sprites.json', 'tiles.png')):
         jobs.append(('artwork', repo / 'tools' / 'extract-original-art.py',
+                     ['--source', str(game), '--out', str(private)]))
+    if not (private / 'audio.json').is_file():
+        jobs.append(('audio', repo / 'tools' / 'extract-original-audio.py',
                      ['--source', str(game), '--out', str(private)]))
     for label, script, arguments in jobs:
         print(f'Extracting original {label} from {game} ...', flush=True)

@@ -15,7 +15,7 @@ frische schreibgeschützte Dekompilation und Assembler. Z.exe SHA256:
 ed5b16c486824c0761235dbdffcb3cda7e9f9df6188186aef7f662981a44e43e
 
 Neu geschriebener Code und Extraktionswerkzeuge stehen im öffentlichen Repository.
-Originalsprites, Paletten, Kacheln und Kampagnenkarten werden nicht eingecheckt.
+Originalsprites, Paletten, Kacheln, Kampagnenkarten und Tonaufnahmen werden nicht eingecheckt.
 dist/original/ ist ignoriert und nur lokal bzw. auf der privaten Spielseite enthalten.
 Das Copyright der Originalressourcen bleibt bei ihren Rechteinhabern; die Code-Lizenz
 erstreckt sich nicht auf dieses getrennte Ressourcenpaket.

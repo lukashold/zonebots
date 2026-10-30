@@ -71,6 +71,27 @@ window.OriginalArt=(()=>{
   if(dead){teamOverlay(ctx,b,map,descriptor,true);return true;}
   if(b.kind!=='repair')teamOverlay(ctx,b,map,descriptor,false);machinery(ctx,b,time,map,descriptor);return true;
  }
+ // Production-clock fields use the original green font, independently of the
+ // selected factory window. Native anchors and character advance are verified
+ // against0040b6b0/0040c490 and0040ab90 ->0040ac30 ->00467b80.
+ function productionText(b,seconds){
+  if(!b||b.team<0||b.hp<=0||!b.product||!['vehicle','robot','fort'].includes(b.kind))return null;
+  if(seconds===null)return '*:**';
+  if(!Number.isFinite(seconds))return null;
+  const value=Math.min(599,Math.max(0,Math.trunc(seconds)));
+  return `${Math.floor(value/60)}:${String(value%60).padStart(2,'0')}`;
+ }
+ function production(ctx,b,seconds,map){
+  if(!ready||!map.original)return false;
+  const text=productionText(b,seconds);if(text===null)return false;
+  const offset=({vehicle:[32,57],robot:[35,58],fort:[74,90]})[b.kind];
+  const anchor=b.kind==='fort'&&b.rawBase?[b.rawBase[0]*2,b.rawBase[1]*2]:[b.x,b.y];
+  let x=anchor[0]+offset[0]*2;const y=anchor[1]+offset[1]*2;
+  //00467c37 indexes the original character-width table0049cc20: digits4,
+  // colon/asterisk3 native pixels. Atlas frame widths include transparent pad.
+  for(const ch of text){native(ctx,0x214+ch.charCodeAt(0),x,y,map);x+=(ch===':'||ch==='*'?3:4)*2;}
+  return true;
+ }
  function objectDefinition(o){const d=manifest?.objectTypes[o.type];return d&&d.flags!==0x32&&d.flags!==0x31?d:null;}
  function object(ctx,o,map){if(!ready||!map.original)return false;const d=objectDefinition(o);return d?native(ctx,d.sprite,o.x,o.y,map):false;}
  function objectShadows(ctx,objects,map){if(!ready||!map.original)return false;for(const o of objects){const d=objectDefinition(o);if(d&&d.shadowSprite>=0)native(ctx,d.shadowSprite,o.x,o.y,map);}return true;}
@@ -80,5 +101,5 @@ window.OriginalArt=(()=>{
  function flag(ctx,s,time,map){if(!ready||!map.original)return false;const frame=Math.floor(time*6)%3,im=sprite(1234+(s.owner===0?0:s.owner===1?4:8)+frame,map.world,s.owner);if(!im)return false;ctx.drawImage(im,s.x-2,s.y-26,im.width*2,im.height*2);return true;}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,building,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
+ return {load,unit,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
 })();

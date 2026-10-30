@@ -55,13 +55,37 @@ teilweise geschätzt. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranima
 und das vollständige Original-Statuspanel fehlen bzw. sind unvollständig. Originale
 Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
 Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte
-Grafik; hier werden die semantisch passenden Wracks gezeichnet. Musik und deutsche
-Sprachmeldungen verwenden weiterhin eigene Synthese/TTS. Mehrspieler, Videos und
-Originalspielstände sind nicht enthalten. macOS und Audio sind nicht separat geprüft.
+Grafik; hier werden die semantisch passenden Wracks gezeichnet. Originalmusik und deutsche
+Sprachmeldungen werden aus dem privaten Originaltonpaket geladen. Mehrspieler, Videos und
+Originalspielstände sind nicht enthalten. Lautsprecherausgabe und macOS-Hardware sind nicht separat geprüft.
 
 VERÖFFENTLICHUNG
 Nur die bereits private Spielseite erhält das genehmigte Ressourcenpaket. GitHub
-erhält Code und Werkzeuge, keine Originalgrafik oder Karten. Die private Browser-
+erhält Code und Werkzeuge, keine Originalgrafik, Karten oder Tonaufnahmen. Die private Browser-
 fassung benötigt weder einen Spielordner-Upload noch Ghidra auf dem Spielgerät.
 
 Startaufstellung: Frischer Ghidra-Assemblerexport von FUN_0041aec0 (0041af08 bis 0041af22) bestaetigt fuer normale Startgruppen native X = GruppenankerX + 16 * (Mitgliedsindex & 3), native Y = GruppenankerY + (Mitgliedsindex & 0xfc). Der C-Dekompilierer hatte die X-Verschiebung ausgelassen. Der Extraktor erhaelt die Gruppenanker und setzt damit die individuellen Originalpositionen; im Browser ergeben sich 32 Pixel Abstand. Die separate Transport-Passagier-Verzweigung kommt in keiner Startgruppe der 20 Kampagnenkarten vor. Spaetere dynamische Folgeformationen sind weiterhin nicht vollstaendig rekonstruiert.
+
+FABRIKUHREN, ORIGINALTON UND LOKALE INITIATIVE
+Die Fabrikzeit erscheint direkt am Gebäude, mit den grünen Original-Ziffernsprites
+(ASCII+0x214), m:ss, Obergrenze 9:59 und Stillstand *:**. Originale Zeichenabstände
+und Positionen wurden aus0040ab90/0040ac30/00467b80 sowie den Fabrik-/Fortaufrufen
+übernommen. Das besondere Fertigstellungsblinken fehlt noch.
+
+Das private Tonpaket enthält95 deutsche und95 englische Originalstimmen,115 Effekte
+und7 Musikaufnahmen. RAW ist unsigned 8-bit-Mono-PCM, Deskriptorfrequenz11025Hz;
+der Browser erhält unveränderte PCM-Samples im WAV-Container. Die ursprünglichen
+Oggs bleiben erhalten; MP3-Alternativen verbessern die Browserkompatibilität.
+Ghidra0046dcb0/0046de20 bestätigen PCM-Format und0046e3d0/0046e4c8 die Weltmusik:
+DESERT/ARCTIC=AA16,CITY/VOLCAN=aC16,JUNGLE=aJ16. Sprachzuordnung, Queue, Mischung
+und räumliche Begrenzung sind teilweise Anpassungen der Webfassung.
+
+Freie bzw. angekommene mobile Einheiten suchen lokal nach fremden Fahnen und
+unbesetzter Hardware. Ghidra0044d920/0044d290/004578b0 belegen die quantisierte
+Entfernung, nächste geeignete Ziele, Infanterie als Besatzung und Reservierungen.
+Nur ein Roboter beansprucht dasselbe Fahrzeug; andere Truppmitglieder bleiben
+erhalten. Ausdrückliche Bewegungs-/Angriffsaufträge haben Vorrang, Stopp hält die
+Position und ausgestiegene Roboter steigen nicht sofort wieder ein.
+Abweichung: Ein Rundum-Scan alle 0,35 Simulationssekunden ersetzt die originale
+gerichtete Scan-/Animationszustandsmaschine. Nicht alle Suchzustände während
+laufender Originalbefehle sind übernommen. Das ist keine vollständige Original-KI.

@@ -45,15 +45,17 @@ The active engine is `rust-browser/independent-engine/`; rendering and input are
 building technology and start groups from the separately extracted pack. Production
 work/rates, weapon values and selected damage/crew rules are checked against the
 original. The AI, projectile trajectories, animation timing and other behaviors
-still have documented differences. Music and voice use the existing synthesis/TTS.
+still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle units seek nearby flags and vacant hardware; explicit commands retain priority.
 
 From `rust-browser/`, validate with:
 
     cargo test --manifest-path independent-engine/Cargo.toml
     node independent-engine/check-wasm.cjs
     node tools/check-original.cjs
+    node tools/check-factory-timer.cjs
+    node tools/check-original-audio.cjs
 
-The final command requires the local private campaign pack. Build Wasm with
+The original-data, clock and audio checks require the local private resource pack. Build Wasm with
 `independent-engine/build.ps1`. Original resources retain their respective owners'
 copyright; the repository's code license does not cover that resource pack.
 
