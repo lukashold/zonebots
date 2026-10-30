@@ -1,0 +1,46 @@
+INDEPENDENT BEHAVIOR SPECIFICATION — Z (1996)
+Research date: 2026-10-30. Fresh prose from public primary publications only. No local prior game source, executable, installed data, reverse-engineering output, or prior project documents were read. No original implementation, art, or map imagery is copied.
+
+SOURCES AND EVIDENCE LIMIT
+M: Original DOS instruction manual, printed p3 (Basic Concepts), indexed text:
+https://evercade.info/wp-content/uploads/2024/09/Z_Manual_DOS.pdf
+The live URL redirects. Its search-indexed introduction and contents remain accessible; later chapters were not inspected.
+G: The Bitmap Brothers, Z Official Playguide: Single Player, 03 September 1996, by Martin G., Eric M., Steve K.:
+https://www.lamaisonbleue.net/infos/z/Z-Single_Player_Game_Guide.pdf
+References use printed page numbers; PDF indices are one lower. G identifies itself as an official 1996 publication.
+
+CONFIRMED RULES — implementation priority P0: territory/production, robot crews/combat, match result; P1: services and world traversal.
+M, printed p3:
+- Touch a territory flag with a friendly unit to transfer the territory immediately. Buildings there follow territory ownership; flags can be recaptured.
+- Territorial gains increase factory throughput, vehicle-repair speed, and radar coverage. Losses reverse these advantages.
+- Factories and forts allow product selection. Factories replenish robots/vehicles; repair buildings mend vehicles; radar reveals enemy positions.
+- Robots form controllable units: selecting any member selects the unit. Robots can operate vehicles and guns. Contextual orders include movement and attack.
+- Entering the opposing fort or eliminating opposing forces wins; protect your own fort and forces.
+- The campaign has five planets, four battles each.
+
+G, printed pp2-4:
+- Capturing a nearly finished factory can appropriate its output; changing its product before capture denies that advantage.
+- Robots sprint toward flags/hardware without returning fire. Movement ordered under attack accelerates units and suppresses return fire.
+- Roads accelerate vehicles. Destroying occupied bridges kills crossing units. Tanks/guns can fire over buildings.
+G, pp4,6-8:
+- Robots occupy neutral hardware; squad members remaining after boarding continue separately. Sniping drivers permits chassis theft.
+- Grunts distract; Psychos threaten jeep drivers; Toughs counter Snipers; Snipers/Lasers threaten crews; Pyros excel against slow armor/structures. Tough/Pyro APC combinations are effective.
+G, pp7,8,11,18:
+- Demonstrated permissions: 1-star vehicle factory: Light Tank; 2-star robot factory: Psycho; 2-star vehicle factory: Medium Tank; 5-star robot factory: Laser.
+G, pp7,8,10,18,19:
+- Factory damage slows production. Robots cross water; lava constrains routes; chasms block every unit; cranes restore ruined buildings/bridges.
+G, p2:
+- Single-player layouts give both halves matching resources; the opponent reacts to player decisions.
+G, pp6-7:
+- Robots can collect grenades and breach destructible walls/rocks while executing travel orders.
+G, pp3,13:
+- Artillery can bombard forts from outside defensive gun range.
+
+UNVERIFIED DETAILS AND ESTIMATE POLICY
+Accessible primary evidence does not establish exact squad sizes by robot type, grenade capacities, APC capacity/unload controls/timing, crew selection order, the complete factory-star eligibility matrix, campaign technology gates, fort-destruction termination semantics, radar geometry/fog rules, self-repair, driver-death probabilities, or exact pathfinding/target priorities.
+
+The manual contents point to manufacturing on pp11-12, robots/grenades/vehicles on p13, artillery and winning on p14. These are research leads, not inspected evidence. Do not present an APC unloading convention or full star table as verified original behavior.
+
+Use tunable, explicitly labeled ESTIMATE tables for all unsourced numerical balance: production duration/scaling, factory damage penalty, health, damage, splash, range, reload, movement/road multipliers, repair speed, radar radius, capture contact radius and crew-hit probability. The observed permissions are examples, not a complete eligibility matrix. Any other eligibility is provisional. Do not claim numerical fidelity to the executable.
+
+Engineering assumptions recommended for a new implementation, rather than claims about the original: use persistent entity identities; keep empty hardware separate from its crew; conserve robot count and health across crew changes and APC load/unload; make selectable orders and production state inspectable; keep terminal match states explicit; put world movement constraints in simulation data. These policies make behavior reviewable while leaving original numerical uncertainties visible.

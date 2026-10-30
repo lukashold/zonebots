@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-python tools\serve.py
+python independent-engine\serve.py
 pause

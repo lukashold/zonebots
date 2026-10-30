@@ -1,0 +1,60 @@
+Independent Edition – 30.10.2026
+
+AKTIVE FASSUNG
+Ein neuer Rust-Kern in independent-engine/ und eine neue Oberfläche, Grafik und
+Audio in dist/independent/. Die Browserfassung lädt ausschließlich diese Dateien.
+Die Vorgängermodule src/, dist/js/ und deren Datenleser werden nicht eingebunden.
+Sie bleiben als Entwicklungsbestand vorhanden; das neue Webpaket enthält sie nicht.
+
+START UND BAU
+Windows: Start-Spiel.cmd
+macOS/Linux: python3 independent-engine/serve.py
+Rust-Build: powershell -File independent-engine/build.ps1
+Prüfung: cargo test --manifest-path independent-engine/Cargo.toml
+Wasm-Prüfung: node independent-engine/check-wasm.cjs
+Zum Spielen werden keinerlei Z-Installationsdateien benötigt.
+
+HERKUNFT UND TRENNUNG
+Die Verhaltensbeschreibung wurde in einem frischen Recherchekontext ohne Zugriff
+auf frühere Quelltexte, Ghidra-Ergebnisse oder Spieldateien erstellt. Quellen sind
+das öffentliche Originalhandbuch und der offizielle 1996er Playguide; Einzelbelege
+und Grenzen stehen in independent-engine/SPECIFICATION.txt.
+Die neue Grafik entstand in einem weiteren frischen Kontext ohne solche Zugriffe.
+Rust-Kern, Bedienung und Audio sind neu geschrieben; sie importieren keine alte
+Spielimplementierung und laden keine Originalressourcen. Standardbibliotheken
+serde/serde_json werden für die Datenschnittstelle verwendet.
+
+EINORDNUNG
+Dies ist eine dokumentierte unabhängige Neuimplementierung nach einer getrennten
+Verhaltensbeschreibung. Der integrierende Hauptagent kannte jedoch die frühere
+Reverse-Engineering-Arbeit bereits. Daher wird keine streng auditierte Clean-Room-
+Trennung oder vollständige Originalgleichheit behauptet.
+
+BELEGTE REGELN IM NEUEN KERN
+- Flaggenkontakt überträgt Territorium und sämtliche dortigen Gebäude sofort.
+- Produktionsfortschritt bleibt bei einer Gebietsübernahme erhalten.
+- Mehr Gebiete beschleunigen Produktion und Reparatur und vergrößern Radarreichweite.
+- Gebäudeschäden verlangsamen Fabriken.
+- Roboter können Hardware bemannen; der übrige Trupp bleibt bestehen.
+- Scharfschützen können Fahrer ausschalten; das Fahrzeug bleibt neutral zurück.
+- Straßen beschleunigen Fahrzeuge; laufende Roboter erwidern kein Feuer.
+- Roboter können Wasser durchqueren, Lava bleibt gesperrt.
+- Zerstörte Brücken reißen überquerende Einheiten mit; Kräne stellen sie wieder her.
+- Fortinfiltration und Vernichtung der gegnerischen Kräfte beenden eine Partie.
+
+EIGENE FESTLEGUNGEN UND NOCH OFFEN
+Kartenlayouts, Truppstärken, vollständige Sterne-Freigaben, Kampfwerte, Timer,
+KI, Sichtgeometrie und APC-Kapazität sind ausdrücklich eigene Festlegungen.
+Die 20 anwählbaren Schlachten sind eigene Szenarien in fünf Welten und keine
+Reproduktionen der originalen Kampagnenkarten. Exakte Bewegungs-, Kollisions-,
+Schadens-, Munitions- und Timinggleichheit ist noch nicht vermessen.
+Mehrspieler, Videos und Original-Spielstandkompatibilität sind nicht enthalten.
+
+PRÜFSTAND
+Acht Rust-Verhaltenstests bestanden: Produktionsübernahme, Schadenswirkung,
+Gebietsbonus, Besatzungserhaltung, Wasser/Fels, Feuer beim Laufen, Fortinfiltration,
+Brückenzerstörung und Kranreparatur.
+Wasm-Prüfung auf fünf Welten bestanden; alle KI-Partien endeten, Zustände blieben gültig.
+Browser: Start, laufende Grafik, Truppauswahl, Rechtsklickbefehl und Produktionswechsel
+im Fort geprüft. Grafikmodul zusätzlich auf alle Einheitentypen/Richtungen und Gebäude
+gerendert. Hörbare Audioausgabe und macOS sind nicht separat getestet.

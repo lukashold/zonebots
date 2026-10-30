@@ -19,6 +19,23 @@ browser only; nothing is uploaded and nothing from the game is part of this proj
 
 ### Rust / WebAssembly version
 
+The active Rust version is now a new independent implementation:
+[`rust-browser/INDEPENDENT.txt`](rust-browser/INDEPENDENT.txt).
+Its new engine is in `rust-browser/independent-engine/`; the complete browser entrypoint
+is `rust-browser/dist/independent/`. It does not load the previous engine, renderer or
+original-game data readers. Run `python3 independent-engine/serve.py` from `rust-browser/`.
+
+The separately researched [behavior specification](rust-browser/independent-engine/SPECIFICATION.txt)
+records public original-manual/playguide evidence and distinguishes estimated rules and balance.
+Artwork was independently authored in a fresh context. The integrator had prior exposure to the
+earlier reverse engineering, so this is not claimed to be a formally audited clean-room process
+or a complete behavior-identical recreation.
+
+Validate with `cargo test --manifest-path independent-engine/Cargo.toml` and
+`node independent-engine/check-wasm.cjs`. Build with `independent-engine/build.ps1`.
+
+The notes below describe the earlier Rust edition retained in source history.
+
 The new [Rust browser version](rust-browser/LIESMICH.txt) lives in `rust-browser/`.
 Its simulation runs in Rust/WebAssembly; JavaScript handles rendering, input and original-data loading.
 The compiled Wasm file is included. From `rust-browser/`, run:
