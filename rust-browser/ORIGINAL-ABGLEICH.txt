@@ -251,3 +251,22 @@ Außerhalb der Reichweite bleiben Verfolgung und bisheriges Gegenfeuer erhalten.
 Das ist die Korrektur der zugesagten Zielbedienung, kein zusätzlicher Beleg
 für vollständige ursprüngliche Zielpriorität. Waffenwerte und Schadensformeln
 wurden dabei nicht verändert.
+
+HAUPTMENÜ UND BROWSER-VOLLBILD
+Die GOG-Fassung lädt PNG/IPBackground.png, PNG/Splash.png und die IPBox-Tafeln.
+EXE-Strings und Xrefs: Background 00475a28 / IPBackground 00475b30 und Box-Texte
+in FUN0046f970; Splash 00475c58 / IPSplash 00475c68 in FUN00470b80.
+Das private Menüpaket kopiert neun PNGs unverändert und hält Quelle, SHA-256,
+Abmessungen und Inhaltsausschnitte in menu.json fest. Neues Spiel verwendet
+die normale und hervorgehobene deutsche Bitmapzeile aus de.lproj/frontend.png.
+Die Originalbilder werden nicht ins öffentliche Quellcode-Repository aufgenommen.
+
+Das responsive Webmenü kombiniert den Originalhintergrund mit Splash und Tafeln.
+Seine Anordnung, Optionen, Anleitung und Fortsetzen sind Web-Anpassungen; eine
+identische ursprüngliche Menü-Zustandsmaschine wird nicht behauptet. Ohne privates
+Menüpaket bleiben ein lesbares Z und normale Textknöpfe nutzbar. Das Titelbild
+wird vor dem Ausblenden dieses Ersatzes geladen.
+
+Vollbild verwendet die native Browser-API aus einem direkten Klick und zeigt
+den tatsächlichen Dokumentzustand an. Ablehnung oder fehlende Unterstützung
+öffnet die Browserhilfe. Das ist eine Browserfunktion, keine Originalspielregel.

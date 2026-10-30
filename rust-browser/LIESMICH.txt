@@ -56,3 +56,15 @@ Bei ausgewählten Kampfeinheiten zeigt das Original-Fadenkreuz gültige Angriffs
 an. Klassisch mit Linksklick, modern mit Rechtsklick angreifen. F oder Angriff
 aktiviert den Zielmodus; Esc verlässt ihn. Der angegriffene Gegner bleibt mit
 einem Fadenkreuz markiert. Ein leeres Ziel im Angriffsmodus ist ein Angriffsmarsch.
+
+Das Hauptmenü verwendet nun die Originalgrafiken der lokalen GOG-Fassung:
+metallisches Z, Brad/Zod, Schlachthintergrund und rostige Tafeln mit Warnstreifen.
+Neues Spiel, Optionen und Anleitung haben getrennte Ansichten. Eine pausierte
+Schlacht lässt sich aus dem Hauptmenü fortsetzen, solange die Seite geöffnet bleibt.
+Das optionale Menüpaket erzeugt tools/extract-original-menu.py; es bleibt wie die
+anderen Originalressourcen in dist/original/ und außerhalb des öffentlichen Git.
+
+Vollbild: Im Hauptmenü oder im Spiel auf Vollbild klicken; Esc oder der Knopf
+beendet es wieder. Browser-Vollbild unter Windows: F11; in Chrome auf macOS:
+Ctrl + Cmd + F. Wenn ein eingebettetes Fenster den Aufruf sperrt, die Spieladresse
+im normalen Browser öffnen. Das Spiel zeigt bei Ablehnung eine Anleitung.

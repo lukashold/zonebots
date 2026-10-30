@@ -117,3 +117,22 @@ und Roboterautomatik-Prüfungen bestanden.
 Auf der lokalen Originalkarte aktiven Originalcursor über einem gegnerischen
 Fort, den bestätigten Gebäudeangriff und die sichtbare Zielmarkierung geprüft.
 Keine Warnungen oder Fehler im Browserprotokoll.
+
+Originalmenü und Vollbild: Menu-Shell-Prüfung besteht für Navigation zwischen
+Hauptmenü, Spielauswahl, Optionen und Anleitung, Zurück/ungültige Ansichten,
+fehlendes/offline Datenpaket, verzögertes oder defektes Titelbild, unabhängigen
+Schriftatlas-Ausfall sowie normale/hervorgehobene Schrift-Ausschnitte. Beide
+HTML-Einstiege behalten eindeutige IDs, alle Spielregler und beide Vollbildknöpfe.
+Neun private Menütexturen sind bytegleich mit den lokalen GOG-Quelldateien.
+
+Vollbildtests bestehen für nativen Ein-/Austritt, tatsächliche Zustandsanzeige,
+direkte Klickaktivierung, Ablehnung, fehlende Unterstützung und WebKit-Fallback.
+Angriffs-, Geschützplatzierungs-, Granaten- und Fahrzeug-Eingabetests bestehen
+unverändert mit echtem Wasm in klassischer und moderner Steuerung. Kein Rust-
+oder Wasm-Umbau war für diese Menüänderung erforderlich.
+Im eingebetteten Browser wurden Originalmenü, Optionen, Spielstart, Hauptmenü
+und Fortsetzen geprüft. Ein- und Ausschalten des Dokument-Vollbilds wurde über
+die tatsächlichen Knopfzustände bestätigt; eine Vollbild-Screenshotaufnahme
+war dort nicht möglich. Die Menüansicht wurde zusätzlich in der Größe der
+Nutzervorlage (1046x686) geprüft und gespeichert. Keine Browserwarnungen oder
+Fehler bei Navigation und Spielstart; kein Hardwaretest auf einem Mac.
