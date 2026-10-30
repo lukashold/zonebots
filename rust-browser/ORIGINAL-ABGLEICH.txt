@@ -165,3 +165,20 @@ Beladebefehl bleibt verfügbar und folgt auch einem fahrenden Transporter.
 
 Alle neutralen Fahrzeugtypen verwenden nun dieselben gerundeten Spritegrenzen
 für Trefferfläche und Zielmitte wie ihr Renderer.
+
+AUTOMATISCHE ROBOTERPRODUKTION
+Beim Erobern einer bislang neutralen Fabrik wurde bisher nur der Besitzer
+geändert; ihr leerer Produktionsauftrag blieb bestehen. Jetzt erhält jede eigene
+lebende Produktionsstätte ohne gültigen Auftrag sofort einen zulässigen Standard.
+Roboterfabriken und Forts bevorzugen Grunts, andernfalls einen zulässigen Roboter.
+Fahrzeugfabriken verwenden ihre eigenen verfügbaren Produkte. Die Produktion
+wiederholt sich nach jeder fertigen Gruppe, ohne erneuten Klick. Gültige manuelle
+Produkte und bereits geleistete Arbeit bleiben bei Besitzerwechsel erhalten.
+
+Der frühere Stopp-Knopf wurde durch Standardproduktion ersetzt: Ein leerer
+Produktionsbefehl wählt den Standard erneut und lässt die Fabrik nicht untätig.
+Ist derselbe Standard bereits aktiv, wird seine Bauzeit nicht zurückgesetzt.
+Neutrale, zerstörte und nicht produzierende Gebäude bleiben ausgenommen; die
+bestehenden Schadens- und Gebietsregeln für Produktionsgeschwindigkeit gelten
+weiter. Der automatische Start ist die gewünschte Verhaltenskorrektur; damit
+wird keine zusätzliche belegte Originalregel für neutrale Fabriken behauptet.

@@ -47,11 +47,14 @@ work/rates, weapon values and selected damage/crew rules are checked against the
 original. The AI, projectile trajectories, animation timing and other behaviors
 still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle units seek nearby flags and vacant hardware; explicit commands retain priority.
 
+Owned factories now start a repeating production order immediately, including on capture. Robot factories and forts default to Grunts; choosing another valid product preserves that repeated order. The standard-production button restores the default without leaving the factory idle. Capture preserves existing valid production and its remaining work.
+
 From `rust-browser/`, validate with:
 
     cargo test --manifest-path independent-engine/Cargo.toml
     node independent-engine/check-wasm.cjs
     node tools/check-original.cjs
+    node tools/check-automatic-production.cjs
     node tools/check-factory-timer.cjs
     node tools/check-fort-guns.cjs
     node tools/check-jeep-render.cjs

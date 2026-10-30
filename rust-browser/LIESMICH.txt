@@ -34,3 +34,8 @@ selbstständig; X/Stopp hält sie an ihrer Position.
 Bei ausgewählten Robotern zeigt der Originalpfeil unbesetzte Fahrzeuge und
 Geschütze als Einsteigeziele. Der Klick befiehlt das Bemannen; der Pfeil bleibt
 während des ausgewählten Auftrags am Ziel. Fahnen verwenden weiterhin die Hand.
+
+Eroberte Roboterfabriken beginnen sofort automatisch mit Grunts und wiederholen
+ihren Auftrag nach jeder fertigen Gruppe. Auch Forts wählen standardmäßig Roboter.
+Standardproduktion kehrt zum automatischen Standard zurück, statt die Fabrik
+anzuhalten. Ein selbst gewählter gültiger Einheitentyp bleibt in der Wiederholung.

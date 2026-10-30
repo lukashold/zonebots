@@ -381,6 +381,7 @@ impl Game {
                 taken: false,
             });
         }
+        g.ensure_production();
         g
     }
     fn spawn_group(&mut self, k: &str, team: i32, x: f64, y: f64) {
@@ -440,6 +441,33 @@ impl Game {
       if self.map.original{return original_stats::MENU_ORDER.iter().filter_map(|id|original_stats::PRODUCTS.iter().find(|r|r.1==*id)).filter(|r|r.6&&original_stats::required(r.0,&b.kind)>0&&original_stats::required(r.0,&b.kind)<=b.stars).map(|r|r.0).collect();}
       TYPES.iter().copied().filter(|k|{let d=stats(k);d.stars<=b.stars&&(b.kind=="fort"||b.kind=="robot"&&d.cls==0||b.kind=="vehicle"&&d.cls!=0)}).collect()
     }
+    // A factory always has a valid repeating order once it belongs to a team.
+    // Prefer robots over the original menu's leading gun entries; preserve a
+    // player's valid selection and the work inherited when a sector changes hands.
+    fn default_product(&self, b: &Building) -> Option<String> {
+        let choices = self.products(b);
+        let choice = if choices.contains(&"grunt") {
+            Some("grunt")
+        } else {
+            choices.iter().copied().find(|k| stats(k).cls == 0)
+                .or_else(|| choices.first().copied())
+        };
+        choice.map(str::to_string)
+    }
+    fn ensure_production(&mut self) {
+        for i in 0..self.buildings.len() {
+            let b = &self.buildings[i];
+            if b.team < 0 || b.hp <= 0. { continue; }
+            let choices = self.products(b);
+            if b.product.as_deref().map(|k| choices.contains(&k)).unwrap_or(false) { continue; }
+            let product = self.default_product(b);
+            if product != b.product {
+                self.buildings[i].product = product;
+                self.buildings[i].progress = 0.;
+                self.buildings[i].remaining_work = None;
+            }
+        }
+    }
     pub fn apply_original(&mut self,v:&Value)->Result<(),String>{
       let map:Map=serde_json::from_value(v["map"].clone()).map_err(|e|e.to_string())?;
       if map.width<1||map.height<1||map.width>128||map.height>128||map.tiles.len()!=map.width*map.height{return Err("Invalid original campaign map".into());}
@@ -452,7 +480,7 @@ impl Game {
         let fort_id=spawn["fortId"].as_u64().map(|id|id as usize).filter(|id|stats(kind).cls==2&&self.buildings.iter().any(|b|b.id==*id&&b.kind=="fort"));
         self.units.last_mut().unwrap().fort_id=fort_id;
       }
-      for i in 0..self.buildings.len(){if self.buildings[i].team>=0{let choices=self.products(&self.buildings[i]);if self.buildings[i].product.as_deref().map(|p|!choices.contains(&p)).unwrap_or(true){self.buildings[i].product=if choices.contains(&"grunt"){Some("grunt".into())}else{choices.first().map(|k|k.to_string())};}}}
+      self.ensure_production();
       Ok(())
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
@@ -634,12 +662,14 @@ impl Game {
         if id >= self.buildings.len() || self.buildings[id].team != 0 {
             return;
         }
-        if k.is_none() || self.products(&self.buildings[id]).contains(&k.unwrap()) {
-            if self.buildings[id].product.as_deref() != k {
-                self.buildings[id].progress = 0.;self.buildings[id].remaining_work=None;
-            }
-            self.buildings[id].product = k.map(str::to_string);
+        if k.is_some_and(|kind| !self.products(&self.buildings[id]).contains(&kind)) {
+            return;
         }
+        let product = k.map(str::to_string).or_else(|| self.default_product(&self.buildings[id]));
+        if self.buildings[id].product != product {
+            self.buildings[id].progress = 0.;self.buildings[id].remaining_work=None;
+        }
+        self.buildings[id].product = product;
     }
     fn ai(&mut self) {
         let teams = self.ai_teams.clone();
@@ -650,12 +680,7 @@ impl Game {
                     continue;
                 }
                 if b.product.is_none() {
-                    let options = self.products(&b);
-                    if !options.is_empty() {
-                        let pick = (self.random() * options.len() as f64) as usize;
-                        self.buildings[bi].product =
-                            Some(options[pick.min(options.len() - 1)].into());
-                    }
+                    self.buildings[bi].product = self.default_product(&b);
                 }
             }
             let available: Vec<usize> = self
@@ -1042,6 +1067,7 @@ impl Game {
             }
         }
 
+        self.ensure_production();
         self.production_clock+=dt*17.;let production_ticks=self.production_clock.floor()as i32;self.production_clock-=production_ticks as f64;
         let total=self.sectors.iter().filter(|s|s.counts_for_production).count();
         let mut completed = vec![];
@@ -1126,6 +1152,8 @@ pub extern "C" fn output() -> *const u8 {
 mod tests;
 #[cfg(test)]
 mod fort_mount_tests;
+#[cfg(test)]
+mod production_tests;
 
 fn production_sector()->bool{true}
 

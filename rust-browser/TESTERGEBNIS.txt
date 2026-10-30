@@ -1,6 +1,6 @@
 Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-31 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+39 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
 Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
 Besatzungen, Schwierigkeit und HP-Grenzen. Sieben weitere Fälle prüfen lokale
 Zielsuche, Reservierungen, Besatzungserhaltung, Reichweitengrenzen und Befehlsvorrang.
@@ -62,3 +62,16 @@ dem ersten Routentick, Stopp-Bereinigung und tatsächliches Bemannen bestanden.
 Fahnen-, Fortgeschütz- und Jeep-Prüfungen weiterhin bestanden. Rust unverändert.
 Browserstart und Roboterauswahl erfolgreich; eine abschließende Sichtprüfung der
 Pfeile blieb eingeschränkt, da die Browser-Aufnahmefunktion wiederholt ausfiel.
+
+Automatische Produktion: Acht zusätzliche Rust-Tests bestanden. Sie prüfen
+Roboterstandards bei beiden Teams und allen fünf Technikstufen, sofortigen
+Produktionsstart nach Eroberung samt Uhr/Fortschritt, Erhalt laufender Arbeit,
+zwei aufeinanderfolgende Produktionszyklen, Rückkehr zum Standard ohne unnötigen
+Neustart sowie neutrale, zerstörte, beschädigte und nicht produzierende Gebäude.
+Fahrzeugfabriken behalten ihre gültigen Produkte. Neu gebautes Release-Wasm:
+20 Kampagnenmissionen, fünf Welten, sechs Produktionsformeln, Original-Fabrikuhren
+und beide Frontend-Eingabearten weiterhin erfolgreich geprüft.
+Realer Wasm-Automatiktest: alle 20 Missionen, 48 anfänglich eigene Fabriken und
+alle 89 neutralen Roboterfabriken beim Erobern geprüft. Jede startet mit Grunts,
+Timer und sinkender Restarbeit; Übernahme, Standardwahl und zwei fertige Gruppen
+bleiben ohne erneuten Produktionsbefehl funktionsfähig.
