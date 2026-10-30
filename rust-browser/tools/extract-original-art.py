@@ -46,6 +46,9 @@ def executable_metadata(source):
     # Specialized composite renderers override parts of the generic animation
     # table: notably APC uses eight directions with stride3 in00455af0.
     unit_layouts={
+        #00455440 builds the Jeep from suspension/wheels, occupied body and an
+        # independently aimed weapon. Body sprites already include the driver.
+        'jeep':dict(renderer='00455440',anchor=[-6,-6],body=5590,stride=2,directions=8,underlay=[struct.unpack('<h',memory(0x496c04+i*2,2))[0] for i in range(8)],weapon=5639,bodyOffsets=points(0x496e0c,8),aimOffsets=points(0x496c84,8),weaponAnchor=[6,-3]),
         'medium':dict(renderer='00455c30',anchor=[-6,0],hull=488,damagedHull=500,stride=3,directions=4,hullOffsets=points(0x496dfc,4),turret=513,turretOffsets=points(0x496ba4,8),turretAnchor=[6,-3],barrel=521,barrelOffsets=points(0x496ca4,8)),
         # Heavy hull offset table004d1900 is zero-initialized BSS, unlike the
         # other literal tables. The renderer reads its four zero pairs.

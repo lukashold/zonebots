@@ -35,3 +35,10 @@ Bodengeschütze und Erhalt beim Aussteigen/Bemannen. Alle 20 Karten wurden erneu
 ohne. 1.600 Rendererfälle prüfen Originalanker, Richtungen, Teams, Auswahlflächen
 und ausbleibende Positionssprünge beim Bemannen. Im Browser stehen eigene und
 gegnerische Geschütze auf ihren Turmdächern; Anklicken und Portrait geprüft.
+
+Jeep: 1.280 Fälle für Richtung/Zielrichtung/Teams/Welten/Schussframe, 2.560 Fälle
+für Phasen und Straßen sowie fünf unbesetzte Fälle bestanden. Geprüft wurden
+Originalschichten, Anker, Zeichenreihenfolge und vollständige Auswahlflächen.
+Fortgeschütz- und Fabrikuhr-Prüfungen weiterhin bestanden. Im Browser bemannten
+Jeep in Mission 17 ausgewählt, vollständiges Fahrzeug und Portrait sowie einen
+Bewegungsbefehl geprüft; keine Browserfehler. Der Rust-Kern wurde dabei nicht geändert.

@@ -105,3 +105,18 @@ Bodengeschütze und neu hergestellte Bodengeschütze erhalten keine solche Zuord
 Die Zuordnung bleibt beim Aussteigen und erneuten Bemannen erhalten. Auswahl,
 Trefferfläche der Maus, Portrait und Minikartenmarkierung nutzen denselben Anker.
 Schuss-/Rückstoßanimationen bleiben im bereits dokumentierten Teilumfang.
+
+JEEP MIT FAHRER
+Der Jeep wird nach FUN00455440 aus Fahrwerk, Wagenkörper und Waffenaufbau
+zusammengesetzt. Der Wagenkörper enthält bereits den sitzenden Fahrer. Zuvor
+wurde nur dieser Körper gezeichnet; bei seitlichen Ansichten fehlten dadurch
+Räder und Teile des Unterbaus, außerdem der getrennte Waffenaufbau.
+Der Originalanker ist rawX-6,rawY-6 native Pixel. Die Richtungsunterlage kommt
+aus 00496c04, der Körper aus 5590+2*Richtung+Phase und die Waffe aus 5639+2*Zielrichtung
+mit separatem Schussframe. Originale Versatztabellen 00496e0c und 00496c84 bestimmen
+die relative Waffenposition; die Körperphase korrigiert deren Y-Koordinate.
+Die Auswahlfläche umfasst alle gezeichneten Schichten. Das Portrait berücksichtigt
+auch negative Spriteversätze. Unbesetzte OBJECT-Jeeps nutzen weiterhin Sprite 5214
+am ursprünglichen Objektanker. Die vollständige Umrechnung zwischen Objekt- und
+Einheitskoordinaten beim Ein-/Aussteigen bleibt noch nicht vollständig umgesetzt.
+Animationsgeschwindigkeit und Schusszustand folgen weiterhin dem Browser-Kern.

@@ -14,14 +14,31 @@ window.OriginalArt=(()=>{
  function gunFrame(u){const aim=dir(u.aim);if(u.team<0&&manifest?.neutralUnits?.[u.type]!==undefined)return manifest.neutralUnits[u.type];return ({gatling:330+aim,cannon:u.team<0?1651+aim:1659+2*aim+(u.cooldown>0?1:0),howitzer:u.team<0?5759+aim:5767+2*aim+(u.cooldown>0?1:0),missile:(u.team<0?1635:1643)+aim})[u.type];}
  //00455f10 queues raw X; queue elevation is cancelled again in004549f0.
  // These are top-left sprite origins, including for the fort's fixed gun sockets.
- function unitBounds(u,map){if(!ready||!map?.original||!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:u.x,y:u.y,w:f.w*2,h:f.h*2}:null;}
+ function unitBounds(u,map,time=0){if(!ready||!map?.original)return null;if(u.type==='jeep'){const layers=jeepLayers(u,time,map).map(p=>({...p,frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:u.x,y:u.y,w:f.w*2,h:f.h*2}:null;}
  function fortGuns(b,units){return b.kind==='fort'?units.filter(u=>u.fortId===b.id&&guns.has(u.type)):[];}
+ //00455440: the body already contains the seated driver. Wheels and the
+ // independently aimed weapon are separate layers. IDs, order and offsets are
+ // from Ghidra/ASM; phase timing and firing still use the browser engine clock.
+ function jeepLayers(u,time,map){
+  if(!ready||!map?.original)return [];
+  if(u.team<0)return [{id:manifest.neutralUnits?.jeep??5214,x:u.x,y:u.y}];
+  const p=manifest.unitLayouts?.jeep,d=dir(u.angle),aim=dir(u.aim);
+  if(!p)return [{id:5590+d*2,x:u.x-12,y:u.y-12}];
+  const tick=Math.max(0,Math.floor(time*17)),wheelPhase=u.moving?tick%4:0;
+  const terrain=(map.terrainCodes?.[Math.floor(u.y/32)*map.width+Math.floor(u.x/32)]||0)&127;
+  const bodyPhase=u.moving?(([7,51,23].includes(terrain)?wheelPhase>>1:wheelPhase)&1):(tick>>1&1);
+  const x=u.x+p.anchor[0]*2,y=u.y+p.anchor[1]*2,parts=[];
+  if(p.underlay[d])parts.push({id:p.underlay[d]+wheelPhase,x,y});
+  parts.push({id:p.body+d*p.stride+bodyPhase,x,y});
+  parts.push({id:p.weapon+aim*2+(u.cooldown>0?1:0),x:x+(p.weaponAnchor[0]+p.bodyOffsets[d][0]+p.aimOffsets[aim][0])*2,y:y+(p.weaponAnchor[1]+p.bodyOffsets[d][1]+p.aimOffsets[aim][1]-bodyPhase)*2});
+  return parts;
+ }
  function unit(ctx,u,time,map){if(!ready||!map.original)return false;const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?Math.floor(time*8)%3:0;
+  if(u.type==='jeep'){for(const p of jeepLayers(u,time,map))native(ctx,p.id,p.x,p.y,map,u.team<0?null:u.team);return true;}
   if(u.team<0&&manifest.neutralUnits?.[u.type]!==undefined)return native(ctx,manifest.neutralUnits[u.type],u.x,u.y,map);
   if(guns.has(u.type))return native(ctx,gunFrame(u),u.x,u.y,map,u.team);
   if(manifest.unitLayouts?.[u.type])return vehicle(ctx,u,time,map,d,aim,walking);
   if(attack[u.type]){const seq=attack[u.type],firing=u.cooldown>0&&u.order!=='move',frame=firing?Math.min(seq[1]-1,Math.floor(time*12)%seq[1]):0,id=u.moving?74+d*4+(Math.floor(time*8)%4):firing?seq[0]+aim*seq[1]+frame:66+d,im=sprite(id,map.world,u.team);if(!im)return false;ctx.drawImage(im,Math.round(u.x-16),Math.round(u.y-30),im.width*2,im.height*2);return true;}
-  if(u.type==='jeep')return centered(ctx,u.team<0?5606+d:5590+d*2+(u.moving?Math.floor(time*8)%2:0),u,map);
   if(HULL[u.type]){centered(ctx,HULL[u.type]+(u.type==='apc'?d:d%4)*3+walking,u,map);if(TURRET[u.type])centered(ctx,TURRET[u.type]+aim,u,map);return true;}
   if(u.type==='launcher'){centered(ctx,1845+d*3+walking,u,map);centered(ctx,1869+aim,u,map);return true;}
   if(u.type==='crane')return centered(ctx,u.team<0?5834:5834+d*3+walking,u,map);
@@ -104,5 +121,5 @@ window.OriginalArt=(()=>{
  function flag(ctx,s,time,map){if(!ready||!map.original)return false;const frame=Math.floor(time*6)%3,im=sprite(1234+(s.owner===0?0:s.owner===1?4:8)+frame,map.world,s.owner);if(!im)return false;ctx.drawImage(im,s.x-2,s.y-26,im.width*2,im.height*2);return true;}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,unitBounds,fortGuns,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
+ return {load,unit,unitBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
 })();
