@@ -88,3 +88,15 @@ Platzierung und Aufräumen nach Fabrikverlust. Alle 20 Karten, Roboterautomatik,
 erfolgreich geprüft. Im Browser auf lokaler Originalkarte mit vorbereitetem Lager
 grüne Vorschau und tatsächliches Setzen auf einem freien Fortturm geprüft; Bestand
 sank von vier auf drei. Keine Warnungen oder Fehler in den Browserprotokollen.
+
+Granatenhand: Portable Verhaltenstests für Infanterie/HP0, gemischte Auswahl,
+Modusvorrang, Trefferflächen, richtige Zielposition und Markierungslebensdauer
+bestanden.20 Kisten-Renderingfälle über fünf Welten prüfen den Originalanker
+und verschwundene Ziele. Der Eingabetest mit echtem unverändertem Wasm besteht
+klassisch und modern: Hand über dem Kistenrand, nur Roboter befehligt, tatsächliche
+Aufnahme(+8) genau einmal und Sprachereignis erst nach der Aufnahme. Stoppen und
+Befehlswechsel bereinigen die Hand. Fahrzeug-, Geschützplatzierungs- und
+Fahnenregressionen bestanden. Der Rust-Kern wurde dafür nicht geändert.
+Auf der lokalen Originalkarte wurden der aktive Handcursor als Cursor-Datenbild,
+der Klick am sichtbaren Kistenrand, Roboterauftrag und sichtbare Greifhand am Ziel
+zusätzlich im Browser geprüft. Keine Warnungen oder Fehler im Browserprotokoll.

@@ -210,3 +210,20 @@ platziert ihre Geschütze selbstständig. Die genaue ursprüngliche KI-Platzwahl
 Objekt-/Einheitenradien und die vollständige Vier-Geschütze-pro-Gebiet-Zählung
 bleiben vereinfacht; die vier Speicherplätze sind keine Behauptung dieser
 vollständigen ursprünglichen Kapazitätsrechnung.
+
+HAND FÜR GRANATENKISTEN
+FUN00434c60 verwendet beim Objektziel für ausgewählte Infanterie den Handcursor45,
+wenn die Objektkategorie in00499738 größer als1 ist. Granatenobjekt10 gehört zur
+Kategorie2. Der Hotspot ist nativ(9,7), in der Webansicht(18,14). Die vorhandene
+Klickanimation2755..2758 aus FUN00441430 wird auch an der Kiste verwendet.
+Trefferfläche und Zeichnung stimmen mit Objekt10/Sprite351 überein: gerundeter
+Originalanker und32x32 Weltpixel, einschließlich des sichtbaren Kistenrandes.
+
+Der Web-Auftrag schickt ausschließlich lebende eigene Roboter an den bestehenden
+Aufnahmepunkt der Kiste; gemischt ausgewählte Fahrzeuge bleiben unverändert.
+Die Zielhand verschwindet nach Aufnahme, Ankunft, anderem Befehl, Tod oder
+Zielverlust. Eigentliche Aufnahme, Inventaränderung und Ton stammen unverändert
+aus dem Rust-Kern. Die dauerhafte Zielmarkierung und ihr8-fps-Takt sind Webfeedback;
+Original-Hover und Klickbilder sind belegt. Mit dieser Cursorergänzung werden
+keine neuen Originalregeln zu Kapazität oder robotertypabhängigen Inventarlimits
+behauptet; die vorhandene Aufnahmelogik bleibt unverändert.

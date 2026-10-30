@@ -47,3 +47,7 @@ Rot zeigt einen gesperrten Platz. Rechtsklick oder Esc beendet nur die Auswahl;
 das Geschütz bleibt erhalten. Auf Forts werden freie Turmplätze benutzt.
 Bis zu vier fertige Geschütze bleiben pro Fabrik bereit; Platzieren gibt wieder
 Lagerplatz frei. Roboter und Fahrzeuge erscheinen weiterhin automatisch.
+
+Roboter auswählen und auf eine Granatenkiste zeigen: Die Originalhand zeigt den
+Aufsammelbefehl an. Ein Klick schickt nur die ausgewählten Roboter zur Kiste.
+Im modernen Modus wird der Befehl mit Rechtsklick erteilt.

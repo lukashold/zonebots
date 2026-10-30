@@ -64,9 +64,14 @@ From `rust-browser/`, validate with:
     node tools/check-flag-command.cjs
     node tools/check-capture-hand.cjs
     node tools/check-vehicle-command.cjs
+    node tools/check-pickup-command.cjs
+    node tools/check-crate-bounds.cjs
+    node tools/check-pickup-input.cjs
     node tools/check-entry-arrow.cjs
     node tools/check-vehicle-input.cjs
     node tools/check-original-audio.cjs
+
+With robots selected, grenade crates show the original hand cursor. Clicking a crate sends only the selected infantry to its pickup point and keeps a hand at the destination until it is collected or the order ends. The existing Rust pickup and audio event determine the actual inventory change.
 
 With robots selected, vacant vehicles and guns use the original entry-arrow artwork. The command marker remains visible while the selected robots approach; it clears when the target is crewed or the order changes. The arrow artwork and hotspot are checked against the executable; marker centering and animation cadence are browser adaptations.
 
