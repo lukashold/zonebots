@@ -25,7 +25,7 @@ if __name__=='__main__':
     server=http.server.ThreadingHTTPServer(('127.0.0.1',args.port),functools.partial(Handler,directory=str(ROOT)))
     server.zdir=Path(args.zdir).resolve()
     url='http://127.0.0.1:%d/'%server.server_port
-    if (server.zdir/'LEVEL01.MAP').exists():url+='?z=zdata/'
+    # Standalone mode is the default, including when a local Z install exists.
     print(url,flush=True)
     if not args.no_browser:webbrowser.open(url)
     try:server.serve_forever()

@@ -1,16 +1,14 @@
 Z – Rust/Wasm Browserfassung
 Stand: 30.10.2026
 
-START
-Start-Spiel.cmd doppelklicken. Python startet einen lokalen Webserver und
-öffnet den Browser. Die vorhandene Installation C:\GOG Games\Z wird automatisch
-eingelesen. Das Serverfenster zum Beenden schließen. Nicht index.html direkt öffnen:
-WebAssembly und Ressourcen benötigen HTTP.
-
-Alternativ: python tools/serve.py --zdir "C:\GOG Games\Z" --port 8765
-Ohne Originalinstallation gibt es die prozedural erzeugte Kampagne mit Ersatzgrafik.
-Auf der gehosteten Fassung im Menü den eigenen Z-Installationsordner auswählen.
-Originaldateien werden lokal vom Browser gelesen; sie sind nicht im Webpaket enthalten.
+START – OHNE SPIELORDNER
+Start-Spiel.cmd unter Windows doppelklicken. Unter macOS/Linux mit Python 3:
+  python3 tools/serve.py
+Alternativ unter macOS: sh Start-Spiel.command
+Die Fassung startet mit eigenen Grafiken, synthetischem Ton und 20 eigenen Missionen.
+Keine Installation oder Dateiauswahl von Z ist notwendig. Nicht index.html direkt
+öffnen: WebAssembly benötigt HTTP. Im Browser „Spiel starten“ auswählen.
+Details zur neuen Grafik und zum Prüfstand: STANDALONE.txt.
 
 SPIEL
 Einheiten auswählen, mit Rechtsklick Befehle geben. Gebiete über Flaggen erobern,

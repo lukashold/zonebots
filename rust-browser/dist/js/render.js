@@ -52,42 +52,9 @@
   const cache = {};
   function cached(key, make) { return cache[key] || (cache[key] = make()); }
 
-  // ---------- robots: hand-set pixel grids, 14x14 ----------
-  const R_DOWN = [
-    '.....kkkk.....', '....kmmmmk....', '...kmmmmmmk...', '...kVvvvvVk...', '...kmmmmmmk...', '....kkkkkk....',
-    '...kLTTTTLk...', '..kTkTTTTkTk..', '..kTktTTtkTk..', '..kmk.tt.kmk..', '.....kttk.....',
-    '....kKk.kKk...', '....kKk.kKk...', '....kk...kk...'];
-  const R_UP = [
-    '.....kkkk.....', '....kmmmmk....', '...kmmmmmmk...', '...kmMMMMmk...', '...kmmmmmmk...', '....kkkkkk....',
-    '...kLTTTTLk...', '..kTkKnnKkTk..', '..kTkKnnKkTk..', '..kmk.tt.kmk..', '.....kttk.....',
-    '....kKk.kKk...', '....kKk.kKk...', '....kk...kk...'];
-  const R_SIDE = [
-    '.....kkkk.....', '....kmmmmk....', '....kmmmmmk...', '....kmmmVVk...', '....kmmmmmk...', '.....kkkkk....',
-    '.....kTTTk....', '....kTTTTk....', '....kTtTTk....', '....ktTTmk....', '.....kttk.....',
-    '.....kKk......', '.....kKk......', '.....kkk......'];
-  const LEGS = {
-    down: [['....kKk.kKk...', '....kk..kKk...', '........kk....'], ['....kKk.kKk...', '....kKk..kk...', '....kk........']],
-    side: [['....kKKk......', '...kKk.kKk....', '...kk...kk....'], ['.....kKk......', '.....kKk......', '.....kkk......']]
-  };
-  // weapon pixels per robot type and view: [x, y, colour key]
-  const WEAPON = {
-    grunt: { down: [[10, 10, 'K'], [10, 11, 'K']], side: [[10, 9, 'K'], [11, 9, 'K']], up: [] },
-    psycho: { down: [[9, 10, 'K'], [10, 10, 'K'], [9, 11, 'K'], [10, 11, 'K'], [10, 12, 'K']], side: [[9, 8, 'K'], [10, 8, 'K'], [11, 8, 'K'], [10, 9, 'K'], [11, 9, 'K'], [12, 9, 'K']], up: [] },
-    tough: { down: [[10, 5, 'k'], [10, 6, 'G'], [10, 7, 'G'], [11, 6, 'G'], [11, 7, 'G'], [10, 8, 'k'], [11, 8, 'k']], side: [[4, 6, 'G'], [5, 6, 'G'], [6, 6, 'G'], [7, 6, 'G'], [8, 6, 'G'], [9, 6, 'G'], [10, 6, 'G'], [11, 6, 'k'], [4, 5, 'G'], [5, 5, 'G'], [6, 5, 'G'], [7, 5, 'G'], [8, 5, 'G'], [9, 5, 'G'], [10, 5, 'G'], [11, 5, 'k']], up: [[10, 5, 'G'], [10, 6, 'G'], [11, 5, 'G'], [11, 6, 'G'], [10, 7, 'k'], [11, 7, 'k']] },
-    sniper: { down: [[10, 9, 'K'], [10, 10, 'K'], [10, 11, 'K'], [10, 12, 'K'], [10, 13, 'K']], side: [[9, 9, 'K'], [10, 9, 'K'], [11, 9, 'K'], [12, 9, 'K'], [13, 9, 'K'], [10, 8, 'K']], up: [] },
-    pyro: { down: [[10, 10, 'K'], [10, 11, 'o']], side: [[10, 9, 'K'], [11, 9, 'K'], [12, 9, 'o'], [3, 7, 'o'], [3, 8, 'o'], [3, 9, 'r']], up: [[5, 7, 'o'], [6, 7, 'o'], [7, 7, 'o'], [8, 7, 'o'], [5, 8, 'r'], [6, 8, 'o'], [7, 8, 'o'], [8, 8, 'r']] },
-    laser: { down: [[10, 10, 'K'], [10, 11, 'c'], [10, 12, 'w']], side: [[10, 9, 'K'], [11, 9, 'c'], [12, 9, 'w']], up: [] }
-  };
+  // Robot artwork lives in art.js.
   function robotSprite(t, team, view, frame) {
-    return cached('r' + t + team + view + frame, function () {
-      const p = palOf(team);
-      let rows = (view === 'up' ? R_UP : view === 'down' ? R_DOWN : R_SIDE).slice();
-      if (frame) { const lg = LEGS[view === 'up' ? 'down' : view === 'down' ? 'down' : 'side'][frame - 1]; rows.splice(11, 3, lg[0], lg[1], lg[2]); }
-      const c = fromGrid(rows, p, 14), x = c.getContext('2d');
-      const wp = WEAPON[t] ? WEAPON[t][view === 'left' || view === 'right' ? 'side' : view] : [];
-      for (const q of wp) { x.fillStyle = p[q[2]]; x.fillRect(q[0], q[1], 1, 1); }
-      return view === 'left' ? mirror(c) : c;
-    });
+    return ZG.Art.robot(t, team, view, frame);
   }
 
   // ---------- vehicles: drawn east-facing with rectangles, then rotated ----------
@@ -156,6 +123,7 @@
     return cached(table + t + team + dir, function () {
       const def = (table === 'b' ? BODY : TURRET)[t], c = canvas(def[0], def[1]);
       def[2](c.getContext('2d'), palOf(team));
+      if (table === 'b') ZG.Art.detailVehicle(c.getContext('2d'), def[0], def[1], palOf(team));
       return rotate(c, dir / DIRS * Math.PI * 2);
     });
   }
@@ -263,7 +231,11 @@
       // smooth patches with ordered dithering at their edges, sparse grit on top
       const v = vnoise(gx / 14, gy / 14, seed + 7) * (C.g.length - 0.01) + (BAYER[(gy & 3) * 4 + (gx & 3)] - 0.5) * 0.35;
       let c = C.g[ZG.clamp(Math.floor(v), 0, C.g.length - 1)];
-      if (h < 0.025) c = C.speck; else if (h > 0.992) c = shadeC(c, 1.12);
+      const grain = vnoise(gx / 3, gy / 3, seed + 42);
+      c = shadeC(c, 0.88 + Math.floor(grain * 5) * 0.045);
+      if (h < 0.055) c = C.speck; else if (h > 0.975) c = shadeC(c, 1.12);
+      if (th.key === 'desert' && ((gy + Math.floor(3 * Math.sin(gx / 15))) % 11 === 0) && grain > 0.52) c = shadeC(c, 0.85);
+      if (th.key === 'city' && (gx % 24 === 0 || gy % 24 === 0)) c = shadeC(c, 0.7);
       if (t === T.ROUGH) {
         const cell = vnoise(gx / 2.5, gy / 2.5, seed + 3);
         c = cell < 0.45 ? C.rough : cell < 0.6 ? C.roughHi : c;
@@ -280,7 +252,7 @@
         const faceH = 6, face = !rock(at(tx, ty + 1)) && y >= TP - faceH;
         if (face) {
           const fy = y - (TP - faceH);
-          c = fy === 0 ? C.rockLo : ((gx + (fy >> 1)) % 4 === 0 ? shadeC(C.rockFace, 0.75) : C.rockFace);
+          c = fy === 0 ? C.rockLo : shadeC(C.rockFace, 0.72 + Math.floor(vnoise(gx / 3, gy / 8, seed) * 5) * 0.12);
           if (fy === faceH - 1) c = shadeC(C.rockFace, 0.55);
         } else {
           const n = vnoise(gx / 5, gy / 5, seed + 11) + (BAYER[(gy & 3) * 4 + (gx & 3)] - 0.5) * 0.3;
@@ -288,7 +260,7 @@
           if (y === 0 && !rock(at(tx, ty - 1))) c = shadeC(C.rockHi, 1.15);
           if (x === 0 && !rock(at(tx - 1, ty))) c = C.rockHi;
           if (x === TP - 1 && !rock(at(tx + 1, ty))) c = C.rockLo;
-          if (h > 0.985) c = shadeC(C.rockLo, 0.7);
+          if (h > 0.965 || (vnoise(gx/7,gy/3,seed+37) > 0.67 && h > 0.5)) c = shadeC(C.rockLo, 0.7);
         }
       } else if (wet(t)) {
         const sh = (y < 2 && !wet(at(tx, ty - 1)) && at(tx, ty - 1) !== -1) || (y > TP - 3 && !wet(at(tx, ty + 1)) && at(tx, ty + 1) !== -1) ||
@@ -310,6 +282,16 @@
       img.put(gx, gy, c);
     }
     if (t === T.BOULDER) boulderPixels(img, ox, oy, W, seed);
+    // Small stones and scrub are purely visual; the terrain collision map is unchanged.
+    if ((t === T.GROUND || t === T.ROUGH) && hash(tx, ty, seed+91) > 0.65) {
+      const cx = 4 + Math.floor(hash(tx,ty,seed+92)*7), cy = 4 + Math.floor(hash(tx,ty,seed+93)*7);
+      const jungle = th.key === 'jungle', radius = t === T.ROUGH ? 4 : 2;
+      for(let yy=-radius;yy<=radius;yy++)for(let xx=-radius;xx<=radius;xx++) {
+        if(xx*xx + yy*yy*1.6 > radius*radius || hash(tx+xx,ty+yy,seed+12)<0.12)continue;
+        const col = jungle ? (xx+yy<0 ? [102,132,53] : [40,72,35]) : (xx+yy<0 ? C.rockHi : C.rockLo);
+        img.put(ox+cx+xx,oy+cy+yy,col);
+      }
+    }
     // soft shadow cast by a cliff onto the tile below
     if (!rock(t) && rock(at(tx, ty - 1))) for (let x = 0; x < TP; x++) for (let y = 0; y < 2; y++) img.put(ox + x, oy + y, shadeC(C.g[0], 0.6 + 0.15 * y));
   }
@@ -327,6 +309,7 @@
   // ---------- buildings ----------
   const LIFT = 10; // buildings rise this many art pixels above their footprint
   function buildingSprite(b) {
+    if (!b.dead) return ZG.Art.building(b);
     const key = 'B' + b.kind + b.team + b.tech + (b.dead ? 'x' : '') + (b.taken != null ? 't' : '');
     return cached(key, function () {
       const p = palOf(b.team), W = b.w * TP, H = b.h * TP + LIFT, c = canvas(W, H), x = c.getContext('2d');
@@ -473,8 +456,8 @@
       const view = robotView(u.ang), frame = u.moving ? 1 + (Math.floor(u.walk / 2) & 1) : 0;
       c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(ax - 3, ay + 1, 7, 2);
       const s = robotSprite(u.t, team, view, frame);
-      c.drawImage(s, ax - 7, ay - 12);
-      if (u.hit > 0) { c.globalCompositeOperation = 'lighter'; c.drawImage(s, ax - 7, ay - 12); c.globalCompositeOperation = 'source-over'; }
+      c.drawImage(s, ax - s.width / 2, ay - s.height + 2);
+      if (u.hit > 0) { c.globalCompositeOperation = 'lighter'; c.drawImage(s, ax - s.width / 2, ay - s.height + 2); c.globalCompositeOperation = 'source-over'; }
       if (u.gren > 0) { c.fillStyle = '#26401c'; c.fillRect(ax + 2, ay - 4, 2, 2); }
       return;
     }

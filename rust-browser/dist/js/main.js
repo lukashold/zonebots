@@ -526,7 +526,7 @@
     if (G.lv.original) { const t = ZG.Z.terrainCanvas(G.map); R = { terrain: t, mini: ZG.Z.miniCanvas(G.map, t), th: th, zs: ZG.Z.spriteSet(G.map) }; }
     else R = { terrain: ZG.renderTerrain(G.map, th, G.lv.seed), mini: ZG.renderMini(G.map, th), th: th };
     ui.selB = null; ui.drag = null; ui.marks = []; ui.paths = []; panelSig = ''; paused = false; setMode(null);
-    $('miniPanel').classList.add('hidden');
+    $('miniPanel').classList.toggle('hidden', innerWidth < 700);
     for (const k in groups) delete groups[k];
     zoom = innerWidth > 2600 ? 4 : innerWidth > 1500 ? 3 : 2;
     for (const id of ['menu', 'end', 'pause', 'help']) $(id).classList.add('hidden');
@@ -549,14 +549,15 @@
   }
   function buildMenu() {
     L = ZG.TEXT[lang]; document.documentElement.lang = lang;
-    $('tagline').textContent = L.sub + ' · ' + L.fullHint;
+    $('tagline').textContent = lang === 'de' ? '20 Missionen / 5 Welten. Eigene Grafik und Musik. Sofort spielbar - keine Spieldateien erforderlich.' : '20 missions / 5 worlds. Original artwork and music. Ready to play - no game files required.';
+    $('miQuick').textContent = lang === 'de' ? 'Spiel starten' : 'Play now';
     $('btnFull').title = L.fullHint;
     $('miPlay').textContent = L.mPlay; $('miOrig').textContent = L.mOrig; $('miSkirm').textContent = L.mSkirm; $('miOpts').textContent = L.mOpts;
     $('optDiffTitle').textContent = L.diffLabel; $('langTitle').textContent = L.langTitle;
     for (const b of document.querySelectorAll('.mback')) b.textContent = L.back;
     // with the player's own Z files the menu uses the original background and panel plate
-    const bg = ZG.Z.image('background.png'), plate = ZG.Z.image('boxcentrewide.png');
-    for (const el of document.querySelectorAll('.screen')) el.style.backgroundImage = bg ? 'url(' + bg + ')' : '';
+    const bg = ZG.Art.menu(), plate = null;
+    $('menu').style.backgroundImage = 'url(' + bg + ')';
     for (const el of document.querySelectorAll('.box')) { el.classList.toggle('zskin', !!plate); el.style.backgroundImage = plate ? 'url(' + plate + ')' : ''; }
     $('btnHelp').textContent = L.help; $('btnLang').textContent = L.lang; $('helpTitle').textContent = L.help;
     $('btnHelpBack').textContent = L.back; $('helpBody').innerHTML = L.helpText.map(t => '<p>' + t + '</p>').join('');
@@ -612,6 +613,7 @@
     if (!$('skSeed').value) $('skSeed').value = 1 + Math.floor(Math.random() * 9999);
   }
   const SK_SIZE = [[3, 2], [4, 3], [5, 4], [7, 4]], SK_STR = [1, 4, 8, 14];
+  $('miQuick').onclick = () => start(Math.min(unlocked, ZG.LEVELS.length - 1));
   $('btnSkirmish').onclick = function () {
     const seed = Math.max(1, Math.floor(+$('skSeed').value) || 1), sz = SK_SIZE[+$('skSize').value];
     start(-1, ZG.makeLevel(SK_STR[+$('skTech').value], sz[0], sz[1], { theme: +$('skWorld').value, seed: seed, river: seed % 4, custom: true }));
@@ -703,6 +705,9 @@
 
   window.ZGdebug = { get G() { return G; }, start: start, get cam() { return cam; }, get view() { return view; } };
   resize(); buildMenu(); requestAnimationFrame(frame);
+  // Bookmarkable mission links also start the standalone game without a menu.
+  const mission = new URLSearchParams(location.search).get('mission');
+  if (mission && /^\d+$/.test(mission) && +mission >= 1 && +mission <= ZG.LEVELS.length) start(+mission - 1);
   // ?z=<folder url>: load the original Z files from a local server (see tools/zplay.py)
   async function loadZFrom(base) {
     const names = ['levels.dat', 'robots.dat', 'en.lproj/sprites.rsc', 'PNG/Background.png', 'PNG/BoxCentreWide.png', 'AA16.ogg', 'aC16.ogg', 'aJ16.ogg', 'ipOPTIONS16.ogg', 'ipWIN.ogg', 'ipLOSE.ogg'];
@@ -735,5 +740,5 @@
   }
   const zq = new URLSearchParams(location.search).get('z');
   if (zq && /^[\w\/.-]+$/.test(zq)) loadZFrom(zq.endsWith('/') ? zq : zq + '/');
-  else ZG.Z.restore().then(n => { if (n && G === null) buildMenu(); });
+  // Standalone by default: do not restore a previous original-data dependency.
 })();

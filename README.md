@@ -30,8 +30,13 @@ command above with Python 3 installed. To load your own original game files auto
 
     python3 tools/serve.py --zdir "/path/to/Z"
 
-The browser also accepts your original game folder from the menu. No original game assets
-are included. macOS browser operation has not yet been tested. This reconstruction is not
+The Rust edition now starts with its own artwork, synthesized audio and 20 standalone
+missions: no game-folder selection or original installation is needed. Click **Play now**
+or use `?mission=1` through `?mission=20` for a direct mission link. New robots, industrial
+buildings, vehicle detailing and terrain textures are drawn procedurally in `art.js` and
+`render.js`. See [standalone release notes](rust-browser/STANDALONE.txt).
+
+No original game assets are included. macOS browser operation has not yet been tested. This reconstruction is not
 yet a verified 1:1 recreation; see [limitations and test results](rust-browser/TESTERGEBNIS.txt).
 
 ### JavaScript version

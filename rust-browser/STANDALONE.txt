@@ -1,0 +1,35 @@
+Standalone-Grafikfassung – 30.10.2026
+
+Diese Fassung benötigt keinen Z-Spielordner. Im Menü auf „Spiel starten“ klicken.
+20 eigene Missionen in fünf Welten, Grafik, Effekte und synthetischer Ton sind
+enthalten. Es werden keine Originaldaten aus einer früheren Browsersitzung geladen.
+Die ursprünglichen Kampagnenkarten und Originalgrafiken werden nicht mitgeliefert.
+
+Windows: Start-Spiel.cmd
+macOS/Linux: im Projektordner python3 tools/serve.py
+macOS alternativ: sh Start-Spiel.command
+Direkter Missionsstart: an die Spieladresse ?mission=1 bis ?mission=20 anhängen.
+
+Neue, im Quellcode gezeichnete Grafik:
+- Metallroboter mit beleuchtetem Kopf, getrennten Beinen, Teamrüstung und Waffen.
+- Forts mit Rundtürmen, Toren und Teammarkierungen.
+- Fabriken mit Rippendächern, versenkten Toren, Warnstreifen und Lüftungen.
+- Fahrzeugdetails wie Motorlamellen, Schrauben, Lackabrieb und Scheinwerfer.
+- Körniger Boden, Sandrippen, kleine Steine und Vegetation, strukturierte Felswände.
+- Eigenes Schlachtfeld als Menübild und direkter Spielstart ohne Ordnerauswahl.
+- Auf größeren Bildschirmen ist die Minikarte von Beginn an sichtbar.
+
+Alle neuen Grafikbestandteile werden prozedural aus art.js/render.js gezeichnet.
+Sie enthalten keine extrahierten Bilder, Texturen oder Sounds aus Z.
+Die optionale Originaldaten-Unterstützung bleibt im Quellcode, ist aber nicht Teil
+des normalen Menüablaufs und nicht zum Spielen notwendig.
+
+Einordnung: eigenständige Grafik-Rekonstruktion auf dem vorhandenen Rust/Wasm-Kern,
+keine nachgewiesene Clean-Room-Neuimplementierung. Die Entwicklung des Kerns hat
+bereits Reverse-Engineering-Ergebnisse verwendet. Die Implementierung ist weiterhin
+keine identische Nachbildung des Originals; KI, Balance und Karten unterscheiden sich.
+
+Prüfung: JavaScript-Syntax, vollständige KI-Partien auf 20 eigenen Karten und
+sichtbare Kontrolle des neuen Menüs im Browser. Browser-Eingaben und anschließende
+Navigation scheiterten an der Debugger-Verbindung; die laufende Mission konnte in
+diesem Durchlauf nicht vollständig visuell getestet werden. macOS bleibt ungetestet.
