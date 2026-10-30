@@ -51,3 +51,14 @@ Grafikprüfung: fünf Welten, 40 Handanimationsfälle, 120 Fahnen- und 120 Schat
 Cursorhotspot und Cache sowie Lade-/Befehlsreihenfolge bestanden. Im Browser
 Fahnenbefehl mit Originalhand ausgelöst, Cursor-Datenbild aktiv, Zielhand sichtbar,
 Roboterauftrag und tatsächliche Eroberung geprüft; keine Browserfehler.
+
+Fahrzeugpfeil: Verhaltenstests für Roboterfilter, gemischte Auswahl, HP0, freie
+Fahrzeuge/Geschütze, belegte/tote Ziele und bewegte Transporter bestanden.
+55 Originalpfeil-Renderingfälle, 60 neutrale Fahrzeuggrenzen und 20 gerundete
+Jeep-Grenzen über fünf Welten bestanden; Cursorcache und Originalhotspot geprüft.
+Ein Integrationstest führt beide Eingabemodi gegen den echten Rust/Wasm-Kern aus:
+Hovercursor, Klickbefehl, passender Roboterauftrag, einzelne Zielmarkierung vor
+dem ersten Routentick, Stopp-Bereinigung und tatsächliches Bemannen bestanden.
+Fahnen-, Fortgeschütz- und Jeep-Prüfungen weiterhin bestanden. Rust unverändert.
+Browserstart und Roboterauswahl erfolgreich; eine abschließende Sichtprüfung der
+Pfeile blieb eingeschränkt, da die Browser-Aufnahmefunktion wiederholt ausfiel.

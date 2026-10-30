@@ -144,3 +144,24 @@ deren Schatten und wurden zuvor irrtümlich für neutrale Fahnen benutzt.
 Der Kartenanker ist (s.x-16,s.y-16) Weltpixel. Neutralgrau folgt 0040bb50/00465cb0:
 Palette 4 verschiebt die Farbindizes 16..31 nach 80..95. Grafik und Trefferfläche
 verwenden nun dieselben vier Animationsframes und 32x32 Weltpixel großen Rechtecke.
+
+EINSTEIGEPFEIL FÜR UNBESETZTE FAHRZEUGE UND GESCHÜTZE
+FUN00434c60/00435789 wählen Cursor 6 für besetzbare Objektkategorie 1,
+zu der Fahrzeuge und die vier Geschützarten gehören. Der native Hotspot ist
+(7,11); die Webfassung verwendet (14,22) bei doppelter Spritegröße.
+FUN00441430/004414ae ordnen die vier Bestätigungsbilder 2833..2836 zu.
+Die Webfassung verwendet diese Originalgrafik als Hovercursor und als Markierung
+während eines ausgewählten Bemannungsauftrags. Nur eigene lebende Roboter
+erhalten den Befehl, auch bei gemischter Auswahl; Fahrzeuge und Geschütze werden
+nicht als Besatzung losgeschickt. Nach Bemannung, Zielverlust, Tod, anderem Befehl
+oder Spielende verschwindet die Auftragsmarkierung.
+
+Die Zielmarkierung ist auf die sichtbare Fahrzeugmitte zentriert und bleibt beim
+Zoomen gleich groß. Diese Platzierung und 8 fps sind Browseranpassungen. Im
+Original wird die Klickbestätigung am Klickpunkt gezeichnet; die separate
+Zielmarkierung in FUN004128e0 hat einen anderen Anker. Für das Beladen eigener
+Transporter wird kein ungeprüfter Originalcursor angenommen; der vorhandene
+Beladebefehl bleibt verfügbar und folgt auch einem fahrenden Transporter.
+
+Alle neutralen Fahrzeugtypen verwenden nun dieselben gerundeten Spritegrenzen
+für Trefferfläche und Zielmitte wie ihr Renderer.

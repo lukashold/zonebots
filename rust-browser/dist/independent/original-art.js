@@ -1,7 +1,7 @@
 // Original GOG resources are loaded from a private/locally extracted pack, never embedded in source.
 window.OriginalArt=(()=>{
  const assetBase=new URL('../original/',document.currentScript.src);
- let manifest,atlas,tiles,pixels,ready=false;const cache=new Map(),terrainCache=new Map(),cursorCache=new Map();
+ let manifest,atlas,tiles,pixels,ready=false;const cache=new Map(),terrainCache=new Map(),cursorCache=new Map(),entryCursorCache=new Map();
  const worlds=['DESERT','VOLCAN','ARCTIC','JUNGLE','CITY'];
  const FORT={DESERT:[809,1675],ARTIC:[2127,2148],ARCTIC:[2127,2148],CITY:[2304,2431],JUNGLE:[2613,2725],VOLCAN:[2800,2845]};
  const HULL={light:5719,medium:488,heavy:5305,apc:5655},TURRET={light:5731,medium:513,heavy:5329};
@@ -14,7 +14,7 @@ window.OriginalArt=(()=>{
  function gunFrame(u){const aim=dir(u.aim);if(u.team<0&&manifest?.neutralUnits?.[u.type]!==undefined)return manifest.neutralUnits[u.type];return ({gatling:330+aim,cannon:u.team<0?1651+aim:1659+2*aim+(u.cooldown>0?1:0),howitzer:u.team<0?5759+aim:5767+2*aim+(u.cooldown>0?1:0),missile:(u.team<0?1635:1643)+aim})[u.type];}
  //00455f10 queues raw X; queue elevation is cancelled again in004549f0.
  // These are top-left sprite origins, including for the fort's fixed gun sockets.
- function unitBounds(u,map,time=0){if(!ready||!map?.original)return null;if(u.type==='jeep'){const layers=jeepLayers(u,time,map).map(p=>({...p,frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:u.x,y:u.y,w:f.w*2,h:f.h*2}:null;}
+ function unitBounds(u,map,time=0){if(!ready||!map?.original)return null;if(u.team<0&&manifest.neutralUnits?.[u.type]!==undefined){const f=manifest.frames[manifest.neutralUnits[u.type]];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}if(u.type==='jeep'){const layers=jeepLayers(u,time,map).map(p=>({...p,x:Math.round(p.x),y:Math.round(p.y),frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}
  function fortGuns(b,units){return b.kind==='fort'?units.filter(u=>u.fortId===b.id&&guns.has(u.type)):[];}
  //00455440: the body already contains the seated driver. Wheels and the
  // independently aimed weapon are separate layers. IDs, order and offsets are
@@ -132,7 +132,13 @@ window.OriginalArt=(()=>{
  // The original acknowledgement lasts23 draw ticks; the web's wall-clock cadence
  // is adapted, rather than inferred from the game's production clock.
  function captureHand(ctx,x,y,map,elapsed=0){if(!ready||!map?.original)return false;return native(ctx,2755+(Math.max(0,Math.floor(elapsed*8))%4),x-18,y-14,map);}
+ //00435789 selects white entry arrow6 for eligible unoccupied hardware;
+ //0043579b/004357a5 give native offsets(-7,-11), hence CSS hotspot(14,22).
+ function entryCursor(map){if(!ready||!map?.original)return 'pointer';if(entryCursorCache.has(map.world))return entryCursorCache.get(map.world);const im=sprite(6,map.world,null);if(!im)return 'pointer';const c=cv(im.width*2,im.height*2),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(im,0,0,c.width,c.height);const value=`url("${c.toDataURL('image/png')}") 14 22, pointer`;entryCursorCache.set(map.world,value);return value;}
+ //004414ae maps cursor6 to grayscale acknowledgement2833..2836. These
+ // local coordinates identify the cursor hotspot; the web clock adapts timing.
+ function entryArrow(ctx,x,y,map,elapsed=0){if(!ready||!map?.original)return false;return native(ctx,2833+(Math.max(0,Math.floor(elapsed*8))%4),x-14,y-22,map);}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,unitBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
+ return {load,unit,unitBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
 })();

@@ -57,7 +57,12 @@ From `rust-browser/`, validate with:
     node tools/check-jeep-render.cjs
     node tools/check-flag-command.cjs
     node tools/check-capture-hand.cjs
+    node tools/check-vehicle-command.cjs
+    node tools/check-entry-arrow.cjs
+    node tools/check-vehicle-input.cjs
     node tools/check-original-audio.cjs
+
+With robots selected, vacant vehicles and guns use the original entry-arrow artwork. The command marker remains visible while the selected robots approach; it clears when the target is crewed or the order changes. The arrow artwork and hotspot are checked against the executable; marker centering and animation cadence are browser adaptations.
 
 The original-data, clock and audio checks require the local private resource pack. Build Wasm with
 `independent-engine/build.ps1`. Original resources retain their respective owners'

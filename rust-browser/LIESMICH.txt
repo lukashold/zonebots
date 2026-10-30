@@ -30,3 +30,7 @@ vorbereitet. Optional installiertes FFmpeg bzw. imageio-ffmpeg erzeugt zusätzli
 MP3-Versionen der Musik; die private Spielseite enthält diese bereits.
 Fabrikuhren stehen direkt auf den Gebäuden. Freie Einheiten sichern nahe Ziele
 selbstständig; X/Stopp hält sie an ihrer Position.
+
+Bei ausgewählten Robotern zeigt der Originalpfeil unbesetzte Fahrzeuge und
+Geschütze als Einsteigeziele. Der Klick befiehlt das Bemannen; der Pfeil bleibt
+während des ausgewählten Auftrags am Ziel. Fahnen verwenden weiterhin die Hand.
