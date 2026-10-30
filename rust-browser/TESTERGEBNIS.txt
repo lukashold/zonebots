@@ -42,3 +42,12 @@ Originalschichten, Anker, Zeichenreihenfolge und vollständige Auswahlflächen.
 Fortgeschütz- und Fabrikuhr-Prüfungen weiterhin bestanden. Im Browser bemannten
 Jeep in Mission 17 ausgewählt, vollständiges Fahrzeug und Portrait sowie einen
 Bewegungsbefehl geprüft; keine Browserfehler. Der Rust-Kern wurde dabei nicht geändert.
+
+Fahnen-Hand: Verhaltenstests für Auswahl, Beweglichkeit, ursprüngliche HP0-Regel,
+eigene/fremde/neutrale Ziele, Fahnentuch-Klicks, Befehlsvorrang und Auftragsmarkierung
+bestanden. Markierungen werden bei Ankunft, Eroberung, Tod, Befehlswechsel, Zielverlust
+und Spielende bereinigt; Auswahlwechsel und gemeinsame Ziele geprüft.
+Grafikprüfung: fünf Welten, 40 Handanimationsfälle, 120 Fahnen- und 120 Schattenfälle,
+Cursorhotspot und Cache sowie Lade-/Befehlsreihenfolge bestanden. Im Browser
+Fahnenbefehl mit Originalhand ausgelöst, Cursor-Datenbild aktiv, Zielhand sichtbar,
+Roboterauftrag und tatsächliche Eroberung geprüft; keine Browserfehler.

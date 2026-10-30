@@ -55,6 +55,8 @@ From `rust-browser/`, validate with:
     node tools/check-factory-timer.cjs
     node tools/check-fort-guns.cjs
     node tools/check-jeep-render.cjs
+    node tools/check-flag-command.cjs
+    node tools/check-capture-hand.cjs
     node tools/check-original-audio.cjs
 
 The original-data, clock and audio checks require the local private resource pack. Build Wasm with

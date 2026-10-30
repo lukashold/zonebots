@@ -1,7 +1,7 @@
 // Original GOG resources are loaded from a private/locally extracted pack, never embedded in source.
 window.OriginalArt=(()=>{
  const assetBase=new URL('../original/',document.currentScript.src);
- let manifest,atlas,tiles,pixels,ready=false;const cache=new Map(),terrainCache=new Map();
+ let manifest,atlas,tiles,pixels,ready=false;const cache=new Map(),terrainCache=new Map(),cursorCache=new Map();
  const worlds=['DESERT','VOLCAN','ARCTIC','JUNGLE','CITY'];
  const FORT={DESERT:[809,1675],ARTIC:[2127,2148],ARCTIC:[2127,2148],CITY:[2304,2431],JUNGLE:[2613,2725],VOLCAN:[2800,2845]};
  const HULL={light:5719,medium:488,heavy:5305,apc:5655},TURRET={light:5731,medium:513,heavy:5329};
@@ -118,8 +118,21 @@ window.OriginalArt=(()=>{
  function crate(ctx,box,map){if(!ready||!map.original||box.taken)return false;const d=manifest.objectTypes[10];return d?native(ctx,d.sprite,box.x,box.y,map):false;}
  function objectDepth(o){return o.y-(manifest?.objectTypes[o.type]?.depthOffset||0)*2;}
  function terrain(ctx,map){if(!ready||!map.original||!map.originalTiles)return false;const key=`${map.seed}:${map.revision}`;let image=terrainCache.get(key);if(!image){image=cv(map.width*16,map.height*16);const c=image.getContext('2d');for(let y=0;y<map.height;y++)for(let x=0;x<map.width;x++){const j=y*map.width+x;let i=map.originalTiles[j];if(map.bridgeBase[j]>=0&&map.tiles[j]===3)i=map.waterTile||i;c.drawImage(tiles,(i%32)*16,map.world*256+Math.floor(i/32)*16,16,16,x*16,y*16,16,16);}terrainCache.clear();terrainCache.set(key,image);}ctx.drawImage(image,0,0,map.width*32,map.height*32);return true;}
- function flag(ctx,s,time,map){if(!ready||!map.original)return false;const frame=Math.floor(time*6)%3,im=sprite(1234+(s.owner===0?0:s.owner===1?4:8)+frame,map.world,s.owner);if(!im)return false;ctx.drawImage(im,s.x-2,s.y-26,im.width*2,im.height*2);return true;}
+ //0041d110 queues map flags480..483 and ground shadows484..487, at the
+ // territory's raw tile origin. Large1234/1238 banners belong to forts;
+ //1242..1245 are their shadows. The four-frame cadence uses the web clock.
+ //0040bb50 ->00465cb0 maps neutral cloth16..31 to grayscale80..95.
+ function flagPhase(time){return Math.max(0,Math.floor(time*6))%4;}
+ function flagBounds(s,time,map){if(!ready||!map?.original)return null;const f=manifest.frames[480+flagPhase(time)];return f?{x:Math.round(s.x-16),y:Math.round(s.y-16),w:f.w*2,h:f.h*2}:null;}
+ function flag(ctx,s,time,map){if(!ready||!map.original)return false;return native(ctx,480+flagPhase(time),s.x-16,s.y-16,map,s.owner);}
+ function flagShadows(ctx,sectors,time,map){if(!ready||!map?.original)return false;const id=484+flagPhase(time);for(const s of sectors)native(ctx,id,s.x-16,s.y-16,map);return true;}
+ //00434c60 chooses cursor45 for a selectable flag; its native offset is(-9,-7).
+ function captureCursor(map){if(!ready||!map?.original)return 'pointer';if(cursorCache.has(map.world))return cursorCache.get(map.world);const im=sprite(45,map.world,null);if(!im)return 'pointer';const c=cv(im.width*2,im.height*2),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(im,0,0,c.width,c.height);const value=`url("${c.toDataURL('image/png')}") 18 14, pointer`;cursorCache.set(map.world,value);return value;}
+ //00441430 maps cursor45 to the four original grasping-hand frames2755..2758.
+ // The original acknowledgement lasts23 draw ticks; the web's wall-clock cadence
+ // is adapted, rather than inferred from the game's production clock.
+ function captureHand(ctx,x,y,map,elapsed=0){if(!ready||!map?.original)return false;return native(ctx,2755+(Math.max(0,Math.floor(elapsed*8))%4),x-18,y-14,map);}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,unitBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
+ return {load,unit,unitBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
 })();

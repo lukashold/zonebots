@@ -120,3 +120,27 @@ auch negative Spriteversätze. Unbesetzte OBJECT-Jeeps nutzen weiterhin Sprite 5
 am ursprünglichen Objektanker. Die vollständige Umrechnung zwischen Objekt- und
 Einheitskoordinaten beim Ein-/Aussteigen bleibt noch nicht vollständig umgesetzt.
 Animationsgeschwindigkeit und Schusszustand folgen weiterhin dem Browser-Kern.
+
+FAHNENBEFEHL UND HAND
+FUN00434c60 verwendet beim Fahnenziel den weißen Handcursor 45 mit nativem
+Hotspot (9,7). FUN00441430 ordnet diesem Cursor die Greifanimation 2755..2758 zu;
+004416b0/00438740 speichern außerdem die Hand als Zielmarkierung eines Auftrags.
+Die Webfassung zeigt den Handcursor über Fahnen bei beweglicher Auswahl und
+eine Greifhand nach dem Klick. Ausgewählte laufende Fahnenaufträge behalten ihre
+Zielhand bis zu Ankunft, Eroberung oder Befehlswechsel. Die Markierung bestätigt
+einen Auftrag; der Besitzwechsel stammt weiterhin ausschließlich aus dem Rust-Kern.
+Ein Klick auf das Tuch zielt auf die exakte Fahnenposition. Unbewegliche Geschütze
+werden dabei nicht vor die beweglichen Einheiten in die Befehlsliste gesetzt.
+Eigene Fahnen bleiben wie im Original ebenfalls gültige Fahnenziele.
+
+Die Hand bleibt unabhängig vom Kartenzoom gleich groß. Kurze Bestätigung von 1,35 s
+Simulationszeit und Animation mit 8 fps sind Web-Anpassungen: Das Original zählt 23
+Zeichenaufrufe, deren exakte Zeitbasis hier nicht belegt ist. Die Web-Trefferfläche
+umfasst das ganze sichtbare Fahnensprite statt der engeren Original-Hotspotprüfung.
+
+Kartenfahnen wurden zugleich korrigiert: FUN0041d110 verwendet 480..483 mit den
+separaten Bodenschatten 484..487. 1234/1238 sind große Fortbanner; 1242..1245 waren
+deren Schatten und wurden zuvor irrtümlich für neutrale Fahnen benutzt.
+Der Kartenanker ist (s.x-16,s.y-16) Weltpixel. Neutralgrau folgt 0040bb50/00465cb0:
+Palette 4 verschiebt die Farbindizes 16..31 nach 80..95. Grafik und Trefferfläche
+verwenden nun dieselben vier Animationsframes und 32x32 Weltpixel großen Rechtecke.
