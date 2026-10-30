@@ -2,12 +2,23 @@
 // for the music, and the browser's speech synthesis for the robots' voices. Nothing here is a recording.
 (function () {
   const ZG = window.ZG, S = ZG.Synth = {};
-  let ac = null, master = null, musicBus = null, noise = null, shaper = null;
+  let ac = null, master = null, musicBus = null, effectsBus = null, noise = null, shaper = null;
+  const settings = { music: 0.55, effects: 0.7, speech: 0.9, enabled: true };
+  let ducked = false;
+  function mix() {
+    if (!ac) return;
+    master.gain.setTargetAtTime(settings.enabled ? 0.8 : 0, ac.currentTime, 0.04);
+    musicBus.gain.setTargetAtTime(settings.music * (ducked ? 0.1 : 0.4), ac.currentTime, 0.12);
+    effectsBus.gain.setTargetAtTime(settings.effects, ac.currentTime, 0.04);
+  }
+  S.configure = function(values) { for(const k of ['music','effects','speech']) if(Number.isFinite(values[k])) settings[k]=Math.max(0,Math.min(1,values[k])); if('enabled' in values)settings.enabled=!!values.enabled; mix(); if((!settings.enabled || !settings.speech) && window.speechSynthesis) { speechSynthesis.cancel(); queue.length=0; speaking=false; ducked=false; mix(); } };
+  S.unlock = () => { ctx(); if(window.speechSynthesis) speechSynthesis.getVoices(); };
   function ctx() {
     if (!ac) {
       ac = new (window.AudioContext || window.webkitAudioContext)();
       master = ac.createGain(); master.gain.value = 0.8; master.connect(ac.destination);
       musicBus = ac.createGain(); musicBus.gain.value = 0.28; musicBus.connect(master);
+      effectsBus = ac.createGain(); effectsBus.connect(master); mix();
       const n = ac.sampleRate, b = ac.createBuffer(1, n, n), d = b.getChannelData(0);
       for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
       noise = b;
@@ -37,16 +48,16 @@
   S.sfx = function (kind, vol) {
     const t = ctx().currentTime, v = vol == null ? 1 : vol;
     switch (kind) {
-      case 'mg': for (let i = 0; i < 3; i++) { noiseHit(t + i * 0.055, master, 3200, 700, 'bandpass', 0.5 * v, 0.045, 1.2); toneHit(t + i * 0.055, master, 'square', 140, 60, 0.08 * v, 0.03); } break;
-      case 'rifle': noiseHit(t, master, 5000, 400, 'highpass', 0.6 * v, 0.12); toneHit(t, master, 'triangle', 300, 70, 0.25 * v, 0.1); break;
-      case 'cannon': toneHit(t, master, 'sine', 120, 35, 0.9 * v, 0.35); noiseHit(t, master, 1800, 120, 'lowpass', 0.7 * v, 0.4); break;
-      case 'rocket': noiseHit(t, master, 600, 3500, 'bandpass', 0.35 * v, 0.45, 2); toneHit(t, master, 'sawtooth', 200, 520, 0.06 * v, 0.4); break;
-      case 'flame': noiseHit(t, master, 900, 400, 'lowpass', 0.4 * v, 0.25); break;
-      case 'laser': toneHit(t, master, 'sawtooth', 2200, 300, 0.12 * v, 0.16); toneHit(t, master, 'square', 1500, 200, 0.05 * v, 0.14); break;
-      case 'boomS': noiseHit(t, master, 1400, 90, 'lowpass', 0.8 * v, 0.45); toneHit(t, master, 'sine', 90, 30, 0.6 * v, 0.35); break;
-      case 'boomL': noiseHit(t, master, 900, 50, 'lowpass', 1.0 * v, 1.1); toneHit(t, master, 'sine', 70, 22, 0.9 * v, 0.9); noiseHit(t + 0.08, master, 3000, 200, 'bandpass', 0.3 * v, 0.6); break;
-      case 'click': toneHit(t, master, 'square', 1200, 900, 0.06 * v, 0.03); break;
-      case 'ready': toneHit(t, master, 'square', 660, 660, 0.08 * v, 0.08); toneHit(t + 0.09, master, 'square', 990, 990, 0.08 * v, 0.12); break;
+      case 'mg': for (let i = 0; i < 3; i++) { noiseHit(t + i * 0.055, effectsBus, 3200, 700, 'bandpass', 0.5 * v, 0.045, 1.2); toneHit(t + i * 0.055, effectsBus, 'square', 140, 60, 0.08 * v, 0.03); } break;
+      case 'rifle': noiseHit(t, effectsBus, 5000, 400, 'highpass', 0.6 * v, 0.12); toneHit(t, effectsBus, 'triangle', 300, 70, 0.25 * v, 0.1); break;
+      case 'cannon': toneHit(t, effectsBus, 'sine', 120, 35, 0.9 * v, 0.35); noiseHit(t, effectsBus, 1800, 120, 'lowpass', 0.7 * v, 0.4); break;
+      case 'rocket': noiseHit(t, effectsBus, 600, 3500, 'bandpass', 0.35 * v, 0.45, 2); toneHit(t, effectsBus, 'sawtooth', 200, 520, 0.06 * v, 0.4); break;
+      case 'flame': noiseHit(t, effectsBus, 900, 400, 'lowpass', 0.4 * v, 0.25); break;
+      case 'laser': toneHit(t, effectsBus, 'sawtooth', 2200, 300, 0.12 * v, 0.16); toneHit(t, effectsBus, 'square', 1500, 200, 0.05 * v, 0.14); break;
+      case 'boomS': noiseHit(t, effectsBus, 1400, 90, 'lowpass', 0.8 * v, 0.45); toneHit(t, effectsBus, 'sine', 90, 30, 0.6 * v, 0.35); break;
+      case 'boomL': noiseHit(t, effectsBus, 900, 50, 'lowpass', 1.0 * v, 1.1); toneHit(t, effectsBus, 'sine', 70, 22, 0.9 * v, 0.9); noiseHit(t + 0.08, effectsBus, 3000, 200, 'bandpass', 0.3 * v, 0.6); break;
+      case 'click': toneHit(t, effectsBus, 'square', 1200, 900, 0.06 * v, 0.03); break;
+      case 'ready': toneHit(t, effectsBus, 'square', 660, 660, 0.08 * v, 0.08); toneHit(t + 0.09, effectsBus, 'square', 990, 990, 0.08 * v, 0.12); break;
       default: return false;
     }
     return true;
@@ -93,6 +104,8 @@
 
   let song = null, songName = '', step = 0, nextT = 0, timer = 0;
   function schedule() {
+    if (ac.state !== 'running') return;
+    if (nextT < ac.currentTime - 0.2) nextT = ac.currentTime + 0.02;
     while (nextT < ac.currentTime + 0.15) {
       const sp = 60 / song.bpm / 4, bar = song.bars[Math.floor(step / 16) % song.bars.length], i = step % 16;
       if (song.kick[i]) kick(nextT);
@@ -100,10 +113,16 @@
       if (i % 2 === 0) hat(nextT);
       const n = bar.riff[i];
       if (n) { guitar(nextT, n, sp * 0.9); if (songName !== 'menu' || i % 4 === 0) bass(nextT, n, sp * (songName === 'menu' ? 3.5 : 0.9)); }
+      // Sixteen-bar arrangement: introduce an arpeggio and pads, then a drum fill.
+      const section = Math.floor(step / 64) % 4;
+      if (section > 0 && i % 4 === 2) toneHit(nextT, musicBus, 'triangle', NOTE(bar.root+24+[0,7,10,12][Math.floor(i/4)]), NOTE(bar.root+24+[0,7,10,12][Math.floor(i/4)]), 0.16, sp*1.8);
+      if (i === 0) for(const interval of [0,7,12]) toneHit(nextT,musicBus,'sine',NOTE(bar.root+interval),NOTE(bar.root+interval),0.09,sp*14);
+      if(section===3 && i>12) snare(nextT);
       nextT += sp; step++;
     }
   }
   S.music = function (name) {
+    ctx(); // A repeated song request must still resume a suspended audio context.
     if (songName === name) return;
     S.stopMusic();
     if (name === 'win' || name === 'lose') {
@@ -148,15 +167,30 @@
     return voices.find(v => v.lang.toLowerCase().startsWith(want) && /male|stefan|david|mark|george|daniel/i.test(v.name)) ||
       voices.find(v => v.lang.toLowerCase().startsWith(want)) || null;
   }
-  // returns the estimated length in seconds, or 0 when nothing was said
-  S.say = function (id, lang) {
-    const line = LINES[id];
-    if (!line || !('speechSynthesis' in window)) return 0;
-    const text = line[lang === 'de' ? 1 : 0], u = new SpeechSynthesisUtterance(text), comp = id.indexOf('COMP') === 0;
-    u.lang = lang === 'de' ? 'de-DE' : 'en-US';
-    const v = pickVoice(lang); if (v) u.voice = v;
-    u.pitch = comp ? 0.6 : 0.15; u.rate = comp ? 0.95 : 1.2; u.volume = 1;
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
-    return 0.35 + text.length * 0.06;
+  const queue = [], recent = new Map();
+  let speaking = false;
+  function nextVoice() {
+    if (speaking || !queue.length) return;
+    const item=queue.shift();
+    if(Date.now()-item.created>12000){nextVoice();return;}
+    const u=new SpeechSynthesisUtterance(item.text);
+    u.lang=item.lang==='de'?'de-DE':'en-US'; const v=pickVoice(item.lang);if(v)u.voice=v;
+    u.pitch=item.id.startsWith('COMP')?0.85:0.7;u.rate=1.03;u.volume=settings.speech;
+    speaking=true;ducked=true;mix();
+    let finished=false;
+    const done=()=>{if(finished)return;finished=true;clearTimeout(watchdog);speaking=false;ducked=false;mix();nextVoice();};
+    u.onend=done;u.onerror=done;const watchdog=setTimeout(done,Math.max(4000,item.text.length*120));
+    speechSynthesis.speak(u);
+  }
+  S.say = function(id,lang,urgent) {
+    const line=LINES[id];if(!line)return 0;
+    const text=line[lang==='de'?1:0], now=Date.now();
+    if(now-(recent.get(id)||0)<3500)return 0;recent.set(id,now);
+    window.dispatchEvent(new CustomEvent('zonebots-radio',{detail:{text,urgent:!!urgent,computer:id.startsWith('COMP')}}));
+    if(!settings.enabled || !settings.speech || !window.speechSynthesis)return 0;
+    const item={id,lang,text,created:now};
+    if(urgent)queue.unshift(item);else queue.push(item);
+    if(queue.length>4)queue.pop();nextVoice();
+    return 0.35+text.length*0.065;
   };
 })();

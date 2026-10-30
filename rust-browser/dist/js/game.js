@@ -52,8 +52,10 @@
   ZG.newGame = function (idx, opt) {
     if (!wasm) throw new Error('Rust engine has not loaded');
     opt = opt || {};
-    const df = ZG.DIFF[opt.diff == null ? 1 : opt.diff];
+    const df = ZG.DIFF[opt.diff == null ? 1 : opt.diff] || ZG.DIFF[1];
     const lv = Object.assign({}, typeof idx === 'object' ? idx : ZG.LEVELS[idx], { bonus: df.bonus });
+    lv.aiRush = Math.max(3, Math.round(lv.aiRush * (df.rush || 1)));
+    lv.aiBatch += df.batch || 0;
     ZG.UNITS = lv.original ? ZG.Z.unitDefs(baseDefs) : baseDefs;
     const map = lv.original ? ZG.Z.genMap(lv) : ZG.genMap(lv);
     const G = { lv, map, units: [], shots: [], fx: [], ev: [], dirty: [], time: 0, over: null, nid: 1, aiTeams: opt.aiTeams || [1], engine: 'rust-wasm' };

@@ -119,8 +119,9 @@
   };
   // pivot of each turret: where it sits on the hull (x offset from vehicle centre) and its own rotation point
   const PIVOT = { jeep: [-3, 2], light: [-1, 4], medium: [-1, 5], heavy: [-2, 6], launcher: [-3, 4] };
-  function partSprite(table, t, team, dir) {
-    return cached(table + t + team + dir, function () {
+  function partSprite(table, t, team, dir, frame) {
+    return cached(table + t + team + dir + ':' + (frame||0), function () {
+      if(table === 'b') return rotate(ZG.Art.vehicle(t,team,frame||0), dir / DIRS * Math.PI * 2);
       const def = (table === 'b' ? BODY : TURRET)[t], c = canvas(def[0], def[1]);
       def[2](c.getContext('2d'), palOf(team));
       if (table === 'b') ZG.Art.detailVehicle(c.getContext('2d'), def[0], def[1], palOf(team));
@@ -131,7 +132,8 @@
     // rotate around the pivot by padding the turret so the pivot is the centre
     return cached('tp' + t + team + dir, function () {
       const def = TURRET[t], pv = PIVOT[t] ? PIVOT[t][1] : def[1] / 2 | 0, w = Math.max(def[0] - pv, pv) * 2;
-      const c = canvas(w, def[1]); def[2]((function () { const x = c.getContext('2d'); x.translate(w / 2 - pv, 0); return x; })(), palOf(team));
+      const c = canvas(w, def[1]), x = c.getContext('2d'); x.translate(w/2-pv,0);
+      const custom = ZG.Art.turret(t,team); if(custom)x.drawImage(custom,0,0);else def[2](x,palOf(team));
       return rotate(c, dir / DIRS * Math.PI * 2);
     });
   }
@@ -462,7 +464,7 @@
       return;
     }
     if (d.cls === 'vehicle') {
-      const dir = dirOf(u.ang), body = partSprite('b', u.t, team, dir);
+      const dir = dirOf(u.ang), body = partSprite('b', u.t, team, dir, u.moving ? Math.floor(time*9)%2 : 0);
       c.fillStyle = 'rgba(0,0,0,0.3)'; c.fillRect(ax - body.width / 2 + 3, ay - body.height / 2 + 4, body.width - 4, body.height - 4);
       c.drawImage(body, ax - body.width / 2 | 0, ay - body.height / 2 | 0);
       if (TURRET[u.t]) {
@@ -470,6 +472,8 @@
         const tx = ax + ca * pv[0], ty = ay + sa * pv[0], tur = turretSprite(u.t, team, dirOf(u.tang));
         c.drawImage(tur, Math.round(tx - tur.width / 2), Math.round(ty - tur.height / 2));
       }
+      if(u.hp < d.hp*.5) ZG.Art.smoke(c,ax-5,ay-4,time,u.id||0,.4);
+      if(u.moving && !curZS){ c.globalAlpha=.2;c.fillStyle='#cab88a';c.fillRect(ax-Math.cos(u.ang)*14-2,ay-Math.sin(u.ang)*14,3+(Math.floor(time*6)%3),2);c.globalAlpha=1;}
       if (u.working) { const f = (time * 8 | 0) & 1; c.fillStyle = f ? '#ffd23a' : '#fff'; c.fillRect(ax - 1, ay - 9, 2, 2); }
       if (u.hit > 0) { c.fillStyle = 'rgba(255,255,255,0.5)'; c.fillRect(ax - 6, ay - 5, 12, 10); }
       return;
@@ -496,6 +500,7 @@
   ZG.draw = function (c, G, R, view, ui, time) {
     const map = G.map, vx0 = view.x / A - 24, vy0 = view.y / A - 24, vx1 = (view.x + view.w) / A + 24, vy1 = (view.y + view.h) / A + 40;
     c.drawImage(R.terrain.canvas, 0, 0);
+    if(!R.terrain.original){R.scenery=R.scenery||ZG.Art.landscape(map,R.th);c.drawImage(R.scenery,0,0);}
     curZS = R.zs || null;
     // shimmering water
     const W = map.W;
@@ -538,6 +543,7 @@
         c.drawImage(s, b.tx * TP, b.ty * TP - (zs ? 0 : LIFT));
         if (b.hit > 0) { c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(b.tx * TP, b.ty * TP - LIFT, b.w * TP, b.h * TP + LIFT); }
         if (b.kind === 'fort' && !b.dead && !zs) c.drawImage(flagSprite(b.team, fr), b.tx * TP + b.w * TP / 2 - 1, b.ty * TP - LIFT - 14);
+        if(!zs && !b.dead && (b.hp<b.maxhp*.5 || (b.prod && !b.paused))) ZG.Art.smoke(c,b.tx*TP+5,b.ty*TP-LIFT+4,time,b.id,b.hp<b.maxhp*.5?.5:.18);
         if (b.dead && (time * 5 + b.id) % 3 < 1) { c.fillStyle = '#ff6a1c'; c.fillRect(b.tx * TP + 8 + (b.id * 7) % 20, b.ty * TP + 6, 2, 2); }
         if (ui.selB === b) brackets(c, b.tx * TP - 2, b.ty * TP - LIFT - 2, b.w * TP + 4, b.h * TP + LIFT + 4, '#fff');
         if (!b.dead && b.team >= 0 && (ui.selB === b || b.hp < b.maxhp)) bar(c, b.tx * TP + 4, b.ty * TP - LIFT - 4, b.w * TP - 8, b.hp / b.maxhp);
@@ -595,12 +601,7 @@
           disc(c, x, y, 1 + Math.round(2 * q), q < 0.4 ? '#ffe36b' : q < 0.7 ? '#ff8a1c' : '#c8261a');
         }
       } else {
-        const r = Math.max(1, Math.round(f.r / A * (0.35 + 0.65 * p)));
-        const cols = ['#ffffff', '#ffe36b', '#ff8a1c', '#c8261a', '#555555'];
-        const ci = Math.min(4, Math.floor(p * 5));
-        disc(c, f.x / A, f.y / A - 2, r, cols[ci]);
-        if (ci < 3) disc(c, f.x / A, f.y / A - 2, Math.max(0, r - 2), cols[ci + 1 > 3 ? 3 : ci + 1]);
-        if (p > 0.5) { c.fillStyle = 'rgba(80,80,80,' + (1 - p) + ')'; c.fillRect(Math.round(f.x / A) - 2, Math.round(f.y / A - r - 4 * p), 4, 3); }
+        ZG.Art.blast(c,f);
       }
     }
     // routes of the last order, as dotted lines

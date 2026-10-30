@@ -91,7 +91,12 @@
   };
   ZG.LEVELS = sizes.map((sz, i) => ZG.makeLevel(i, sz[0], sz[1]));
   // difficulty: 0 easy, 1 normal, 2 hard
-  ZG.DIFF = [{ rate: 0.75, int: 1.5, wait: 1.6, bonus: 2 }, { rate: 1, int: 1, wait: 1, bonus: 0 }, { rate: 1.3, int: 0.65, wait: 0.5, bonus: 0 }];
+  ZG.DIFF = [
+    { rate: 0.5, int: 1.8, wait: 1.8, bonus: 4, rush: 1.3, batch: 0 },
+    { rate: 1, int: 1, wait: 1, bonus: 0, rush: 1, batch: 0 },
+    { rate: 1.5, int: 0.55, wait: 0.5, bonus: 0, rush: 0.85, batch: 1 },
+    { rate: 2, int: 0.35, wait: 0.22, bonus: 0, rush: 0.65, batch: 2 }
+  ];
 
   ZG.TEXT = {
     de: {
@@ -121,7 +126,7 @@
       win: 'Sieg!', lose: 'Niederlage', next: 'Nächstes Level', retry: 'Nochmal', menu: 'Menü',
       paused: 'Pause', resume: 'Weiter', time: 'Zeit', kills: 'Zerstört', losses: 'Verluste', allDone: 'Alle 20 Level geschafft!',
       repairHint: 'Repariert eigene Einheiten in der Nähe.',
-      diff: ['Leicht', 'Normal', 'Schwer'], diffLabel: 'Schwierigkeit', skirmish: 'Freies Gefecht', campaign: 'Kampagne',
+      diff: ['Leicht', 'Normal', 'Schwer', 'Brutal'], diffLabel: 'Schwierigkeit', skirmish: 'Freies Gefecht', campaign: 'Kampagne',
       size: 'Größe', sizes: ['Klein', 'Mittel', 'Groß', 'Riesig'], world: 'Welt', strength: 'Technik', startSk: 'Gefecht starten',
       crate: 'Granaten aufgenommen', best: 'Bestzeit', newBest: 'Neue Bestzeit!', left: 'noch', rally: 'Sammelpunkt gesetzt',
       selAll: 'Alle', selNone: 'Abwählen', stop: 'Stopp', amoveBtn: 'Angriff', seedLabel: 'Karten-Nr.',
@@ -163,7 +168,7 @@
       win: 'Victory!', lose: 'Defeat', next: 'Next level', retry: 'Retry', menu: 'Menu',
       paused: 'Paused', resume: 'Resume', time: 'Time', kills: 'Destroyed', losses: 'Losses', allDone: 'All 20 levels completed!',
       repairHint: 'Repairs your units nearby.',
-      diff: ['Easy', 'Normal', 'Hard'], diffLabel: 'Difficulty', skirmish: 'Skirmish', campaign: 'Campaign',
+      diff: ['Easy', 'Normal', 'Hard', 'Brutal'], diffLabel: 'Difficulty', skirmish: 'Skirmish', campaign: 'Campaign',
       size: 'Size', sizes: ['Small', 'Medium', 'Large', 'Huge'], world: 'World', strength: 'Tech', startSk: 'Start skirmish',
       crate: 'Grenades picked up', best: 'Best time', newBest: 'New best time!', left: 'left', rally: 'Rally point set',
       selAll: 'All', selNone: 'Deselect', stop: 'Stop', amoveBtn: 'Attack', seedLabel: 'Map no.',

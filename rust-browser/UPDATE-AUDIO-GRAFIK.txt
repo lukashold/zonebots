@@ -1,0 +1,44 @@
+Grafik, Musik, Funk und Schwierigkeitsstufen – 30.10.2026
+
+SCHWIERIGKEIT
+Direkt im Hauptmenü wählbar. Die Auswahl wird gespeichert und gilt ab Missionsstart.
+Leicht: vier zusätzliche Startroboter, 50 % KI-Produktionsrate, spätere Angriffe.
+Normal: normale KI-Produktionsrate und normale Reaktionszeiten.
+Schwer: 150 % KI-Produktionsrate, schnellere Entscheidungen und frühere Angriffe.
+Brutal: 200 % KI-Produktionsrate, sehr schnelle Entscheidungen und größere Wellen.
+Die Prozentwerte beziehen sich auf den normalen Gegner derselben Mission.
+Lebenspunkte und Waffenschaden werden durch die Schwierigkeit nicht verändert.
+
+MUSIK UND SPRACHE
+Eigene synthetische Hintergrundmusik mit Schlagzeug, Bass, Gitarren, Flächen und
+wechselnden Arrangements. Der erste Klick bzw. Tastendruck aktiviert den Audiokontext.
+Ein Fehler beim erneuten Start desselben Titels nach einer Autoplay-Sperre ist behoben.
+Musik, Effekte und Sprache sind getrennt regelbar: Optionen oder Pausenmenü.
+Der Notenknopf oben schaltet den gesamten Ton aus bzw. wieder ein.
+
+Funkmeldungen u.a. bei Gebietseroberung/-verlust, fertigen Einheiten, besetzten
+Fahrzeugen, Reparaturen und Angriffen auf das Fort. Sprache verwendet die vorhandene
+deutsche/englische Systemstimme des Browsers; es sind keine Originalaufnahmen enthalten.
+Ansagen werden in einer begrenzten Warteschlange gesprochen, mit Wiederholungsschutz.
+Während einer Ansage wird Musik abgesenkt. Das Funkfenster zeigt den Text zusätzlich.
+Verfügbarkeit und Klang der Stimme hängen vom Browser/Betriebssystem ab.
+
+GRAFIK
+Neue Fahrzeugrümpfe, geformte Panzertürme, Kettenanimation, Motorlüftungen,
+Panzerplatten, Scheinwerfer und Lackspuren. Fahrstaub, Rauch bei Beschädigungen und
+arbeitenden Fabriken. Mehrteilige Explosionen mit Feuer, Funken und Rauch.
+Weltabhängige Landschaftsdetails: Kakteen, Dschungelpflanzen, Eis und Trümmer.
+Der Startzoom füllt kleine Karten besser ins Fenster; die Minikarte ist kompakter.
+
+PRÜFUNG
+node tools/audio-difficulty-test.cjs bestanden:
+- Gleicher Musiktitel setzt einen suspendierten Audiokontext fort.
+- Sprachmeldungen warten aufeinander; Untertitel und Sprach-Stummschaltung funktionieren.
+- Alle vier Profile ergeben unterschiedliche KI-Parameter im Rust/Wasm-Kern.
+- Eine vollständige KI-Partie je Schwierigkeitsstufe endet erfolgreich.
+JavaScript-Syntaxprüfungen und Git-Diff-Prüfung bestanden.
+Im echten Browser geprüft: Schwierigkeitswahl, Missionsstart auf Schwer,
+laufende Grafik, erste Funkmeldung als Untertitel und Audioregler im Pausenmenü.
+Der letzte Zoom-/Minikarten-Feinschliff konnte nach einem erneuten Verbindungsfehler
+nicht mehr visuell geprüft werden. Hörbare Audioausgabe wurde nicht aufgenommen;
+die automatischen Audiotests verwenden einen simulierten WebAudio-/Speech-Unterbau.

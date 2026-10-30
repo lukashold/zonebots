@@ -10,7 +10,28 @@
   let lang = store.get('lang', (navigator.language || 'en').slice(0, 2) === 'de' ? 'de' : 'en');
   let unlocked = +store.get('unlocked', 0), sound = store.get('sound', '1') === '1', diff = +store.get('diff', 1), skDef = null;
   let classic = store.get('ctrl', '0') === '0', zUnlocked = +store.get('zunlocked', 0), zIdx = -1;
+  if (!ZG.DIFF[diff]) diff=1;
   let L = ZG.TEXT[lang];
+  const audioMix = {music:+store.get('musicVolume',0.55),effects:+store.get('effectsVolume',0.7),speech:+store.get('speechVolume',0.9),enabled:sound};
+  ZG.Synth.configure(audioMix);
+  function audioSettings() {
+    for(const container of ['audioSettings','pauseAudio']){
+      const box=$(container);box.replaceChildren();
+      for(const [key,de,en] of [['music','Musik','Music'],['effects','Effekte','Effects'],['speech','Sprache','Speech']]){
+        const label=document.createElement('label'),name=document.createElement('span'),slider=document.createElement('input'),value=document.createElement('output');
+        name.textContent=lang==='de'?de:en;slider.type='range';slider.min=0;slider.max=100;slider.value=Math.round(audioMix[key]*100);slider.setAttribute('aria-label',name.textContent);value.textContent=slider.value+'%';
+        slider.oninput=()=>{audioMix[key]=+slider.value/100;store.set(key+'Volume',audioMix[key]);value.textContent=slider.value+'%';ZG.Synth.configure(audioMix);music.volume=audioMix.music;};
+        label.append(name,slider,value);box.append(label);
+      }
+    }
+  }
+  let radioTimer;
+  window.addEventListener('zonebots-radio',e=>{
+    const box=$('radio');$('radioText').textContent=e.detail.text;$('radioLabel').textContent=e.detail.computer?(lang==='de'?'ZENTRALE':'COMMAND'):(lang==='de'?'ROBOTERFUNK':'ROBOT RADIO');
+    box.classList.remove('hidden');box.classList.toggle('urgent',e.detail.urgent);
+    const c=$('radioPortrait').getContext('2d');c.clearRect(0,0,28,28);c.drawImage(ZG.unitIcon('grunt',0),0,0);
+    clearTimeout(radioTimer);radioTimer=setTimeout(()=>box.classList.add('hidden'),4500);
+  });
   let G = null, R = null, cur = 0, paused = false, speed = 1, zoom = 2, dpr = 1;
   const cam = { x: 0, y: 0 }, view = { x: 0, y: 0, w: 0, h: 0 };
   const ui = { selB: null, drag: null, marks: [], rally: null, paths: [] };
@@ -20,11 +41,11 @@
   // ---------- sound (synthesised) ----------
   let ac = null, lastShot = 0;
   function tone(type, f0, f1, dur, vol) {
-    if (!sound) return;
+    if (!sound || audioMix.effects <= 0) return;
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
       const t = ac.currentTime, g = ac.createGain();
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); g.connect(ac.destination);
+      g.gain.setValueAtTime(vol * audioMix.effects, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); g.connect(ac.destination);
       if (type === 'noise') {
         const n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
         for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
@@ -73,7 +94,7 @@
     const now = performance.now();
     if (now < voiceUntil && !urgent) return;
     // without the original recordings the browser speaks the line
-    if (!raw) { const d = ZG.Synth.say(name, lang); if (d) voiceUntil = now + d * 1000; return; }
+    if (!raw) { const d = ZG.Synth.say(name, lang, urgent); if (d) voiceUntil = now + d * 1000; return; }
     try {
       ac = ac || new (window.AudioContext || window.webkitAudioContext)();
       const id = lang + name;
@@ -94,7 +115,7 @@
   }
   const music = new Audio(); music.loop = true; music.volume = 0.45;
   let musicName = '';
-  const OWN_SONG = { 'ipoptions16.ogg': 'menu', 'aa16.ogg': 'battle', 'ac16.ogg': 'battle2', 'aj16.ogg': 'battle', 'ipwin.ogg': 'win', 'iplose.ogg': 'lose' };
+  const OWN_SONG = { 'ipoptions16.ogg': 'menu', 'aa16.ogg': 'battle', 'ac16.ogg': 'battle2', 'aj16.ogg': 'battle2', 'ipwin.ogg': 'win', 'iplose.ogg': 'lose' };
   function playMusic(name, loop) {
     const url = sound && ZG.Z.music(name);
     if (!url) {
@@ -118,7 +139,7 @@
     if (G) sizeMini();
   }
   function sizeMini() {
-    const mh = Math.min(300, innerHeight * 0.45), mw = Math.min(innerWidth * 0.5, Math.round(mh * G.map.W / G.map.H)), h = Math.round(mw * G.map.H / G.map.W);
+    const mh = Math.min(170, innerHeight * 0.25), mw = Math.min(260, innerWidth * 0.28, Math.round(mh * G.map.W / G.map.H)), h = Math.round(mw * G.map.H / G.map.W);
     mini.style.width = mw + 'px'; mini.style.height = h + 'px';
     mini.width = Math.round(mw * dpr); mini.height = Math.round(h * dpr);
   }
@@ -493,7 +514,7 @@
   }
 
   // ---------- screens ----------
-  function setPause(v) { paused = v; $('pause').classList.toggle('hidden', !v); }
+  function setPause(v) { if(v)audioSettings(); paused = v; $('pause').classList.toggle('hidden', !v); }
   function showEnd() {
     if (!G || !G.over) return;
     const orig = zIdx >= 0, win = G.over.winner === 0, last = orig ? zIdx === ZG.Z.levels.length - 1 : cur === ZG.LEVELS.length - 1, camp = cur >= 0;
@@ -528,11 +549,12 @@
     ui.selB = null; ui.drag = null; ui.marks = []; ui.paths = []; panelSig = ''; paused = false; setMode(null);
     $('miniPanel').classList.toggle('hidden', innerWidth < 700);
     for (const k in groups) delete groups[k];
-    zoom = innerWidth > 2600 ? 4 : innerWidth > 1500 ? 3 : 2;
+    zoom = Math.min(5, Math.max(innerWidth > 1500 ? 3 : 2, Math.ceil(innerWidth / (G.map.W * 16)), Math.ceil(innerHeight / (G.map.H * 16))));
     for (const id of ['menu', 'end', 'pause', 'help']) $(id).classList.add('hidden');
     $('hud').classList.remove('hidden');
-    $('lvTitle').textContent = levelName(cur);
+    $('lvTitle').textContent = levelName(cur) + ' / ' + L.diff[diff];
     playMusic(gameMusic());
+    say('start','ROB04',0,true);
     resize(); clampCam();
     const f = G.map.buildings.find(b => b.kind === 'fort' && b.team === 0);
     centerOn(f.cx, f.cy + 40);
@@ -549,6 +571,13 @@
   }
   function buildMenu() {
     L = ZG.TEXT[lang]; document.documentElement.lang = lang;
+    audioSettings();
+    $('quickDiffLabel').textContent=L.diffLabel;
+    $('quickDiff').replaceChildren(...L.diff.map((name,k)=>{const o=document.createElement('option');o.value=k;o.textContent=name;return o;}));
+    $('quickDiff').value=diff;
+    const descriptions=lang==='de'?['Mehr Startroboter, halbe KI-Produktion und viel Zeit zum Aufbau.','Ausgewogener Gegner mit normaler Produktion und Reaktionszeit.','50 % schnellere KI-Produktion, kurze Reaktionszeit, fruehe Angriffe.','Doppelte KI-Produktion, sehr schnelle Reaktionen und grosse Angriffswellen.']:['Extra starting robots, half AI production and more time to prepare.','Balanced opponent with normal production and response time.','50% faster AI production, quick responses and early attacks.','Double AI production, very fast responses and larger attack waves.'];
+    $('diffDescription').textContent=descriptions[diff];
+    $('quickDiff').onchange=()=>{diff=+$('quickDiff').value;store.set('diff',diff);buildMenu();};
     $('tagline').textContent = lang === 'de' ? '20 Missionen / 5 Welten. Eigene Grafik und Musik. Sofort spielbar - keine Spieldateien erforderlich.' : '20 missions / 5 worlds. Original artwork and music. Ready to play - no game files required.';
     $('miQuick').textContent = lang === 'de' ? 'Spiel starten' : 'Play now';
     $('btnFull').title = L.fullHint;
@@ -651,14 +680,15 @@
   $('btnNext').onclick = () => zIdx >= 0 ? start(zIdx + 1, ZG.Z.makeLevel(zIdx + 1)) : start(cur + 1);
   $('btnSpeed').onclick = () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; $('btnSpeed').textContent = speed + '×'; };
   $('btnSound').onclick = () => {
-    sound = !sound; store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4;
+    sound = !sound; audioMix.enabled=sound; ZG.Synth.configure(audioMix); store.set('sound', sound ? '1' : '0'); $('btnSound').style.opacity = sound ? 1 : 0.4;
     if (!sound) { music.pause(); musicName = ''; ZG.Synth.stopMusic(); if ('speechSynthesis' in window) speechSynthesis.cancel(); } else playMusic(G ? gameMusic() : 'ipoptions16.ogg');
   };
   $('btnFull').onclick = function () {
     if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
   };
   // the menu music needs a first click before browsers allow sound
-  document.addEventListener('pointerdown', () => { if (!G && !musicName) playMusic('ipoptions16.ogg'); }, { capture: true });
+  document.addEventListener('pointerdown', () => { if(sound){ ZG.Synth.unlock(); playMusic(G ? gameMusic() : 'ipoptions16.ogg'); } }, { capture: true });
+  document.addEventListener('keydown',()=>{if(sound)ZG.Synth.unlock();},{capture:true});
   $('btnSound').style.opacity = sound ? 1 : 0.4;
 
   // ---------- main loop ----------

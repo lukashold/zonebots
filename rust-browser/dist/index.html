@@ -145,6 +145,21 @@
   .zhead { background:#344a39; } .zbtns button { background:linear-gradient(#7b8a72,#4b604b); }
   button:focus-visible,.btn:focus-within { outline:2px solid #ffe5a0; outline-offset:4px; }
   @media(max-width:600px) { #mMain{padding:12px}.edition{font-size:9px;letter-spacing:1px} #lvTitle{display:none}.mitem{font-size:22px} .menu-intro{font-size:9px} #menu::before{background:rgba(13,22,19,.75)} }
+
+  .difficulty { max-width:360px;margin:0 0 20px; }
+  .difficulty label { font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#c8c8ac; }
+  #quickDiff { display:block; margin-top:8px;width:100%;padding:8px;color:#eee6bd;background:#26392e;border:1px solid #7e8a68;font:16px monospace; }
+  #diffDescription { font:12px/1.5 monospace;color:#b6bda5;margin:8px 0;min-height:36px; }
+  .audio-settings { display:grid;gap:12px;padding:14px 0;text-align:left;font-size:14px; }
+  .audio-settings label { display:grid;grid-template-columns:90px 1fr 40px;align-items:center;gap:12px; }
+  .audio-settings input { min-width:0;width:100%;accent-color:#dfc470; }
+  .radio { position:absolute;left:12px;bottom:66px;display:flex;align-items:center;gap:12px;max-width:min(410px,75vw);padding:10px 14px;background:#1d302bea;border:1px solid #899b79;box-shadow:3px 3px 0 #0006;color:#f1ebc7;font:15px/1.4 monospace;pointer-events:none; }
+  .radio canvas { width:56px;height:56px;flex-shrink:0;background:#101e18;border:1px solid #61795d; }
+  .radio small { color:#b3bd88;letter-spacing:3px;font-size:10px; }
+  .radio.urgent { border-color:#dbb76a; }
+  #mMain { padding-top:12px;padding-bottom:12px; } .mtitle { font-size:clamp(80px,13vw,150px); }
+  .menu-intro { margin-bottom:18px; } .mlist{gap:8px} #tagline{margin-top:18px!important}
+  @media(max-height:800px){.mtitle{font-size:90px}.mitem{font-size:22px}.menu-intro{margin:6px 0 12px}.difficulty{margin-bottom:12px}#miQuick{padding:6px 12px}#tagline{margin-top:12px!important}}
 </style>
 </head>
 <body>
@@ -166,6 +181,7 @@
       </div>
     </div>
   </div>
+  <div id="radio" class="radio hidden" role="status"><canvas id="radioPortrait" width="28" height="28"></canvas><div><small id="radioLabel">FUNK</small><div id="radioText"></div></div></div>
   <div id="acts"></div>
   <button id="miniBtn" title="Karte">▦</button>
   <div id="miniPanel" class="steel hidden"><canvas id="mini"></canvas></div>
@@ -174,6 +190,7 @@
 <div id="menu" class="screen zmenu">
   <div id="mMain">
     <div class="edition">ZONEBOTS &middot; STANDALONE EDITION</div><div class="mtitle">Z</div><div class="menu-intro">ROBOTS. TERRITORY. TOTAL WAR.</div>
+    <div class="difficulty"><label id="quickDiffLabel" for="quickDiff">Schwierigkeit</label><select id="quickDiff"></select><p id="diffDescription"></p></div>
     <div class="mlist">
       <button class="mitem" id="miQuick">Spiel starten</button>
       <button class="mitem" data-go="mPlay" id="miPlay"></button>
@@ -209,6 +226,7 @@
     <button class="mback" data-go="mMain"></button>
   </div>
   <div id="mOpts" class="mpanel box hidden">
+    <div id="audioSettings" class="audio-settings"></div>
     <h4><span id="optDiffTitle"></span><span id="diffBtns"></span></h4>
     <h4><span id="ctrlTitle"></span><span id="ctrlBtns"></span></h4>
     <h4><span id="langTitle"></span><button id="btnLang"></button></h4>
@@ -226,7 +244,7 @@
 
 <div id="pause" class="screen overlay hidden">
   <div class="card small box">
-    <h2 id="pauseTitle"></h2>
+    <h2 id="pauseTitle"></h2><div id="pauseAudio" class="audio-settings"></div>
     <div class="row center">
       <button class="primary" id="btnResume"></button>
       <button id="btnRestart"></button>
