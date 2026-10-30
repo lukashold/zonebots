@@ -1,41 +1,67 @@
-Originalabgleich: Sicht und Bedienung – 30.10.2026
+Ghidra- und Originaldatenabgleich – 30.10.2026
 
-KORREKTUREN
-Die Hauptkarte ist von Beginn an vollständig hell und aufgedeckt. Gegner werden
-im Hauptfenster unabhängig von eigenen Einheiten und Radar gezeichnet.
-Nur gegnerische Kontakte auf der Minikarte benötigen ein eigenes funktionsfähiges
-Radar. Reichweite wächst mit Gebietsbesitz und sinkt bei Radarschäden.
+ANSATZ
+Neu geschriebener Rust/Wasm-Kern. Auf ausdrücklichen Nutzerwunsch werden die lokale
+GOG-Fassung mit Ghidra untersucht und Originalgrafiken privat bereitgestellt.
+Dies ist Reverse Engineering, keine Clean-Room-Implementierung. Eine vollständige
+Verhaltensgleichheit ist noch nicht erreicht.
 
-Klassische Steuerung ist jetzt voreingestellt:
-- Linksklick wählt einen Trupp; ein weiterer Linksklick gibt den Kontextbefehl.
-- Rechtsziehen scrollt die Karte; alternativ kann moderne Bedienung gewählt werden.
-- Leertaste bzw. mittlere Maustaste hebt die Auswahl auf und stellt sie wieder her.
-- R/V/B/G und F1/F2/F3/F4 schalten Roboter, Fahrzeuge, Gebäude und Geschütze durch.
-- F5 schaltet kürzlich angegriffene eigene Einheiten durch.
-- A wählt eigene Einheiten auf dem Bildschirm, Rahmen bildet eine Auswahlgruppe.
-- Statusportrait, Auftragsanzeige und Grenaden-/Lebenspunktanzeige im rechten Panel.
-- Gepunktete Route aus dem tatsächlichen Rust-Weg und Reichweitenkreis bei Auswahl.
-- Minikarte unterstützt Ziehen sowie T/D/Z für Gelände, Beschreibung und Gebiete.
-- Fabriken zeigen verbleibende Produktionszeit sowie Fortschritt und Sterne.
+ORIGINALRESSOURCEN
+7.211 Sprites, Originalpaletten, Geländekacheln für fünf Welten. Die 20 Original-
+missionen werden aus MAP/LEVELS/BUILD/OBJECT und EXE-Tabellen konvertiert: Gelände,
+Gebietsrechtecke, Flaggen, Gebäude, Sternstufen, Startgruppen, neutrale Hardware,
+Granatenkisten und Brücken. 218.000 Kacheln, 275 Gebäude, 748 einzelne Startspawns,
+99 Granatenkisten und 49 Brückengruppen wurden strukturell geprüft. Originaldaten
+liegen ausschließlich im privaten Paket; der Browser führt kein Originalprogramm aus.
 
-BELEGE
-Die Kartenkorrektur folgt zusätzlich der ausdrücklichen Beobachtung des Nutzers.
-Original-DOS-Handbuch, öffentlich indizierte Abschnitte des Play Screen und
-Selecting/Giving Orders, gedruckte Seiten 6–9:
-https://evercade.info/wp-content/uploads/2024/09/Z_Manual_DOS.pdf
-Das Handbuch trennt Minikarten-Radar von der normalen Schlachtfeldansicht und
-beschreibt Kontext-Linksklick, Rechtsziehen, Auswahlwechsel und Einheitenzyklen.
+GRAFIK
+Spriteformat: u16-Anzahl, u32-Offsets, zeilenweise Planardaten, transparente Indizes.
+Gebäudewelt-Tabellen und Dimensionen: Deskriptor 00498c78; Renderfunktionen wie
+0040d050. Teamschichten und Sterne verwenden ursprüngliche Positionsversätze.
+Fort: 00422420/004224f0, sechs Teile je Welt, rawBase-Anker und zwei Ausrichtungen.
+Dekoration: 00498f38, 78 Deskriptoren; Feld +22 ist ein Schatten, kein Wrackbild.
+Objekttyp und Ausrüstungsindex werden getrennt gelesen. Häuser werden dadurch nicht
+mehr irrtümlich zu Jeeps. Die Hauptkarte bleibt von Anfang an vollständig sichtbar.
 
-PRÜFUNG
-Neun Rust-Tests bestanden, einschließlich Export der tatsächlichen Bewegungspfade.
-Radar-Tests für Besitz, Reichweitenänderung, Zerstörung und fehlende Radarstation
-bestanden. Browserprüfung: Start, helle gegnerische Kartenseite ohne eigene Aufklärung,
-Einheitenzyklus, Auswahlportrait, Leertaste aufheben/wiederwählen und Minikartenpan.
-JavaScript-Syntax und Git-Diff-Prüfung bestanden.
+PRODUKTION
+Gruppen in robots.dat: Offset 0x4650, Schrittweite 82. Truppgrößen Grunt/Tough/
+Sniper/Psycho/Pyro/Laser: 3/2/3/3/4/4. Getrennte Sterneanforderungen für Fahrzeug-
+fabrik, Roboterfabrik und Fort ersetzen die pauschale Technologiegrenze.
+Produktbewertung aus Originalattributen und mult.dat; Singleplayer-Faktor 12.
+Arbeitsmenge = floor(Produktbewertung * 221 / 12).
+Gebietsfaktor = 1 + (floor(eigene_Gebiete * 100 / gültige_Gebiete) >> 2).
+Rate = floor(floor(HP * 100 / maxHP) * Gebietsfaktor / 100).
+Ein Fabrikaufruf zieht diese ganzzahlige Rate von der Restarbeit ab. Fertig bei
+Restarbeit < 0. Sekundenanzeige = floor(Restarbeit / (Rate * 17)); Rate 0 hält an.
+Die ursprüngliche Spielsekundenzählung verwendet 17 Updates. Der exakte Windows-
+Scheduler und alle Sonderzustände sind damit noch nicht vollständig vermessen.
+Beispiel: Grunt-Score 1062 -> 19558 Arbeit; bei 1/9 Gebieten und voller Fabrik
+Rate 3 -> Anzeige 6:23, bei 3/9 Rate 9 -> 2:07. Fort-HP 10000 werden zu 9999 gerundet.
 
-GRENZEN
-Die aktuelle Fassung ist noch nicht vollständig identisch zum Original. Insbesondere
-Kampagnenkarten, vollständige Grafik-/Animationsfolgen, numerische Balance und KI
-sind eigene Entwürfe bzw. noch nicht exakt abgeglichen. Das vollständige Statuspanel-
-Verhalten und alle Gruppierungs-Sonderfälle sind ebenfalls noch nicht vollständig
-reproduziert. Die vorhandene Provenienzdokumentation in INDEPENDENT.txt gilt weiter.
+KAMPF
+HP, Reichweiten, Waffenbasiswerte und Gruppen stammen aus robots.dat. Die pure
+Rust-Referenz original_combat.rs bildet per frischem Ghidra-/ASM-Abgleich gesicherte
+Kontaktregeln ab: Kugelreduktion gegen Hardware, getrennte Besatzungs- und Hüllen-
+treffer, Schwierigkeitsmodifikatoren, Vergleichsgrenzen und Beschädigungsschwellen.
+Zielprüfung und Kontakt sind verschieden: Ein misslungener Zielwurf streut das
+Projektil und garantiert keinen Fehlschuss. Nicht jede Waffe nutzt denselben Pfad.
+Die Integration bleibt deshalb eine Teilrekonstruktion; siehe Codekommentare.
+
+NOCH OFFEN
+Die KI ist ein eigener Gegner. Originale Projektilflugbahnen, Streuung, Kollisionen,
+vollständige Explosionswirkung und Kontaktabfolge sind noch nicht vollständig
+nachgebildet. Bewegung, Animationsgeschwindigkeit, Schusskadenz und Formation sind
+teilweise geschätzt. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranimationen
+und das vollständige Original-Statuspanel fehlen bzw. sind unvollständig. Originale
+Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
+Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte
+Grafik; hier werden die semantisch passenden Wracks gezeichnet. Musik und deutsche
+Sprachmeldungen verwenden weiterhin eigene Synthese/TTS. Mehrspieler, Videos und
+Originalspielstände sind nicht enthalten. macOS und Audio sind nicht separat geprüft.
+
+VERÖFFENTLICHUNG
+Nur die bereits private Spielseite erhält das genehmigte Ressourcenpaket. GitHub
+erhält Code und Werkzeuge, keine Originalgrafik oder Karten. Die private Browser-
+fassung benötigt weder einen Spielordner-Upload noch Ghidra auf dem Spielgerät.
+
+Startaufstellung: Frischer Ghidra-Assemblerexport von FUN_0041aec0 (0041af08 bis 0041af22) bestaetigt fuer normale Startgruppen native X = GruppenankerX + 16 * (Mitgliedsindex & 3), native Y = GruppenankerY + (Mitgliedsindex & 0xfc). Der C-Dekompilierer hatte die X-Verschiebung ausgelassen. Der Extraktor erhaelt die Gruppenanker und setzt damit die individuellen Originalpositionen; im Browser ergeben sich 32 Pixel Abstand. Die separate Transport-Passagier-Verzweigung kommt in keiner Startgruppe der 20 Kampagnenkarten vor. Spaetere dynamische Folgeformationen sind weiterhin nicht vollstaendig rekonstruiert.

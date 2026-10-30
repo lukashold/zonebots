@@ -1,31 +1,23 @@
-Prüfstand 30.10.2026
+Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-Rust: 10 Integrationstests bestanden.
-- Gebietseroberung überträgt alle Fabriken des Gebiets.
-- Identische Eingaben ergeben identische Simulationszustände.
-- Wegsuche respektiert Wände und findet eine vorhandene Öffnung.
-- Roboter bemannen neutrale Fahrzeuge.
-- Ein-/Aussteigen erhält die Einheit und ihre Identität.
-- Forttor-Eroberung beendet das Spiel.
-- Produktion berücksichtigt Besitz und kann abgebrochen werden.
-- Kran repariert zerstörte Brücken.
-- Ungültige Karten werden zurückgewiesen.
-- Originale Fabrik-Anforderungen überschreiben generische Technikstufen.
+21 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
+Besatzungen, Schwierigkeit und HP-Grenzen.
 
-Wasm: 20/20 Original-Kampagnenkarten nach den letzten Änderungen bestanden.
-Je Karte: Initialisierung, Bewegungsbefehl, mehrere einzelne Ticks, stabile
-JavaScript-Objektidentität und eine vollständige KI-Partie. Alle Positionen und
-Lebenspunkte bleiben endlich und innerhalb der Karte. Partien endeten nach
-94 bis 584 simulierten Sekunden. Dies beweist keinen ausgeglichenen Schwierigkeitsgrad.
+Wasm-Prüfung bestanden: 20/20 Originalmissionen, alle Kartenarrays, Startzahlen,
+Startpositionen, Gebäude-HP, Kisten und Produktionsmenüs. Je Mission 200 Updates
+mit endlichen Zuständen und Positionen innerhalb der Karte. Sechs kontrollierte
+Produktionsfälle prüfen Gebäudeschaden, Gebietsbesitz und 17-Hz-Arbeitsverbrauch.
+Zusätzlicher Wasm-Smoke-Test: fünf Welten, 19 Katalogtypen, Gebiets-KI.
+Der unabhängige Konverter-Validator prüft 218.000 Kacheln, 275 Gebäude, 748 einzelne
+Startspawns, 99 Granatenkisten und 49 Brückengruppen.
 
-20/20 generierte Karten bestanden vor der Ergänzung des optionalen
-Originaldaten-Produktionsfilters; dieser Zweig wird für generierte Karten nicht genutzt.
+Grafik: alle Gebäude-, Schatten-, Stern- und Maschinenframes innerhalb der Atlas-
+grenzen; Fahrzeugschichten und Positionen in acht Richtungen geprüft. JavaScript-
+Syntax und Git-Diff-Prüfung bestanden. Browser: Originalpaket geladen, Missionstart,
+Truppauswahl mit drei Grunts/30 HP, Fabrikmenü und korrekte Restzeitanzeige geprüft.
 
-robots.dat direkt gelesen: Truppgrößen 3/2/3/3/4/4 für
-Grunt/Tough/Sniper/Psycho/Pyro/Laser; Roboterfabrik-Level 1/3/3/2/4/5.
-JavaScript-Syntaxprüfungen erfolgreich. HTTP-Auslieferung von index.html und
-engine.wasm mit Status 200, Wasm-MIME-Type application/wasm geprüft.
-
-Nicht bestätigt: sichtbare Bedienung, Rendering im echten Browser, Audioausgabe,
-Bildwiederholrate und 1:1-Vergleich mit dem Original. Browser-Automation scheiterte
-an nicht verbundenem Debugger; nativer Computerzugang hatte einen Freigabe-Timeout.
+Auffällig: Mission 15 endet im KI-Smoke-Test bereits nach 19,5 simulierten Sekunden
+mit Spielersieg. Die KI ist weiterhin eine eigene Implementierung. Die Prüfungen
+belegen keine vollständige Originalgleichheit oder ausgewogene Kampagnenschwierigkeit.
+Weitere Grenzen: ORIGINAL-ABGLEICH.txt. Audio und macOS sind nicht separat geprüft.

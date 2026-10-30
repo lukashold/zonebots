@@ -1,18 +1,26 @@
-Zonebots Independent Edition
+Z – Rust/Wasm-Rekonstruktion, 30.10.2026
 
-Die aktive Fassung wurde neu implementiert.
-Start: Start-Spiel.cmd (Windows) oder python3 independent-engine/serve.py (macOS/Linux).
+Private Spielseite: https://z-rust-browser.cyberuser13.chatgpt.site/
+Die private Fassung enthält das freigegebene Grafik- und Kartenpaket. Sie braucht
+keinen Ordner-Upload und läuft im Browser, auch auf macOS. Ein tatsächlicher
+macOS-Test steht noch aus.
+
+Windows: Start-Spiel.cmd
+macOS/Linux: sh Start-Spiel.command oder python3 independent-engine/serve.py
+Der Server extrahiert fehlende private Ressourcen aus der vorhandenen Installation
+C:\GOG Games\Z. Andere Installationen: Z_GAME_DIR setzen oder --zdir verwenden.
+Für die Grafikextraktion wird Python mit Pillow benötigt. Auf einem anderen Rechner
+braucht die lokale Fassung eine eigene Installation oder das private Ressourcenpaket
+in dist/original/. Auf der privaten Spielseite ist das bereits eingerichtet.
+
+Aktiver Rust-Kern: independent-engine/
+Browser: dist/independent/; veröffentlichter Einstieg: dist/index.html
 Build: powershell -File independent-engine/build.ps1
-Rust-Tests: cargo test --manifest-path independent-engine/Cargo.toml
-Wasm-Tests: node independent-engine/check-wasm.cjs
+Tests: cargo test --manifest-path independent-engine/Cargo.toml
+Wasm: node independent-engine/check-wasm.cjs
+Originalkampagne: node tools/check-original.cjs (benötigt privates Datenpaket)
 
-Grafik, Musik und Sprache sind enthalten. Kein Original-Spielordner erforderlich.
-Steuerung und Missionswahl werden im Spiel angezeigt.
-
-Herkunft, Trennung, Quellen, Tests und offene Abweichungen: INDEPENDENT.txt
-Verhaltensbeschreibung: independent-engine/SPECIFICATION.txt
-Neue Browserdateien: dist/independent/
-Neue Rust-Engine: independent-engine/
-
-Die anderen Dateien im Repository enthalten den Entwicklungsstand der Vorgaengerfassung.
-Sie werden von der neuen Browserfassung nicht geladen.
+Der aktuelle Ansatz verwendet Ghidra und Originalressourcen mit Zustimmung des
+Nutzers. Er wird nicht als Clean-Room-Implementierung bezeichnet. Auf GitHub liegen
+Code, Werkzeuge und Dokumentation; Originalgrafik und Karten bleiben ausgeschlossen.
+Die belegten Regeln und verbleibenden Abweichungen stehen in ORIGINAL-ABGLEICH.txt.

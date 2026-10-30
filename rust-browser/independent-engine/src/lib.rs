@@ -1,9 +1,11 @@
-//! Independent implementation from public behavioral requirements. No legacy engine imports.
+//! Rust/Wasm reconstruction with Ghidra-verified original data and contact rules. This is not a clean-room implementation.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 const TILE: f64 = 32.;
+mod original_stats;
+pub mod original_combat;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Map {
@@ -17,14 +19,20 @@ pub struct Map {
     pub bridge_hp: Vec<f64>,
     pub seed: u32,
     pub revision: u32,
+    #[serde(default)] pub original:bool,
+    #[serde(default)] pub original_tiles:Vec<u16>,
+    #[serde(default)] pub terrain_codes:Vec<u8>,
+    #[serde(default)] pub water_tile:u16,
 }
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
 pub struct Sector {
     pub id: usize,
     pub x: f64,
     pub y: f64,
     pub owner: i32,
     pub home: bool,
+    #[serde(default="production_sector")] pub counts_for_production:bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +50,10 @@ pub struct Building {
     pub max_hp: f64,
     pub product: Option<String>,
     pub progress: f64,
+    #[serde(default)] pub gate:Option<(f64,f64)>,
+    #[serde(default)] pub orientation:String,
+    #[serde(default)] pub remaining_work:Option<f64>,
+    #[serde(default)] pub raw_base:Option<(f64,f64)>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +83,8 @@ pub struct Unit {
     pub target: Option<usize>,
     pub dest: Option<(f64, f64)>,
     pub cooldown: f64,
+    #[serde(default)]
+    pub original_combat: Option<original_combat::CombatState>,
     #[serde(skip_deserializing)]
     pub path: VecDeque<(f64, f64)>,
 }
@@ -104,6 +118,7 @@ pub struct Stats {
     pub cls: u8,
 }
 pub fn stats(k: &str) -> Stats {
+    if let Some(d)=original_stats::data(k){return d;}
     let (hp, speed, range, damage, reload, seconds, members, stars, cls) = match k {
         "psycho" => (42., 42., 130., 6., 0.28, 30., 3, 2, 0),
         "tough" => (64., 31., 160., 30., 1.8, 42., 2, 3, 0),
@@ -133,9 +148,9 @@ pub fn stats(k: &str) -> Stats {
         cls,
     }
 }
-pub const TYPES: [&str; 15] = [
+pub const TYPES: [&str; 19] = [
     "grunt", "psycho", "tough", "sniper", "pyro", "laser", "jeep", "light", "medium", "heavy",
-    "apc", "crane", "gatling", "cannon", "missile",
+    "apc", "crane", "gatling", "cannon", "missile", "launcher", "howitzer", "truck", "firetruck",
 ];
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -147,6 +162,7 @@ pub struct Game {
     pub effects: Vec<Fx>,
     pub crates: Vec<Crate>,
     pub events: Vec<Value>,
+    #[serde(default)] pub objects:Vec<Value>,
     pub time: f64,
     pub winner: Option<i32>,
     pub difficulty: usize,
@@ -159,13 +175,11 @@ pub struct Game {
     rng: u32,
     #[serde(skip)]
     ai_teams: Vec<i32>,
+    #[serde(skip)] production_clock:f64,
 }
 impl Game {
     fn random(&mut self) -> f64 {
-        self.rng ^= self.rng << 13;
-        self.rng ^= self.rng >> 17;
-        self.rng ^= self.rng << 5;
-        self.rng as f64 / u32::MAX as f64
+        advance_random(&mut self.rng) as f64 / u32::MAX as f64
     }
     pub fn new(mission: usize, difficulty: usize, seed: u32) -> Self {
         let (w, h) = (56, 40);
@@ -181,14 +195,14 @@ impl Game {
                 bridge_base: vec![-1; n],
                 bridge_hp: vec![],
                 seed,
-                revision: 0,
+                revision: 0, original:false,original_tiles:vec![],terrain_codes:vec![],water_tile:0,
             },
             sectors: vec![],
             buildings: vec![],
             units: vec![],
             effects: vec![],
             crates: vec![],
-            events: vec![],
+            events: vec![], objects:vec![],
             time: 0.,
             winner: None,
             difficulty: difficulty.min(3),
@@ -196,7 +210,7 @@ impl Game {
             next_id: 1,
             ai_clock: 3.,
             rng: seed.max(1),
-            ai_teams: vec![1],
+            ai_teams: vec![1], production_clock:0.,
         };
         // Own nine-territory layout. Voronoi edges and a meandering river avoid a square sector grid.
         let sites = [
@@ -222,7 +236,7 @@ impl Game {
                 } else {
                     -1
                 },
-                home: id == 6 || id == 2,
+                home: id == 6 || id == 2, counts_for_production:true,
             });
         }
         for y in 0..h {
@@ -310,7 +324,7 @@ impl Game {
                 hp,
                 max_hp: hp,
                 product: if s.home { Some("grunt".into()) } else { None },
-                progress: 0.,
+                progress: 0., gate:None,orientation:String::new(),remaining_work:None,raw_base:None,
             });
         }
         for j in 0..n {
@@ -378,7 +392,7 @@ impl Game {
         let crew = if d.cls > 0 && team >= 0 {
             crew.or(Some(Crew {
                 kind: "grunt".into(),
-                hp: 40.,
+                hp: if self.map.original {original_combat::initial_crew_hp(k)} else {40.},
             }))
         } else {
             crew
@@ -404,25 +418,29 @@ impl Game {
             target: None,
             dest: None,
             cooldown: 0.,
+            original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
             path: VecDeque::new(),
         });
     }
-    pub fn products(&self, b: &Building) -> Vec<&'static str> {
-        if b.hp <= 0. {
-            return vec![];
-        }
-        TYPES
-            .iter()
-            .copied()
-            .filter(|k| {
-                let d = stats(k);
-                d.stars <= b.stars
-                    && (b.kind == "fort"
-                        || b.kind == "robot" && d.cls == 0
-                        || b.kind == "vehicle" && d.cls != 0)
-            })
-            .collect()
+    pub fn products(&self,b:&Building)->Vec<&'static str>{
+      if b.hp<=0.{return vec![];}
+      if self.map.original{return original_stats::MENU_ORDER.iter().filter_map(|id|original_stats::PRODUCTS.iter().find(|r|r.1==*id)).filter(|r|r.6&&original_stats::required(r.0,&b.kind)>0&&original_stats::required(r.0,&b.kind)<=b.stars).map(|r|r.0).collect();}
+      TYPES.iter().copied().filter(|k|{let d=stats(k);d.stars<=b.stars&&(b.kind=="fort"||b.kind=="robot"&&d.cls==0||b.kind=="vehicle"&&d.cls!=0)}).collect()
     }
+    pub fn apply_original(&mut self,v:&Value)->Result<(),String>{
+      let map:Map=serde_json::from_value(v["map"].clone()).map_err(|e|e.to_string())?;
+      if map.width<1||map.height<1||map.width>128||map.height>128||map.tiles.len()!=map.width*map.height{return Err("Invalid original campaign map".into());}
+      let sectors:Vec<Sector>=serde_json::from_value(v["sectors"].clone()).map_err(|e|e.to_string())?;
+      let buildings:Vec<Building>=serde_json::from_value(v["buildings"].clone()).map_err(|e|e.to_string())?;
+      let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
+      self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.next_id=1;
+      self.map.water_tile=self.map.terrain_codes.iter().position(|c|[9,39,40].contains(c)).and_then(|i|self.map.original_tiles.get(i).copied()).unwrap_or(0);
+      for spawn in v["spawns"].as_array().ok_or("Missing spawns")?{let kind=spawn["type"].as_str().ok_or("Missing unit type")?;let kind=if kind=="mobile_missile"{"launcher"}else{kind};if !TYPES.contains(&kind){return Err(format!("Unsupported original unit {kind}"));}let x=spawn["x"].as_f64().ok_or("Missing x")?;let y=spawn["y"].as_f64().ok_or("Missing y")?;let team=spawn["team"].as_i64().unwrap_or(-1)as i32;let squad=spawn["squad"].as_u64().unwrap_or(self.next_id as u64)as usize;self.spawn(kind,team,x,y,squad,None);}
+      for i in 0..self.buildings.len(){if self.buildings[i].team>=0{let choices=self.products(&self.buildings[i]);if self.buildings[i].product.as_deref().map(|p|!choices.contains(&p)).unwrap_or(true){self.buildings[i].product=if choices.contains(&"grunt"){Some("grunt".into())}else{choices.first().map(|k|k.to_string())};}}}
+      Ok(())
+    }
+    pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
+
     fn passable(&self, x: i32, y: i32, swim: bool) -> bool {
         if x < 1 || y < 1 || x >= self.map.width as i32 - 1 || y >= self.map.height as i32 - 1 {
             return false;
@@ -435,7 +453,8 @@ impl Game {
         !self
             .buildings
             .iter()
-            .any(|b| b.hp > 0. && px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h)
+            .any(|b| b.hp > 0. && px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h
+                && !b.gate.map(|(gx,gy)|(px-gx).abs()<24.&&(if b.orientation=="north"{py<=gy+24.}else{py>=gy-24.})).unwrap_or(false))
     }
     fn route(&self, x: f64, y: f64, dx: f64, dy: f64, swim: bool) -> VecDeque<(f64, f64)> {
         let w = self.map.width;
@@ -539,7 +558,7 @@ impl Game {
             let Some(i) = self
                 .units
                 .iter()
-                .position(|u| u.id == *id && u.team == team && u.hp > 0.)
+                .position(|u| u.id == *id && u.team == team && original_combat::alive(self.map.original,u.hp))
             else {
                 continue;
             };
@@ -597,7 +616,7 @@ impl Game {
         }
         if k.is_none() || self.products(&self.buildings[id]).contains(&k.unwrap()) {
             if self.buildings[id].product.as_deref() != k {
-                self.buildings[id].progress = 0.;
+                self.buildings[id].progress = 0.;self.buildings[id].remaining_work=None;
             }
             self.buildings[id].product = k.map(str::to_string);
         }
@@ -623,7 +642,7 @@ impl Game {
                 .units
                 .iter()
                 .filter(|u| {
-                    u.team == team && u.hp > 0. && stats(&u.kind).speed > 0. && u.path.is_empty()
+                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty()
                 })
                 .map(|u| u.id)
                 .collect();
@@ -632,13 +651,12 @@ impl Game {
                 let goal = self
                     .sectors
                     .iter()
-                    .filter(|s| s.owner != team)
+                    .filter(|s| s.owner != team && s.counts_for_production)
                     .min_by(|a, b| {
                         ((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y))
                     });
                 if let Some(s) = goal {
-                    let x = s.x;
-                    let y = s.y;
+                    let(x,y)=if s.home{self.buildings.iter().find(|b|b.sector==s.id&&b.kind=="fort").and_then(|b|b.gate).unwrap_or((s.x,s.y))}else{(s.x,s.y)};
                     self.command(&json!({"team":team,"ids":[id],"kind":"move","x":x,"y":y}));
                 }
             }
@@ -659,13 +677,20 @@ impl Game {
         }
         let snapshot = self.units.clone();
         let mut damage: Vec<(usize, f64, bool)> = vec![];
+        let mut original_damage:Vec<original_combat::Attack>=vec![];
         let mut bdamage: Vec<(usize, f64)> = vec![];
         for i in 0..self.units.len() {
             let u = self.units[i].clone();
-            if u.hp <= 0. || u.team < 0 {
+            if !original_combat::alive(self.map.original,u.hp) || u.team < 0 {
                 continue;
             }
-            let d = stats(&u.kind);
+            let mut d = stats(&u.kind);
+            if self.map.original {
+                if let Some(state)=&u.original_combat {
+                    d.speed*=state.speed_scale(&u.kind);
+                    d.reload=state.reload_seconds();
+                }
+            }
             self.units[i].moving = false;
             self.units[i].cooldown -= dt;
             if u.order == "attackBridge" || u.order == "repairBridge" {
@@ -705,7 +730,7 @@ impl Game {
                                     let tile = (v.y / TILE) as usize * self.map.width
                                         + (v.x / TILE) as usize;
                                     if self.map.bridge_base.get(tile) == Some(&(id as i32)) {
-                                        v.hp = 0.;
+                                        v.hp = if self.map.original {-1.} else {0.};
                                     }
                                 }
                                 self.map.revision += 1;
@@ -732,7 +757,7 @@ impl Game {
                                 self.buildings[target].hp = (b.hp + dt * 48.).min(b.max_hp);
                             }
                         }
-                    } else if let Some(v) = snapshot.iter().find(|v| v.id == target && v.hp > 0.) {
+                    } else if let Some(v) = snapshot.iter().find(|v| v.id == target && original_combat::alive(self.map.original,v.hp)) {
                         dest = Some((v.x, v.y));
                         let dist = (u.x - v.x).hypot(u.y - v.y);
                         if dist < 28.
@@ -747,6 +772,9 @@ impl Game {
                                         kind: u.kind.clone(),
                                         hp: u.hp,
                                     });
+                                    if let Some(state)=&mut self.units[vi].original_combat {
+                                        state.crew_boarded(&u.kind);
+                                    }
                                 } else if self.units[vi].cargo.len() < 6 {
                                     self.units[vi].cargo.push(Crew {
                                         kind: u.kind.clone(),
@@ -755,7 +783,7 @@ impl Game {
                                 } else {
                                     continue;
                                 }
-                                self.units[i].hp = 0.;
+                                self.units[i].hp = if self.map.original {-1.} else {0.};
                                 self.events.push(json!({"kind":"crewed","team":u.team}));
                                 continue;
                             }
@@ -775,7 +803,7 @@ impl Game {
             let enemy = snapshot
                 .iter()
                 .filter(|v| {
-                    v.hp > 0.
+                    original_combat::alive(self.map.original,v.hp)
                         && v.team >= 0
                         && v.team != u.team
                         && (v.x - u.x).hypot(v.y - u.y) <= d.range
@@ -791,13 +819,15 @@ impl Game {
                 if d.damage > 0. && self.units[i].cooldown <= 0. {
                     self.units[i].cooldown = d.reload;
                     let sniper = u.kind == "sniper" && stats(&v.kind).cls > 0 && v.crew.is_some();
-                    let amt = if u.grenades > 0 && stats(&v.kind).cls > 0 {
+                    let amt = if !self.map.original && u.grenades > 0 && stats(&v.kind).cls > 0 {
                         self.units[i].grenades -= 1;
                         d.damage + 38.
                     } else {
                         d.damage
                     };
-                    damage.push((v.id, amt, sniper));
+                    if self.map.original {
+                        original_damage.push(original_combat::Attack::from_unit(&u,v.id,amt,self.units[i].aim));
+                    } else {damage.push((v.id, amt, sniper));}
                     self.effects.push(Fx {
                         x: u.x,
                         y: u.y,
@@ -884,12 +914,12 @@ impl Game {
         for b in &self.buildings {
             if b.kind == "fort" && b.hp > 0. {
                 if let Some(u) = self.units.iter().find(|u| {
-                    u.hp > 0.
+                    original_combat::alive(self.map.original,u.hp)
                         && u.team >= 0
                         && u.team != b.team
                         && stats(&u.kind).cls == 0
-                        && (u.x - (b.x + b.w / 2.)).abs() < 24.
-                        && (u.y - (b.y + b.h + 5.)).abs() < 24.
+                        && (u.x - b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h+5.)).0).abs() < 24.
+                        && (u.y - b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h+5.)).1).abs() < 24.
                 }) {
                     self.winner = Some(u.team);
                 }
@@ -898,6 +928,18 @@ impl Game {
         if let Some(w) = self.winner {
             self.events.push(json!({"kind":"victory","team":w}));
             return;
+        }
+        for attack in original_damage {
+            if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp)) {
+                let mut rng=self.rng;
+                original_combat::apply_attack(&mut self.units[i],attack,self.difficulty,||advance_random(&mut rng));
+                self.rng=rng;
+                if self.units[i].hp<0. {
+                    let u=&self.units[i];
+                    self.effects.push(Fx{x:u.x,y:u.y,age:0.,life:0.8,kind:"explosion".into(),
+                        radius:if stats(&u.kind).cls==0 {12.} else {30.},x2:0.,y2:0.});
+                }
+            }
         }
         for (id, amount, sniper) in damage {
             if let Some(i) = self.units.iter().position(|u| u.id == id && u.hp > 0.) {
@@ -947,7 +989,7 @@ impl Game {
             if let Some(u) = self
                 .units
                 .iter()
-                .find(|u| u.hp > 0. && u.team >= 0 && (u.x - s.x).hypot(u.y - s.y) < 22.)
+                .find(|u| original_combat::alive(self.map.original,u.hp) && u.team >= 0 && (u.x - s.x).hypot(u.y - s.y) < 22.)
             {
                 if s.owner != u.team {
                     let prev = s.owner;
@@ -962,24 +1004,28 @@ impl Game {
             }
         }
 
+        self.production_clock+=dt*17.;let production_ticks=self.production_clock.floor()as i32;self.production_clock-=production_ticks as f64;
+        let total=self.sectors.iter().filter(|s|s.counts_for_production).count();
         let mut completed = vec![];
         for b in &mut self.buildings {
             if b.team < 0 || b.hp <= 0. {
                 continue;
             }
             if let Some(k) = b.product.clone() {
-                let owned = self.sectors.iter().filter(|s| s.owner == b.team).count();
+                let owned = self.sectors.iter().filter(|s| s.owner == b.team && (!self.map.original || s.counts_for_production)).count();
                 let mult = if b.team == 1 {
                     [0.55, 1., 1.45, 1.85][self.difficulty]
                 } else {
                     1.
                 };
-                b.progress +=
-                    dt * (0.65 + owned as f64 * 0.32) * (b.hp / b.max_hp).max(0.15) * mult
-                        / stats(&k).seconds;
-                if b.progress >= 1. {
-                    b.progress -= 1.;
-                    completed.push((k, b.team, b.x + b.w / 2., b.y + b.h + 30.));
+                if self.map.original{
+                  let rate=original_stats::rate(b.hp,b.max_hp,owned,total);let workload=original_stats::workload(&k)as f64;
+                  let work=b.remaining_work.get_or_insert(workload);*work-=(rate*production_ticks)as f64;
+                  b.progress=(1.-*work/workload).clamp(0.,1.);
+                  if *work<0.{b.remaining_work=Some(workload);b.progress=0.;let(gx,gy)=b.gate.unwrap_or((b.x+b.w/2.,b.y+b.h));completed.push((k,b.team,gx,gy+if b.orientation=="north"{-30.}else{30.}));}
+                }else{
+                  b.progress+=dt*(0.65+owned as f64*0.32)*(b.hp/b.max_hp).max(0.15)*mult/stats(&k).seconds;
+                  if b.progress>=1.{b.progress-=1.;completed.push((k,b.team,b.x+b.w/2.,b.y+b.h+30.));}
                 }
             }
         }
@@ -987,7 +1033,7 @@ impl Game {
             if self
                 .units
                 .iter()
-                .filter(|u| u.hp > 0. && u.team == team)
+                .filter(|u| original_combat::alive(self.map.original,u.hp) && u.team == team)
                 .count()
                 < 120
             {
@@ -997,11 +1043,12 @@ impl Game {
             }
         }
         for team in [0, 1] {
-            if !self.units.iter().any(|u| u.hp > 0. && u.team == team) {
+            if !self.units.iter().any(|u| original_combat::alive(self.map.original,u.hp) && u.team == team) {
                 self.winner = Some(1 - team);
             }
         }
-        self.units.retain(|u| u.hp > 0.);
+        let original=self.map.original;
+        self.units.retain(|u| original_combat::alive(original,u.hp));
         if let Some(w) = self.winner {
             self.events.push(json!({"kind":"victory","team":w}));
         }
@@ -1009,7 +1056,7 @@ impl Game {
 }
 thread_local! {static GAME:RefCell<Option<Game>>=const{RefCell::new(None)};static OUT:RefCell<Vec<u8>>=const{RefCell::new(Vec::new())};}
 pub fn request(v: Value) -> Value {
-    GAME.with(|cell|{let mut state=cell.borrow_mut();if v["op"]=="init"{let mut g=Game::new(v["mission"].as_u64().unwrap_or(0)as usize,v["difficulty"].as_u64().unwrap_or(1)as usize,v["seed"].as_u64().unwrap_or(7163)as u32);if let Some(a)=v["aiTeams"].as_array(){g.ai_teams=a.iter().filter_map(|x|x.as_i64().map(|x|x as i32)).collect();}*state=Some(g);}let Some(g)=state.as_mut()else{return json!({"error":"Initialize first"})};g.events.clear();match v["op"].as_str().unwrap_or(""){"tick"=>g.step(v["dt"].as_f64().unwrap_or(0.04)),"advance"=>for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000){g.step(0.1);},"command"=>g.command(&v),"produce"=>g.produce(v["id"].as_u64().unwrap_or(usize::MAX as u64)as usize,v["product"].as_str()),_=>{}}let mut value=serde_json::to_value(&*g).unwrap();value["catalog"]=json!(TYPES.iter().map(|k|{let d=stats(k);json!({"type":k,"hp":d.hp,"range":d.range,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"class":d.cls})}).collect::<Vec<_>>());value})
+    GAME.with(|cell|{let mut state=cell.borrow_mut();if v["op"]=="init"{let mut g=Game::new(v["mission"].as_u64().unwrap_or(0)as usize,v["difficulty"].as_u64().unwrap_or(1)as usize,v["seed"].as_u64().unwrap_or(7163)as u32);if !v["originalMission"].is_null(){if let Err(e)=g.apply_original(&v["originalMission"]){return json!({"error":e});}}if let Some(a)=v["aiTeams"].as_array(){g.ai_teams=a.iter().filter_map(|x|x.as_i64().map(|x|x as i32)).collect();}*state=Some(g);}let Some(g)=state.as_mut()else{return json!({"error":"Initialize first"})};g.events.clear();match v["op"].as_str().unwrap_or(""){"tick"=>g.step(v["dt"].as_f64().unwrap_or(0.04)),"advance"=>for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000){g.step(0.1);},"command"=>g.command(&v),"produce"=>g.produce(v["id"].as_u64().unwrap_or(usize::MAX as u64)as usize,v["product"].as_str()),_=>{}}let mut value=serde_json::to_value(&*g).unwrap();value["catalog"]=json!(TYPES.iter().map(|k|{let d=stats(k);json!({"type":k,"hp":d.hp,"range":d.range,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}})}).collect::<Vec<_>>());value["productionSeconds"]=json!(g.buildings.iter().map(|b|g.remaining_seconds(b)).collect::<Vec<_>>());value["buildMenus"]=json!(g.buildings.iter().map(|b|g.products(b)).collect::<Vec<_>>());value})
 }
 #[no_mangle]
 pub extern "C" fn alloc(n: usize) -> *mut u8 {
@@ -1039,3 +1086,9 @@ pub extern "C" fn output() -> *const u8 {
 
 #[cfg(test)]
 mod tests;
+
+fn production_sector()->bool{true}
+
+fn advance_random(rng:&mut u32)->u32 {
+    *rng^=*rng<<13;*rng^=*rng>>17;*rng^=*rng<<5;*rng
+}

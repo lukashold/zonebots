@@ -4,9 +4,10 @@ A real-time strategy game for the browser. Two robot armies fight over a map tha
 sectors. Touch a sector's flag and its factory, workshop and guns are yours; the more sectors you
 hold, the faster your factories build. Destroy the enemy fort to win.
 
-The rules and controls follow the 1996 RTS classic *Z*. Zonebots is an independent, from-scratch
-implementation: all code, the procedurally drawn pixel graphics, the synthesised sounds and its own
-levels are original. The repository contains no code, artwork, audio, maps or other data from *Z*.
+The rules and controls follow the 1996 RTS classic *Z*. The JavaScript edition uses
+procedural artwork, synthesized sounds and its own levels. The current Rust edition
+also uses reverse-engineered rules; original artwork, audio and maps are excluded
+from this public repository.
 
 **Original data mode (optional):** if you own *Z* (for example the GOG release), you can pick its
 installation folder in the menu. The browser then reads the original 20 maps, their terrain, forts,
@@ -19,42 +20,44 @@ browser only; nothing is uploaded and nothing from the game is part of this proj
 
 ### Rust / WebAssembly version
 
-The active Rust version is now a new independent implementation:
-[`rust-browser/INDEPENDENT.txt`](rust-browser/INDEPENDENT.txt).
-Its new engine is in `rust-browser/independent-engine/`; the complete browser entrypoint
-is `rust-browser/dist/independent/`. It does not load the previous engine, renderer or
-original-game data readers. Run `python3 independent-engine/serve.py` from `rust-browser/`.
+The current Rust/Wasm edition is a reverse-engineering reconstruction of the user's
+GOG release. It uses newly written Rust code with rules checked against Ghidra
+decompilation and assembly. It is not a clean-room edition or a verified complete
+1:1 recreation. See [provenance](rust-browser/INDEPENDENT.txt) and
+[verified behavior and remaining differences](rust-browser/ORIGINAL-ABGLEICH.txt).
 
-The separately researched [behavior specification](rust-browser/independent-engine/SPECIFICATION.txt)
-records public original-manual/playguide evidence and distinguishes estimated rules and balance.
-Artwork was independently authored in a fresh context. The integrator had prior exposure to the
-earlier reverse engineering, so this is not claimed to be a formally audited clean-room process
-or a complete behavior-identical recreation.
+The original artwork and campaign resources are **not included in this repository**.
+The owner's private hosted edition has a separately authorized resource pack and
+requires no game-folder upload. Public-source users can extract their own locally
+owned installation:
 
-Validate with `cargo test --manifest-path independent-engine/Cargo.toml` and
-`node independent-engine/check-wasm.cjs`. Build with `independent-engine/build.ps1`.
+    cd rust-browser
+    python3 independent-engine/serve.py --game "/path/to/Z"
 
-The notes below describe the earlier Rust edition retained in source history.
+On Windows, `Start-Spiel.cmd` also discovers `C:\GOG Games\Z` automatically.
+Artwork extraction requires Python and Pillow. Once created, `dist/original/` stays
+local and Git-ignored. The browser runs Rust/WebAssembly and does not execute the
+original Windows binary. macOS browsers are supported by this architecture but have
+not been tested on a real Mac.
 
-The new [Rust browser version](rust-browser/LIESMICH.txt) lives in `rust-browser/`.
-Its simulation runs in Rust/WebAssembly; JavaScript handles rendering, input and original-data loading.
-The compiled Wasm file is included. From `rust-browser/`, run:
+The active engine is `rust-browser/independent-engine/`; rendering and input are in
+`rust-browser/dist/independent/`. It now reads the 20 original campaign layouts,
+building technology and start groups from the separately extracted pack. Production
+work/rates, weapon values and selected damage/crew rules are checked against the
+original. The AI, projectile trajectories, animation timing and other behaviors
+still have documented differences. Music and voice use the existing synthesis/TTS.
 
-    python3 tools/serve.py
+From `rust-browser/`, validate with:
 
-On Windows, double-click `rust-browser/Start-Spiel.cmd`. On macOS or Linux, use the
-command above with Python 3 installed. To load your own original game files automatically:
+    cargo test --manifest-path independent-engine/Cargo.toml
+    node independent-engine/check-wasm.cjs
+    node tools/check-original.cjs
 
-    python3 tools/serve.py --zdir "/path/to/Z"
+The final command requires the local private campaign pack. Build Wasm with
+`independent-engine/build.ps1`. Original resources retain their respective owners'
+copyright; the repository's code license does not cover that resource pack.
 
-The Rust edition now starts with its own artwork, synthesized audio and 20 standalone
-missions: no game-folder selection or original installation is needed. Click **Play now**
-or use `?mission=1` through `?mission=20` for a direct mission link. New robots, industrial
-buildings, vehicle detailing and terrain textures are drawn procedurally in `art.js` and
-`render.js`. See [standalone release notes](rust-browser/STANDALONE.txt).
-
-No original game assets are included. macOS browser operation has not yet been tested. This reconstruction is not
-yet a verified 1:1 recreation; see [limitations and test results](rust-browser/TESTERGEBNIS.txt).
+The sections below describe the earlier JavaScript implementation.
 
 ### JavaScript version
 

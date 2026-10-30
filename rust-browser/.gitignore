@@ -10,3 +10,9 @@
 *.RAW
 *.ogg
 /local-data/
+
+# Original GOG artwork/maps are deployed privately only, never committed.
+/dist/original/
+/local-original-art/
+**/__pycache__/
+*.pyc
