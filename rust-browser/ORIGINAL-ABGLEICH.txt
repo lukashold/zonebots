@@ -89,3 +89,19 @@ Position und ausgestiegene Roboter steigen nicht sofort wieder ein.
 Abweichung: Ein Rundum-Scan alle 0,35 Simulationssekunden ersetzt die originale
 gerichtete Scan-/Animationszustandsmaschine. Nicht alle Suchzustände während
 laufender Originalbefehle sind übernommen. Das ist keine vollständige Original-KI.
+
+FORTGESCHÜTZE
+Die Geschützpositionen aus dem Original bleiben erhalten. FUN00455f10 schreibt
+rawX direkt in die Zeichenwarteschlange; rawY+Elevation wird in004549f0 wieder
+um die Elevation zurückgesetzt.00466090 verwendet diese obere linke Ecke für
+das Spriterechteck. Das frühere Zentrieren verschob die Gatling um 32x18 Weltpixel.
+Die Verschiebung des separaten BUILD-Datensatzes um 16 native Pixel darf nicht
+auf Geschütze angewandt werden. Die Originalkoordinaten wurden unverändert
+übernommen; korrigiert wurden Grafikanker und Zeichenreihenfolge.
+
+68 über die Fortsockel-Tabelle platzierte Startgeschütze erhalten eine feste
+Fort-ID. Das Fort wird vor seinen Geschützen gezeichnet. Die 95 neutralen
+Bodengeschütze und neu hergestellte Bodengeschütze erhalten keine solche Zuordnung.
+Die Zuordnung bleibt beim Aussteigen und erneuten Bemannen erhalten. Auswahl,
+Trefferfläche der Maus, Portrait und Minikartenmarkierung nutzen denselben Anker.
+Schuss-/Rückstoßanimationen bleiben im bereits dokumentierten Teilumfang.

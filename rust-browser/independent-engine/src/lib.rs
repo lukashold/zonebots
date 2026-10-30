@@ -77,6 +77,10 @@ pub struct Unit {
     pub aim: f64,
     pub moving: bool,
     pub squad: usize,
+    /// Present only for a gun initialized in an original fort's gun socket.
+    /// Ownership and crew changes do not detach the hardware from its fort.
+    #[serde(default)]
+    pub fort_id: Option<usize>,
     pub grenades: usize,
     pub crew: Option<Crew>,
     pub cargo: Vec<Crew>,
@@ -417,6 +421,7 @@ impl Game {
             aim: 0.,
             moving: false,
             squad,
+            fort_id: None,
             grenades: 0,
             crew,
             cargo: vec![],
@@ -443,7 +448,10 @@ impl Game {
       let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
       self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.next_id=1;
       self.map.water_tile=self.map.terrain_codes.iter().position(|c|[9,39,40].contains(c)).and_then(|i|self.map.original_tiles.get(i).copied()).unwrap_or(0);
-      for spawn in v["spawns"].as_array().ok_or("Missing spawns")?{let kind=spawn["type"].as_str().ok_or("Missing unit type")?;let kind=if kind=="mobile_missile"{"launcher"}else{kind};if !TYPES.contains(&kind){return Err(format!("Unsupported original unit {kind}"));}let x=spawn["x"].as_f64().ok_or("Missing x")?;let y=spawn["y"].as_f64().ok_or("Missing y")?;let team=spawn["team"].as_i64().unwrap_or(-1)as i32;let squad=spawn["squad"].as_u64().unwrap_or(self.next_id as u64)as usize;self.spawn(kind,team,x,y,squad,None);}
+      for spawn in v["spawns"].as_array().ok_or("Missing spawns")?{let kind=spawn["type"].as_str().ok_or("Missing unit type")?;let kind=if kind=="mobile_missile"{"launcher"}else{kind};if !TYPES.contains(&kind){return Err(format!("Unsupported original unit {kind}"));}let x=spawn["x"].as_f64().ok_or("Missing x")?;let y=spawn["y"].as_f64().ok_or("Missing y")?;let team=spawn["team"].as_i64().unwrap_or(-1)as i32;let squad=spawn["squad"].as_u64().unwrap_or(self.next_id as u64)as usize;self.spawn(kind,team,x,y,squad,None);
+        let fort_id=spawn["fortId"].as_u64().map(|id|id as usize).filter(|id|stats(kind).cls==2&&self.buildings.iter().any(|b|b.id==*id&&b.kind=="fort"));
+        self.units.last_mut().unwrap().fort_id=fort_id;
+      }
       for i in 0..self.buildings.len(){if self.buildings[i].team>=0{let choices=self.products(&self.buildings[i]);if self.buildings[i].product.as_deref().map(|p|!choices.contains(&p)).unwrap_or(true){self.buildings[i].product=if choices.contains(&"grunt"){Some("grunt".into())}else{choices.first().map(|k|k.to_string())};}}}
       Ok(())
     }
@@ -1116,6 +1124,8 @@ pub extern "C" fn output() -> *const u8 {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod fort_mount_tests;
 
 fn production_sector()->bool{true}
 

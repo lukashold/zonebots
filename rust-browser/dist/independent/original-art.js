@@ -6,12 +6,19 @@ window.OriginalArt=(()=>{
  const FORT={DESERT:[809,1675],ARTIC:[2127,2148],ARCTIC:[2127,2148],CITY:[2304,2431],JUNGLE:[2613,2725],VOLCAN:[2800,2845]};
  const HULL={light:5719,medium:488,heavy:5305,apc:5655},TURRET={light:5731,medium:513,heavy:5329};
  const attack={grunt:[127,5],tough:[226,3],sniper:[127,5],psycho:[2570,2],pyro:[6022,3],laser:[1340,3]};
+ const guns=new Set(['gatling','cannon','howitzer','missile']);
  const dir=a=>((Math.round((a+Math.PI/2)/(Math.PI/4))%8)+8)%8;
  function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
  function sprite(id,world,team=0){const key=`${id}:${world}:${team}`;if(cache.has(key))return cache.get(key);const f=manifest.frames[id];if(!f||!f.w||!f.h)return null;const c=cv(f.w,f.h),ctx=c.getContext('2d'),img=ctx.createImageData(f.w,f.h),pal=manifest.palettes[world]||manifest.palettes[0];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){const at=((f.y+y)*atlas.width+f.x+x)*4;let index=pixels[at];if(!pixels[at+3])continue;if(index>=16&&index<32)index=team===1?index+16:team<0?index+64:index;const p=(y*f.w+x)*4;img.data[p]=pal[index*3];img.data[p+1]=pal[index*3+1];img.data[p+2]=pal[index*3+2];img.data[p+3]=255;}ctx.putImageData(img,0,0);cache.set(key,c);return c;}
  function centered(ctx,id,u,map,offsetY=0){const im=sprite(id,map.world,u.team);if(!im)return false;ctx.drawImage(im,Math.round(u.x-im.width),Math.round(u.y-im.height+offsetY),im.width*2,im.height*2);return true;}
+ function gunFrame(u){const aim=dir(u.aim);if(u.team<0&&manifest?.neutralUnits?.[u.type]!==undefined)return manifest.neutralUnits[u.type];return ({gatling:330+aim,cannon:u.team<0?1651+aim:1659+2*aim+(u.cooldown>0?1:0),howitzer:u.team<0?5759+aim:5767+2*aim+(u.cooldown>0?1:0),missile:(u.team<0?1635:1643)+aim})[u.type];}
+ //00455f10 queues raw X; queue elevation is cancelled again in004549f0.
+ // These are top-left sprite origins, including for the fort's fixed gun sockets.
+ function unitBounds(u,map){if(!ready||!map?.original||!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:u.x,y:u.y,w:f.w*2,h:f.h*2}:null;}
+ function fortGuns(b,units){return b.kind==='fort'?units.filter(u=>u.fortId===b.id&&guns.has(u.type)):[];}
  function unit(ctx,u,time,map){if(!ready||!map.original)return false;const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?Math.floor(time*8)%3:0;
   if(u.team<0&&manifest.neutralUnits?.[u.type]!==undefined)return native(ctx,manifest.neutralUnits[u.type],u.x,u.y,map);
+  if(guns.has(u.type))return native(ctx,gunFrame(u),u.x,u.y,map,u.team);
   if(manifest.unitLayouts?.[u.type])return vehicle(ctx,u,time,map,d,aim,walking);
   if(attack[u.type]){const seq=attack[u.type],firing=u.cooldown>0&&u.order!=='move',frame=firing?Math.min(seq[1]-1,Math.floor(time*12)%seq[1]):0,id=u.moving?74+d*4+(Math.floor(time*8)%4):firing?seq[0]+aim*seq[1]+frame:66+d,im=sprite(id,map.world,u.team);if(!im)return false;ctx.drawImage(im,Math.round(u.x-16),Math.round(u.y-30),im.width*2,im.height*2);return true;}
   if(u.type==='jeep')return centered(ctx,u.team<0?5606+d:5590+d*2+(u.moving?Math.floor(time*8)%2:0),u,map);
@@ -19,10 +26,6 @@ window.OriginalArt=(()=>{
   if(u.type==='launcher'){centered(ctx,1845+d*3+walking,u,map);centered(ctx,1869+aim,u,map);return true;}
   if(u.type==='crane')return centered(ctx,u.team<0?5834:5834+d*3+walking,u,map);
   if(u.type==='truck'||u.type==='firetruck')return centered(ctx,u.type==='truck'?5213:5215,u,map);
-  if(u.type==='gatling')return centered(ctx,330+aim,u,map);
-  if(u.type==='cannon')return centered(ctx,u.team<0?1651+aim:1659+2*aim+(u.cooldown>0?1:0),u,map);
-  if(u.type==='howitzer')return centered(ctx,u.team<0?5759+aim:5767+2*aim+(u.cooldown>0?1:0),u,map);
-  if(u.type==='missile')return centered(ctx,(u.team<0?1635:1643)+aim,u,map);
   return false;
  }
  function vehicle(ctx,u,time,map,d,aim,walking){
@@ -101,5 +104,5 @@ window.OriginalArt=(()=>{
  function flag(ctx,s,time,map){if(!ready||!map.original)return false;const frame=Math.floor(time*6)%3,im=sprite(1234+(s.owner===0?0:s.owner===1?4:8)+frame,map.world,s.owner);if(!im)return false;ctx.drawImage(im,s.x-2,s.y-26,im.width*2,im.height*2);return true;}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
+ return {load,unit,unitBounds,fortGuns,building,production,productionText,terrain,flag,effects,object,objectShadows,objectDepth,crate,get ready(){return ready;}};
 })();

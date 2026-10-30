@@ -53,6 +53,7 @@ From `rust-browser/`, validate with:
     node independent-engine/check-wasm.cjs
     node tools/check-original.cjs
     node tools/check-factory-timer.cjs
+    node tools/check-fort-guns.cjs
     node tools/check-original-audio.cjs
 
 The original-data, clock and audio checks require the local private resource pack. Build Wasm with

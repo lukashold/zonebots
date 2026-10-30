@@ -1,6 +1,6 @@
 Prüfstand 30.10.2026 – aktive Ghidra/Rust/Wasm-Fassung
 
-28 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
+31 Rust-Tests bestanden: bisherige neun Verhaltenstests, sieben isolierte
 Original-Kampfkerneltests und fünf Integrationsfälle für Originalschaden,
 Besatzungen, Schwierigkeit und HP-Grenzen. Sieben weitere Fälle prüfen lokale
 Zielsuche, Reservierungen, Besatzungserhaltung, Reichweitengrenzen und Befehlsvorrang.
@@ -28,3 +28,10 @@ Zeitformat, Obergrenze, Stillstand, Stopp und Zerstörung. Audio-Prüfung von 19
 115 Effektdeklarationen, sieben Musikstücken und MP3-Auswahl sowie Entsperren per
 Nutzeraktion, Sprachtrennung, Stummschalten, Abbruch der Queue und Szenenwechsel.
 Im Browser Originalmusik/Sprachdateien mit HTTP 200 geladen; Fabrikuhr sichtbar.
+
+Fortgeschütze: Drei weitere Rust-Tests prüfen gültige Fortzuordnung, getrennte
+Bodengeschütze und Erhalt beim Aussteigen/Bemannen. Alle 20 Karten wurden erneut
+über die Wasm-Schnittstelle geprüft: 68 Fortgeschütze mit Fort-ID, 95 Bodengeschütze
+ohne. 1.600 Rendererfälle prüfen Originalanker, Richtungen, Teams, Auswahlflächen
+und ausbleibende Positionssprünge beim Bemannen. Im Browser stehen eigene und
+gegnerische Geschütze auf ihren Turmdächern; Anklicken und Portrait geprüft.

@@ -126,7 +126,7 @@ def extract(root,out):
     crates.append({'id':len(crates),'x':x*2,'y':y*2,'taken':False,'type':'grenades','sourceOffset':o,'confidence':'exact_OBJECT_grenade_template'})
   starts=list(lv[0x55:0x61]);anchors=[]
   for team in (0,1):
-   ft=next(f for f in forts if f['team']==team);gx,gy=ft['rawBase'];table=exe.ptr((0x47aec0 if team==0 else 0x47aa98)+li*4);point_index=0;gun_index=0 if team==0 else 4
+   ft=next(f for f in forts if f['team']==team);fort_id=next(b['id'] for b in buildings if b['kind']=='fort' and b['team']==team);gx,gy=ft['rawBase'];table=exe.ptr((0x47aec0 if team==0 else 0x47aa98)+li*4);point_index=0;gun_index=0 if team==0 else 4
    for slot,gid in enumerate(starts):
     if gid==255:continue
     group=groups[gid];typ=group['type'];squad=team*100+slot+1
@@ -143,12 +143,13 @@ def extract(root,out):
     else:
      point_index+=1
      rx,ry=exe.pair(table+point_index*4);base=(gx+rx,gy+ry);anchorconfidence='exe_static_group_anchor'
-    anchors.append({'team':team,'slot':slot,'groupId':gid,'type':typ,'x':base[0]*2,'y':base[1]*2,'rawMembers':group['members'],'confidence':anchorconfidence})
+    mount={'fortId':fort_id} if typ in GUNS else {}
+    anchors.append({'team':team,'slot':slot,'groupId':gid,'type':typ,'x':base[0]*2,'y':base[1]*2,'rawMembers':group['members'],'confidence':anchorconfidence,**mount})
     for member,raw in enumerate(group['members']):
      # FUN_0041aec0 ASM 0041af08..0041af22: the decompiler drops X +=
      # (member & 3) << 4, but retains only Y += member & 0xfc.
      dx,dy=(member&3)*16,member&0xfc
-     spawns.append({'type':RAW[raw],'t':RAW[raw],'team':team,'x':(base[0]+dx)*2,'y':(base[1]+dy)*2,'squad':squad,'rawRobotId':raw,'groupId':gid,'source':'levels.dat_group','member':member,'memberOffsetNative':[dx,dy],'confidence':anchorconfidence+';member_offsets_exact_0041af08_0041af22'})
+     spawns.append({'type':RAW[raw],'t':RAW[raw],'team':team,'x':(base[0]+dx)*2,'y':(base[1]+dy)*2,'squad':squad,'rawRobotId':raw,'groupId':gid,'source':'levels.dat_group','member':member,'memberOffsetNative':[dx,dy],'confidence':anchorconfidence+';member_offsets_exact_0041af08_0041af22',**mount})
   outside=len(sectors);sectors.append({'id':outside,'x':-1024,'y':-1024,'owner':-1,'home':True,'outside':True,'countsForProduction':False})
   compatible=[outside if sid<0 else sid for sid in lookup]
   data={'number':number,'name':text(lv,0,20),'map':{'width':w,'height':h,'tileSize':32,'world':WORLDS[world],'worldName':world,'tiles':tiles,'territory':compatible,'originalTerritory':territory,'lookupTerritory':lookup,'originalTiles':rawtiles,'terrainCodes':codes,'bridgeBase':bridgebase,'bridgeHp':bridgehp,'seed':number,'revision':0,'original':True},'sectors':sectors,'buildings':buildings,'spawns':spawns,'startingGroups':anchors,'originalObjects':objects,'bridges':bridges,'crates':crates,'sourceFiles':{'map':f'LEVEL{nn}.MAP','build':f'BUILD{nn}.DAT','objects':f'OBJECT{nn}.DAT','cpu':f'CPUPLR{nn}.DAT','bridge':f'BRIDGE{nn}.DAT'},'diagnostics':{'inactiveBuildRecordsSkipped':skipped,'outsideTiles':territory.count(-1),'outsideLookupTiles':lookup.count(-1),'terrainCodes':dict(Counter(codes)),'unsupportedUnitTypes':sorted({s['type']for s in spawns} - set(RAW.values()))}}
