@@ -1,7 +1,7 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from functools import partial
-import mimetypes, argparse, webbrowser, os, subprocess, sys, socket
+import mimetypes, argparse, webbrowser, os, subprocess, sys, json, socket
 from urllib.parse import unquote,urlsplit
 root = Path(__file__).resolve().parents[1] / 'dist' / 'independent'
 mimetypes.add_type('application/wasm', '.wasm')
@@ -14,7 +14,12 @@ def ensure_original_pack(game):
     repo = Path(__file__).resolve().parents[1]
     private = repo / 'dist' / 'original'
     jobs = []
-    if not (private / 'campaign.json').is_file():
+    campaign_path = private / 'campaign.json'
+    try:
+        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 2
+    except (OSError, ValueError, AttributeError, TypeError):
+        campaign_current = False
+    if not campaign_current:
         jobs.append(('campaign', repo / 'tools' / 'extract-original-campaign.py',
                      ['--game', str(game), '--output', str(private)]))
     if not all((private / name).is_file() for name in ('sprites.png', 'sprites.json', 'tiles.png')):

@@ -11,7 +11,7 @@ impl Game {
     fn terrain_open(&self,x:i32,y:i32,profile:Profile)->bool {
         let Some(j)=self.cell(x,y) else{return false;};
         let Some(&tile)=self.map.tiles.get(j) else{return false;};
-        if tile==2{return false;}
+        if tile==2||tile==6{return false;}
         // A destroyed bridge must not inherit the original intact bridge code.
         if self.map.bridge_base.get(j).is_some_and(|&id|id>=0)&&tile==3{return false;}
         if self.map.original {
@@ -57,28 +57,28 @@ impl Game {
     }
     #[cfg(test)]
     pub(crate) fn route(&self,x:f64,y:f64,dx:f64,dy:f64,infantry:bool)->VecDeque<(f64,f64)>{
-        self.route_profile(x,y,dx,dy,if infantry{Profile::Infantry}else{Profile::Tracked},40,None)
+        self.route_profile(x,y,dx,dy,if infantry{Profile::Infantry}else{Profile::Tracked},40,None,None)
     }
     #[cfg(test)]
     pub(crate) fn route_for(&self,x:f64,y:f64,dx:f64,dy:f64,kind:&str)->VecDeque<(f64,f64)>{
-        self.route_profile(x,y,dx,dy,original_terrain::profile(kind),super::original_combat::CombatState::new(kind).movement_control,None)
+        self.route_profile(x,y,dx,dy,original_terrain::profile(kind),super::original_combat::CombatState::new(kind).movement_control,None,None)
     }
     pub(crate) fn route_unit(&self,unit:&super::Unit,dx:f64,dy:f64)->VecDeque<(f64,f64)>{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
-        self.route_profile(unit.x,unit.y,dx,dy,original_terrain::profile(&unit.kind),control,None)
+        self.route_profile(unit.x,unit.y,dx,dy,original_terrain::profile(&unit.kind),control,None,None)
     }
     pub(crate) fn route_to_attack(&self,unit:&super::Unit,tx:f64,ty:f64,range:f64)->VecDeque<(f64,f64)>{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
-        self.route_profile(unit.x,unit.y,tx,ty,original_terrain::profile(&unit.kind),control,Some(range.max(0.)))
+        self.route_profile(unit.x,unit.y,tx,ty,original_terrain::profile(&unit.kind),control,Some(range.max(0.)),None)
     }
     pub(crate) fn terrain_factor_unit(&self,unit:&super::Unit)->f64{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
         self.factor_profile((unit.x/TILE).floor()as i32,(unit.y/TILE).floor()as i32,original_terrain::profile(&unit.kind),control)
     }
-    fn route_profile(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>)->VecDeque<(f64,f64)>{
+    pub(crate) fn route_profile(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>,wall_target:Option<usize>)->VecDeque<(f64,f64)>{
         let empty=VecDeque::new();
         if ![x,y,dx,dy].iter().all(|n|n.is_finite())||x<0.||y<0.{return empty;}
         let(w,h)=(self.map.width,self.map.height);
@@ -104,7 +104,8 @@ impl Game {
         let heuristic=|j:usize|->u32{
             if let Some(range)=firing_range{
                 let(px,py)=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
-                return (((px-dx).hypot(py-dy)-range-TILE*std::f64::consts::SQRT_2).max(0.)/TILE*1000.*minimum_cost).floor()as u32;
+                let radius=wall_target.and_then(|id|self.wall(id)).map(|wall|wall.w.hypot(wall.h)/2.).unwrap_or(TILE*std::f64::consts::SQRT_2);
+                return (((px-dx).hypot(py-dy)-range-radius).max(0.)/TILE*1000.*minimum_cost).floor()as u32;
             }
             if !exact{return 0;}
             let ax=((j%w)as i32-gx).unsigned_abs();let ay=((j/w)as i32-gy).unsigned_abs();
@@ -119,7 +120,8 @@ impl Game {
             let(cx,cy)=((j%w)as i32,(j/w)as i32);
             if let Some(range)=firing_range{
                 let(px,py)=(cx as f64*TILE+16.,cy as f64*TILE+16.);
-                if self.passable_profile(cx,cy,profile)&&(px-dx).hypot(py-dy)<=range&&self.los(px,py,dx,dy){
+                let can_fire=if let Some(wall)=wall_target.and_then(|id|self.wall(id)){let point=wall.point_from(px,py);(px-point.0).hypot(py-point.1)<=range&&self.wall_los(px,py,point.0,point.1,wall.id)}else{(px-dx).hypot(py-dy)<=range&&self.los(px,py,dx,dy)};
+                if self.passable_profile(cx,cy,profile)&&can_fire{
                     reached=Some(j);break;
                 }
             }

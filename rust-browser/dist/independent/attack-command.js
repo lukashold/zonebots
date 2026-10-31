@@ -19,6 +19,12 @@ window.AttackCommand=(()=>{
   const m=state.map,t=m.tileSize||32,col=Math.floor(p.x/t),row=Math.floor(p.y/t),cell=row*m.width+col,id=m.bridgeBase?.[cell];
   return Number.isInteger(id)&&id>=0&&Number.isFinite(m.bridgeHp?.[id])&&m.bridgeHp[id]>0?{id,cell,x:(col+.5)*t,y:(row+.5)*t}:null;
  }
+ function wallFighterIds(state,selected){const units=new Map((state?.units||[]).map(u=>[u.id,u])),catalog=new Map((state?.catalog||[]).map(d=>[d.type,d]));return fighterIds(state,selected).filter(id=>{const u=units.get(id),d=catalog.get(u.type);return d?.canDestroyWalls===true||d?.wallGrenades===true&&u.grenades>0;});}
+ function wallAt(state,p){
+  if(!inMap(state,p))return null;
+  for(let i=(state.walls||[]).length-1;i>=0;i--){const wall=state.walls[i];if(!Number.isFinite(wall.hp)||wall.hp<=0||!Number.isFinite(wall.x)||!Number.isFinite(wall.y))continue;const b=wall.hitBounds||wall,w=Number.isFinite(b.w)?b.w:32,h=Number.isFinite(b.h)?b.h:32;if(p.x>=b.x&&p.x<b.x+w&&p.y>=b.y&&p.y<b.y+h)return wall;}
+  return null;
+ }
  function hitUnit(unit,p,boundsFn){
   const b=typeof boundsFn==='function'?boundsFn(unit):null;
   if(b&&[b.x,b.y,b.w,b.h].every(Number.isFinite)&&b.w>0&&b.h>0)return p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h;
@@ -32,6 +38,7 @@ window.AttackCommand=(()=>{
    const gate=Array.isArray(b.gate)&&b.gate.length>=2&&b.gate.every(Number.isFinite)?b.gate:null;
    return {kind:'attackBuilding',targetType:'building',entity:b,target:b.id,ids,x:gate?.[0]??b.x+b.w/2,y:gate?.[1]??b.y+b.h+24};
   }
+  const wall=wallAt(state,p);if(wall){const wallIds=wallFighterIds(state,ids);return wallIds.length?{kind:'attackWall',targetType:'wall',entity:wall,target:wall.id,ids:wallIds,x:wall.x+(wall.w||32)/2,y:wall.y+(wall.h||32)/2}:null;}
   if(options.commandMode!=='attack'||!inMap(state,p))return null;
   const bridge=bridgeAt(state,p);
   return bridge?{kind:'attackBridge',targetType:'bridge',target:bridge.id,ids,x:p.x,y:p.y}:{kind:'attack',targetType:'point',ids,x:p.x,y:p.y};
@@ -47,6 +54,7 @@ window.AttackCommand=(()=>{
     const entity=(state.buildings||[]).find(b=>b.id===order.id);
     return enemyBuilding(entity)?{entity,x:entity.x+entity.w/2,y:entity.y+entity.h/2}:null;
    }
+   if(order.targetType==='wall'){const entity=(state.walls||[]).find(w=>w.id===order.id);return entity&&entity.hp>0?{entity,x:entity.x+(entity.w||32)/2,y:entity.y+(entity.h||32)/2}:null;}
    if(order.targetType==='bridge'){
     const bridge=bridgeAt(state,order.point);
     return bridge&&bridge.id===order.id&&bridge.cell===order.cell?{x:bridge.x,y:bridge.y}:null;
@@ -56,15 +64,15 @@ window.AttackCommand=(()=>{
   function assign(target,state){
    if(!target||!state)return;
    const {targetType,kind}=target;
-   if(!['unit','building','bridge','point'].includes(targetType)||kind!==({unit:'attack',building:'attackBuilding',bridge:'attackBridge',point:'attack'})[targetType])return;
+   if(!['unit','building','wall','bridge','point'].includes(targetType)||kind!==({unit:'attack',building:'attackBuilding',wall:'attackWall',bridge:'attackBridge',point:'attack'})[targetType])return;
    const bridge=targetType==='bridge'?bridgeAt(state,target):null;
    const order={targetType,kind,id:target.target??target.entity?.id,point:{x:target.x,y:target.y},cell:bridge?.cell,started:Number.isFinite(state.time)?state.time:0};
    if(bridge)order.id=bridge.id;
    if(!resolve(order,state))return;
    const units=new Map((state.units||[]).map(u=>[u.id,u]));
-   for(const id of fighterIds(state,target.ids)){
+   for(const id of (targetType==='wall'?wallFighterIds(state,target.ids):fighterIds(state,target.ids))){
     const u=units.get(id),dest=destination(u),unitTarget=u.target??null;
-    if(u.order!==kind||(['unit','building'].includes(targetType)&&unitTarget!==order.id)||(targetType==='point'&&unitTarget!==null)||(['building','bridge','point'].includes(targetType)&&!dest))continue;
+    if(u.order!==kind||(['unit','building','wall'].includes(targetType)&&unitTarget!==order.id)||(targetType==='point'&&unitTarget!==null)||(['building','wall','bridge','point'].includes(targetType)&&!dest))continue;
     if(targetType==='bridge'&&bridgeAt(state,{x:dest[0],y:dest[1]})?.id!==order.id)continue;
     orders.set(id,{...order,expectedTarget:unitTarget,dest:dest?[...dest]:null,hadRoute:Array.isArray(u.path)&&u.path.length>0});
    }
@@ -89,5 +97,5 @@ window.AttackCommand=(()=>{
   }
   return Object.freeze({assign,clear,reset,targets});
  }
- return Object.freeze({intent,fighterIds,createTracker});
+ return Object.freeze({intent,fighterIds,createTracker,wallAt,wallFighterIds});
 })();

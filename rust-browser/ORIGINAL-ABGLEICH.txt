@@ -56,8 +56,10 @@ und die ursprüngliche Gesichtszustandsmaschine im Statuspanel fehlen bzw. sind 
 Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
 Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte
 Grafik; hier werden die semantisch passenden Wracks gezeichnet. Originalmusik und deutsche
-Sprachmeldungen werden aus dem privaten Originaltonpaket geladen. Mehrspieler, Videos und
-Originalspielstände sind nicht enthalten. Lautsprecherausgabe und macOS-Hardware sind nicht separat geprüft.
+Sprachmeldungen werden aus dem privaten Originaltonpaket geladen. Die Webfassung hat
+eigenen 1-gegen-1-Mehrspieler über WebRTC; das originale Netzwerkprotokoll wird nicht
+emuliert. Videos und Originalspielstände sind nicht enthalten. Lautsprecherausgabe
+und macOS-Hardware sind nicht separat geprüft.
 
 VERÖFFENTLICHUNG
 Nur die bereits private Spielseite erhält das genehmigte Ressourcenpaket. GitHub
@@ -393,3 +395,36 @@ Schießen gerade kein Laufweg nötig ist. Das Fadenkreuz verfolgt die Gegner-ID
 und toleriert die laufend aktualisierte Verfolgungsposition; statische Aufträge
 behalten ihre bisherige Zielprüfung. Zeitabstände, Mehrziel-A* und KI-Anpassung
 sind Korrekturen der Webfassung, kein neuer Nachweis identischer Original-KI.
+
+NEUTRALE HARDWARE – 31.10.2026
+Unbesetzte OBJECT-Fahrzeuge werden nun mit neutraler Palette statt ohne
+Besitzumsetzung gezeichnet. Wie bei den ursprünglichen neutralen Kartenfahnen
+werden Besitzindizes 16..31 auf 80..95 umgesetzt. Alle fünf Originalpaletten
+bestätigen dort die Graurampe. Nach dem Bemannen verwendet dieselbe Hardware
+die rote oder blaue Besitzpalette; Typ, Waffenfamilie und Originalpixel bleiben
+erhalten. HD übernimmt Grau für neutrale Besitzflächen und die jeweilige
+Spielerfarbe erst bei Besatzung. Fest zum Material gehörende Farben bleiben.
+
+ZERSTÖRBARE STEINWÄNDE – 31.10.2026
+Der frühere Konverter las die beiden Geländeebenen, aber nicht die zusätzliche
+Mauer-Bitmap der MAP-Dateien. Das Original erzeugt die sichtbaren Steinwände erst
+beim Laden. Der neue Extraktor liest alle 20 Mauergruppen ab MAP-Offset 0x1A01
+und erzeugt daraus 6.038 Stücke in den 20 Kampagnenmissionen. Originale Höhen,
+Positionen, HP, Weltkacheln und Endformen sind übernommen; Felsklippen (Code 19)
+und Brückenauflager (43) werden dadurch nicht zu zerstörbaren Wänden.
+
+Der Rust-Kern setzt nach einem Treffer die verbleibenden Köpfe und Vorderflächen
+neu zusammen. Intakte Wände blockieren Bewegung, Sichtlinie und Geschützplatzierung.
+Zerstörte Stücke erzeugen passierbare Trümmer und öffnen den Weg. Geeignete
+Kanonen-/Raketenwaffen und mitgeführte Robotergranaten können sie beschießen;
+MG-Projektile und primäres Flammenfeuer verwenden keinen Wand-Schadenspfad.
+Die Web-Eingabe zeigt dafür das Angriffs-Fadenkreuz. Der Mehrspieler-Host
+überträgt Wand-HP, neue Anschlussformen und Kartenrevision an den Gast.
+
+Originalgrafik verwendet die rekonstruierten nativen Kacheln; die HD-Darstellung
+ist eine eigene Zeichnung derselben Geometrie. Die Reihenfolge des originalen
+gemeinsamen Zufallszahlengenerators und eine zusätzliche rechte Schattenkorrektur
+sind noch nicht vollständig umgesetzt. Die Auswahl von Innentexturen und Trümmern
+ist hier deterministisch. Automatisches Durchsprengen während beliebiger
+Bewegungsbefehle sowie alle nativen Sonderzustände werden nicht als identisch
+behauptet. Format, Funktionsbelege und genaue Grenzen: ORIGINAL-WAENDE.txt.

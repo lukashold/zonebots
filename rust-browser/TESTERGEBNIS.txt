@@ -267,3 +267,54 @@ Internetanschlüsse sind nicht separat erprobt. TURN-/Routergrenzen sind dokumen
 Echte Browser-HD-Vorschau: warme JavaScript-Zeichenarbeit p95 etwa 4–5 ms,
 Wasm-Aufruf p95 etwa 0,9 ms in Mission 1 bei 1280×720. Keine feste FPS-Zusage.
 Realer Skia-Stresstest und exakte Methodik stehen in HD-PERFORMANCE.txt.
+
+NEUTRALE HARDWARE UND STEINWÄNDE – 31.10.2026
+Aktueller Rust-Stand: 122 Tests bestanden, einschließlich 16 neuer Wandfälle.
+Das Release-Wasm ist neu gebaut und umfasst 531.683 Bytes. Geprüft werden
+unpassierbare Wände, Sichtlinien, überlappende Vorderflächen, erreichbare
+Schusspositionen, tatsächlicher Beschuss, Einsturz, Trümmer und neue Wege.
+Beide Teams und alle acht geeigneten Primärwaffen sowie fünf Robotertypen mit
+Granaten sind abgedeckt; leeres Inventar und MG-Feuer öffnen keine Steinwand.
+
+Der unabhängige Extraktionsabgleich prüft alle 6.038 aktiven Bitmap-Bits der
+20 Originalkarten gegen Position, Höhe und native HP. Alle ursprünglichen
+Bodenbilder und Geländecodes bleiben als Grundlage erhalten. Die echte Wasm-
+Prüfung vergleicht die erzeugten Mauerflächen aller 20 Missionen und prüft
+Beschuss samt anschließendem Durchqueren einer Bresche auf einer 128×128-Karte.
+Felsklippen und Brückenauflager bleiben von zerstörbaren Steinwänden getrennt.
+
+check-wall-input.cjs besteht gegen die tatsächlichen Frontend-Handler und Wasm
+in klassischer und moderner Steuerung: Fadenkreuz, Klick, Angriffsauftrag,
+Zielmarkierung, Stopp, ungeeignete Infanterie, tatsächlicher Einsturz und erhaltene
+Katalogdaten nach einer Kartenrevision. check-wall-target.cjs prüft zusätzlich
+die gesamte Mauer-Trefferfläche und das Aufräumen der Auftragsmarkierung.
+
+check-wall-multiplayer.cjs besteht mit getrennten Host-/Gast-Koordinatoren und
+echtem Wasm: Gastbefehl, HP-Abgleich, Einsturz, Kartenrevision und geöffnete
+Zellen. Unveränderte Wandgeometrie wird nicht in jedem Frame erneut übertragen;
+der Gast behält sie und führt die Simulation selbst nicht aus.
+
+check-neutral-colors.cjs besteht mit 260 Originalgrafik-/Besatzungsfällen und
+52 HD-Fällen. Die Original-Palettenumsetzung verschiebt nur die Besitzindizes
+16..31 auf die Graurampe 80..95; übrige Materialfarben und Transparenz bleiben
+erhalten. Grau, Rot und Blau werden über alle fünf Welten und Besatzungswechsel
+geprüft. HD verwendet dieselben neutralen Besitzregeln.
+
+check-wall-art.cjs besteht über fünf Welten, 16 Anschlussformen, Beschädigung und
+Trümmer. Endliche Canvas-Koordinaten, unveränderter Spielzustand, wiederverwendete
+Zwischenspeicher, Sichtfensterbegrenzung und die Trennung von HD/Original bestehen.
+Die Ergebnisse belegen die beschriebenen Regeln; vollständige Originalparität
+bei Zufallstexturen, Schatten und Projektilabläufen ist damit nicht nachgewiesen.
+
+Browsernachweis: echte Mission 10 mit Originalkacheln und kontrolliertem
+schwerem Panzer; Fragment 55 fällt von HP 1/1 auf 0/1, alle drei Wandzellen
+öffnen sich und die Kartenrevision steigt auf 1. Vorher-/Nachher-Ansicht in
+Original und HD sowie graue/rote/blaue Panzer wurden sichtbar geprüft.
+Mission 10 startet auch über das normale Menü. Kein Browserfehler/-warnung.
+Die temporäre Prüfseite wurde entfernt; der Screenshot liegt außerhalb des
+Spielpakets unter outputs/Z-Steinwaende-und-Panzerfarben.png.
+
+Regressionen bestehen weiterhin: alle 20 Originalmissionen, fünf prozedurale
+Welten, Mehrspielertransport/-koordination, Angriffs-, Aufnahme-, Einsteige-
+und Geschützplatzierungs-Eingaben in beiden Steuerungen, Geschützidentität,
+Original-HUD, Grafikumschaltung sowie HD-Gelände/-Einheiten/-Strukturen.

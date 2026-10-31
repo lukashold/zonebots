@@ -1,4 +1,4 @@
-Z – Rust/Wasm-Rekonstruktion, 30.10.2026
+Z – Rust/Wasm-Rekonstruktion, 31.10.2026
 
 Private Spielseite: https://z-rust-browser.cyberuser13.chatgpt.site/
 Die private Fassung enthält das freigegebene Grafik- und Kartenpaket. Sie braucht
@@ -128,3 +128,25 @@ Der Host stellt dabei sein Spielpaket für Mitspieler im eigenen Netzwerk bereit
 Die ausgegebene LAN-Adresse auf beiden Geräten öffnen; kein Ordner-Upload nötig.
 Danach im Mehrspieler-Menü Lokales Netzwerk wählen und die Codes austauschen.
 Die Originalressourcen wurden hierfür vom Nutzer ausdrücklich freigegeben.
+
+NEUTRALE HARDWARE UND STEINWÄNDE – 31.10.2026
+Unbesetzte Panzer, Fahrzeuge und Geschütze tragen graue Besitzflächen. Erst beim
+Bemannen erscheint Rot oder Blau. Das gilt für Originalgrafik und HD-Remake;
+beim Aussteigen werden die Besitzflächen wieder grau.
+
+Die 20 Originalkarten enthalten jetzt auch die bisher fehlenden 6.038 zerstörbaren
+Mauerstücke. Sie stammen aus einer zusätzlichen Ebene der Original-MAP-Dateien.
+Die Originalansicht verwendet die ursprünglichen weltabhängigen Mauerkacheln;
+HD zeichnet passende Steinwände auf denselben Positionen und Trefferflächen.
+
+Eine geeignete Kampfeinheit auswählen und auf die Steinwand zeigen: Das Fadenkreuz
+kennzeichnet den Angriff. Klassisch mit Linksklick, modern mit Rechtsklick feuern.
+Panzergranaten, Raketen und geeignete Geschütze können die Wand sprengen; Roboter
+können dazu mitgeführte Granaten benutzen. Reines MG-Feuer öffnet keinen Durchgang.
+Intakte Wände sperren Wege und Sichtlinien. Ein zerstörtes Stück hinterlässt
+passierbare Trümmer; angrenzende Mauerformen werden neu zusammengesetzt.
+
+Der lokale Starter erneuert ältere Kartenpakete automatisch auf Kampagnenformat 2.
+Im Mehrspieler müssen beide Geräte die aktualisierte Fassung neu laden. Wand-HP,
+Einsturz und geöffnete Wege werden vom Host an den Gast übertragen. Belege und
+verbleibende Darstellungsgrenzen stehen in ORIGINAL-WAENDE.txt.

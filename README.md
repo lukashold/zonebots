@@ -53,6 +53,10 @@ Completed stationary guns wait in up to four factory storage slots. Choose **Pla
 
 Gun artwork now keeps each original weapon family across crewing: the previously swapped occupied Cannon/Gatling sprite blocks are corrected using native animation descriptors. Neutral models, weapon values and hardware identity remain consistent through unload/re-entry, including approaches within a single map tile.
 
+Unoccupied hardware now uses the original neutral gray palette in pixel mode and gray team paint in HD. Crewing, unloading and recapturing change only the team paint, without changing the weapon type.
+
+The campaign importer now reconstructs 6,038 destructible wall pieces from the additional wall layer in all 20 original maps. Walls block movement, sight and gun placement; eligible shells, rockets and collected grenades can break them open. Original tile forms and exposed ends update after collapse, and both multiplayer peers receive damage and opened routes. The optional HD view draws its own matching stonework. See [original wall findings and limits](rust-browser/ORIGINAL-WAENDE.txt). Existing local packs with an older campaign format are refreshed automatically by the local launcher. Both multiplayer players must reload the page after this update.
+
 The menu now uses locally extracted original title, background and metal-panel textures, with separate new-game, options and help views. It remains usable without the private menu pack. `tools/extract-original-menu.py` copies the optional textures from an owned GOG installation; the local server prepares them automatically when available. These images are never included in this public repository. The responsive arrangement is a web adaptation of the original artwork.
 
 The Rust edition also offers **Originalgrafik** and **HD-Remake** in the new-game
@@ -103,6 +107,12 @@ From `rust-browser/`, validate with:
     cargo test --manifest-path independent-engine/Cargo.toml
     node independent-engine/check-wasm.cjs
     node tools/check-original.cjs
+    node tools/check-neutral-colors.cjs
+    node tools/check-walls.cjs
+    node tools/check-wall-target.cjs
+    node tools/check-wall-input.cjs
+    node tools/check-wall-art.cjs
+    node tools/check-wall-multiplayer.cjs
     node tools/check-automatic-production.cjs
     node tools/check-gun-placement-input.cjs
     node tools/check-factory-timer.cjs

@@ -43,6 +43,56 @@ def components(indices,w,h):
   out.append(cells)
  return out
 
+def wall_tile_lookup(exe,native_world):
+ """Recover the world's autotile table, not the unrelated permanent cliffs.
+
+ FUN_0042e4c0 copies 520 bytes through 004939e4, then dereferences the
+ 16-by-four pointer matrix at 00494168. FUN_0042ef70 uses exposed-side bits
+ north=1/east=2/south=4/west=8 and the first entry of each matrix row.
+ Native world order differs from the browser atlas order.
+ """
+ source=exe.read(exe.ptr(0x4939e4+native_world*4),520)
+ pair=lambda offset:u16(source,offset)
+ tile=lambda value:(value&255)|((value&0x8000)>>7)
+ heads=[tile(pair(exe.ptr(0x494168+mask*16)-0x5b6832))for mask in range(16)]
+ # The front of certain concave corners uses a different source tile before
+ # advancing one native 20-tile row per height step (FUN_0042ef70).
+ remap={}
+ for src,dst in [(0x74,0x62),(0x58,0x46),(0x5a,0x48),(0x50,0x3e),(0x56,0x44),(0x5c,0x4a)]:remap.setdefault(str(tile(pair(src))),tile(pair(dst)))
+ return {'version':1,'headTiles':heads,'interiorTiles':[tile(pair(24+i*2))for i in range(16)],'frontRemap':remap,'frontStep':20,'rubbleTiles':[tile(pair(0xb2+min(i,5)*2))for i in range(8)],'rubbleCode':22,'nativeWorld':native_world,'source':'Z.exe FUN_0042e4c0/0042ef70/0042f580'}
+
+def extract_walls(d,w,h,rawtiles,codes,tiles,lookup):
+ """Decode the separate 20 x 138-byte destructible-wall bitmap layer.
+
+ These records precede the visual map planes. The original generates their
+ tiles at runtime (0042f1f0), so copying only the planes silently loses every
+ destructible wall. The two-pixel scale also applies to these coordinates.
+ """
+ base_tiles=rawtiles[:];base_codes=codes[:];base_classes=tiles[:];walls=[]
+ for record in range(20):
+  offset=0x1a01+record*138;r=d[offset:offset+138]
+  x0,y0=u16(r,0)//16,u16(r,2)//16;height=r[4];native_hp=struct.unpack_from('<b',r,5)[0]
+  def bit(j):return 0<=j<1024 and bool(r[10+(j>>3)]&(0x80>>(j&7)))
+  for j in range(1024):
+   if not bit(j):continue
+   x,y=x0+j%32,y0+j//32
+   if not(0<=x<w and 0<=y<h):continue
+   mask=15
+   for delta,flag,allowed in [(-32,1,j>=32),(1,2,j%32!=31),(32,4,j<993),(-1,8,j%32!=0)]:
+    if allowed and bit(j+delta):mask&=~flag
+   # The original uses its shared RNG only for fully enclosed texture
+   # variants. Keep this choice stable without pretending to recover its
+   # state after all preceding engine calls; boundary shape is exact.
+   variant=(record*7+j)&15;head=lookup['headTiles'][mask]if mask else lookup['interiorTiles'][variant]
+   cells=[(y+dy)*w+x for dy in range(height+1)if y+dy<h]
+   hp=max(1,native_hp) # Native zero-HP walls remain solid until any hit.
+   walls.append({'id':len(walls),'x':x*32,'y':y*32,'w':32,'h':len(cells)*32,'hp':hp,'maxHp':hp,'cells':cells,'groundTiles':[base_tiles[k]for k in cells],'groundCodes':[base_codes[k]for k in cells],'groundClasses':[base_classes[k]for k in cells],'wallRecord':record,'wallBit':j,'height':height,'nativeHp':native_hp,'neighborMask':mask,'variant':variant,'wallTileIndex':head,'sourceOffset':offset,'sourceBit':j,'confidence':'exact_MAP_bitmap_xy_height_hp_and_EXE_boundary_autotiles;interior_variant_stable_adapter'})
+   front=lookup['frontRemap'].get(str(head),head)
+   for dy,k in enumerate(cells):
+    rawtiles[k]=head if dy==0 else ((front&255)+lookup['frontStep']*dy)&255|(front&256)
+    codes[k]=height if dy==0 else 18;tiles[k]=6
+ return walls,base_tiles,base_codes,base_classes
+
 def extract(root,out):
  robot=(root/'robots.dat').read_bytes();levels=(root/'levels.dat').read_bytes();exe=Exe(root/'Z.exe')
  groups=[]
@@ -155,11 +205,17 @@ def extract(root,out):
      spawns.append({'type':RAW[raw],'t':RAW[raw],'team':team,'x':(base[0]+dx)*2,'y':(base[1]+dy)*2,'squad':squad,'rawRobotId':raw,'groupId':gid,'source':'levels.dat_group','member':member,'memberOffsetNative':[dx,dy],'confidence':anchorconfidence+';member_offsets_exact_0041af08_0041af22',**mount})
   outside=len(sectors);sectors.append({'id':outside,'x':-1024,'y':-1024,'owner':-1,'home':True,'outside':True,'countsForProduction':False})
   compatible=[outside if sid<0 else sid for sid in lookup]
+  wall_lookup=wall_tile_lookup(exe,lv[0x6e])
+  walls,wall_ground_tiles,wall_ground_codes,wall_ground_classes=extract_walls(d,w,h,rawtiles,codes,tiles,wall_lookup)
   data={'number':number,'name':text(lv,0,20),'map':{'width':w,'height':h,'tileSize':32,'world':WORLDS[world],'worldName':world,'tiles':tiles,'territory':compatible,'originalTerritory':territory,'lookupTerritory':lookup,'originalTiles':rawtiles,'terrainCodes':codes,'bridgeBase':bridgebase,'bridgeHp':bridgehp,'seed':number,'revision':0,'original':True},'sectors':sectors,'buildings':buildings,'spawns':spawns,'startingGroups':anchors,'originalObjects':objects,'bridges':bridges,'crates':crates,'sourceFiles':{'map':f'LEVEL{nn}.MAP','build':f'BUILD{nn}.DAT','objects':f'OBJECT{nn}.DAT','cpu':f'CPUPLR{nn}.DAT','bridge':f'BRIDGE{nn}.DAT'},'diagnostics':{'inactiveBuildRecordsSkipped':skipped,'outsideTiles':territory.count(-1),'outsideLookupTiles':lookup.count(-1),'terrainCodes':dict(Counter(codes)),'unsupportedUnitTypes':sorted({s['type']for s in spawns} - set(RAW.values()))}}
+  data['walls']=walls
+  data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes})
+  data['diagnostics']['wallRecords']=len({wall['wallRecord']for wall in walls})
+  data['diagnostics']['wallPieces']=len(walls)
   missions.append(data)
- result={'version':1,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Terrain visual tile indices exact; six compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
+ result={'version':2,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Wall positions, height, hit points, exposed-side shapes and world graphics recovered from MAP/EXE. Interior texture variants use a stable adapter instead of unrecovered shared RNG state. Native auxiliary right-edge shadow adjustments are not yet reconstructed.','Terrain visual tile indices exact apart from documented wall variants; compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
  out.mkdir(parents=True,exist_ok=True);(out/'campaign.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
- (out/'summary.json').write_text(json.dumps([{'level':m['number'],'name':m['name'],'width':m['map']['width'],'height':m['map']['height'],'sectors':len(m['sectors'])-1,'buildings':len(m['buildings']),'spawns':len(m['spawns']),'unsupported':m['diagnostics']['unsupportedUnitTypes']}for m in missions],indent=2),encoding='utf-8')
+ (out/'summary.json').write_text(json.dumps([{'level':m['number'],'name':m['name'],'width':m['map']['width'],'height':m['map']['height'],'sectors':len(m['sectors'])-1,'buildings':len(m['buildings']),'spawns':len(m['spawns']),'walls':len(m['walls']),'unsupported':m['diagnostics']['unsupportedUnitTypes']}for m in missions],indent=2),encoding='utf-8')
  print(f'Extracted {len(missions)} missions to {out / "campaign.json"}')
 
 if __name__=='__main__':

@@ -10,6 +10,7 @@ mod original_grenades;
 mod original_initiative;
 mod original_terrain;
 mod terrain;
+mod walls;
 mod pursuit;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
@@ -29,6 +30,10 @@ pub struct Map {
     #[serde(default)] pub original_tiles:Vec<u16>,
     #[serde(default)] pub terrain_codes:Vec<u8>,
     #[serde(default)] pub water_tile:u16,
+    #[serde(default)] pub wall_tile_lookup:Value,
+    #[serde(default, skip_serializing)] pub wall_ground_tiles:Vec<u16>,
+    #[serde(default, skip_serializing)] pub wall_ground_codes:Vec<u8>,
+    #[serde(default, skip_serializing)] pub wall_ground_classes:Vec<u8>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all="camelCase")]
@@ -183,6 +188,8 @@ pub struct Game {
     pub crates: Vec<Crate>,
     pub events: Vec<Value>,
     #[serde(default)] pub objects:Vec<Value>,
+    #[serde(default)] pub walls:Vec<walls::Wall>,
+    #[serde(skip)] wall_owners:Vec<usize>,
     pub time: f64,
     pub winner: Option<i32>,
     pub difficulty: usize,
@@ -219,14 +226,14 @@ impl Game {
                 bridge_base: vec![-1; n],
                 bridge_hp: vec![],
                 seed,
-                revision: 0, original:false,original_tiles:vec![],terrain_codes:vec![],water_tile:0,
+                revision: 0, original:false,original_tiles:vec![],terrain_codes:vec![],water_tile:0,wall_tile_lookup:Value::Null,wall_ground_tiles:vec![],wall_ground_codes:vec![],wall_ground_classes:vec![],
             },
             sectors: vec![],
             buildings: vec![],
             units: vec![],
             effects: vec![],
             crates: vec![],
-            events: vec![], objects:vec![],
+            events: vec![], objects:vec![], walls:vec![],wall_owners:vec![],
             time: 0.,
             winner: None,
             difficulty: difficulty.min(3),
@@ -491,6 +498,7 @@ impl Game {
       let buildings:Vec<Building>=serde_json::from_value(v["buildings"].clone()).map_err(|e|e.to_string())?;
       let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
       self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.next_id=1;
+      self.import_walls(v)?;
       self.map.water_tile=self.map.terrain_codes.iter().position(|c|[9,39,40].contains(c)).and_then(|i|self.map.original_tiles.get(i).copied()).unwrap_or(0);
       for spawn in v["spawns"].as_array().ok_or("Missing spawns")?{let kind=spawn["type"].as_str().ok_or("Missing unit type")?;let kind=if kind=="mobile_missile"{"launcher"}else{kind};if !TYPES.contains(&kind){return Err(format!("Unsupported original unit {kind}"));}let x=spawn["x"].as_f64().ok_or("Missing x")?;let y=spawn["y"].as_f64().ok_or("Missing y")?;let team=spawn["team"].as_i64().unwrap_or(-1)as i32;let squad=spawn["squad"].as_u64().unwrap_or(self.next_id as u64)as usize;self.spawn(kind,team,x,y,squad,None);
         let fort_id=spawn["fortId"].as_u64().map(|id|id as usize).filter(|id|stats(kind).cls==2&&self.buildings.iter().any(|b|b.id==*id&&b.kind=="fort"));
@@ -510,7 +518,7 @@ impl Game {
                 ((x + (dx - x) * a) / TILE) as usize,
                 ((y + (dy - y) * a) / TILE) as usize,
             );
-            if self.map.tiles.get(ty * self.map.width + tx) == Some(&2) {
+            if self.map.tiles.get(ty * self.map.width + tx).is_some_and(|t|matches!(t,2|6)) {
                 return false;
             }
         }
@@ -535,6 +543,7 @@ impl Game {
             else {
                 continue;
             };
+            if kind=="attackWall" && (!walls::capable(&self.units[i]) || v["target"].as_u64().and_then(|id| self.wall(id as usize)).is_none()) { continue; }
             self.units[i].initiative=None;
             self.units[i].pursuit=None;
             self.units[i].hold_position=self.map.original&&kind=="stop";
@@ -571,6 +580,12 @@ impl Game {
             self.units[i].target = v["target"].as_u64().map(|n| n as usize);
             self.units[i].path.clear();
             self.units[i].dest = None;
+            if kind == "attackWall" {
+                let wall=self.wall(self.units[i].target.unwrap()).unwrap().clone();
+                self.units[i].dest=Some(wall.center());
+                self.units[i].path=self.route_to_wall_attack(&self.units[i],&wall,stats(&self.units[i].kind).range);
+                continue;
+            }
             if kind == "stop" {
                 self.units[i].order = "guard".into();
                 continue;
@@ -667,6 +682,7 @@ impl Game {
             self.units[i].moving = false;
             self.units[i].cooldown -= dt;
             let pursuit_hold=self.update_pursuit(i,&snapshot,d.range,d.speed);
+            let wall_hold=self.update_wall_attack(i,d.range,d.damage,d.reload,d.speed);
             u=self.units[i].clone();
             if u.order == "attackBridge" || u.order == "repairBridge" {
                 if let Some((x, y)) = u.dest {
@@ -801,6 +817,7 @@ impl Game {
                 .iter()
                 .filter(|v| {
                     !building_target_in_range
+                        && !wall_hold
                         && original_combat::alive(self.map.original,v.hp)
                         && v.team >= 0
                         && v.team != u.team
@@ -863,10 +880,10 @@ impl Game {
             if let Some(&(nx,ny))=self.units[i].path.front() {
                 if !self.movement_segment_clear_for(u.x,u.y,nx,ny,&u.kind) {
                     let goal=self.units[i].dest.or_else(||self.units[i].path.back().copied());
-                    self.units[i].path=goal.map(|(x,y)|if u.order=="attack"&&u.target.is_some(){self.route_to_attack(&u,x,y,d.range)}else{self.route_unit(&u,x,y)}).unwrap_or_default();
+                    self.units[i].path=goal.map(|(x,y)|if u.order=="attackWall"{u.target.and_then(|id|self.wall(id)).map(|wall|self.route_to_wall_attack(&u,wall,d.range)).unwrap_or_default()}else if u.order=="attack"&&u.target.is_some(){self.route_to_attack(&u,x,y,d.range)}else{self.route_unit(&u,x,y)}).unwrap_or_default();
                 }
             }
-            let hold = pursuit_hold || enemy.is_some() && u.order == "guard";
+            let hold = pursuit_hold || wall_hold || enemy.is_some() && u.order == "guard";
             if !hold && d.speed > 0. {
                 if let Some((x, y)) = self.units[i].path.front().copied()
                     .filter(|&(x,y)|self.movement_segment_clear_for(u.x,u.y,x,y,&u.kind)) {
@@ -1106,7 +1123,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     let include_map = include_static || !known_revision;
     let mut value = json!({
         "sectors": &g.sectors, "buildings": &g.buildings, "units": &g.units,
-        "effects": &g.effects, "crates": &g.crates, "events": &g.events,
+        "effects": &g.effects, "crates": &g.crates, "events": &g.events, "walls": &g.walls,
         "time": g.time, "winner": g.winner, "difficulty": g.difficulty,
         "mission": g.mission, "multiplayer": g.multiplayer,
         "mapSeed": g.map.seed, "mapRevision": g.map.revision,
@@ -1116,7 +1133,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     if include_map { value["map"] = serde_json::to_value(&g.map).unwrap(); }
     if include_static {
         value["objects"] = json!(&g.objects);
-        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
+        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"canDestroyWalls":walls::primary_capable(k),"wallGrenades":walls::grenade_capable(k),"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
     }
     value
 }
@@ -1208,6 +1225,8 @@ mod pursuit_tests;
 mod terrain_tests;
 #[cfg(test)]
 mod multiplayer_tests;
+#[cfg(test)]
+mod wall_tests;
 
 fn production_sector()->bool{true}
 

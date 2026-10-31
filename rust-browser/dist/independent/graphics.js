@@ -30,7 +30,7 @@ window.GameGraphics=(()=>{
   for(const canvas of document.querySelectorAll('[data-graphics-preview]')){
    const ctx=canvas.getContext('2d'),hd=canvas.dataset.graphicsPreview==='hd',scale=canvas.width/560,x=fort.x-110,y=fort.y-70;
    ctx.save();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=hd;ctx.scale(scale,scale);ctx.translate(-x,-y);
-   if(hd)window.HDTerrain?.terrain(ctx,map,0,{x,y,w:560,h:canvas.height/scale});else original.terrain(ctx,map);
+   if(hd){window.HDTerrain?.terrain(ctx,map,0,{x,y,w:560,h:canvas.height/scale});window.WallArt?.draw(ctx,previewScene,{x,y,w:560,h:canvas.height/scale},true);}else original.terrain(ctx,map);
    const b={...fort,product:'grunt'};
    if(hd)window.HDStructures?.building(ctx,b,0,map);else original.building(ctx,b,0,map);
    for(const spawn of previewScene.spawns.filter(s=>s.team===0)){

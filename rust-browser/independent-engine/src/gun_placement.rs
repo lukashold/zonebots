@@ -108,6 +108,7 @@ impl Game {
                 if self.map.territory.get(index).copied() != Some(factory.sector) {
                     return result.reject("Nur im Gebiet dieser Fabrik platzierbar");
                 }
+                if self.map.tiles.get(index).is_some_and(|tile|matches!(tile,2|6)) { return result.reject("Fels oder Steinwand blockiert den Platz"); }
                 if let Some(code) = self.map.terrain_codes.get(index).filter(|_| self.map.original) {
                     if BLOCKED_TERRAIN.contains(&(code & 127)) { return result.reject("Gelände ist ungeeignet"); }
                 } else if !self.map.tiles.get(index).is_some_and(|t| *t != 2 && *t != 3 && *t != 5) {

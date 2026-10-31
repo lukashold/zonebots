@@ -4,16 +4,17 @@ use super::{original_combat, Game, Unit};
 
 #[derive(Clone)]
 pub(crate) struct State {
-    target:usize,
-    planned_goal:(f64,f64),
-    next_plan:f64,
-    revision:u32,
+    pub(crate) target:usize,
+    pub(crate) planned_goal:(f64,f64),
+    pub(crate) next_plan:f64,
+    pub(crate) revision:u32,
 }
 
 impl Game {
     /// Returns true while the chosen enemy can be fired upon from here.
     pub(crate) fn update_pursuit(&mut self,index:usize,snapshot:&[Unit],range:f64,speed:f64)->bool {
         let unit=self.units[index].clone();
+        if unit.order=="attackWall" {return false;}
         if unit.order!="attack"||unit.target.is_none(){self.units[index].pursuit=None;return false;}
         let target=unit.target.and_then(|id|snapshot.iter().find(|u|u.id==id
             &&original_combat::alive(self.map.original,u.hp)&&u.team>=0&&u.team!=unit.team));

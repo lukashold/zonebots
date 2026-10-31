@@ -3,8 +3,8 @@
 (function(global){
  'use strict';
  const ACTIONS=new Set(['command','produce','placeGun']);
- const ORDERS=new Set(['move','attack','attackBuilding','attackBridge','repair','repairBridge','enter','board','stop','unload']);
- const STATIC=['map','catalog','objects'],FRAME_STEP=1/8,MAX_EVENTS=1024;
+ const ORDERS=new Set(['move','attack','attackBuilding','attackWall','attackBridge','repair','repairBridge','enter','board','stop','unload']);
+ const STATIC=['map','catalog','objects','walls'],FRAME_STEP=1/8,MAX_EVENTS=1024;
  const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o!==null&&typeof o==='object'&&!Array.isArray(o);
  const integer=(n,max=0xffffffff)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
  const flip=n=>n===0?1:n===1?0:n;
@@ -19,6 +19,7 @@
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
+  if(state.walls!==undefined&&(!Array.isArray(state.walls)||state.walls.length>16384||!state.walls.every(w=>object(w)&&integer(w.id)&&[w.x,w.y,w.hp,w.maxHp].every(Number.isFinite))))return false;
   if(!state.units.every(u=>object(u)&&integer(u.id)&&[u.x,u.y,u.hp,u.maxHp,u.angle,u.aim].every(Number.isFinite)&&[-1,0,1].includes(u.team)))return false;
   if(!state.buildings.every(b=>object(b)&&integer(b.id)&&[b.x,b.y,b.w,b.h,b.hp,b.maxHp].every(Number.isFinite)&&[-1,0,1].includes(b.team)))return false;
   if(!state.sectors.every(s=>object(s)&&integer(s.id)&&[s.x,s.y].every(Number.isFinite)&&[-1,0,1].includes(s.owner)))return false;
@@ -41,6 +42,7 @@
    if(!result.ids.length)return null;result.kind=request.kind;
    if(own(request,'target')){if(!integer(request.target))return null;result.target=request.target;}
    if(['enter','board','repair','attackBuilding'].includes(result.kind)&&!own(result,'target'))return null;
+   if(result.kind==='attackWall'&&(!own(result,'target')||!(state.walls||[]).some(w=>w.id===result.target&&w.hp>0)))return null;
    if(own(request,'x')||own(request,'y')){if(!position())return null;}
    if(['move','attackBridge','repairBridge'].includes(result.kind)&&!own(result,'x'))return null;
    if(result.kind==='attack'&&!own(result,'target')&&!own(result,'x'))return null;
@@ -60,7 +62,7 @@
  function create(options={}){
   if(typeof options.run!=='function')throw Error('Multiplayer benötigt einen Spielkern.');
   let session=null,role=null,canonical=null,view=null,active=false,paused=true,awaitingReady=false,epoch=0,sequence=0,receivedSequence=-1;
-  let frameClock=0,lastMap='',pendingEvents=[],nextRequest=1,readyTimer=null;
+  let frameClock=0,lastMap='',lastWalls='',pendingEvents=[],nextRequest=1,readyTimer=null;
   let actionBudget=40,previewBudget=20,pauseBudget=4,budgetAt=Date.now();
   const info=(phase,message,extra={})=>options.onInfo?.({phase,message,...extra});
   const send=(type,payload,settings)=>session?.send(type,payload,settings)===true;
@@ -81,10 +83,11 @@
    return apply(result);
   }
   function mapStamp(){return canonical?canonical.map.seed+':'+canonical.map.revision:'';}
-  function dynamic(events){const result={...canonical,events};delete result.catalog;delete result.objects;if(mapStamp()===lastMap)delete result.map;return result;}
+  function wallStamp(){return (canonical?.walls||[]).map(w=>`${w.id}:${w.hp}:${w.neighborMask??0}:${w.wallTileIndex??0}`).join('|');}
+  function dynamic(events){const result={...canonical,events};delete result.catalog;delete result.objects;if(mapStamp()===lastMap)delete result.map;if(wallStamp()===lastWalls)delete result.walls;return result;}
   function transmitState(type,extra={},events=[]){
    const seq=sequence+1,result=send(type,{epoch,seq,state:dynamic(events),...extra});
-   if(result){sequence=seq;lastMap=mapStamp();}return result;
+   if(result){sequence=seq;lastMap=mapStamp();lastWalls=wallStamp();}return result;
   }
   function broadcast(force=false){
    if(role!=='host'||!active||awaitingReady||!canonical)return false;
@@ -101,7 +104,7 @@
   function fail(message){paused=true;options.onPause?.(true,message);info('failed',message);return false;}
   function bind(nextSession,nextRole){
    if(!nextSession||typeof nextSession.send!=='function'||!['host','guest'].includes(nextRole))throw Error('Ungültige Multiplayer-Verbindung.');
-   clearTimeout(readyTimer);session=nextSession;role=nextRole;canonical=view=null;active=false;paused=true;awaitingReady=false;epoch=sequence=0;receivedSequence=-1;frameClock=0;lastMap='';pendingEvents=[];
+   clearTimeout(readyTimer);session=nextSession;role=nextRole;canonical=view=null;active=false;paused=true;awaitingReady=false;epoch=sequence=0;receivedSequence=-1;frameClock=0;lastMap='';lastWalls='';pendingEvents=[];
    actionBudget=40;previewBudget=20;pauseBudget=4;budgetAt=Date.now();return api;
   }
   function start(initRequest,meta={}){
@@ -111,7 +114,7 @@
     const request={...initRequest,op:'init',multiplayer:true,difficulty:1,aiTeams:[],compact:false};
     const result=options.run(request);if(result?.error)throw Error(String(result.error));apply(result);
     const details={mission:canonical.mission,difficulty:1,seed:request.seed,original:Boolean(canonical.map.original),name:String(meta.name||'Mehrspielerpartie').slice(0,96)};
-    options.onStart?.(details,role);options.onPause?.(true,'Warte auf Mitspieler …');lastMap=mapStamp();
+    options.onStart?.(details,role);options.onPause?.(true,'Warte auf Mitspieler …');lastMap=mapStamp();lastWalls=wallStamp();
     if(!send('game:init',{epoch,seq:0,meta:details,state:canonical,paused:true}))return fail('Der Spielzustand konnte nicht gesendet werden.');
     if(awaitingReady){info('waiting','Mitspieler lädt die Karte …');readyTimer=setTimeout(()=>{if(active&&awaitingReady)fail('Der Mitspieler hat den Spielstart nicht bestätigt.');},30000);readyTimer?.unref?.();}
     return true;

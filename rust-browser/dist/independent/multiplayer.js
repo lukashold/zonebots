@@ -4,7 +4,7 @@
  * No game assets, session codes or TURN credentials are stored by this module. */
 (function(global){
  'use strict';
- const PROTOCOL=1,BUILD='zonebots-mp-1',PREFIX='ZMP1.',MAGIC=0x5a4d5031;
+ const PROTOCOL=1,BUILD='zonebots-mp-2-walls',PREFIX='ZMP1.',MAGIC=0x5a4d5031;
  const CHUNK_BYTES=12*1024,HEADER_BYTES=16,MAX_MESSAGE_BYTES=4*1024*1024,MAX_QUEUE_BYTES=8*1024*1024;
  const HIGH_WATER=256*1024,LOW_WATER=64*1024,HEARTBEAT_MS=2000,TIMEOUT_MS=15000;
  const defaultIceServers=Object.freeze([{urls:'stun:stun.l.google.com:19302'}]);

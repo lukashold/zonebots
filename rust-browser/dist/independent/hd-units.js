@@ -14,7 +14,8 @@
     {dark:'#443b18', main:'#a9983a', light:'#dbcd71', trim:'#fff1ac', eye:'#ffe68b'}
   ];
   const steel = {ink:'#1c2121', dark:'#333b3a', mid:'#747c73', light:'#b5baaa', edge:'#e2e0c5'};
-  function palette(team) { return palettes[team === 0 ? 0 : team === 1 ? 1 : team === 3 ? 3 : 2]; }
+  const neutral={dark:'#353535',main:'#777777',light:'#b8b8b8',trim:'#d7d7d7',eye:'#e0e0e0'};
+  function palette(team) { if(team<0)return neutral;return palettes[team === 0 ? 0 : team === 1 ? 1 : team === 3 ? 3 : 2]; }
   function gradient(c,x,y,w,h,colors) { const g=c.createLinearGradient(x,y,x+w,y+h);colors.forEach((color,i)=>g.addColorStop(i/(colors.length-1),color));return g; }
   function path(c,points,fill,stroke=steel.ink,width=.8) { c.beginPath();points.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();if(fill){c.fillStyle=fill;c.fill();}if(stroke){c.lineWidth=width;c.strokeStyle=stroke;c.stroke();} }
   function line(c,x,y,x2,y2,color,width=1) { c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.stroke(); }
@@ -110,7 +111,7 @@
     shadow(c,cx+2,cy+3,L+8,W*.68);
     if(wheeled)wheels(c,cx,cy,a,L-6,W);else tracks(c,cx,cy,a,L,W,phase);
     const hull=[[-L,-W+3],[L-7,-W+3],[L,-W+7],[L,W-7],[L-7,W-3],[-L,W-3],[-L-2,W-7],[-L-2,-W+7]];
-    const body=jeep?'#76856b':u.type==='firetruck'?'#a14b43':'#687568',bodyLight=jeep?'#c0c9a4':u.type==='firetruck'?'#e79b7c':'#b3bea1';
+    const body=!occupied?'#777777':jeep?'#76856b':u.type==='firetruck'?'#a14b43':'#687568',bodyLight=!occupied?'#bfbfbf':jeep?'#c0c9a4':u.type==='firetruck'?'#e79b7c':'#b3bea1';
     block(c,cx,cy,a,hull,5,6,body,bodyLight);
     deck(c,cx,cy,a,[[-L+3,-W+4],[L-7,-W+4],[L-7,-W+7],[-L+3,-W+7]],11.1,p.main);
     deck(c,cx,cy,a,[[-L+3,W-7],[L-7,W-7],[L-7,W-4],[-L+3,W-4]],11.2,p.main);
@@ -129,10 +130,10 @@
       deck(c,cx,cy,a,[[12,-9],[20,-9],[20,-8.4],[12,-8.4]],21,'#92c9d0');
       const wind=[point(cx,cy,a,21,-7,15),point(cx,cy,a,21,6,15),point(cx,cy,a,21,6,22),point(cx,cy,a,21,-7,22)];path(c,wind,gradient(c,cx-8,cy-26,12,11,['#bde9dc','#3c6370']),steel.dark);
       if(u.type==='truck'){
-        block(c,cx,cy,a,[[-22,-9],[5,-9],[5,9],[-22,9]],11,11,'#7b806b','#b9bda2');
+        block(c,cx,cy,a,[[-22,-9],[5,-9],[5,9],[-22,9]],11,11,occupied?'#7b806b':'#777777',occupied?'#b9bda2':'#bfbfbf');
         for(let n=-19;n<5;n+=6){const q=point(cx,cy,a,n,-9,12),r=point(cx,cy,a,n,-9,21);line(c,...q,...r,'#454f45',.9);}
       }else{
-        block(c,cx,cy,a,[[-22,-9],[5,-9],[5,9],[-22,9]],11,10,'#9b5249','#d38b6f');
+        block(c,cx,cy,a,[[-22,-9],[5,-9],[5,9],[-22,9]],11,10,occupied?'#9b5249':'#777777',occupied?'#d38b6f':'#bfbfbf');
         deck(c,cx,cy,a,[[-19,-7],[4,-7],[4,7],[-19,7]],21.2,'#a7b2ae');
         for(const s of [-1,1]){line(c,...point(cx,cy,a,-19,s*4,23),...point(cx,cy,a,4,s*4,23),steel.dark,1.2);for(let n=-17;n<4;n+=4)line(c,...point(cx,cy,a,n,-4,23),...point(cx,cy,a,n,4,23),steel.light,.9);}
         const q=point(cx,cy,a,13,0,25);oval(c,...q,2.7,1.8,'#ee9c65',steel.dark);
@@ -172,7 +173,7 @@
     const cx=48,cy=68;
     shadow(c,cx+2,cy+3,26,10);
     oval(c,cx,cy,22,11,gradient(c,cx-20,cy-10,36,20,[steel.light,steel.dark]),steel.ink);
-    oval(c,cx,cy-3,21,10,gradient(c,cx-20,cy-13,36,20,['#c2c8ae','#5d6f66','#314249']),steel.ink);
+    oval(c,cx,cy-3,21,10,gradient(c,cx-20,cy-13,36,20,occupied?['#c2c8ae','#5d6f66','#314249']:['#c5c5c5','#777777','#373737']),steel.ink);
     oval(c,cx,cy-5,16,7.2,steel.dark,steel.ink);oval(c,cx-1,cy-6,15,6.8,gradient(c,cx-15,cy-12,25,14,[steel.light,steel.mid,steel.dark]),steel.ink);
     for(let n=0;n<10;n++){const angle=n*TAU/10;bolt(c,cx+Math.cos(angle)*18,cy-3+Math.sin(angle)*8.5,.7);}
     for(const s of [-1,1])block(c,cx,cy,aim,[[-5,s*15-2],[6,s*15-2],[6,s*15+2],[-5,s*15+2]],0,4,p.dark,p.light);

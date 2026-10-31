@@ -1,0 +1,86 @@
+Z – neutrale Hardware und zerstörbare Steinwände, 31.10.2026
+
+GRUNDLAGE
+Untersucht wurden die lokale GOG-Fassung C:\GOG Games\Z\Z.exe und LEVEL01.MAP
+bis LEVEL20.MAP. Die folgenden Angaben beschreiben eigene Format- und
+Verhaltensbefunde aus einer frischen schreibgeschützten Ghidra-/Assemblerprüfung.
+Sie enthalten keinen kopierten dekompilierten Originalquellcode. Generierte
+Originalkarten und Originalgrafiken bleiben im ignorierten privaten Ressourcen-
+paket; öffentlich liegen nur eigener Code, Konverter, Tests und Dokumentation.
+
+WARUM DIE WÄNDE FEHLTEN
+Die bisher ausgewerteten Kartenebenen enthalten an den Wandpositionen den Boden.
+Das Original baut die Wände beim Laden aus einer separaten Bitmap auf. Sie sind
+keine Einträge der 78 OBJECT-Vorlagen und auch keine normalen Felsklippen.
+
+MAP-FORMAT
+Ab Offset 0x1A01 liegen 20 Datensätze mit je 138 Bytes:
+  +0: u16 X, +2: u16 Y, jeweils native Pixel.
+  +4: u8 Höhe; in den 20 Kampagnenkarten jeweils 2 Vorderreihen.
+  +5: i8 HP; Mission 1 verwendet 5, die übrigen Karten hier 0.
+  +6: zur Laufzeit neu bestimmter erster Stückindex; +8: Altdaten.
+  +10: 128 Bytes für eine 32×32-Bitmap.
+Für Bit j gilt die Maske 0x80 >> (j & 7). Seine native Position ist
+Ursprung + (j % 32, floor(j / 32)) ×16. Die Browserfassung verwendet Maßstab 2.
+Der hintere MAP-Block ab 0xA791 ist Wegdatenmaterial und kein Wandverzeichnis.
+
+Laden: 00431c10/00431d50. Stückindizierung: 0042ee50. Aufbau: 0042f1f0.
+0042ef70 bestimmt freiliegende Seiten N=1, E=2, S=4, W=8 innerhalb derselben
+Mauergruppe. Die EXE-Tabellen 004939e4 und 00494168 bestimmen Welt und Form.
+Native Weltfolge: Desert, Arctic, City, Volcan, Jungle. Die Reihenfolge wird
+ausdrücklich in die abweichende Atlasfolge der Browserfassung übersetzt.
+
+Eine Wand schreibt einen Kopf mit Geländecode 2 und zwei südliche Vorderzellen
+mit Code 18. Pro Vorderreihe steigt das niedrige Kachelbyte um 20; die obere
+Kachelbank bleibt erhalten. Die sechs besonderen Eckumsetzungen sind ebenfalls
+ausgelesen. Nach Entfernen eines Stücks werden benachbarte Enden und überlappende
+Vorderflächen in der ursprünglichen Gruppen-/Bitreihenfolge neu aufgebaut.
+
+SCHADEN UND DURCHGANG
+0042fdb0 löst eine getroffene Vorderfläche nach Norden zum besitzenden Stück auf,
+zieht das vorzeichenbehaftete Schadensbyte von dessen HP ab und entfernt das Stück
+bei HP <=0. Native Start-HP 0 bedeutet daher eine intakte Wand bis zum ersten
+positiven Treffer. Der Rust-Kern stellt das kompatibel als effektive HP 1 dar
+und erhält den Rohwert separat. Das ist keine Übernahme des Einheitenschadens-
+teilers: Der frische Aufrufabgleich bei 00420577/0042057a bestätigt unveränderten
+Wandschaden. 0042f580 erzeugt Trümmerkacheln mit passierbarem Code 22.
+
+Geeignete primäre Waffen: Tough, Light, Medium, Heavy, Launcher, Cannon, Missile
+und Howitzer. Grunt, Psycho, Sniper, Pyro und Laser können einen expliziten
+Geländeangriff mit mitgeführten Granaten ausführen. MG-/Kugelpfade und primäres
+Flammenfeuer sind davon getrennt und sprengen keine Steinwand. Die Webfassung
+verwendet diese belegte Eignung, ihren bestehenden Projektiladapter und den
+expliziten Befehl attackWall. Eine erfolgreiche Zerstörung hebt die Wegsperre
+auf; eine bloße Angriffsbefehlsbestätigung ändert die Wand noch nicht.
+
+BESTAND UND PRÜFUNG
+Insgesamt 6.038 Stücke in 20 Missionen; Mission 1 enthält 151, Mission 10
+(The Wall) 266. Alle aktiven Quellbits wurden gegen Position, Höhe und native HP
+geprüft. Die ursprünglichen Bodenbilder und Geländecodes bleiben separat erhalten.
+Kampagnenformat 2 liefert Wände, Originalkacheln, Ecktabellen und Trümmerformen.
+Der lokale Starter erneuert ältere Kartenpakete automatisch.
+
+122 Rust-Tests bestehen, darunter 16 neue Wandfälle. Reale Wasm-Prüfungen decken
+alle 20 Karten, beide Teams, geeignete Primärwaffen und Granaten, Sichtlinien,
+überlappende Wände, Schusspositionen und die Fahrt durch eine Bresche ab.
+Frontendprüfungen decken Fadenkreuz, Klick, Stopp, Auftragsmarkierungen und beide
+Steuerungsarten ab. Zwei getrennte Multiplayer-Koordinatoren mit echtem Wasm
+bestätigen Gastbefehl, HP, Einsturz und Kartenrevision; nur der Host simuliert.
+
+NEUTRALE FARBE
+Unbesetzte Fahrzeuge und Geschütze verwenden in der Originalansicht dieselbe
+neutrale Palettenregel wie andere neutrale Besitzgrafiken: Indizes 16..31 werden
+auf 80..95 umgesetzt. Alle fünf Originalpaletten liefern dort Grau. Materialfarben
+außerhalb dieser Besitzflächen und Transparenz bleiben unverändert. Erst eine
+Besatzung aktiviert Rot oder Blau; nach dem Aussteigen wird die Hardware wieder
+neutral. Das HD-Remake übernimmt diese Regel mit eigenen Farbsätzen.
+
+VERBLEIBENDE GRENZEN
+Originale Positionen, Höhen, Weltgrafiken, Randformen und HP sind ausgelesen.
+Der gemeinsame originale Zufallszahlengenerator vor dem Wandaufbau ist nicht
+vollständig rekonstruiert; Innentexturen und Trümmerauswahl sind deterministisch.
+Die zusätzliche rechte Nachbarschattenkorrektur 0042ec50 fehlt noch. HD zeichnet
+eigene Steinflächen auf der gleichen Geometrie. Bestehende Grenzen bei Flugbahn,
+Streuung, Flächenwirkung, Animation und automatisch gewählten Originalbefehlen
+gelten weiter. Dies ist Reverse Engineering, keine Clean-Room-Implementierung
+und kein Nachweis vollständiger 1:1-Verhaltensgleichheit.

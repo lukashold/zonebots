@@ -43,6 +43,7 @@
     const j=y*map.width+x, raw=Array.isArray(map.tiles[y])?map.tiles[y][x]:map.tiles[j];
     const t=typeof raw==='number'?raw:raw?.terrain||0;
     const code=(map.terrainCodes?.[j]??0)&127;
+    if(t===6)return 6; // Recovered destructible wall layer, drawn separately from cliffs.
     // The current tile is authoritative after a bridge has been destroyed.
     if(t===3 && map.bridgeBase?.[j]>=0)return 3;
     if(t===5 || code===23)return 5;
