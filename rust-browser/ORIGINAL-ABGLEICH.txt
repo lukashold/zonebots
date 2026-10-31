@@ -318,3 +318,32 @@ Bedienung bleiben funktional; in schmalen Fenstern bleibt die kompakte Oberfläc
 mit Minikarte erhalten. Schrift und einige Knopfpositionen sind Webanpassungen.
 Das Funkporträt verwendet ein statisches Original-Grunt-Bild; die ursprüngliche
 sprach-/ereignisgesteuerte Gesichtsanimation ist weiterhin nicht rekonstruiert.
+
+GELÄNDE UND WEGSUCHE – 31.10.2026
+Frischer Ghidra-/Assemblerabgleich0041b950 und0045f6a0: Die Wegmasken werden nach
+Einheitenfamilie aus67 Werten aufgebaut. Fuß00499888, normale Fahrzeuge0049a840,
+Jeep/APC0049a8a0 und Kran0049a930 unterscheiden sich. Native Geländecodes werden
+mit0x7f maskiert. Soldaten dürfen9/38/39/42 betreten;40 bleibt gesperrt.00433b30
+sperrt die vier erstgenannten Codes auch für Soldaten in der Vulkanwelt. Alle
+drei Fahrzeugprofile sperren diese fünf Wasserarten. Sonderzustände des APC und
+die eigene Wegvariante des Tough-Anführers sind noch nicht rekonstruiert.
+
+Die alte Kompatibilitätskarte behandelte38 und42 irrtümlich als Land.12.087 Felder
+wurden zu Wasser korrigiert; Originalkacheln, Positionen und sonstige Missionsdaten
+blieben gleich. Der Kern prüft zusätzlich die originalen Geländecodes selbst.
+
+0043bbe0/0043e190 und0045cf90 bewerten Straßen7 und Brücken23 mit2 statt5 für
+normales Land.51 kostet6 und ist keine Straße. Die Web-Wegsuche verwendet diese
+Originalpreise mit A*, geometrisch längeren Diagonalen und gesperrten Küstenecken.
+Ein gesperrtes Klickziel wird nur durch ein erreichbares nahes Feld ersetzt. Die
+ursprüngliche Kandidatensuche und der Rabatt für aufeinanderfolgende hohe Preise
+sind damit nicht vollständig nachgebildet. Bereits geplante Wegstücke werden vor
+der Bewegung erneut geprüft; zerstörte Brücken und nachträglich gesperrte Felder
+können dadurch keine Wasserfahrt mehr auslösen. Das gilt auch für Verfolgung,
+Reparaturfahrten und die automatische Suche nach Fahnen oder freier Hardware.
+
+0044f509..0044f564,00499b50 und00499fd4 belegen quantisierte Bewegungsschritte.
+Straßen/Brücken verschieben den Tempoindex um+2; Wasser9/39/42 um-1/-2/-3,38 um0.
+Die relativen Schrittverhältnisse gelten auch für Soldaten und hängen vom aktuellen
+Bewegungswert ab. Absolute Grundgeschwindigkeiten, Phasen des Windows-Schedulers,
+Gruppenbonus+3 und Einheitensonderwert+0x8c bleiben teilweise Webanpassungen.

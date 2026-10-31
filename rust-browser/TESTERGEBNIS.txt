@@ -161,3 +161,20 @@ Im Browser Originalkampagne, Roboter- und Geschützauswahl, korrigiertes Gatling
 Menü/Pause sowie die sichtbare Minikarte bei750px Fensterbreite geprüft. Die
 Rückkehr zur Desktopansicht hält Karte und Panel passend. Keine Warnungen/Fehler
 im Browserprotokoll. Lautsprecherausgabe und echte Mac-Hardware bleiben ungeprüft.
+
+GELÄNDE/WEGSUCHE – 31.10.2026
+Alle83 Rust-Tests bestanden, darunter elf neue Bewegungsregressionen und sechs
+Prüfungen der nativen Masken, Kosten und Geschwindigkeitsverhältnisse. Geprüft:
+Straßenumweg statt kürzester Schrittzahl, keine sinnlosen Straßenumwege, genaue
+Diagonalen/Küstenecken, alle mobilen Fahrzeugtypen gegen Wasser, Fußprofile über
+fünf Welten, Gruppenaufträge, nachträgliche Sperren und zerstörte/reparierte Brücken.
+Beschädigungsbedingtes Tempo verwendet nun die belegten quantisierten Schritte
+statt des früheren linearen Faktors; Kontrolle50->45 ergibt0,75.
+
+Wasm neu gebaut. check-original-terrain.cjs besteht mit16 durchquerbaren Wasser-/
+Weltkombinationen, gesperrtem Wasser40, Vulkanbeschränkung, Straßen/Brücken,
+Gruppenbefehlen und fortgesetztem tatsächlichem Fahren nach Brückenzerstörung.
+Drei reale Fehlerrouten aus LEVEL03/09 betreten keine Wasserfelder mehr. Alle20
+Originalmissionen sowie fünf prozedurale Welten, Angriff, Geschützplatzierung,
+Aufnahme/Bemannen, Granaten und automatische Produktion weiter erfolgreich.
+Die aktuelle Korrektur wurde auf Engine- und echtem Wasm-Niveau geprüft.

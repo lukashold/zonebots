@@ -76,11 +76,7 @@ impl CombatState {
     }
     pub fn speed_scale(&self, kind: &str) -> f64 {
         let base = profile(kind).movement;
-        if base == 0 {
-            1.
-        } else {
-            f64::from(self.movement_control) / f64::from(base)
-        }
+        super::original_terrain::control_speed_factor(self.movement_control,base)
     }
     pub fn reload_seconds(&self) -> f64 {
         f64::from(100 - self.fire_rate.min(100)) / 17.

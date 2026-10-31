@@ -60,7 +60,10 @@ def extract(root,out):
   for y in range(h):
    for x in range(w):
     a=d[0x2791+y*128+x];b=d[0x6791+y*128+x];rawtiles.append(a|((b&128)<<1));codes.append(b&127)
-  tiles=[1 if c==7 else 2 if c in (19,43) else 3 if c in (9,39,40) else 5 if c==23 else 0 for c in codes]
+  # Compatibility colours/minimap classes; native movement reads terrainCodes.
+  # Wet shore38 and water42 must not be collapsed to ordinary land. Native40
+  # is deep water/lava and is distinguished from infantry water by the engine.
+  tiles=[1 if c==7 else 2 if c in (19,43) else 3 if c in (9,38,39,40,42) else 5 if c==23 else 0 for c in codes]
   cp=(root/f'CPUPLR{nn}.DAT').read_bytes();sectors=[];territory=[-1]*n
   for o in range(0,min(len(cp),64*30),30):
    if i16(cp,o)<0:continue
@@ -154,7 +157,7 @@ def extract(root,out):
   compatible=[outside if sid<0 else sid for sid in lookup]
   data={'number':number,'name':text(lv,0,20),'map':{'width':w,'height':h,'tileSize':32,'world':WORLDS[world],'worldName':world,'tiles':tiles,'territory':compatible,'originalTerritory':territory,'lookupTerritory':lookup,'originalTiles':rawtiles,'terrainCodes':codes,'bridgeBase':bridgebase,'bridgeHp':bridgehp,'seed':number,'revision':0,'original':True},'sectors':sectors,'buildings':buildings,'spawns':spawns,'startingGroups':anchors,'originalObjects':objects,'bridges':bridges,'crates':crates,'sourceFiles':{'map':f'LEVEL{nn}.MAP','build':f'BUILD{nn}.DAT','objects':f'OBJECT{nn}.DAT','cpu':f'CPUPLR{nn}.DAT','bridge':f'BRIDGE{nn}.DAT'},'diagnostics':{'inactiveBuildRecordsSkipped':skipped,'outsideTiles':territory.count(-1),'outsideLookupTiles':lookup.count(-1),'terrainCodes':dict(Counter(codes)),'unsupportedUnitTypes':sorted({s['type']for s in spawns} - set(RAW.values()))}}
   missions.append(data)
- result={'version':1,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Terrain visual tile indices exact; collapsed six-class collision mapping is incomplete.','Outside filler sector must be excluded from production territorial totals.']}
+ result={'version':1,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Terrain visual tile indices exact; six compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
  out.mkdir(parents=True,exist_ok=True);(out/'campaign.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
  (out/'summary.json').write_text(json.dumps([{'level':m['number'],'name':m['name'],'width':m['map']['width'],'height':m['map']['height'],'sectors':len(m['sectors'])-1,'buildings':len(m['buildings']),'spawns':len(m['spawns']),'unsupported':m['diagnostics']['unsupportedUnitTypes']}for m in missions],indent=2),encoding='utf-8')
  print(f'Extracted {len(missions)} missions to {out / "campaign.json"}')

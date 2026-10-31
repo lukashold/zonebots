@@ -80,3 +80,9 @@ Gesammelte Granaten werden nun von Grunts, Psychos und Snipern gegen geeignete
 Fahrzeuge und Kanonen eingesetzt. Ein tatsächlicher Angriff verbraucht eine
 Granate und verwendet den belegten Explosionsschadenspfad. Native Wurfbewegung,
 Flugbahn und Flächenschaden sind weiterhin nicht vollständig rekonstruiert.
+
+Bewegung: Fahrzeuge umfahren Wasser und bevorzugen Straßen und Brücken nach
+den Original-Geländewerten. Soldaten können geeignete Wasserstellen durchqueren;
+der gesperrte Wassertyp und das nasse/Lava-Gelände der Vulkanwelt bleiben tabu.
+Straßen wirken sich auch auf ihr Tempo aus. Zerstörte Brücken und Küstenecken
+werden beim Bewegen erneut geprüft, selbst bei zuvor berechnetem Weg.

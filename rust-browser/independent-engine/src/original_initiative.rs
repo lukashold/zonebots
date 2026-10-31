@@ -327,7 +327,7 @@ impl Game {
                 if !self.los(u.x, u.y, x, y) {
                     continue;
                 }
-                let route = self.route(u.x, u.y, x, y, d.cls == 0 && self.map.world != 1);
+                let route = self.route_unit(&u,x,y);
                 if route.is_empty() && distance >= 22. {
                     continue;
                 }

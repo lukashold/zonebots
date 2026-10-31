@@ -8,6 +8,8 @@ mod original_stats;
 pub mod original_combat;
 mod original_grenades;
 mod original_initiative;
+mod original_terrain;
+mod terrain;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -492,94 +494,6 @@ impl Game {
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
 
-    fn passable(&self, x: i32, y: i32, swim: bool) -> bool {
-        if x < 1 || y < 1 || x >= self.map.width as i32 - 1 || y >= self.map.height as i32 - 1 {
-            return false;
-        }
-        let t = self.map.tiles[y as usize * self.map.width + x as usize];
-        if t == 2 || (t == 3 && !swim) {
-            return false;
-        }
-        let (px, py) = ((x as f64 + 0.5) * TILE, (y as f64 + 0.5) * TILE);
-        !self
-            .buildings
-            .iter()
-            .any(|b| b.hp > 0. && px > b.x && px < b.x + b.w && py > b.y && py < b.y + b.h
-                && !b.gate.map(|(gx,gy)|(px-gx).abs()<24.&&(if b.orientation=="north"{py<=gy+24.}else{py>=gy-24.})).unwrap_or(false))
-    }
-    fn route(&self, x: f64, y: f64, dx: f64, dy: f64, swim: bool) -> VecDeque<(f64, f64)> {
-        let w = self.map.width;
-        let (sx, sy) = ((x / TILE) as usize, (y / TILE) as usize);
-        if sx >= w || sy >= self.map.height {
-            return VecDeque::new();
-        }
-        let mut goal = ((dx / TILE) as i32, (dy / TILE) as i32);
-        if !self.passable(goal.0, goal.1, swim) {
-            let mut found = false;
-            for r in 1i32..7 {
-                for yy in -r..=r {
-                    for xx in -r..=r {
-                        if !found && self.passable(goal.0 + xx, goal.1 + yy, swim) {
-                            goal = (goal.0 + xx, goal.1 + yy);
-                            found = true;
-                        }
-                    }
-                }
-                if found {
-                    break;
-                }
-            }
-            if !found {
-                return VecDeque::new();
-            }
-        }
-        let start = sy * w + sx;
-        let end = goal.1 as usize * w + goal.0 as usize;
-        let mut prev = vec![usize::MAX; w * self.map.height];
-        prev[start] = start;
-        let mut q = VecDeque::from([start]);
-        while let Some(j) = q.pop_front() {
-            if j == end {
-                break;
-            }
-            let (cx, cy) = ((j % w) as i32, (j / w) as i32);
-            for (xx, yy) in [
-                (1, 0),
-                (-1, 0),
-                (0, 1),
-                (0, -1),
-                (1, 1),
-                (-1, -1),
-                (1, -1),
-                (-1, 1),
-            ] {
-                let (nx, ny) = (cx + xx, cy + yy);
-                if !self.passable(nx, ny, swim)
-                    || (xx != 0
-                        && yy != 0
-                        && (!self.passable(cx + xx, cy, swim) || !self.passable(cx, cy + yy, swim)))
-                {
-                    continue;
-                }
-                let k = ny as usize * w + nx as usize;
-                if prev[k] == usize::MAX {
-                    prev[k] = j;
-                    q.push_back(k);
-                }
-            }
-        }
-        if prev[end] == usize::MAX {
-            return VecDeque::new();
-        }
-        let mut p = vec![];
-        let mut j = end;
-        while j != start {
-            p.push(((j % w) as f64 * TILE + 16., (j / w) as f64 * TILE + 16.));
-            j = prev[j];
-        }
-        p.reverse();
-        p.into()
-    }
     fn los(&self, x: f64, y: f64, dx: f64, dy: f64) -> bool {
         let steps = ((dx - x).hypot(dy - y) / 12.) as usize;
         for i in 1..steps {
@@ -655,13 +569,7 @@ impl Game {
             if let (Some(x), Some(y)) = (v["x"].as_f64(), v["y"].as_f64()) {
                 let d = (x + (n % 4) as f64 * 12., y + (n / 4) as f64 * 14.);
                 self.units[i].dest = Some(d);
-                self.units[i].path = self.route(
-                    self.units[i].x,
-                    self.units[i].y,
-                    d.0,
-                    d.1,
-                    stats(&self.units[i].kind).cls == 0 && self.map.world != 1,
-                );
+                self.units[i].path = self.route_unit(&self.units[i],d.0,d.1);
             }
         }
     }
@@ -863,7 +771,7 @@ impl Game {
                             || (u.x - dest.0).hypot(u.y - dest.1) > d.range * 0.8);
                     if need && d.speed > 0. {
                         self.units[i].path =
-                            self.route(u.x, u.y, dest.0, dest.1, d.cls == 0 && self.map.world != 1);
+                            self.route_unit(&u,dest.0,dest.1);
                     }
                 }
             }
@@ -930,33 +838,25 @@ impl Game {
                             bdamage.push((b.id, d.damage));
                             self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                         } else if u.path.is_empty() {
-                            self.units[i].path = self.route(
-                                u.x,
-                                u.y,
-                                x,
-                                b.y + b.h + 24.,
-                                d.cls == 0 && self.map.world != 1,
-                            );
+                            self.units[i].path = self.route_unit(&u,x,b.y+b.h+24.);
                         }
                     }
                 }
             }
-            let road = self
-                .map
-                .tiles
-                .get((u.y / TILE) as usize * self.map.width + (u.x / TILE) as usize)
-                == Some(&1);
-            let speed = d.speed
-                * (if road && d.cls == 1 {
-                    1.3
-                } else if d.cls == 0 && u.order == "move" {
-                    1.2
-                } else {
-                    1.
-                });
+            let terrain_factor=self.terrain_factor_unit(&u);
+            let speed=d.speed*terrain_factor*if d.cls==0&&u.order=="move"{1.2}else{1.};
+            // Revalidate the next segment: bridges and map occupancy can change
+            // after the route was planned. Never interpolate across forbidden water.
+            if let Some(&(nx,ny))=self.units[i].path.front() {
+                if !self.movement_segment_clear_for(u.x,u.y,nx,ny,&u.kind) {
+                    let goal=self.units[i].dest.or_else(||self.units[i].path.back().copied());
+                    self.units[i].path=goal.map(|(x,y)|self.route_unit(&u,x,y)).unwrap_or_default();
+                }
+            }
             let hold = enemy.is_some() && u.order == "guard";
             if !hold && d.speed > 0. {
-                if let Some(&(x, y)) = self.units[i].path.front() {
+                if let Some((x, y)) = self.units[i].path.front().copied()
+                    .filter(|&(x,y)|self.movement_segment_clear_for(u.x,u.y,x,y,&u.kind)) {
                     let dist = (x - u.x).hypot(y - u.y);
                     if dist < speed * dt + 1. {
                         self.units[i].x = x;
@@ -1247,6 +1147,8 @@ mod production_tests;
 mod gun_placement_tests;
 #[cfg(test)]
 mod attack_target_tests;
+#[cfg(test)]
+mod terrain_tests;
 
 fn production_sector()->bool{true}
 

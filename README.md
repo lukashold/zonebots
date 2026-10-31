@@ -57,6 +57,8 @@ Use **Vollbild** in the menu or in battle to request native browser fullscreen. 
 
 The in-game sidebar now loads the original steel panel, German unit captions, portraits, health bars and control textures from a separate optional HUD pack. Its native 96×480 panel scales to the browser height; small screens retain the compact interface and minimap. `tools/extract-original-hud.py` prepares the locally owned indexed bitmaps and world palettes. The current communication portrait is static; the original speech/facial state machine remains incomplete.
 
+Movement now uses original terrain masks for infantry, tracked vehicles, Jeep/APC and crane. Vehicles avoid water; infantry can cross supported water types, with deep-water and volcanic restrictions. Road/bridge route prices and relative terrain speeds come from Ghidra-verified tables. A* prefers useful roads, respects diagonal distance and coastal corners, and rechecks movement segments when bridges or terrain change. The original route-candidate planner and full movement scheduler remain partly adapted.
+
 Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The existing immediate-hit model remains: the native throw wind-up, trajectory, scatter and blast area are not yet reconstructed. The howitzer also uses its proper original artillery profile.
 
 From `rust-browser/`, validate with:
@@ -85,6 +87,7 @@ From `rust-browser/`, validate with:
     node tools/check-fullscreen.cjs
     node tools/check-original-hud.cjs
     node tools/check-original-grenades.cjs
+    node tools/check-original-terrain.cjs
     node tools/check-original-audio.cjs
 
 Combat units show the original crosshair over attack targets. Confirm with the normal command button; **F / Attack** also enables aiming and **Escape** cancels it. A crosshair follows the selected attack target. Manual targets in weapon range now take precedence over opportunistic fire; transporters and cranes are filtered out of mixed attack selections. Empty-ground aiming retains the existing attack-move behavior.
