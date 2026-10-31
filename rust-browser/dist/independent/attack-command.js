@@ -77,7 +77,8 @@ window.AttackCommand=(()=>{
    for(const [id,order]of orders){
     const unit=units.get(id),target=resolve(order,state),route=Array.isArray(unit?.path)&&unit.path.length>0;
     const initialEmpty=!order.hadRoute&&state.time===order.started;
-    if(!eligible.has(id)||unit.order!==order.kind||(unit.target??null)!==order.expectedTarget||!sameDest(order.dest,destination(unit))||!target||state.time<order.started||order.targetType==='point'&&!route&&!initialEmpty){orders.delete(id);continue;}
+    // A unit target retains its identity while pursuit updates its destination.
+    if(!eligible.has(id)||unit.order!==order.kind||(unit.target??null)!==order.expectedTarget||order.targetType!=='unit'&&!sameDest(order.dest,destination(unit))||!target||state.time<order.started||order.targetType==='point'&&!route&&!initialEmpty){orders.delete(id);continue;}
     if(order.targetType==='bridge'&&bridgeAt(state,{x:order.dest[0],y:order.dest[1]})?.id!==order.id){orders.delete(id);continue;}
     if(route)order.hadRoute=true;
     if(!chosen.has(id))continue;

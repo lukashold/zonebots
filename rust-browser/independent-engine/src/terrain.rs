@@ -57,23 +57,28 @@ impl Game {
     }
     #[cfg(test)]
     pub(crate) fn route(&self,x:f64,y:f64,dx:f64,dy:f64,infantry:bool)->VecDeque<(f64,f64)>{
-        self.route_profile(x,y,dx,dy,if infantry{Profile::Infantry}else{Profile::Tracked},40)
+        self.route_profile(x,y,dx,dy,if infantry{Profile::Infantry}else{Profile::Tracked},40,None)
     }
     #[cfg(test)]
     pub(crate) fn route_for(&self,x:f64,y:f64,dx:f64,dy:f64,kind:&str)->VecDeque<(f64,f64)>{
-        self.route_profile(x,y,dx,dy,original_terrain::profile(kind),super::original_combat::CombatState::new(kind).movement_control)
+        self.route_profile(x,y,dx,dy,original_terrain::profile(kind),super::original_combat::CombatState::new(kind).movement_control,None)
     }
     pub(crate) fn route_unit(&self,unit:&super::Unit,dx:f64,dy:f64)->VecDeque<(f64,f64)>{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
-        self.route_profile(unit.x,unit.y,dx,dy,original_terrain::profile(&unit.kind),control)
+        self.route_profile(unit.x,unit.y,dx,dy,original_terrain::profile(&unit.kind),control,None)
+    }
+    pub(crate) fn route_to_attack(&self,unit:&super::Unit,tx:f64,ty:f64,range:f64)->VecDeque<(f64,f64)>{
+        let control=unit.original_combat.as_ref().map(|s|s.movement_control)
+            .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
+        self.route_profile(unit.x,unit.y,tx,ty,original_terrain::profile(&unit.kind),control,Some(range.max(0.)))
     }
     pub(crate) fn terrain_factor_unit(&self,unit:&super::Unit)->f64{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
         self.factor_profile((unit.x/TILE).floor()as i32,(unit.y/TILE).floor()as i32,original_terrain::profile(&unit.kind),control)
     }
-    fn route_profile(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8)->VecDeque<(f64,f64)>{
+    fn route_profile(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>)->VecDeque<(f64,f64)>{
         let empty=VecDeque::new();
         if ![x,y,dx,dy].iter().all(|n|n.is_finite())||x<0.||y<0.{return empty;}
         let(w,h)=(self.map.width,self.map.height);
@@ -81,7 +86,7 @@ impl Game {
         if sx>=w||sy>=h{return empty;}
         let(gx,gy)=((dx/TILE).floor()as i32,(dy/TILE).floor()as i32);
         if gx< -6||gy< -6||gx>w as i32+6||gy>h as i32+6{return empty;}
-        let exact=self.passable_profile(gx,gy,profile);
+        let exact=firing_range.is_none()&&self.passable_profile(gx,gy,profile);
         let end=if exact{gy as usize*w+gx as usize}else{usize::MAX};
         let start=sy*w+sx;
         if start==end{
@@ -97,6 +102,10 @@ impl Game {
                 .map(|code|f64::from(original_terrain::route_cost(code,profile))).fold(5./1.3,f64::min)
         }else{5./1.3};
         let heuristic=|j:usize|->u32{
+            if let Some(range)=firing_range{
+                let(px,py)=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
+                return (((px-dx).hypot(py-dy)-range-TILE*std::f64::consts::SQRT_2).max(0.)/TILE*1000.*minimum_cost).floor()as u32;
+            }
             if !exact{return 0;}
             let ax=((j%w)as i32-gx).unsigned_abs();let ay=((j/w)as i32-gy).unsigned_abs();
             ((ax.min(ay)*1414+(ax.max(ay)-ax.min(ay))*1000)as f64*minimum_cost).floor()as u32
@@ -108,7 +117,13 @@ impl Game {
             if cost!=distance[j]{continue;}
             if j==end{reached=Some(j);break;}
             let(cx,cy)=((j%w)as i32,(j/w)as i32);
-            if !exact&&(cx-gx).abs()<=6&&(cy-gy).abs()<=6&&self.passable_profile(cx,cy,profile){
+            if let Some(range)=firing_range{
+                let(px,py)=(cx as f64*TILE+16.,cy as f64*TILE+16.);
+                if self.passable_profile(cx,cy,profile)&&(px-dx).hypot(py-dy)<=range&&self.los(px,py,dx,dy){
+                    reached=Some(j);break;
+                }
+            }
+            if firing_range.is_none()&&!exact&&(cx-gx).abs()<=6&&(cy-gy).abs()<=6&&self.passable_profile(cx,cy,profile){
                 let rank=(i64::from(cx-gx).pow(2)+i64::from(cy-gy).pow(2),cost,j);
                 if fallback.is_none_or(|old|rank<old){fallback=Some(rank);}
             }
@@ -126,6 +141,10 @@ impl Game {
             }
         }
         let Some(mut j)=reached.or_else(||fallback.map(|v|v.2))else{return empty;};
+        if j==start&&firing_range.is_some(){
+            let point=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
+            return if (point.0-x).hypot(point.1-y)>1.&&self.segment_profile(x,y,point.0,point.1,profile){VecDeque::from([point])}else{empty};
+        }
         let mut path=Vec::new();
         while j!=start{path.push(((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.));j=prev[j];}
         path.reverse();path.into()

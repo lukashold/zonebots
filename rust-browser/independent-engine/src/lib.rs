@@ -10,6 +10,7 @@ mod original_grenades;
 mod original_initiative;
 mod original_terrain;
 mod terrain;
+mod pursuit;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,6 +103,8 @@ pub struct Unit {
     pub initiative: Option<original_initiative::Initiative>,
     #[serde(default)]
     pub hold_position: bool,
+    #[serde(skip)]
+    pub(crate) pursuit: Option<pursuit::State>,
     #[serde(skip_deserializing)]
     pub path: VecDeque<(f64, f64)>,
 }
@@ -441,6 +444,7 @@ impl Game {
             original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
             initiative: None,
             hold_position: false,
+            pursuit: None,
             path: VecDeque::new(),
         });
     }
@@ -528,6 +532,7 @@ impl Game {
                 continue;
             };
             self.units[i].initiative=None;
+            self.units[i].pursuit=None;
             self.units[i].hold_position=self.map.original&&kind=="stop";
             if kind == "unload" {
                 let u = self.units[i].clone();
@@ -604,6 +609,7 @@ impl Game {
                 .iter()
                 .filter(|u| {
                     u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && !u.hold_position
+                        && matches!(u.order.as_str(),"guard"|"move")
                 })
                 .map(|u| u.id)
                 .collect();
@@ -642,7 +648,7 @@ impl Game {
         let mut original_damage:Vec<original_combat::Attack>=vec![];
         let mut bdamage: Vec<(usize, f64)> = vec![];
         for i in 0..self.units.len() {
-            let u = self.units[i].clone();
+            let mut u = self.units[i].clone();
             if !original_combat::alive(self.map.original,u.hp) || u.team < 0 {
                 continue;
             }
@@ -655,6 +661,8 @@ impl Game {
             }
             self.units[i].moving = false;
             self.units[i].cooldown -= dt;
+            let pursuit_hold=self.update_pursuit(i,&snapshot,d.range,d.speed);
+            u=self.units[i].clone();
             if u.order == "attackBridge" || u.order == "repairBridge" {
                 if let Some((x, y)) = u.dest {
                     let j = (y / TILE) as usize * self.map.width + (x / TILE) as usize;
@@ -706,7 +714,7 @@ impl Game {
                 }
             }
             // Explicit hardware boarding and repair pursue moving targets without storing JS references.
-            if ["enter", "board", "repair", "attack"].contains(&u.order.as_str()) {
+            if ["enter", "board", "repair"].contains(&u.order.as_str()) {
                 let mut dest = None;
                 if let Some(target) = u.target {
                     if u.order == "repair" {
@@ -850,10 +858,10 @@ impl Game {
             if let Some(&(nx,ny))=self.units[i].path.front() {
                 if !self.movement_segment_clear_for(u.x,u.y,nx,ny,&u.kind) {
                     let goal=self.units[i].dest.or_else(||self.units[i].path.back().copied());
-                    self.units[i].path=goal.map(|(x,y)|self.route_unit(&u,x,y)).unwrap_or_default();
+                    self.units[i].path=goal.map(|(x,y)|if u.order=="attack"&&u.target.is_some(){self.route_to_attack(&u,x,y,d.range)}else{self.route_unit(&u,x,y)}).unwrap_or_default();
                 }
             }
-            let hold = enemy.is_some() && u.order == "guard";
+            let hold = pursuit_hold || enemy.is_some() && u.order == "guard";
             if !hold && d.speed > 0. {
                 if let Some((x, y)) = self.units[i].path.front().copied()
                     .filter(|&(x,y)|self.movement_segment_clear_for(u.x,u.y,x,y,&u.kind)) {
@@ -1147,6 +1155,8 @@ mod production_tests;
 mod gun_placement_tests;
 #[cfg(test)]
 mod attack_target_tests;
+#[cfg(test)]
+mod pursuit_tests;
 #[cfg(test)]
 mod terrain_tests;
 

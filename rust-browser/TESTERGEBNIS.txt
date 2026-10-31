@@ -200,3 +200,21 @@ und erneut bemannt, mit einheitlicher Blickrichtung. Alle vier bleiben optisch
 dieselbe Waffenfamilie; keine Warnungen/Fehler im Browserprotokoll. Die Aufnahme
 liegt als Z-Geschuetztypen.png bei. Die Vergleichsansicht selbst bleibt lokal
 unter work/ und wird nicht auf der Spielseite veröffentlicht.
+
+VERFOLGUNG – 31.10.2026
+Alle97 Rust-Tests bestanden, einschließlich zwölf neuer Integrationsfälle in
+Original- und prozeduralem Modus: bewegtes Ziel bei noch langem altem Weg, weitere
+Richtungswechsel, Gruppen, Schussposition/Anhalten, erneutes Folgen, blockierte
+Sichtlinie, Stopp/neuer Auftrag, Tod/Entfernung/Teamwechsel/Neutralisierung,
+KI-Auftragsschutz, Wasser, Brückenbruch/-reparatur und unerreichbare Ziele.
+Wasm neu gebaut. check-pursuit.cjs besteht mit echtem Spielkern und echtem
+Frontend-Tracker: laufende Verfolgung, fortbestehende Markierung, Schießen/
+Wiederanlaufen, Abbruch, gültige Ufer-Schussposition, Umgehen eines Sichtblocks,
+Zielverlust, stationäres Geschütz und aktiver Angriff unter strategischer KI.
+
+Frontend-, Angriffs-, Gelände-, Geschützidentitäts-, Einsteige-, Platzierungs-,
+Aufnahme-, Granaten- und Produktionsprüfungen sowie alle20 Originalmissionen
+und fünf prozedurale Welten bestehen weiterhin. Der Granaten-Sichtlinientest
+verwendet jetzt eine geschlossene Wand: Eine einzelne Kachel kann mit der neuen
+Verfolgung bewusst umgangen werden und ist deshalb kein dauerhaftes Hindernis.
+Die aktuelle Korrektur wurde auf Engine- und echtem Wasm-/Tracker-Niveau geprüft.

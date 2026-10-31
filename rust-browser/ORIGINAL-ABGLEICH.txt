@@ -370,3 +370,26 @@ Ein zusätzlicher Wiedereinstiegsfehler ist korrigiert: Route und Ziel konnten
 dieselbe Kachel haben, während der Roboter noch außerhalb der Bemannungsreichweite
 stand. Für einen anderen erlaubten Punkt derselben Kachel wird nun ein kurzes
 Wegstück erzeugt; gesperrte Wasser-/Geländefelder bleiben ausgeschlossen.
+
+VERFOLGUNG BEWEGTER ANGRIFFSZIELE – 31.10.2026
+Ein Fehler der Webfassung wartete mit der Verfolgungsroute bis zum Ende des
+alten Weges. Ein expliziter Einheitenangriff aktualisiert nun die aktuelle
+Zielposition pro Simulationsschritt. Bewegt sich der Gegner seit der letzten
+Planung um mindestens8 Weltpixel, kann nach0,25 Simulationssekunden neu geplant
+werden. Kartenzustandswechsel und Verlassen einer gültigen Schussposition werden
+unmittelbar berücksichtigt. Eine erfolglose Wegsuche wird nach0,75 Sekunden
+wieder versucht; ein gültiges unerreichbares Ziel wird dadurch nicht verworfen.
+
+Die Wegsuche kann mehrere erreichbare Felder innerhalb der Waffenreichweite mit
+Sichtlinie als Ziel verwenden. Das erlaubt einen Schuss vom eigenen Ufer und
+verhindert das pauschale Planen auf das Gegnerfeld im Wasser. Sichtlinie und
+Reichweite werden während der Verfolgung neu geprüft, unabhängig vom Nachladen.
+Das Erreichen einer gültigen Schussposition löscht den Laufweg, nicht den Angriff.
+
+Tote, verschwundene, neutrale oder inzwischen eigene Ziele geben den Auftrag
+und alten Weg frei. Stopp und neue Befehle löschen den internen Verfolgungszustand.
+Die strategische Web-KI überschreibt aktive Angriffe nicht mehr, nur weil zum
+Schießen gerade kein Laufweg nötig ist. Das Fadenkreuz verfolgt die Gegner-ID
+und toleriert die laufend aktualisierte Verfolgungsposition; statische Aufträge
+behalten ihre bisherige Zielprüfung. Zeitabstände, Mehrziel-A* und KI-Anpassung
+sind Korrekturen der Webfassung, kein neuer Nachweis identischer Original-KI.

@@ -53,10 +53,28 @@ t.tracker.clear([1]);assert.equal(t.tracker.targets(t.state,[1]).length,0);asser
 for(const mutate of [
  state=>{state.units=state.units.filter(u=>u.id!==1);},state=>{unit(state,1).hp=-1;},state=>{unit(state,1).team=1;},
  state=>{unit(state,1).type='crane';},state=>{unit(state,1).order='move';},state=>{unit(state,1).target=11;},
- state=>{unit(state,1).dest=[300,200];},state=>{state.units=state.units.filter(u=>u.id!==10);},state=>{unit(state,10).hp=-1;},
+ state=>{state.units=state.units.filter(u=>u.id!==10);},state=>{unit(state,10).hp=-1;},
  state=>{unit(state,10).team=0;},state=>{unit(state,10).team=-1;},state=>{unit(state,10).x=NaN;},state=>{state.time=0;}
 ]){t=assigned('unit',[1]);mutate(t.state);assert.equal(t.tracker.targets(t.state,[]).length,0);assert.equal(t.tracker.targets(assigned().state,[1]).length,0,'A stale same-ID target cannot resurrect an expired marker');}
 t=assigned('unit',[2]);assert.equal(t.tracker.targets(t.state,[2]).length,1,'A stationary gun keeps an attack marker with an empty path');
+// Real pursuit revises the route/destination while preserving the chosen ID.
+// The marker must survive initial path creation, a moving enemy and arrival.
+for(const cancel of [
+ state=>{unit(state,1).target=11;},
+ state=>{unit(state,1).order='guard';unit(state,1).target=null;},
+ state=>{unit(state,10).hp=-1;},
+]){
+ t=assigned('unit',[1]);const actor=unit(t.state,1),enemy=unit(t.state,10);
+ actor.dest=[enemy.x,enemy.y];actor.path=[[272,208],[304,208]];t.state.time+=.05;
+ markers=t.tracker.targets(t.state,[1]);assert.equal(markers.length,1,'Creating a pursuit path must keep its target marker');
+ enemy.x+=96;enemy.y+=64;actor.dest=[enemy.x,enemy.y];actor.path=[[304,240],[368,272]];t.state.time+=.4;
+ markers=t.tracker.targets(t.state,[1]);assert.equal(markers.length,1,'Replanning toward the same enemy ID must keep its target marker');
+ assert.deepEqual([markers[0].x,markers[0].y],[396,264]);assert.equal(markers[0].started,12.5);
+ actor.path=[];actor.dest=null;t.state.time+=.05;
+ assert.equal(t.tracker.targets(t.state,[1]).length,1,'Stopping in firing range must keep the active enemy marker');
+ cancel(t.state);assert.equal(t.tracker.targets(t.state,[1]).length,0,'Changing target, stopping or target death must clear the moving marker');
+ assert.equal(t.tracker.targets(assigned('unit',[1]).state,[1]).length,0,'An invalidated moving marker cannot return from a stale same-ID snapshot');
+}
 t=assigned('unit',[5]);assert.equal(t.tracker.targets(t.state,[5]).length,1);t.state.map.original=false;assert.equal(t.tracker.targets(t.state,[5]).length,0);
 t=assigned('unit',[1]);unit(t.state,10).hp=0;assert.equal(t.tracker.targets(t.state,[1]).length,1);t.state.map.original=false;assert.equal(t.tracker.targets(t.state,[1]).length,0);
 t=assigned('building');markers=t.tracker.targets(t.state,[1,2]);assert.equal(markers.length,1);assert.equal(markers[0].entity,t.state.buildings[0]);assert.deepEqual([markers[0].x,markers[0].y],[164,480],'Building marker uses center while command routes to gate');
@@ -71,4 +89,4 @@ t=assigned('point',[1]);t.tracker.reset();unit(t.state,1).path=[];t.tracker.assi
 t=assigned('unit',[1]);t.state.time=20;const second=intent(t.state,[2],{x:320,y:420});unit(t.state,2).order='attackBuilding';unit(t.state,2).target=1;unit(t.state,2).dest=[second.x,second.y];t.tracker.assign(second,t.state);assert.equal(t.tracker.targets(t.state,[1,2]).length,2);
 t.tracker.assign(null,t.state);t.tracker.clear(null);t.tracker.reset();
 for(const winner of [0,1]){t=assigned();t.state.winner=winner;assert.equal(t.tracker.targets(t.state,[1]).length,0);assert.equal(t.tracker.targets(assigned().state,[1]).length,0);}
-console.log('PASS: combat-only attack intent, original HP0, sprite/radius/building/bridge/point targets, route gates, moving targets, stationary guns, selected deduplication, override/loss/arrival/restart cleanup.');
+console.log('PASS: combat-only attack intent, original HP0, sprite/radius/building/bridge/point targets, static route gates, moving pursuit destinations, stationary guns, selected deduplication, override/loss/arrival/restart cleanup.');

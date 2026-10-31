@@ -22,7 +22,9 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
  Object.assign(mission.map,{width:size,height:size,tileSize:32,world:0,seed:1,revision:0,
   original:true,tiles:Array(count).fill(0),territory:Array(count).fill(0),
   bridgeBase:Array(count).fill(-1),bridgeHp:[],originalTiles:Array(count).fill(0),terrainCodes:Array(count).fill(0)});
- if(wall)mission.map.tiles[10*size+11]=2;
+ // A directed attack may now step around a single tile to acquire sight.
+ // Use a sealed wall to isolate ammunition preservation while sight stays blocked.
+ if(wall)for(let y=0;y<size;y++){mission.map.tiles[y*size+11]=2;mission.map.terrainCodes[y*size+11]=19;}
  mission.sectors=[{id:0,x:64,y:64,owner:0,home:true,countsForProduction:true}];
  mission.buildings=[];mission.originalObjects=[];
  mission.spawns=[{type:'grunt',team:0,x:320,y:320,squad:1},
