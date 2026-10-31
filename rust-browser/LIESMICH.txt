@@ -86,3 +86,9 @@ den Original-Geländewerten. Soldaten können geeignete Wasserstellen durchquere
 der gesperrte Wassertyp und das nasse/Lava-Gelände der Vulkanwelt bleiben tabu.
 Straßen wirken sich auch auf ihr Tempo aus. Zerstörte Brücken und Küstenecken
 werden beim Bewegen erneut geprüft, selbst bei zuvor berechnetem Weg.
+
+Geschütztypen: Unbesetzte und bemannte MG-/Gatling-, Kanonen-, Raketen- und
+Haubitzengeschütze verwenden nun dieselbe jeweilige Original-Waffenfamilie.
+Der Roboter wird beim Einsteigen zur Besatzung; Geschütztyp und Werte bleiben
+erhalten. Ausgestiegene Roboter können auch innerhalb derselben Kartenkachel
+wieder näher herangehen und einsteigen.

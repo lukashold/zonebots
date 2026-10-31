@@ -92,13 +92,14 @@ gerichtete Scan-/Animationszustandsmaschine. Nicht alle Suchzustände während
 laufender Originalbefehle sind übernommen. Das ist keine vollständige Original-KI.
 
 FORTGESCHÜTZE
-Die Geschützpositionen aus dem Original bleiben erhalten. FUN00455f10 schreibt
-rawX direkt in die Zeichenwarteschlange; rawY+Elevation wird in004549f0 wieder
-um die Elevation zurückgesetzt.00466090 verwendet diese obere linke Ecke für
-das Spriterechteck. Das frühere Zentrieren verschob die Gatling um 32x18 Weltpixel.
-Die Verschiebung des separaten BUILD-Datensatzes um 16 native Pixel darf nicht
-auf Geschütze angewandt werden. Die Originalkoordinaten wurden unverändert
-übernommen; korrigiert wurden Grafikanker und Zeichenreihenfolge.
+Die Basiskoordinaten der Geschütze aus dem Original bleiben erhalten. Im
+allgemeinen Zeichenpfad wird die Elevation wieder abgezogen und das Bild über
+seine obere linke Ecke platziert. Das frühere pauschale Zentrieren verschob die
+Waffe; die separate BUILD-Verschiebung gehört ebenfalls nicht zu Geschützen.
+Die Webfassung nutzt diese Basisanker und die korrigierte Zeichenreihenfolge.
+Der frische Abgleich vom31.10.2026 zeigt zusätzlich richtungsabhängige Versätze
+bei Gatling/Haubitze. Diese sind noch nicht vollständig übernommen; die bloße
+Übereinstimmung der Basisanker ist kein Nachweis vollständiger Zeichenparität.
 
 68 über die Fortsockel-Tabelle platzierte Startgeschütze erhalten eine feste
 Fort-ID. Das Fort wird vor seinen Geschützen gezeichnet. Die 95 neutralen
@@ -347,3 +348,25 @@ Straßen/Brücken verschieben den Tempoindex um+2; Wasser9/39/42 um-1/-2/-3,38 u
 Die relativen Schrittverhältnisse gelten auch für Soldaten und hängen vom aktuellen
 Bewegungswert ab. Absolute Grundgeschwindigkeiten, Phasen des Windows-Schedulers,
 Gruppenbonus+3 und Einheitensonderwert+0x8c bleiben teilweise Webanpassungen.
+
+GESCHÜTZIDENTITÄT BEIM BEMANNEN – 31.10.2026
+Frische schreibgeschützte Ghidra-/Assemblerprüfung0041ad30 und00455f10, mit
+Animationstabelle00496e78: Kanone Zustand4, Grundbild330, Richtungsschritt1;
+Rakete Zustand50,1643/1; Gatling Zustand51,1659/2; Haubitze Zustand52,5767/2.
+Bisher waren die bemannten Kanonen- und Gatling-Bildblöcke vertauscht. Die
+neutralen Objektbilder waren bereits richtig: Kanone352, Gatling1657, Rakete1641,
+Haubitze5765. Kampagnentypen, HUD-Zuordnungen und Waffenwerte bleiben diesen
+Originalfamilien zugeordnet. Der Extraktor liest die vier Animationsdeskriptoren
+jetzt direkt aus der EXE in gunLayouts; ältere Pakete erhalten dieselben
+korrigierten Werte als Browser-Fallback. Originalpixel wurden nicht verändert.
+
+Gatling/Haubitze zeigen den zweiten Frame beim frisch ausgelösten Schuss, statt
+ihn während der gesamten Nachladezeit zu halten. Kanone/Rakete haben in diesem
+normalen Zeichenpfad keine belegte zusätzliche Schussphase. Materialisierung,
+weitere Sonderzustände und vollständige native Animationsabläufe bleiben separat.
+Die neue Prüfung belegt Waffenidentität, keine vollständige Animationsparität.
+
+Ein zusätzlicher Wiedereinstiegsfehler ist korrigiert: Route und Ziel konnten
+dieselbe Kachel haben, während der Roboter noch außerhalb der Bemannungsreichweite
+stand. Für einen anderen erlaubten Punkt derselben Kachel wird nun ein kurzes
+Wegstück erzeugt; gesperrte Wasser-/Geländefelder bleiben ausgeschlossen.

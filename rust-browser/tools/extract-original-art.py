@@ -58,7 +58,13 @@ def executable_metadata(source):
         'crane':dict(renderer='00455820',anchor=[-6,-6],hull=5794,stride=3,directions=8,hullOffsets=[[0,0]]*8,turret=5818,turretOffsets=points(0x496dbc,8),turretAnchor=[6,-3],arm=5826,armOffsets=points(0x496cc4,8))
     }
     neutral_indices={'medium':8,'heavy':26,'light':29,'apc':31,'jeep':33,'crane':35,'firetruck':37,'launcher':24,'cannon':5,'missile':21,'gatling':22,'howitzer':23}
-    return dict(buildings=buildings,buildingMachinery=machinery,objectTypes=object_types,unitLayouts=unit_layouts,neutralUnits={name:object_types[i]['sprite'] for name,i in neutral_indices.items()})
+    #0041ad30 selects these animation states;00455f10 indexes00496e78 by
+    # state then adds direction*stride. Do not infer occupied types by appearance.
+    gun_layouts={}
+    for kind,state in [('cannon',4),('missile',50),('gatling',51),('howitzer',52)]:
+        base,stride=struct.unpack('<hh',memory(0x496e78+state*4,4))
+        gun_layouts[kind]=dict(state=state,base=base,stride=stride)
+    return dict(buildings=buildings,buildingMachinery=machinery,objectTypes=object_types,unitLayouts=unit_layouts,gunLayouts=gun_layouts,neutralUnits={name:object_types[i]['sprite'] for name,i in neutral_indices.items()})
 
 def write_manifest(source,out):
     files=[dict(name=p.name,bytes=p.stat().st_size,sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p in out.iterdir() if p.is_file() and p.name!='manifest.json']

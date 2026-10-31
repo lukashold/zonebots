@@ -303,3 +303,47 @@ fn actual_movement_uses_native_terrain_speed_instead_of_cosmetic_road_bias() {
     assert!(wet > 0. && wet < ground, "Supported infantry water is slower than dry ground");
     assert!((wet / ground - wet_factor / ground_factor).abs() < 1e-9);
 }
+
+#[test]
+fn same_cell_move_reaches_the_requested_legal_point() {
+    let mut g = field(true);
+    let id = mover(&mut g, "grunt", 5, 10);
+    let start = xy(5, 10);
+    let end = (start.0 + 4., start.1 + 4.);
+    g.command(&json!({"ids":[id],"kind":"move","x":end.0,"y":end.1}));
+    assert_eq!(unit(&g, id).path.back(), Some(&end),
+        "Different positions in one tile still require a short approach segment");
+    for _ in 0..4 { g.step(0.1); }
+    let u = unit(&g, id);
+    assert_eq!((u.x, u.y), end);
+    assert!(u.path.is_empty());
+}
+
+#[test]
+fn released_robot_can_reboard_a_tile_corner_gun_without_changing_its_type() {
+    for kind in ["gatling", "cannon", "howitzer", "missile"] {
+        let mut g = field(true);
+        g.spawn(kind, -1, 320., 320., 71, None);
+        let gun = g.units.last().unwrap().id;
+        g.spawn("grunt", 0, 320., 330., 72, None);
+        let robot = g.units.last().unwrap().id;
+        g.command(&json!({"ids":[robot],"kind":"enter","target":gun}));
+        g.step(0.05);
+        assert_eq!(unit(&g, gun).team, 0);
+        g.command(&json!({"ids":[gun],"kind":"unload"}));
+        let driver = g.units.iter().find(|u| u.team == 0 && u.kind == "grunt").unwrap();
+        assert!((driver.x - 320.).hypot(driver.y - 320.) > 28.);
+        assert_eq!(((driver.x / TILE) as usize, (driver.y / TILE) as usize), (10, 10));
+        let driver_id = driver.id;
+        g.command(&json!({"ids":[driver_id],"kind":"enter","target":gun}));
+        for _ in 0..30 {
+            g.step(0.05);
+            if unit(&g, gun).team == 0 { break; }
+        }
+        let hardware = unit(&g, gun);
+        assert_eq!(hardware.team, 0, "Released robot must approach and reboard {kind}");
+        assert_eq!(hardware.kind, kind, "Crew changes must preserve hardware identity");
+        assert_eq!(hardware.crew.as_ref().unwrap().kind, "grunt");
+        assert_eq!((hardware.x, hardware.y), (320., 320.));
+    }
+}

@@ -84,7 +84,13 @@ impl Game {
         let exact=self.passable_profile(gx,gy,profile);
         let end=if exact{gy as usize*w+gx as usize}else{usize::MAX};
         let start=sy*w+sx;
-        if start==end{return empty;}
+        if start==end{
+            // Boarding can require approaching a hardware anchor within the
+            // same tile: an unloaded robot may still be outside crew range.
+            return if (x-dx).hypot(y-dy)>1.&&self.segment_profile(x,y,dx,dy,profile){
+                VecDeque::from([(dx,dy)])
+            }else{empty};
+        }
         let mut distance=vec![u32::MAX;w*h];let mut prev=vec![usize::MAX;w*h];
         let minimum_cost=if self.map.original {
             (0..=66).filter(|&code|original_terrain::passable(code,self.map.world,profile))

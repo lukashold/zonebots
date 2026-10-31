@@ -51,6 +51,8 @@ Owned factories now start a repeating production order immediately, including on
 
 Completed stationary guns wait in up to four factory storage slots. Choose **Place guns** or a factory storage button, then left-click a valid position in that factory's territory. Right-click or Escape cancels placement while preserving the gun. Fort placements snap to free roof sockets; the preview and final placement share the Rust validation. Robot and vehicle production still deploys automatically.
 
+Gun artwork now keeps each original weapon family across crewing: the previously swapped occupied Cannon/Gatling sprite blocks are corrected using native animation descriptors. Neutral models, weapon values and hardware identity remain consistent through unload/re-entry, including approaches within a single map tile.
+
 The menu now uses locally extracted original title, background and metal-panel textures, with separate new-game, options and help views. It remains usable without the private menu pack. `tools/extract-original-menu.py` copies the optional textures from an owned GOG installation; the local server prepares them automatically when available. These images are never included in this public repository. The responsive arrangement is a web adaptation of the original artwork.
 
 Use **Vollbild** in the menu or in battle to request native browser fullscreen. Escape or the same button exits. If embedding permissions prevent fullscreen, the game displays browser instructions. Chrome browser shortcuts: F11 on Windows/Linux, Ctrl+Command+F on macOS. Returning to the main menu pauses the current battle; **Fortsetzen** resumes it while the page remains open.
@@ -88,6 +90,8 @@ From `rust-browser/`, validate with:
     node tools/check-original-hud.cjs
     node tools/check-original-grenades.cjs
     node tools/check-original-terrain.cjs
+    node tools/check-gun-identity.cjs
+    node tools/check-gun-sprites.cjs
     node tools/check-original-audio.cjs
 
 Combat units show the original crosshair over attack targets. Confirm with the normal command button; **F / Attack** also enables aiming and **Escape** cancels it. A crosshair follows the selected attack target. Manual targets in weapon range now take precedence over opportunistic fire; transporters and cranes are filtered out of mixed attack selections. Empty-ground aiming retains the existing attack-move behavior.

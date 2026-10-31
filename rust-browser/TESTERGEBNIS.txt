@@ -178,3 +178,25 @@ Drei reale Fehlerrouten aus LEVEL03/09 betreten keine Wasserfelder mehr. Alle20
 Originalmissionen sowie fünf prozedurale Welten, Angriff, Geschützplatzierung,
 Aufnahme/Bemannen, Granaten und automatische Produktion weiter erfolgreich.
 Die aktuelle Korrektur wurde auf Engine- und echtem Wasm-Niveau geprüft.
+
+GESCHÜTZIDENTITÄT – 31.10.2026
+Alle85 Rust-Tests bestanden, einschließlich kurzer Wege innerhalb derselben
+Kachel und tatsächlichem Wiedereinsteigen für alle vier Geschützarten. Wasm neu
+gebaut. check-gun-identity besteht mit48 vollständigen Besatzungswechseln
+(4 Geschütze ×6 Robotertypen ×Boden/Fort), vier Kachelecken-Wiedereinstiegen
+und vier echten Schussereignissen. ID, Typ, Hülle, Werte und Fort-Zuordnung
+bleiben erhalten. Der beobachtete Typwechsel war ein Grafikzuordnungsfehler.
+
+Die Rendererprüfung benutzt unabhängige Ghidra-Tabellenfixtures für alle vier
+Waffen über fünf Welten, Besitzer und acht Richtungen. Geprüft werden Bildfamilie,
+Schussphase, echte Bildgrößen, Auswahl-/Angriffstrefferfläche und ältere Pakete
+ohne die neuen Deskriptoren. Fortanker, Einsteigepfeil und36.561 Angriffstreffer-
+flächenfälle bestehen. Die Eingabetests für Einsteigen, Platzieren und Angriff,
+der Geländetest, HUD-Test und alle20 Originalmissionen bestehen weiterhin.
+
+Im Browser wurde eine lokale Vergleichsansicht mit tatsächlichen Wasm-
+Besatzungswechseln für alle vier Typen gezeichnet: unbesetzt, bemannt, ausgestiegen
+und erneut bemannt, mit einheitlicher Blickrichtung. Alle vier bleiben optisch
+dieselbe Waffenfamilie; keine Warnungen/Fehler im Browserprotokoll. Die Aufnahme
+liegt als Z-Geschuetztypen.png bei. Die Vergleichsansicht selbst bleibt lokal
+unter work/ und wird nicht auf der Spielseite veröffentlicht.
