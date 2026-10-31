@@ -53,12 +53,7 @@ const kinds=['gatling','cannon','howitzer','missile'];
   }
  }
  assert.equal(mounted,68);assert.equal(ground,95);assert.deepEqual(invalid,[]);
- // Minimal wiring guard: mounted guns must not enter the ordinary Y-sort, and
- // their real draw call must follow the fort composite in the frontend branch.
- const app=fs.readFileSync(path.join(root,'dist/independent/app.js'),'utf8');
- assert(app.includes('state.units.filter(u=>!mounted.has(u.id))'),'Mounted guns must be excluded from ordinary entity sorting');
- const fortCall=app.indexOf('OriginalArt.building(c,item.b'),roofCall=app.indexOf('OriginalArt.fortGuns(item.b,state.units)');
- assert(fortCall>=0&&roofCall>fortCall,'The frontend must draw the fort before its associated guns');
+ // Actual app Z-order wiring is covered by check-fort-layer.cjs.
  console.log(JSON.stringify({drawCases,missions:20,mounted,ground}));
  console.log('PASS: raw gun origins, all types/aims/teams/worlds, matching bounds, no crewing jump, fortId association and complete campaign mounted/ground classification.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

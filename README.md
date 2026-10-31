@@ -106,9 +106,12 @@ Directed attacks now track the live enemy while the old route is still active. P
 
 Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The existing immediate-hit model remains: the native throw wind-up, trajectory, scatter and blast area are not yet reconstructed. The howitzer also uses its proper original artillery profile.
 
+A systematic audit also fixes stale routes after unloading, moving-APC boarding, crane-only repairs/reconstruction, structure line-of-sight and mounted-gun targeting, paused/focus-lost UI input, stale selections/factory menus, multiplayer connection/pause races, and voice mute/retry handling. Original rubble eligibility was freshly checked in Ghidra. All concrete findings from this review are closed with regression coverage; this does not establish complete native behavior parity. [Audit scope and evidence](rust-browser/FEHLERPRUEFUNG.txt).
+
 From `rust-browser/`, validate with:
 
     cargo test --manifest-path independent-engine/Cargo.toml
+    node tools/check-all.cjs
     node independent-engine/check-wasm.cjs
     node tools/check-original.cjs
     node tools/check-neutral-colors.cjs

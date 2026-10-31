@@ -1,36 +1,24 @@
-// Regression tests with a fake WebAudio/Speech backend; these do not prove speaker output.
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-global.window=global;global.CustomEvent=class {constructor(type,init){this.type=type;this.detail=init.detail;}};
-const captions=[],spoken=[];global.dispatchEvent=e=>captions.push(e.detail);
-const param=()=>({value:0,setValueAtTime(v){this.value=v;},setTargetAtTime(v){this.value=v;},exponentialRampToValueAtTime(v){this.value=v;}});
-let resumed=0;
-global.AudioContext=class {
- constructor(){this.state='running';this.currentTime=0;this.sampleRate=8000;this.destination={};}
- node(){return {connect(){},start(){},stop(){},gain:param(),frequency:param(),detune:param(),Q:param()};}
- createGain(){return this.node();}createOscillator(){return this.node();}createWaveShaper(){return this.node();}createBiquadFilter(){return this.node();}createBufferSource(){return this.node();}
- createBuffer(ch,n){return {getChannelData:()=>new Float32Array(n)};}
- resume(){resumed++;this.state='running';return Promise.resolve();}
-};
-global.speechSynthesis={getVoices:()=>[{lang:'de-DE',name:'Test'}],cancel(){},speak(u){spoken.push(u);}};
-global.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
-const base=path.resolve(__dirname,'..');
-for(const f of ['data','map','zdata','game','sound'])require(path.join(base,'dist/js',f+'.js'));
-const S=ZG.Synth;
-S.music('battle');S.ctx().state='suspended';S.music('battle');assert.equal(resumed,1,'same-track music must resume after autoplay suspension');S.stopMusic();
-S.say('ROB49','de',true);S.say('COMP08','de',true);
-assert.equal(spoken.length,1,'second announcement waits rather than cancelling the first');
-assert.equal(captions[0].text,'Gebiet erobert!');assert.equal(spoken[0].lang,'de-DE');
-spoken[0].onend();assert.equal(spoken.length,2);assert.equal(spoken[1].text,'Gebiet verloren.');spoken[1].onend();
-S.configure({speech:0});S.say('COMP02','de',true);assert.equal(spoken.length,2);assert.equal(captions.at(-1).text,'Roboter hergestellt.');
+// Current independent browser audio and real Rust/Wasm difficulty regression.
+// Uses generated audio declarations, not original recordings or the retired JS engine.
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),flush=async()=>{for(let i=0;i<24;i++)await Promise.resolve();};
+function audio({fallback=false,failFirst=false,delayed=false}={}){
+ let clock=10000,attempts=0,finishDecode;const sources=[],spoken=[],tracks=[],captions=[],contexts=[];let cancelled=0;
+ class Gain{constructor(){this.gain={setTargetAtTime(){}};}connect(){}disconnect(){}}
+ class Context{constructor(){this.state='running';this.currentTime=0;this.destination={};contexts.push(this);}createGain(){return new Gain();}createBufferSource(){const s={connect(){},start(){sources.push(s);},stop(){s.stopped=true;s.onended?.();}};return s;}resume(){this.state='running';this.resumed=(this.resumed||0)+1;return Promise.resolve();}decodeAudioData(){return delayed?new Promise(r=>finishDecode=()=>r({duration:1})):Promise.resolve({duration:1});}}
+ class Track{constructor(){this.paused=true;this.listeners={};tracks.push(this);}canPlayType(){return 'probably';}play(){this.paused=false;this.plays=(this.plays||0)+1;return Promise.resolve();}pause(){this.paused=true;}addEventListener(k,v){this.listeners[k]=v;}}
+ const clip={url:'voice.wav'},manifest={voices:{de:{ROB07:clip,ROB49:clip,COMP08:clip,COMP01:clip}},effects:{RIFLE3:{url:'fx.wav'}},music:{AA16:[{url:'music.mp3',type:'audio/mpeg'}],ipOPTIONS16:[{url:'menu.mp3',type:'audio/mpeg'}]},worldMusic:['AA16']};
+ const env={URL,Math,Set,Map,Promise,Date:{now:()=>clock},Audio:Track,AudioContext:Context,SpeechSynthesisUtterance:class{constructor(text){this.text=text;}},CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail;}},document:{currentScript:{src:'https://local/independent/audio.js'}},speechSynthesis:{cancel(){cancelled++;},speak(v){spoken.push(v);}},dispatchEvent:e=>captions.push(e.detail),fetch:async url=>{if(String(url).endsWith('audio.json'))return{ok:!fallback,json:async()=>manifest};attempts++;return{ok:!(failFirst&&attempts===1),arrayBuffer:async()=>new ArrayBuffer(4)};}};env.window=env;vm.createContext(env);vm.runInContext(fs.readFileSync(path.join(root,'dist/independent/audio.js'),'utf8'),env);return{a:env.RadioAudio,sources,spoken,tracks,captions,contexts,advance:()=>clock+=5000,finish:()=>finishDecode?.(),get attempts(){return attempts;},get cancelled(){return cancelled;}};
+}
 (async()=>{
- await ZRust.load(fs.readFileSync(path.join(base,'dist/engine.wasm')));
- const samples=[];
- for(let difficulty=0;difficulty<4;difficulty++){
-   const g=ZG.newGame(0,{diff:difficulty,aiTeams:[0,1]});
-   samples.push({rate:g.ai.aiRate,interval:g.ai.aiInt,wait:g.ai.aiWait,player:g.units.filter(u=>u.team===0).length});
-   const state=ZRust.call({op:'advance',steps:12000,dt:0.1});assert(state.over,`difficulty ${difficulty} match completes`);
- }
- assert(samples[0].player>samples[1].player,'easy gives extra starting robots');
- for(let i=1;i<4;i++){assert(samples[i].rate>samples[i-1].rate);assert(samples[i].interval<samples[i-1].interval);assert(samples[i].wait<samples[i-1].wait);}
- console.log(JSON.stringify(samples));console.log('PASS: audio resume, speech queue/captions/mute, four distinct Rust/Wasm difficulties and completed matches.');
-})().catch(e=>{console.error(e);process.exitCode=1;});
+ const x=audio();await x.a.load();assert.equal(x.tracks.length,0,'Loading never autoplays');x.a.setScene('battle');x.a.unlock();await flush();x.contexts[0].state='suspended';x.a.unlock();await flush();assert.equal(x.contexts[0].state,'running','A new user unlock resumes a suspended audio context');
+ x.a.say('select',{type:'grunt'});await flush();x.advance();x.a.say('capture');await flush();assert.equal(x.a.status().queued,1);x.a.set('voice',0);await flush();assert.equal(x.a.status().speaking,false,'Voice slider zero must release active speech and music ducking');assert.equal(x.a.status().queued,0,'Zero voice volume must discard stale queued reports');assert(x.sources[0].stopped,'Current original speech is stopped');x.a.set('voice',.9);x.advance();x.a.say('ready',{type:'medium'});await flush();assert.equal(x.sources.length,2,'New speech works after restoring the slider');
+ const failed=audio({failFirst:true});await failed.a.load();failed.a.unlock();failed.a.say('select',{type:'grunt'});await flush();assert.equal(failed.sources.length,0);failed.advance();failed.a.say('select',{type:'grunt'});await flush();assert.equal(failed.sources.length,1,'A transient clip fetch error must be retried rather than cached forever');assert.equal(failed.attempts,2);
+ const race=audio({delayed:true});await race.a.load();race.a.unlock();race.a.say('select',{type:'grunt'});await flush();race.a.set('voice',0);race.finish();await flush();assert.equal(race.sources.length,0,'A delayed decode cannot start a muted report');assert.equal(race.a.status().speaking,false);
+ const speech=audio({fallback:true});await speech.a.load();speech.a.unlock();speech.a.say('capture');await flush();speech.advance();speech.a.say('lost');assert.equal(speech.spoken.length,1,'Fallback speech queues instead of interrupting');speech.a.set('voice',0);assert.equal(speech.a.status().speaking,false);assert.equal(speech.a.status().queued,0);assert(speech.cancelled>0);speech.a.say('vehicleRepaired');assert(speech.captions.at(-1).includes('repariert'),'Captions remain available with muted speech');
+ const binary=fs.readFileSync(path.join(root,'dist/independent/engine.wasm')),{instance}=await WebAssembly.instantiate(binary,{}),e=instance.exports,enc=new TextEncoder(),dec=new TextDecoder();function request(v){const bytes=enc.encode(JSON.stringify(v)),p=e.alloc(bytes.length);new Uint8Array(e.memory.buffer,p,bytes.length).set(bytes);let n;try{n=e.run(p,bytes.length);}finally{e.free(p,bytes.length);}const s=JSON.parse(dec.decode(new Uint8Array(e.memory.buffer,e.output(),n)));assert(!s.error,s.error);return s;}
+ function mission(){const width=32,height=24,n=width*height;return{map:{width,height,tileSize:32,world:0,original:true,tiles:Array(n).fill(0),terrainCodes:Array(n).fill(0),originalTiles:Array(n).fill(0),territory:Array(n).fill(0),bridgeBase:Array(n).fill(-1),bridgeHp:[],seed:29,revision:0},sectors:[],buildings:[],spawns:[{type:'apc',team:0,x:320,y:320,squad:1},{type:'heavy',team:1,x:384,y:320,squad:2}],crates:[],originalObjects:[],walls:[]};}
+ const levels=[],fair=[];for(const multiplayer of [false,true])for(let difficulty=0;difficulty<4;difficulty++){request({op:'init',mission:0,difficulty,seed:17,aiTeams:[],multiplayer,originalMission:mission()});const s=request({op:'tick',dt:.05}),hp=s.units.find(u=>u.type==='apc'&&u.team===0)?.hp??-1;(multiplayer?fair:levels).push(hp);assert.equal(s.difficulty,multiplayer?1:difficulty);}
+ assert(levels[0]>levels[1]&&levels[1]>levels[2],'Real original hull damage must distinguish easy, normal and hard');assert.equal(levels[3],levels[2],'Extra legacy AI level shares hard damage rules');assert(fair.every(hp=>hp===levels[1]),'Multiplayer always applies the same normal damage');
+ console.log(JSON.stringify({singleplayerHullAfterHeavyShot:levels,multiplayerHullAfterHeavyShot:fair}));console.log('PASS: current audio unlock/resume, slider cancellation, transient-load retry, delayed decode cancellation, fallback queue/captions, actual Wasm difficulty damage and multiplayer fairness.');
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

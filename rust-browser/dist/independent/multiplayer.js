@@ -127,12 +127,18 @@
   }
   function code(){return PREFIX+base64(encoder.encode(JSON.stringify({v:PROTOCOL,build,role,session,description:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}})));}
   async function host(settings={}){
-   role='host';const connection=peer(Boolean(settings.lan));status('gathering','Einladung wird erstellt …');attach(connection.createDataChannel('zonebots-'+PROTOCOL,{ordered:true}));
-   await connection.setLocalDescription(await connection.createOffer());await waitForIce();status('waiting','Einladung bereit. Antwortcode des Mitspielers einfügen.');return code();
+   if(pc&&!closed)throw Error('Es besteht bereits eine Verbindung. Bitte zuerst trennen.');
+   try{
+    role='host';const connection=peer(Boolean(settings.lan));status('gathering','Einladung wird erstellt …');attach(connection.createDataChannel('zonebots-'+PROTOCOL,{ordered:true}));
+    await connection.setLocalDescription(await connection.createOffer());await waitForIce();if(closed)throw Error('Verbindung abgebrochen.');status('waiting','Einladung bereit. Antwortcode des Mitspielers einfügen.');return code();
+   }catch(error){if(!closed)fail('Einladung konnte nicht erstellt werden. Bitte erneut versuchen.');throw error;}
   }
   async function join(invitation,settings={}){
    const offer=decodeCode(invitation);if(offer.role!=='host'||offer.description.type!=='offer')throw Error('Zum Beitreten wird der Einladungscode des Gastgebers benötigt.');if(offer.build!==build)throw Error('Die Spielversionen passen nicht zusammen. Beide Seiten bitte neu laden.');
-   role='guest';session=offer.session;const connection=peer(Boolean(settings.lan));status('gathering','Antwort wird erstellt …');await connection.setRemoteDescription(offer.description);await connection.setLocalDescription(await connection.createAnswer());await waitForIce();if(!handshake)status('waiting','Antwortcode bereit. Bitte an den Gastgeber zurückgeben.');return code();
+   if(pc&&!closed)throw Error('Es besteht bereits eine Verbindung. Bitte zuerst trennen.');
+   try{
+    role='guest';session=offer.session;const connection=peer(Boolean(settings.lan));status('gathering','Antwort wird erstellt …');await connection.setRemoteDescription(offer.description);await connection.setLocalDescription(await connection.createAnswer());await waitForIce();if(closed)throw Error('Verbindung abgebrochen.');if(!handshake)status('waiting','Antwortcode bereit. Bitte an den Gastgeber zurückgeben.');return code();
+   }catch(error){if(!closed)fail('Antwort konnte nicht erstellt werden. Bitte erneut versuchen.');throw error;}
   }
   async function accept(answer){
    if(role!=='host'||!pc||closed)throw Error('Zuerst eine neue Partie als Gastgeber erstellen.');

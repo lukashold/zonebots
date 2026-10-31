@@ -40,7 +40,7 @@ window.RadioAudio=(()=>{
   }
   mix();if(enabled&&music?.paused)Promise.resolve(music.play()).catch(()=>{});else if(!enabled)music?.pause();
  }
- async function buffer(clip){if(!ctx||!clip)return null;let promise=buffers.get(clip.url);if(!promise){promise=fetch(new URL(clip.url,base)).then(r=>{if(!r.ok)throw Error('Audio unavailable');return r.arrayBuffer();}).then(data=>ctx.decodeAudioData(data));buffers.set(clip.url,promise);}return promise;}
+ async function buffer(clip){if(!ctx||!clip)return null;let promise=buffers.get(clip.url);if(!promise){promise=fetch(new URL(clip.url,base)).then(r=>{if(!r.ok)throw Error('Audio unavailable');return r.arrayBuffer();}).then(data=>ctx.decodeAudioData(data)).catch(error=>{if(buffers.get(clip.url)===promise)buffers.delete(clip.url);throw error;});buffers.set(clip.url,promise);}return promise;}
  function stopVoice(){voiceToken++;queue=[];if(activeVoice){try{activeVoice.stop();}catch{}activeVoice=null;}speaking=false;window.speechSynthesis?.cancel();mix();}
  function chosen(kind,detail){
   const type=detail.type||'';
@@ -51,7 +51,7 @@ window.RadioAudio=(()=>{
   if(kind==='crewed')return guns.has(type)?'ROB51':'ROB52';
   return {capture:'ROB49',lost:'COMP08',grenades:'ROB53',victory:'ROB65',defeat:'COMP11',start:'ROB04',production:'COMP04',cancel:'COMP05',repair:'ROB48',vehicleRepaired:'ROB48',bridge:'ROB47',underAttack:'ROB25'}[kind];
  }
- function caption(kind,detail){if(kind==='order'&&detail.order==='stop')return lang==='de'?'Verstanden.':'Acknowledged.';if(kind==='ready')return lang==='de'?(infantry.has(detail.type)||!detail.type?'Roboter hergestellt.':guns.has(detail.type)?'Geschütz hergestellt.':'Fahrzeug hergestellt.'):(infantry.has(detail.type)||!detail.type?'Robot manufactured.':guns.has(detail.type)?'Gun manufactured.':'Vehicle manufactured.');if(kind==='order'&&detail.order==='stop')return lang==='de'?'Zu Befehl.':'Affirmative.';if(kind==='select'&&detail.type){const group={grunt:'Grunts',psycho:'Psychos',sniper:'Scharfschützen',tough:'Toughs',laser:'Lasers',pyro:'Pyros'}[detail.type];return lang==='de'?(group?group+' melden sich.':'Einheit meldet sich.'):'Unit reporting.';}return labels[kind]?.[lang==='de'?0:1]||'';}
+ function caption(kind,detail){if(kind==='order'&&detail.order==='stop')return lang==='de'?'Verstanden.':'Acknowledged.';if(kind==='ready')return lang==='de'?(infantry.has(detail.type)||!detail.type?'Roboter hergestellt.':guns.has(detail.type)?'Geschütz hergestellt.':'Fahrzeug hergestellt.'):(infantry.has(detail.type)||!detail.type?'Robot manufactured.':guns.has(detail.type)?'Gun manufactured.':'Vehicle manufactured.');if(kind==='select'&&detail.type){const group={grunt:'Grunts',psycho:'Psychos',sniper:'Scharfschützen',tough:'Toughs',laser:'Lasers',pyro:'Pyros'}[detail.type];return lang==='de'?(group?group+' melden sich.':'Einheit meldet sich.'):'Unit reporting.';}return labels[kind]?.[lang==='de'?0:1]||'';}
  async function pump(){
   if(speaking||!unlocked||!enabled||!queue.length||levels.voice===0)return;
   const item=queue.shift(),token=++voiceToken;speaking=true;mix();
@@ -81,7 +81,7 @@ window.RadioAudio=(()=>{
   const clip=manifest?.effects?.[name];if(!ctx||!clip)return;
   try{const decoded=await buffer(clip);if(!enabled||activeEffects.size>=28)return;const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=decoded;gain.gain.value=clip.gain??1;source.connect(gain);gain.connect(effectsBus);activeEffects.add(source);source.onended=()=>{activeEffects.delete(source);gain.disconnect();};source.start();}catch{}
  }
- return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(key in levels)levels[key]=Math.max(0,Math.min(1,+value));mix();},
+ return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0)stopVoice();mix();if(key==='voice'&&levels.voice>0)pump();},
   mute(value){enabled=!value;if(value){stopVoice();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
   setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,
   status(){return {original:Boolean(manifest),unlocked,enabled,scene,world,music:music?.src||null,musicTime:music?.currentTime||0,musicPaused:music?.paused??true,musicError:music?.error?.code||null,contextState:ctx?.state||'locked',speaking,queued:queue.length};}};

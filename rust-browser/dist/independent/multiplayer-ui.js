@@ -2,7 +2,7 @@
 (function(global){
  'use strict';
  const $=id=>document.getElementById(id),page=$('mpLobby');if(!page)return;
- let session=null,busy=false,role=null,notice='Partie erstellen oder eine Einladung einfügen.';
+ let session=null,busy=false,role=null,actionSerial=0,notice='Partie erstellen oder eine Einladung einfügen.';
  const terminal=new Set(['failed','closed','disconnected']);
  const bridge=()=>global.GameBridge;
  function message(text,kind=''){notice=String(text||'');$('mpStatus').textContent=notice;$('mpStatus').dataset.kind=kind;}
@@ -34,6 +34,7 @@
   if(!ready&&!busy&&!session)message(global.Multiplayer?.supported?'Spiel wird geladen …':'WebRTC ist in diesem Browser nicht verfügbar. Bitte einen aktuellen Browser verwenden.',global.Multiplayer?.supported?'':'error');
  }
  function detachSession(){
+  actionSerial++;
   const previous=session;session=null;busy=false;role=null;previous?.close();
   $('mpLocalCode').value='';$('mpRemoteCode').value='';message('Partie erstellen oder eine Einladung einfügen.');render();
  }
@@ -59,13 +60,18 @@
    }
   });session=next;bridge().openMultiplayer(next,nextRole);return next;
  }
- async function action(work){if(busy)return;busy=true;render();try{await work();}catch(error){message(error?.message||'Die Verbindung konnte nicht hergestellt werden.','error');}finally{busy=false;render();}}
+ async function action(work){
+  if(busy)return;busy=true;render();let serial=++actionSerial;
+  try{const pending=work();serial=actionSerial;await pending;}
+  catch(error){if(serial===actionSerial)message(error?.message||'Die Verbindung konnte nicht hergestellt werden.','error');}
+  finally{if(serial===actionSerial){busy=false;render();}}
+ }
  $('mpHost').addEventListener('click',()=>action(async()=>{
-  const next=create('host');$('mpRemoteCode').value='';$('mpLocalCode').value=await next.host({lan:$('mpMode').value==='lan'});render();
+  const next=create('host');$('mpRemoteCode').value='';const code=await next.host({lan:$('mpMode').value==='lan'});if(session!==next)return;$('mpLocalCode').value=code;render();
  }));
  $('mpJoin').addEventListener('click',()=>action(async()=>{
   const invitation=$('mpRemoteCode').value.trim();if(!invitation)throw Error('Bitte zuerst die Einladung des Gastgebers einfügen.');global.Multiplayer.decodeCode(invitation);
-  const next=create('guest');$('mpRemoteCode').value=invitation;$('mpLocalCode').value=await next.join(invitation,{lan:$('mpMode').value==='lan'});render();
+  const next=create('guest');$('mpRemoteCode').value=invitation;const code=await next.join(invitation,{lan:$('mpMode').value==='lan'});if(session!==next)return;$('mpLocalCode').value=code;render();
  }));
  $('mpAccept').addEventListener('click',()=>action(async()=>{if(!session||role!=='host')throw Error('Bitte zuerst eine Partie erstellen.');await session.accept($('mpRemoteCode').value);}));
  $('mpStart').addEventListener('click',()=>action(async()=>{

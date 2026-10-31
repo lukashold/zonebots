@@ -180,3 +180,12 @@ Zerstörung wird ein belegtes Fahrzeug freigegeben. Es gibt keine passive
 Heilung durch bloßes Parken vor der Werkstatt mehr. Im Mehrspieler müssen nach
 diesem Update beide Spieler neu laden; alte Programmstände werden erkannt.
 Originalbefunde und Grenzen stehen in ORIGINAL-WERKSTATT.txt.
+
+FEHLERPRÜFUNG – 31.10.2026
+Weitere Befehls-, Kran-, Einsteige-, Sichtlinien-, Menü-, Ton- und
+Mehrspielerfehler sind behoben. Alle reproduzierten Befunde dieser Prüfrunde
+sind geschlossen; 158 Rust-Tests und 53 Node-Prüfprogramme bestehen.
+Details und Reproduktion: FEHLERPRUEFUNG.txt. Nach dem Update bitte neu laden.
+Eigene Trümmer/Gebäude mit beschädigtem Zustand lassen sich mit ausgewähltem
+Kran in klassischer und moderner Steuerung reparieren. Andere gleichzeitig
+ausgewählte Einheiten behalten dabei ihre bisherigen Aufträge.

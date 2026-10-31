@@ -418,3 +418,12 @@ entfernt. Der zusätzliche Statusbalken der Aufnahme gehört nur zur Prüfung.
 Native Einfahr-/Arbeitsbefunde wurden in fünf frischen schreibgeschützten
 Ghidra-Läufen mit Decompilation und ASM abgeglichen. Original-Rohcode bleibt
 lokal. Warteschlange/Portal-/Notfreigabe bleiben dokumentierte Webanpassungen.
+
+SYSTEMATISCHER AUDIT – 31.10.2026
+158 Rust-Tests, 53 Node-Prüfprogramme vollständig grün, LAN-Starterprüfung und
+Browserprüfung bestanden. Alle20 Karten bis300Simulationssekunden oderSpielende
+mit beiden KIs; Workshop-/Wand-/Wege-/Bedienungs-/Audio-/Mehrspielerregressionen
+bleiben bestanden. Detaillierte konkrete Befunde und Grenzen: FEHLERPRUEFUNG.txt.
+Finales Wasm 566.954 Bytes, SHA256
+c4b84a4b8c14434296c17d1e3cd7af121267d6fa3401b5137aab9b13271cbd06.
+Neuer Gesamtlauf:node tools/check-all.cjs; benötigt das getrennte Originalpaket.

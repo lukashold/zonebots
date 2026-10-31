@@ -1,0 +1,100 @@
+Systematische Fehlerprüfung vom 31.10.2026
+
+Alle konkret reproduzierten Befunde dieser Prüfrunde sind behoben. Der letzte
+Gesamtlauf ist ohne offene Befunde durchgelaufen: 158 Rust-Tests, 53 Node-
+Prüfprogramme sowie LAN- und Browserprüfung bestanden. Das beschreibt den
+geprüften Umfang und beweist keine vollständige Fehlerfreiheit.
+
+Spielbefehle und Kampf
+Aussteigen löscht alte Fahrwege und Ziele. Nach erneutem Bemannen fährt ein
+Fahrzeug nicht eigenständig mit dem früheren Auftrag weiter. Stationäre
+Geschütze nehmen keine Fahrbefehle oder Angriffsmärsche an; eine gemischte
+Auswahl bewegt nur mobile Einheiten und meldet keine falsche Bewegung.
+
+Einsteigeaufträge verfolgen ein fahrendes APC auch bei noch aktiver Route.
+Verschwundene, feindlich gewordene, volle oder inzwischen besetzte Ziele lösen
+die entsprechenden Aufträge auf. Ungültige Befehle und zu große Kennungen
+überschreiben keine gültigen Aufträge und können auf wasm32 keine IDs umbrechen.
+
+Kräne reparieren in beiden Steuerungen eigene beschädigte Gebäude und eigene
+Trümmer mit HP 0. Eine frische Ghidra-Prüfung von 0041c4f0 bestätigt diesen
+Trümmerzustand als ursprüngliches Kran-Ziel. Nur ausgewählte Kräne erhalten den
+Auftrag. Gebäude werden nach stabiler Kennung gesucht; der Auftrag endet bei
+voller Gesundheit und bricht nach Besitzerwechsel oder Zielverlust ab. Der
+allgemeine Gesundheitsaufbau bleibt eine Webanpassung zur nativen Rekonstruktion.
+
+Gebäude- und Brückenangriffe respektieren Sichtblocker, wählen erreichbare
+Schusspositionen und halten zum Schießen an. Strukturschaden wird auf 0 begrenzt
+und der tatsächlichen Gebäudekennung zugeordnet. Fortgeschütze blockieren nicht
+an ihrem eigenen Fort; Angriffe auf ein montiertes Geschütz ignorieren nur
+dessen zugeordnetes Fort. Externe Klippen und Wände sperren weiter. Gemeinsame
+Brückenbefehle behalten die echte Brückenzelle ohne Formationsversatz.
+
+Bedienung
+Fokusverlust, Pause und Menü räumen gehaltene Tasten und Ziehvorgänge auf.
+Eine gehaltene Pausentaste schaltet nicht ständig um. Pausierte oder im Menü
+verdeckte Produktions- und Einheitenbefehle verändern die Schlacht nicht.
+
+Neutralisierte oder eroberte Fahrzeuge verlassen die Auswahl auch bei gleicher
+Kennung. Neue Schlachten übernehmen keine alten Auswahl-IDs, HUD-Zustände oder
+Mehrspieler-Ergebnisbeschriftungen. Fabrikmenüs berücksichtigen Gebäudekennung
+und Produktliste beim Zwischenspeichern. Radar zeigt seine Funktion statt einer
+leeren Produktionsanzeige.
+
+Mehrspieler und Ton
+Abgebrochene oder ersetzte Verbindungen können keine alten Angebote, Antworten,
+Fehler oder Bedienfreigaben in eine neue Sitzung schreiben. Fehlgeschlagener
+Aufbau wird beendet und lässt sich neu versuchen. Abgewiesene schnelle
+Pausenwechsel erhalten eine autoritative Rückmeldung. Eine nicht gesendete
+Pause täuscht beim Gast keinen Erfolg vor. Eine Transportunterbrechung pausiert
+auch den Spielkoordinator; danach muss die Partie bewusst fortgesetzt werden.
+
+Sprachregler 0 beendet aktive, wartende und noch decodierende Meldungen. Musik
+bleibt nicht durch lautlose Sprache gedämpft. Nach erneutem Aktivieren spielen
+neue Meldungen wieder. Ein fehlgeschlagener Audioabruf oder Decoder bleibt
+nicht dauerhaft als Fehler gespeichert; spätere Versuche dürfen erneut laden.
+Untertitel bleiben bei stummer Sprache verfügbar.
+
+Nachweise
+158 Rust-Tests und alle 53 aktuellen Node-Prüfprogramme bestehen. Neu sind
+check-ui-audit, check-multiplayer-lifecycle, check-command-boundaries,
+check-fort-layer und check-campaign-soak. Das Audio-/Schwierigkeitsskript prüft
+jetzt den ausgelieferten Rust-/RadioAudio-Pfad statt entfernter Legacy-Dateien.
+Ein fragiler Fort-Zeichenkettenvergleich wurde durch einen echten App-/Wasm-
+Zeichenlauf für Original und HD ersetzt; 1.600 Originalspritenfälle bleiben.
+
+Echte Vorher-/Nachher-Reproduktionen mit Wasm:
+  Aussteigen: vorher ein alter Wegpunkt und Ziel 1000,600; jetzt kein Weg/Ziel.
+  Stationäre Kanone: vorher Auftrag move mit Wegpunkt; jetzt guard ohne Weg.
+  Gebäude hinter Klippe: vorher HP 100 auf -20 und Schuss; jetzt HP 100, kein Schuss.
+  Kran und Gebäudekennung 17: vorher HP 95/Auftrag repair; jetzt HP 100/guard.
+
+Alle 20 Originalkarten liefen mit beiden KIs bis 300 simulierte Sekunden je
+Karte oder bis zum Spielende. Positionen, Gesundheit, Kennungen, Routen und
+Spielerzustände bleiben endlich und gültig. Die bisherigen Prüfungen aller
+21 Werkstätten, der 6.038 Mauerstücke und der realen Abkürzungsfälle bestehen.
+Der lokale/LAN-Starter wurde auf kurzlebigen Ports geprüft. Ein synthetischer
+Skia-Lauf mit 120 sichtbaren HD-Einheiten besteht ebenfalls; er garantiert
+keine bestimmte Browser-Bildrate.
+
+Browserprüfung mit echter App und Originalkarte 11: Eine zerstörte eigene
+Werkstatt wird bei gemischter Kran-/Panzer-/Roboterauswahl durch klassischen
+Linksklick nur vom Kran wiederaufgebaut. Pause plus U verändert keine
+Besatzung oder Auswahl. Nach voller Reparatur endet der Kranauftrag; Panzer
+und Roboter behalten ihre Aufträge. Keine Browserwarnungen oder -fehler.
+Nachweis außerhalb des Spielpakets: outputs/Z-Fehlerpruefung.png. Die zusätzliche
+Prüfanzeige und temporäre Seite wurden vor Veröffentlichung entfernt.
+
+Reproduktion aus dem Projektordner:
+  cargo test --manifest-path independent-engine/Cargo.toml
+  node tools/check-all.cjs
+  python tools/check-lan-server.py
+Der volle Karten-/Grafik-/Audiolauf benötigt das getrennte lokale Originalpaket.
+check-all.cjs nimmt neue check-*.cjs-Dateien automatisch auf. Der optionale
+Skia-Test braucht @napi-rs/canvas und wird gesondert aufgerufen.
+
+Die dokumentierten Unterschiede bei vollständiger Original-KI, Hierarchieplanung,
+Fußabdrücken, Flugbahnen, Flächenwirkung und Animationen bleiben in
+ORIGINAL-ABGLEICH.txt beschrieben. Diese Runde behauptet keine vollständige
+Originalparität. Neue physische Rechner und Internetanschlüsse wurden dabei
+nicht getestet.

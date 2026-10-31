@@ -471,3 +471,10 @@ Warteschlange, Anfahrpunkt, kontrollierter Tordurchlass und sichere Freigabe bei
 Abbruch/Zerstörung sind eigene Webanpassungen anstelle des ganzen nativen
 Terrainaktions-/Belegungsschedulers. Sie öffnen keine normalen Kartenhindernisse.
 Detaillierte eigene Originalbefunde: ORIGINAL-WERKSTATT.txt.
+
+Audit 31.10.2026: Weitere eigene Implementierungsfehler bei Befehlslebenszyklen,
+Kranreparatur, Sichtlinien, Oberfläche, Ton und Mehrspieler sind behoben und
+getestet. Frische schreibgeschützte Ghidra-Prüfung 0041c4f0 bestätigt eigene
+Gebäudetrümmer mit HP 0 als Kran-Ziele. Der ganze native Wiederaufbau-Scheduler
+bleibt vom allgemeinen Gesundheitsadapter getrennt. FEHLERPRUEFUNG.txt enthält
+Vorher/Nachher-Reproduktionen, Prüfumfang und Grenzen, keine neue 1:1-Behauptung.

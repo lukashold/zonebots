@@ -13,6 +13,7 @@ mod terrain;
 mod walls;
 mod workshops;
 mod pursuit;
+mod orders;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -547,7 +548,19 @@ impl Game {
             else {
                 continue;
             };
-            if kind=="attackWall" && (!walls::capable(&self.units[i]) || v["target"].as_u64().and_then(|id| self.wall(id as usize)).is_none()) { continue; }
+            let actor=&self.units[i];let target=v["target"].as_u64().and_then(|n|usize::try_from(n).ok());
+            if v.get("target").is_some_and(|value|!value.is_null())&&target.is_none(){continue;}
+            if !matches!(kind,"move"|"attack"|"attackBuilding"|"attackWall"|"attackBridge"|"repair"|"repairBridge"|"repairVehicle"|"enter"|"board"|"stop"|"unload"){continue;}
+            if kind=="move"&&stats(&actor.kind).speed<=0.{continue;}
+            if matches!(kind,"repair"|"repairBridge")&&actor.kind!="crane"{continue;}
+            if kind=="repair"&&!target.is_some_and(|id|self.buildings.iter().any(|b|b.id==id&&b.team==team&&b.hp<b.max_hp)){continue;}
+            if kind=="attackBuilding"&&(!(stats(&actor.kind).damage>0.)||!target.is_some_and(|id|self.buildings.iter().any(|b|b.id==id&&b.team!=team&&b.hp>0.))){continue;}
+            if matches!(kind,"enter"|"board")&&(!matches!(stats(&actor.kind).cls,0)||!target.is_some_and(|id|self.units.iter().any(|u|u.id==id&&original_combat::alive(self.map.original,u.hp)&&!workshops::hidden(u)&&if kind=="enter"{u.team<0&&u.crew.is_none()&&stats(&u.kind).cls>0}else{u.team==team&&u.kind=="apc"&&u.cargo.len()<6}))){continue;}
+            if matches!(kind,"repairBridge"|"attackBridge") {
+                let bridge=v["x"].as_f64().zip(v["y"].as_f64()).and_then(|(x,y)|self.bridge_at_point(x,y));
+                if !bridge.is_some_and(|id|if kind=="repairBridge"{self.map.bridge_hp[id]<400.}else{self.map.bridge_hp[id]>0.&&stats(&actor.kind).damage>0.}){continue;}
+            }
+            if kind=="attackWall" && (!walls::capable(&self.units[i]) || target.and_then(|id| self.wall(id)).is_none()) { continue; }
             if kind=="repairVehicle" {
                 if let Some(target)=v["target"].as_u64().and_then(|n|usize::try_from(n).ok()) { self.begin_workshop(i,target); }
                 continue;
@@ -576,7 +589,7 @@ impl Game {
                 } else if stats(&u.kind).cls > 0 {
                     if let Some(c) = self.units[i].crew.take() {
                         self.units[i].team = -1;
-                        self.units[i].order = "guard".into();
+                        self.finish_order(i);
                         self.spawn(&c.kind, team, u.x + 26., u.y + 24., self.next_id, None);
                         let last = self.units.len() - 1;
                         self.units[last].hp = c.hp;
@@ -586,13 +599,13 @@ impl Game {
                 continue;
             }
             self.units[i].order = kind.into();
-            self.units[i].target = v["target"].as_u64().map(|n| n as usize);
+            self.units[i].target = target;
             self.units[i].path.clear();
             self.units[i].dest = None;
             if kind == "attackWall" {
                 let wall=self.wall(self.units[i].target.unwrap()).unwrap().clone();
                 self.units[i].dest=Some(wall.center());
-                self.units[i].path=self.route_to_wall_attack(&self.units[i],&wall,stats(&self.units[i].kind).range);
+                self.units[i].path=if stats(&self.units[i].kind).speed>0.{self.route_to_wall_attack(&self.units[i],&wall,stats(&self.units[i].kind).range)}else{VecDeque::new()};
                 continue;
             }
             if kind == "stop" {
@@ -600,9 +613,10 @@ impl Game {
                 continue;
             }
             if let (Some(x), Some(y)) = (v["x"].as_f64(), v["y"].as_f64()) {
-                let d = (x + (n % 4) as f64 * 12., y + (n / 4) as f64 * 14.);
+                let formation=matches!(kind,"move"|"attack");
+                let d = (x + if formation{(n % 4)as f64*12.}else{0.}, y + if formation{(n / 4)as f64*14.}else{0.});
                 self.units[i].dest = Some(d);
-                self.units[i].path = self.route_unit(&self.units[i],d.0,d.1);
+                self.units[i].path = if stats(&self.units[i].kind).speed<=0.{VecDeque::new()}else if matches!(kind,"attackBridge"|"repairBridge"){self.route_to_attack(&self.units[i],d.0,d.1,if kind=="repairBridge"{110.}else{stats(&self.units[i].kind).range})}else{self.route_unit(&self.units[i],d.0,d.1)};
             }
         }
     }
@@ -675,7 +689,7 @@ impl Game {
         let snapshot = self.units.clone();
         let mut damage: Vec<(usize, f64, bool)> = vec![];
         let mut original_damage:Vec<original_combat::Attack>=vec![];
-        let mut bdamage: Vec<(usize, f64)> = vec![];
+        let mut bdamage: Vec<(usize, f64, i32)> = vec![];
         for i in 0..self.units.len() {
             if self.update_workshop(i,dt) { continue; }
             let mut u = self.units[i].clone();
@@ -693,147 +707,94 @@ impl Game {
             self.units[i].cooldown -= dt;
             let pursuit_hold=self.update_pursuit(i,&snapshot,d.range,d.speed);
             let wall_hold=self.update_wall_attack(i,d.range,d.damage,d.reload,d.speed);
+            let building_hold=self.update_building_attack(i,d.range,d.speed);
             u=self.units[i].clone();
-            if u.order == "attackBridge" || u.order == "repairBridge" {
-                if let Some((x, y)) = u.dest {
-                    let j = (y / TILE) as usize * self.map.width + (x / TILE) as usize;
-                    if let Some(id) = self.map.bridge_base.get(j).copied().filter(|id| *id >= 0) {
-                        let id = id as usize;
-                        let dist = (u.x - x).hypot(u.y - y);
-                        if u.kind == "crane" && u.order == "repairBridge" && dist < 110. {
-                            self.map.bridge_hp[id] = (self.map.bridge_hp[id] + dt * 65.).min(400.);
-                            if self.map.bridge_hp[id] >= 400. {
-                                for k in 0..self.map.tiles.len() {
-                                    if self.map.bridge_base[k] == id as i32 {
-                                        self.map.tiles[k] = 5;
-                                    }
-                                }
-                                self.map.revision += 1;
-                                self.events
-                                    .push(json!({"kind":"bridgeRepaired","team":u.team}));
-                                self.units[i].order = "guard".into();
+            let mut bridge_hold=false;
+            if matches!(u.order.as_str(),"attackBridge"|"repairBridge") {
+                let target=u.dest.and_then(|(x,y)|self.bridge_at_point(x,y).map(|id|(x,y,id)));
+                if let Some((x,y,id))=target {
+                    let repairing=u.order=="repairBridge";
+                    let valid=if repairing{u.kind=="crane"&&self.map.bridge_hp[id]<400.}else{d.damage>0.&&self.map.bridge_hp[id]>0.};
+                    if !valid{self.finish_order(i);continue;}
+                    let range=if repairing{110.}else{d.range};
+                    bridge_hold=(u.x-x).hypot(u.y-y)<=range&&self.unit_los(&u,x,y);
+                    if bridge_hold {
+                        self.units[i].path.clear();
+                        if repairing {
+                            self.map.bridge_hp[id]=(self.map.bridge_hp[id]+dt*65.).min(400.);
+                            if self.map.bridge_hp[id]>=400. {
+                                for k in 0..self.map.tiles.len(){if self.map.bridge_base[k]==id as i32{self.map.tiles[k]=5;}}
+                                self.map.revision=self.map.revision.wrapping_add(1);
+                                self.events.push(json!({"kind":"bridgeRepaired","team":u.team}));self.finish_order(i);
                             }
-                        }
-                        if u.order == "attackBridge"
-                            && dist < d.range
-                            && self.units[i].cooldown <= 0.
-                            && d.damage > 0.
-                        {
-                            self.units[i].cooldown = d.reload;
-                            self.map.bridge_hp[id] -= d.damage;
+                        }else if self.units[i].cooldown<=0. {
+                            self.units[i].cooldown=d.reload;self.map.bridge_hp[id]=(self.map.bridge_hp[id]-d.damage).max(0.);
                             self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
-                            if self.map.bridge_hp[id] <= 0. {
-                                for k in 0..self.map.tiles.len() {
-                                    if self.map.bridge_base[k] == id as i32 {
-                                        self.map.tiles[k] = 3;
-                                    }
-                                }
+                            if self.map.bridge_hp[id]<=0. {
+                                for k in 0..self.map.tiles.len(){if self.map.bridge_base[k]==id as i32{self.map.tiles[k]=3;}}
                                 for v in &mut self.units {
-                                    let tile = (v.y / TILE) as usize * self.map.width
-                                        + (v.x / TILE) as usize;
-                                    if self.map.bridge_base.get(tile) == Some(&(id as i32)) {
-                                        v.hp = if self.map.original {-1.} else {0.};
-                                    }
+                                    let col=(v.x/TILE).floor()as usize;let row=(v.y/TILE).floor()as usize;
+                                    if col<self.map.width&&row<self.map.height&&self.map.bridge_base.get(row*self.map.width+col)==Some(&(id as i32)){v.hp=if self.map.original{-1.}else{0.};}
                                 }
-                                self.map.revision += 1;
-                                self.events
-                                    .push(json!({"kind":"bridgeDestroyed","team":u.team}));
-                                self.units[i].order = "guard".into();
+                                self.map.revision=self.map.revision.wrapping_add(1);
+                                self.events.push(json!({"kind":"bridgeDestroyed","team":u.team}));self.finish_order(i);
                             }
                         }
-                    }
-                }
+                    }else if self.units[i].path.is_empty()&&d.speed>0.{self.units[i].path=self.route_to_attack(&u,x,y,range);}
+                }else{self.finish_order(i);continue;}
+                if !original_combat::alive(self.map.original,self.units[i].hp){continue;}
             }
-            // Explicit hardware boarding and repair pursue moving targets without storing JS references.
+            // Resolve stable identifiers and discard lost interaction targets.
             if ["enter", "board", "repair"].contains(&u.order.as_str()) {
-                let mut dest = None;
-                if let Some(target) = u.target {
-                    if u.order == "repair" {
-                        if let Some(b) = self.buildings.get(target) {
-                            dest = Some((b.x + b.w / 2., b.y + b.h + 22.));
-                            if u.kind == "crane"
-                                && u.x.hypot(u.y).is_finite()
-                                && (u.x - (b.x + b.w / 2.)).hypot(u.y - (b.y + b.h)) < 70.
-                                && b.team == u.team
-                            {
-                                self.buildings[target].hp = (b.hp + dt * 48.).min(b.max_hp);
-                            }
+                let goal;
+                if u.order=="repair" {
+                    if u.kind!="crane" {self.finish_order(i);continue;}
+                    if let Some((bi,b))=u.target.and_then(|id|self.buildings.iter().enumerate().find(|(_,b)|b.id==id&&b.team==u.team)).map(|(bi,b)|(bi,b.clone())) {
+                        if b.hp>=b.max_hp {self.finish_order(i);continue;}
+                        let point=(b.x+b.w/2.,b.y+b.h+22.);goal=Some(point);
+                        if (u.x-point.0).hypot(u.y-point.1)<70.&&self.movement_segment_clear_for(u.x,u.y,point.0,point.1,&u.kind) {
+                            self.buildings[bi].hp=(b.hp+dt*48.).min(b.max_hp);
+                            if self.buildings[bi].hp>=b.max_hp {self.finish_order(i);self.events.push(json!({"kind":"repair","team":u.team,"factory":b.id}));}
                         }
-                    } else if let Some(v) = snapshot.iter().find(|v| v.id == target && original_combat::alive(self.map.original,v.hp) && !workshops::hidden(v)) {
-                        if u.order=="enter"&&(v.team>=0||v.crew.is_some()||stats(&v.kind).cls==0) {
-                            self.units[i].order="guard".into();self.units[i].target=None;
-                            self.units[i].dest=None;self.units[i].path.clear();self.units[i].initiative=None;
-                            continue;
-                        }
-                        dest = Some((v.x, v.y));
-                        let dist = (u.x - v.x).hypot(u.y - v.y);
-                        if dist < 28.
-                            && d.cls == 0
-                            && (u.order == "enter" && v.team < 0
-                                || u.order == "board" && v.team == u.team && v.kind == "apc")
-                        {
-                            if let Some(vi) = self.units.iter().position(|v| v.id == target) {
-                                if u.order == "enter" {
-                                    // The snapshot may still show neutral hardware already crewed
-                                    // by an earlier squad member during this same update.
-                                    if self.units[vi].team>=0||self.units[vi].crew.is_some() {
-                                        self.units[i].order="guard".into();self.units[i].target=None;
-                                        self.units[i].dest=None;self.units[i].path.clear();self.units[i].initiative=None;
-                                        continue;
-                                    }
-                                    self.units[vi].team = u.team;
-                                    self.units[vi].crew = Some(Crew {
-                                        kind: u.kind.clone(),
-                                        hp: u.hp,
-                                    });
-                                    if let Some(state)=&mut self.units[vi].original_combat {
-                                        state.crew_boarded(&u.kind);
-                                    }
-                                } else if self.units[vi].cargo.len() < 6 {
-                                    self.units[vi].cargo.push(Crew {
-                                        kind: u.kind.clone(),
-                                        hp: u.hp,
-                                    });
-                                } else {
-                                    continue;
-                                }
-                                self.units[i].hp = if self.map.original {-1.} else {0.};
-                                self.events.push(json!({"kind":"crewed","team":u.team,"type":self.units[vi].kind}));
-                                continue;
-                            }
-                        }
+                    }else{self.finish_order(i);continue;}
+                }else{
+                    let target=u.target.and_then(|id|self.units.iter().find(|v|v.id==id&&original_combat::alive(self.map.original,v.hp)&&!workshops::hidden(v))).cloned();
+                    let valid=target.as_ref().is_some_and(|v|if u.order=="enter"{v.team<0&&v.crew.is_none()&&stats(&v.kind).cls>0}else{v.team==u.team&&v.kind=="apc"&&v.cargo.len()<6});
+                    if d.cls!=0||!valid{self.finish_order(i);continue;}
+                    let v=target.unwrap();goal=Some((v.x,v.y));
+                    if (u.x-v.x).hypot(u.y-v.y)<28. {
+                        let vi=self.units.iter().position(|v0|v0.id==v.id).unwrap();
+                        if u.order=="enter" {
+                            self.units[vi].team=u.team;self.units[vi].crew=Some(Crew{kind:u.kind.clone(),hp:u.hp});
+                            if let Some(state)=&mut self.units[vi].original_combat{state.crew_boarded(&u.kind);}
+                        }else{self.units[vi].cargo.push(Crew{kind:u.kind.clone(),hp:u.hp});}
+                        self.units[i].hp=if self.map.original{-1.}else{0.};
+                        self.events.push(json!({"kind":"crewed","team":u.team,"type":v.kind}));continue;
                     }
                 }
-                if let Some(dest) = dest {
-                    let need = u.path.is_empty()
-                        && ((u.order != "attack")
-                            || (u.x - dest.0).hypot(u.y - dest.1) > d.range * 0.8);
-                    if need && d.speed > 0. {
-                        self.units[i].path =
-                            self.route_unit(&u,dest.0,dest.1);
+                if let Some(point)=goal {
+                    if self.units[i].order==u.order&&d.speed>0.&&(u.path.is_empty()||u.dest.is_none_or(|old|(old.0-point.0).hypot(old.1-point.1)>=16.)) {
+                        self.units[i].path=self.route_unit(&u,point.0,point.1);self.units[i].dest=Some(point);
                     }
                 }
             }
             // An aimed target takes precedence over opportunistic fire once it
             // is reachable by the weapon. Outside that range the existing
             // pursuit and nearby return fire continue unchanged.
-            let building_target_in_range = u.order == "attackBuilding"
-                && u.target.and_then(|id| self.buildings.get(id)).is_some_and(|b| {
-                    b.team != u.team && b.hp > 0.
-                        && (u.x - (b.x + b.w / 2.)).hypot(u.y - (b.y + b.h / 2.)) <= d.range
-                });
+            let building_target_in_range = building_hold;
             let explicit_target = if u.order == "attack" { u.target } else { None };
             let enemy = snapshot
                 .iter()
                 .filter(|v| {
                     !building_target_in_range
                         && !wall_hold
+                        && !bridge_hold
                         && original_combat::alive(self.map.original,v.hp)
                         && !workshops::hidden(v)
                         && v.team >= 0
                         && v.team != u.team
                         && (v.x - u.x).hypot(v.y - u.y) <= d.range
-                        && self.los(u.x, u.y, v.x, v.y)
+                        && self.unit_target_los(&u,v)
                 })
                 .min_by(|a, b| {
                     (Some(b.id) == explicit_target).cmp(&(Some(a.id) == explicit_target))
@@ -870,17 +831,11 @@ impl Game {
                     });
                     self.events.push(json!({"kind":"shot","type":u.kind,"weapon":if grenade.is_some(){"grenade"}else{"primary"},"x":u.x,"y":u.y,"team":u.team}));
                 }
-            } else if u.order == "attackBuilding" {
-                if let Some(b) = u.target.and_then(|id| self.buildings.get(id)) {
-                    if b.team != u.team && b.hp > 0. {
-                        let (x, y) = (b.x + b.w / 2., b.y + b.h / 2.);
-                        if (u.x - x).hypot(u.y - y) <= d.range && self.units[i].cooldown <= 0. && d.damage > 0. {
-                            self.units[i].cooldown = d.reload;
-                            bdamage.push((b.id, d.damage));
-                            self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
-                        } else if u.path.is_empty() {
-                            self.units[i].path = self.route_unit(&u,x,b.y+b.h+24.);
-                        }
+            } else if u.order == "attackBuilding" && building_hold {
+                if let Some(b)=u.target.and_then(|id|self.buildings.iter().find(|b|b.id==id&&b.team!=u.team&&b.hp>0.)) {
+                    if self.units[i].cooldown<=0.&&d.damage>0. {
+                        self.units[i].cooldown=d.reload;bdamage.push((b.id,d.damage,u.team));
+                        self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                     }
                 }
             }
@@ -890,10 +845,10 @@ impl Game {
             if let Some(&(nx,ny))=self.units[i].path.front() {
                 if !self.movement_segment_clear_for(u.x,u.y,nx,ny,&u.kind) {
                     let goal=self.units[i].dest.or_else(||self.units[i].path.back().copied());
-                    self.units[i].path=goal.map(|(x,y)|if u.order=="attackWall"{u.target.and_then(|id|self.wall(id)).map(|wall|self.route_to_wall_attack(&u,wall,d.range)).unwrap_or_default()}else if u.order=="attack"&&u.target.is_some(){self.route_to_attack(&u,x,y,d.range)}else{self.route_unit(&u,x,y)}).unwrap_or_default();
+                    self.units[i].path=goal.map(|(x,y)|if u.order=="attackWall"{u.target.and_then(|id|self.wall(id)).map(|wall|self.route_to_wall_attack(&u,wall,d.range)).unwrap_or_default()}else if u.order=="attack"&&u.target.is_some(){u.target.and_then(|id|self.units.iter().find(|v|v.id==id)).map(|v|self.route_to_unit_attack(&u,v,d.range)).unwrap_or_default()}else if u.order=="attackBuilding"{u.target.and_then(|id|self.buildings.iter().find(|b|b.id==id)).map(|b|self.route_to_building_attack(&u,b,d.range)).unwrap_or_default()}else{self.route_unit(&u,x,y)}).unwrap_or_default();
                 }
             }
-            let hold = pursuit_hold || wall_hold || enemy.is_some() && u.order == "guard";
+            let hold = pursuit_hold || wall_hold || building_hold || bridge_hold || enemy.is_some() && u.order == "guard";
             if !hold && base_speed > 0. {
                 // Waypoints are geometry, not pauses: carry unused movement
                 // time into the next leg, instead of losing part of every
@@ -992,15 +947,10 @@ impl Game {
                 }
             }
         }
-        for (id, amount) in bdamage {
-            let b = &mut self.buildings[id];
-            b.hp -= amount;
-            if b.hp <= 0. {
-                self.events
-                    .push(json!({"kind":"buildingLost","team":b.team}));
-                if b.kind == "fort" {
-                    self.winner = Some(1 - b.team);
-                }
+        for (id, amount, attacker) in bdamage {
+            if let Some(b)=self.buildings.iter_mut().find(|b|b.id==id&&b.hp>0.) {
+                b.hp=(b.hp-amount).max(0.);
+                if b.hp<=0. {self.events.push(json!({"kind":"buildingLost","team":b.team}));if b.kind=="fort"{self.winner=Some(attacker);}}
             }
         }
         // The public play guide describes immediate flag transfer, including an almost finished product.
@@ -1244,3 +1194,6 @@ fn production_sector()->bool{true}
 fn advance_random(rng:&mut u32)->u32 {
     *rng^=*rng<<13;*rng^=*rng>>17;*rng^=*rng<<5;*rng
 }
+
+#[cfg(test)]
+mod audit_order_tests;

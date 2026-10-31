@@ -25,7 +25,7 @@ impl Game {
         let goal=(target.x,target.y);
         self.units[index].dest=Some(goal);
         let can_fire=(unit.x-target.x).hypot(unit.y-target.y)<=range
-            &&self.los(unit.x,unit.y,target.x,target.y);
+            &&self.unit_target_los(&unit,target);
         if can_fire {
             let u=&mut self.units[index];u.path.clear();
             // Leaving range or losing LOS must immediately create a fresh route.
@@ -38,7 +38,7 @@ impl Game {
         let moved=previous.is_some_and(|s|(s.planned_goal.0-goal.0).hypot(s.planned_goal.1-goal.1)>=8.);
         let due=previous.is_none_or(|s|self.time>=s.next_plan);
         if new_target||revised||(due&&(moved||unit.path.is_empty())) {
-            let path=self.route_to_attack(&unit,goal.0,goal.1,range);
+            let path=self.route_to_unit_attack(&unit,target,range);
             let delay=if path.is_empty(){0.75}else{0.25};
             let u=&mut self.units[index];u.path=path;
             u.pursuit=Some(State{target:target.id,planned_goal:goal,next_plan:self.time+delay,revision:self.map.revision});

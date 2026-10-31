@@ -144,8 +144,12 @@
   }
   function setPaused(value,reason='Pause'){
    if(!active||typeof value!=='boolean'||awaitingReady)return false;
-   if(role==='guest'){if(value){paused=true;options.onPause?.(true,reason);}return send('game:pauseRequest',{epoch,paused:value});}
+   if(role==='guest'){const sent=send('game:pauseRequest',{epoch,paused:value});if(!sent){info('failed','Pausenauftrag konnte nicht gesendet werden.');return false;}if(value){paused=true;options.onPause?.(true,reason);}return true;}
    return commitPause(value,reason);
+  }
+  function handleTransportStatus(status){
+   if(!active||!object(status)||status.connected||!['reconnecting','disconnected','failed','closed'].includes(status.phase))return false;
+   return commitPause(true,'Verbindung unterbrochen. Die Partie ist angehalten.',false);
   }
   function close(notify=true){
    if(notify&&active)send('game:close',{epoch});clearTimeout(readyTimer);active=false;paused=true;awaitingReady=false;pendingEvents=[];
@@ -189,7 +193,9 @@
      if(!object(result)||typeof result.valid!=='boolean')return false;options.onPreview?.(result,p.requestId);return true;
     }
     if(type==='game:pauseRequest'){
-     if(role!=='host'||!budgets('pause')||typeof p.paused!=='boolean'||awaitingReady)return false;return commitPause(p.paused,'Mitspieler hat '+(p.paused?'pausiert.':'fortgesetzt.'));
+     if(role!=='host'||typeof p.paused!=='boolean'||awaitingReady)return false;
+     if(!budgets('pause')){send('game:pause',{epoch,paused,reason:'Pausenauftrag zu schnell. Aktueller Zustand des Gastgebers.'});return false;}
+     return commitPause(p.paused,'Mitspieler hat '+(p.paused?'pausiert.':'fortgesetzt.'));
     }
     if(type==='game:pause'){
      if(role!=='guest'||typeof p.paused!=='boolean')return false;paused=p.paused;options.onPause?.(paused,String(p.reason||'Pause').slice(0,160));if(!paused)info('playing','Mehrspielerpartie gestartet.');return true;
@@ -198,7 +204,7 @@
    }catch(error){return fail(error.message||'Mehrspielerzustand konnte nicht verarbeitet werden.');}
    return false;
   }
-  const api=Object.freeze({bind,start,handle,action,tick,requestPreview,setPaused,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
+  const api=Object.freeze({bind,start,handle,action,tick,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
   return api;
  }
  global.MultiplayerGame=Object.freeze({create,perspective,validateAction});

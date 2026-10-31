@@ -75,12 +75,23 @@ impl Game {
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
         self.route_profile(unit.x,unit.y,tx,ty,original_terrain::profile(&unit.kind),control,Some(range.max(0.)),None)
     }
+    pub(crate) fn route_to_unit_attack(&self,unit:&super::Unit,target:&super::Unit,range:f64)->VecDeque<(f64,f64)>{
+        let control=unit.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
+        self.route_profile_surface(unit.x,unit.y,target.x,target.y,original_terrain::profile(&unit.kind),control,Some(range.max(0.)),None,None,target.fort_id)
+    }
+    pub(crate) fn route_to_building_attack(&self,unit:&super::Unit,b:&super::Building,range:f64)->VecDeque<(f64,f64)>{
+        let control=unit.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
+        self.route_profile_surface(unit.x,unit.y,b.x+b.w/2.,b.y+b.h/2.,original_terrain::profile(&unit.kind),control,Some(range.max(0.)),None,Some(b.id),None)
+    }
     pub(crate) fn terrain_factor_unit(&self,unit:&super::Unit)->f64{
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
         self.factor_profile((unit.x/TILE).floor()as i32,(unit.y/TILE).floor()as i32,original_terrain::profile(&unit.kind),control)
     }
     pub(crate) fn route_profile(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>,wall_target:Option<usize>)->VecDeque<(f64,f64)>{
+        self.route_profile_surface(x,y,dx,dy,profile,control,firing_range,wall_target,None,None)
+    }
+    fn route_profile_surface(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>,wall_target:Option<usize>,building_target:Option<usize>,target_mount:Option<usize>)->VecDeque<(f64,f64)>{
         let empty=VecDeque::new();
         if ![x,y,dx,dy].iter().all(|n|n.is_finite())||x<0.||y<0.{return empty;}
         let(w,h)=(self.map.width,self.map.height);
@@ -115,7 +126,7 @@ impl Game {
         let heuristic=|j:usize|->u32{
             if let Some(range)=firing_range{
                 let(px,py)=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
-                let radius=wall_target.and_then(|id|self.wall(id)).map(|wall|wall.w.hypot(wall.h)/2.).unwrap_or(TILE*std::f64::consts::SQRT_2);
+                let radius=building_target.and_then(|id|self.buildings.iter().find(|b|b.id==id)).map(|b|b.w.hypot(b.h)/2.).or_else(||wall_target.and_then(|id|self.wall(id)).map(|wall|wall.w.hypot(wall.h)/2.)).unwrap_or(TILE*std::f64::consts::SQRT_2);
                 return (((px-dx).hypot(py-dy)-range-radius).max(0.)/TILE*1000.*minimum_cost).floor()as u32;
             }
             if !exact{return 0;}
@@ -131,7 +142,7 @@ impl Game {
             let(cx,cy)=((j%w)as i32,(j/w)as i32);
             if let Some(range)=firing_range{
                 let(px,py)=(cx as f64*TILE+16.,cy as f64*TILE+16.);
-                let can_fire=if let Some(wall)=wall_target.and_then(|id|self.wall(id)){let point=wall.point_from(px,py);(px-point.0).hypot(py-point.1)<=range&&self.wall_los(px,py,point.0,point.1,wall.id)}else{(px-dx).hypot(py-dy)<=range&&self.los(px,py,dx,dy)};
+                let can_fire=if let Some(b)=building_target.and_then(|id|self.buildings.iter().find(|b|b.id==id)){let p=Self::building_point(b,px,py);(px-p.0).hypot(py-p.1)<=range&&self.structure_los(px,py,p.0,p.1,Some(b.id),None)}else if let Some(wall)=wall_target.and_then(|id|self.wall(id)){let point=wall.point_from(px,py);(px-point.0).hypot(py-point.1)<=range&&self.wall_los(px,py,point.0,point.1,wall.id)}else{(px-dx).hypot(py-dy)<=range&&if target_mount.is_some(){self.structure_los(px,py,dx,dy,target_mount,None)}else{self.los(px,py,dx,dy)}};
                 if passable(cx,cy)&&can_fire{
                     reached=Some(j);break;
                 }
