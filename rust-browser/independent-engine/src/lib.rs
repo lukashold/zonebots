@@ -588,6 +588,10 @@ impl Game {
                     }
                 } else if stats(&u.kind).cls > 0 {
                     if let Some(c) = self.units[i].crew.take() {
+                        if self.map.original {
+                            let (dx,dy)=original_tank_origin_offset(&u.kind,false);
+                            self.units[i].x+=dx;self.units[i].y+=dy;
+                        }
                         self.units[i].team = -1;
                         self.finish_order(i);
                         self.spawn(&c.kind, team, u.x + 26., u.y + 24., self.next_id, None);
@@ -765,6 +769,15 @@ impl Game {
                     if (u.x-v.x).hypot(u.y-v.y)<28. {
                         let vi=self.units.iter().position(|v0|v0.id==v.id).unwrap();
                         if u.order=="enter" {
+                            if self.map.original {
+                                let (dx,dy)=original_tank_origin_offset(&v.kind,true);
+                                self.units[vi].x+=dx;self.units[vi].y+=dy;
+                                // Ordinary enter00450db0 invokes00450cd0,
+                                // which initializes both body and aim to6 (west).
+                                if matches!(v.kind.as_str(),"light"|"medium"|"heavy") {
+                                    self.units[vi].angle=std::f64::consts::PI;self.units[vi].aim=std::f64::consts::PI;
+                                }
+                            }
                             self.units[vi].team=u.team;self.units[vi].crew=Some(Crew{kind:u.kind.clone(),hp:u.hp});
                             if let Some(state)=&mut self.units[vi].original_combat{state.crew_boarded(&u.kind);}
                         }else{self.units[vi].cargo.push(Crew{kind:u.kind.clone(),hp:u.hp});}
@@ -907,7 +920,14 @@ impl Game {
         for attack in original_damage {
             if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp) && !workshops::hidden(u)) {
                 let mut rng=self.rng;
-                original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||advance_random(&mut rng));
+                let occupied=self.units[i].team>=0&&self.units[i].crew.is_some();
+                let crew_killed=original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||advance_random(&mut rng));
+                if crew_killed&&occupied {
+                    // The native crew-death path00458ec0 also calls00458af0,
+                    // producing the same parked object as a voluntary exit.
+                    let (dx,dy)=original_tank_origin_offset(&self.units[i].kind,false);
+                    self.units[i].x+=dx;self.units[i].y+=dy;
+                }
                 self.rng=rng;
                 if self.units[i].hp<0. {
                     let u=&self.units[i];
@@ -1197,3 +1217,20 @@ fn advance_random(rng:&mut u32)->u32 {
 
 #[cfg(test)]
 mod audit_order_tests;
+#[cfg(test)]
+mod tank_lifecycle_tests;
+
+/// Original objects and occupied tanks use different native origins. Boarding
+/// reads004967e0 by object type (00450db0/00456c90); Heavy also adds00496934
+/// in00450cd0. Unloading reads004970b0 by occupied family, then subtracts
+/// another four native X pixels at00458b8b before passing X to00458a40.
+/// World coordinates here use two pixels per native pixel. Existing occupied
+/// mission spawns already have occupied origins.
+fn original_tank_origin_offset(kind:&str,boarding:bool)->(f64,f64) {
+    match (kind,boarding) {
+        ("medium",true)=>(16.,12.),("medium",false)=>(-16.,-12.),
+        ("heavy",true)=>(12.,8.),("heavy",false)=>(-12.,-8.),
+        ("light",true)=>(22.,14.),("light",false)=>(-22.,-14.),
+        _=>(0.,0.),
+    }
+}

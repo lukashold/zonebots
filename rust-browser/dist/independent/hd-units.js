@@ -6,6 +6,7 @@
   const clock=()=>typeof performance==='object'?performance.now():Date.now(),metrics={hits:0,misses:0,fallbacks:0,rasterMs:0,maxRasterMs:0,rasters:0};
   const robots = new Set(['grunt', 'psycho', 'tough', 'sniper', 'pyro', 'laser']);
   const guns = new Set(['gatling', 'cannon', 'missile', 'howitzer']);
+  const tanks = new Set(['light', 'medium', 'heavy']);
   const types = ['grunt', 'psycho', 'tough', 'sniper', 'pyro', 'laser', 'jeep', 'light', 'medium', 'heavy', 'apc', 'crane', 'gatling', 'cannon', 'missile', 'launcher', 'howitzer', 'truck', 'firetruck'];
   const palettes = [
     {dark:'#452527', main:'#a84338', light:'#ca7b64', trim:'#dfaa81', eye:'#e5c773'},
@@ -157,7 +158,8 @@
         const q2=point(q[0],q[1],aim,-7,-10,9);line(c,...q2,q2[0]-1,q2[1]-10,steel.dark,.8);
       }else{
         const tx=cx+Math.cos(a),ty=cy-14+Math.sin(a)*.63,r=heavy?13:u.type==='medium'?10.5:9;
-        oval(c,tx,ty+2.5,r,r*.64,steel.dark,steel.ink);oval(c,tx,ty,r,r*.65,gradient(c,tx-r,ty-r,2*r,r*2,[bodyLight,body,steel.dark]),steel.ink);
+        const armor=occupied?[p.light,p.main,p.dark]:[bodyLight,body,steel.dark];
+        oval(c,tx,ty+2.5,r,r*.64,steel.dark,steel.ink);oval(c,tx,ty,r,r*.65,gradient(c,tx-r,ty-r,2*r,r*2,armor),steel.ink);
         oval(c,tx-3,ty-3,r*.5,r*.22,'#d7ddba66');
         barrel(c,tx+Math.cos(aim)*5,ty+Math.sin(aim)*3,aim,heavy?30:u.type==='medium'?26:22,heavy?5.6:u.type==='medium'?4.6:3.8);
         if(heavy)barrel(c,tx-Math.sin(aim)*5,ty+Math.cos(aim)*3-2,aim,18,2.3,body);
@@ -204,7 +206,9 @@
   }
   function direction(a){return((Math.round((Number(a)||0)*8/Math.PI)%16)+16)%16;}
   function pose(u,time){
-    const moving=Boolean(u.moving),rawAim=direction(u.aim==null?u.angle:u.aim),aim=robots.has(u.type)||guns.has(u.type)?Math.round(rawAim/2)*2%16:rawAim,body=guns.has(u.type)?0:robots.has(u.type)?moving?(Math.round(direction(u.angle)/2)*2)%16:0:direction(u.angle);
+    // Empty tanks use one parked west-facing pose, just like the original
+    // neutral object template; stale headings from unloading must not turn it.
+    const parked=tanks.has(u.type)&&u.team<0,moving=Boolean(u.moving),rawAim=parked?8:direction(u.aim==null?u.angle:u.aim),aim=robots.has(u.type)||guns.has(u.type)?Math.round(rawAim/2)*2%16:rawAim,body=parked?8:guns.has(u.type)?0:robots.has(u.type)?moving?(Math.round(direction(u.angle)/2)*2)%16:0:direction(u.angle);
     const phase=robots.has(u.type)&&moving?(Math.floor(time*7+Number(u.id||0)*.5)%2?1:3):0;
     return{body,aim,phase,occupied:u.team>=0,key:[u.type,u.team,body,aim,phase].join(':')};
   }
@@ -214,6 +218,20 @@
     c.save();c.globalCompositeOperation='source-atop';c.drawImage(wear,0,0,96,96);c.globalAlpha=.25;
     for(let n=0;n<12;n++){const x=19+(n*23)%59,y=28+(n*13)%47;line(c,x,y,x+2+(n%4),y-.7,n%3?'#e0d6b0':'#594530',.45);}c.restore();
   }
+  function tankCrop(ctx,image){
+    // The old shared90x72 crop included large transparent margins, shrinking
+    // tanks inside the native hitbox. Measure each prepared pose once; cache
+    // the crop with its raster so ordinary draw/cache-hit work stays unchanged.
+    const pixels=ctx.getImageData?.(0,0,image.width,image.height)?.data;
+    if(!pixels)return[3,17,90,72];
+    let left=image.width,top=image.height,right=-1,bottom=-1;
+    for(let y=0;y<image.height;y++)for(let x=0;x<image.width;x++)if(pixels[(y*image.width+x)*4+3]>16){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
+    if(right<left)return[3,17,90,72];
+    // Preserve the antialiased silhouette, while ignoring the distant fade of
+    // the soft shadow that must not determine the vehicle's apparent size.
+    const pad=2*DENSITY;left=Math.max(0,left-pad);top=Math.max(0,top-pad);right=Math.min(image.width-1,right+pad);bottom=Math.min(image.height-1,bottom+pad);
+    return[left/DENSITY,top/DENSITY,(right-left+1)/DENSITY,(bottom-top+1)/DENSITY];
+  }
   function raster(u,time,known){
     const info=known||pose(u,time),{body,aim,phase,occupied,key}=info;
     if(cache.has(key)){const hit=cache.get(key);cache.delete(key);cache.set(key,hit);metrics.hits++;return hit;}
@@ -222,7 +240,7 @@
     const p=palette(u.team),a=body*Math.PI/8,b=aim*Math.PI/8;
     if(robots.has(u.type))robot(ctx,u,p,a,b,phase);else if(guns.has(u.type))gun(ctx,u,p,b,occupied);else vehicle(ctx,u,p,a,b,phase,occupied);
     weather(ctx);
-    const value={image,crop:robots.has(u.type)?[17,28,65,51]:u.type==='crane'?[6,8,84,81]:[3,17,90,72]};
+    const value={image,crop:tanks.has(u.type)?tankCrop(ctx,image):robots.has(u.type)?[17,28,65,51]:u.type==='crane'?[6,8,84,81]:[3,17,90,72]};
     cache.set(key,value);cacheBytes+=image.width*image.height*4;fallbacks.set(u.type+':'+u.team,value);
     while(cache.size>CACHE_LIMIT||cacheBytes>MAX_BYTES){const oldest=cache.keys().next().value,old=cache.get(oldest);cacheBytes-=old.image.width*old.image.height*4;cache.delete(oldest);}
     const elapsed=clock()-started;metrics.rasters++;metrics.rasterMs+=elapsed;metrics.maxRasterMs=Math.max(metrics.maxRasterMs,elapsed);metrics.misses++;return value;

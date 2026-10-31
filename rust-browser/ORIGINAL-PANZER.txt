@@ -1,0 +1,113 @@
+Original tank artwork audit, 31 October 2026
+
+Evidence
+Fresh read-only Ghidra 12.2 exports of installed GOG Z.exe are retained privately
+in fresh.txt and extras-fresh.txt. Cross-check lifecycle evidence in
+../original-tank-lifecycle/fresh.txt. No executable or decompiled code belongs in
+the public project. This report states data, observed composition and behavior.
+
+Occupied base composition (native pixels; browser world scale is 2)
+Type    Renderer  Common anchor  Hull   Damaged hull  Turret  Separate barrel
+Medium  00455c30  (-6, 0)        488    500           513     521
+Light   00455290  (-6,-6)        5719   5747          5731    none
+Heavy   00455110  (-6,-6)        5305   no branch     5329    none
+
+Hull index = base + (body direction & 3)*3 + body animation frame.
+Turret index = turret base + independently aimed direction (all 8 directions).
+Medium separate barrel index = 521 + independently aimed direction.
+Order is hull, turret, medium barrel, optional hatch/crew components.
+Current extracted hullOffsets/turretOffsets/barrelOffsets agree with fresh native
+renderers. Turret offsets add (6,-3) to the common anchor before their table pair;
+medium barrel offsets then add to the already calculated turret position.
+No separate driver is part of the basic tank hull or turret.
+Medium and light switch damaged hull only at HP < arithmetic(maxHP >> 2).
+Heavy renderer has no HP comparison: do not assume sprite5317 is a damaged base
+merely because frames5305..5328 form a run of24 frames in the atlas.
+
+Missing default hatch
+All3 occupied initializers explicitly set runtime+4=0 and runtime+0x19=FF.
+00454ff0 consequently appends one default hatch sprite after the base layers.
+Hatch index = 533 + aim*3 + (runtime+4 & 15), with default animation0.
+If runtime+4 is FF, no hatch or crew components are appended.
+Coordinates below are offsets from the common anchor, without turret offsets:
+Medium table00496ddc: (11,-6) for all8 directions.
+Light table00496c24:
+ (9,4),(8,3),(8,2),(8,2),(9,3),(9,2),(9,2),(10,3)
+Heavy table00496d04:
+ (15,6),(13,9),(8,8),(8,5),(8,3),(9,0),(14,2),(15,3)
+Atlas inspection confirms533+ contains small gray hatch components. The sprite
+gallery extras-frames.png shows these beside the separate red robot crew frames.
+
+Optional visible crew, not a constant passenger
+00454e30 is used only when runtime+0x19 != FF and runtime+4 != FF.
+Crew pose0..2 uses1464+pose. Other poses use1469 + aim*2 + pose.
+For aim0,1,2,6,7, append crew then hatch; aim3,4,5 append hatch then crew.
+Crew table selection differs by pose and tank type; it is not the hatch table.
+Light crew uses00496bc4 at all poses:
+ (7,0),(8,-3),(9,1),(8,1),(5,3),(5,2),(1,2),(3,0)
+Heavy poses0..2 use00496c44:
+ (11,4),(8,8),(4,7),(4,6),(3,3),(4,0),(10,2),(11,4)
+Heavy other poses use00496b84:
+ (11,0),(11,6),(8,8),(7,4),(6,4),(5,1),(8,2),(11,0)
+Medium poses0..2 use fixed(6,-6); other poses use00496d44:
+ (7,-12),(11,-10),(12,-6),(10,-6),(7,-6),(5,-6),(1,-6),(3,-10)
+These are optional native states. Do not add a permanently visible robot to every
+occupied tank, or infer their animation timing from the artwork alone.
+
+Neutral map hardware
+Template8 Medium sprite5165, template26 Heavy sprite5168, template29 Light5172.
+All3 have no separate shadow sprite (-1); their art is a full parked composite.
+Medium raw frame32x30, Heavy32x29, Light32x31. Draw at raw object top-left.
+Object collision sizes differ from frame size: Medium32x26, Heavy32x24,
+Light32x26. Template depth offsets are -30,-29,-30 respectively.
+The indexed parked sprites contain red team-bank pixels16..31 (Medium32,
+Heavy79,Light15 pixels). They must receive the neutral team palette to become
+gray, using gray bank80..95, while preserving all other material colors.
+Do not replace neutral art with an occupied hull tinted gray: silhouettes and
+the hatch composition differ, and the existing parked sprites are native art.
+
+Lifecycle coordinate caution
+Entry reanchors raw neutral top-left to occupied composite origin: Medium(+8,+6),
+Light(+11,+7), Heavy(+6,+4), all native pixels. Heavy includes its special(+6,+2)
+shift on top of the template(+0,+2) shift. Unload assembly00458b86..00458b8b
+has an additional SUB EDI,4 for tank families after the literal unload table.
+This instruction was omitted by the saved decompiler expression; ignoring it
+would incorrectly suggest4px drift per boarding cycle. Full tank exits therefore
+use Medium(-8,-6),Light(-11,-7),Heavy(-6,-4), exact inverses of entry. Do not
+change renderer anchors to hide a lifecycle error.
+Fresh lifecycle caller audit confirms ordinary tank boarding goes through
+00450db0->00450cd0 and sets both hull and turret direction6, west (browser PI).
+The special preserved-direction path00456c90 is reached for APC descriptor
+sprite5173:00450890 sets its special unit+0x8a bit0x10 and object+0x21 direction.
+Special exit00459720 writes direction*5 to object+0x21. This is not the ordinary
+Light/Medium/Heavy exit sequence. Their parked sprite IDs remain the static
+template8/26/29 frames, not a run of8 directional frames.
+Crew death also converts usable hardware through00458ec0->00458af0. The browser
+applies the same occupied-to-parked origin conversion on this transition, once
+even if several bullets kill the crew in the same tick. A dead crew does not
+spawn a living robot or change tank type or surviving hull health.
+
+Rendering bounds
+Occupied tanks are composite images. Selection/hit bounds and HD adapters must
+cover the union of the actual hull/turret/barrel/hatch rectangles. A generic
+radius or one neutral sprite rectangle cannot represent those dimensions.
+HD tanks now measure the visible alpha envelope once when preparing each cached
+pose, with an edge guard, instead of shrinking into a fixed90x72 whitespace crop.
+Their occupied turret uses the faction palette. Empty HD tanks use one fixed
+west-facing gray pose regardless of stale body/aim angles, matching the static
+native parked-template behavior. This is newly drawn HD art, not original art
+at higher resolution; native-bound fitting remains a browser presentation choice.
+
+Validation of the implemented corrections
+162 Rust tests pass, including both factions, all3 tank families, repeated crew
+changes, original/procedural coordinate modes, preserved hull/crew HP, occupied
+mission spawns, and crew death from simultaneous bullets without a double shift.
+55 Node check programs pass. Tank artwork fixtures cover23040 occupied cases
+and240 neutral cases, independently fixed native layer IDs/offsets, all5 world
+palettes,8 body and8 independent turret directions, damage thresholds, rounded
+full-composite bounds and unchanged entity data. The optional actual Skia check
+passes576 HD rasters; visible width fills at least92.5% and height90.28% of the
+native destination. Cached tank poses do not read image pixels again.
+The browser comparison uses the real Wasm ABI for6 original-map enter/exit
+sequences and renders both original and HD modes without console warnings.
+Optional native crew/hatch animation timing is still not reconstructed here.

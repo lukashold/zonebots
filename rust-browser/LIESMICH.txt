@@ -189,3 +189,14 @@ Details und Reproduktion: FEHLERPRUEFUNG.txt. Nach dem Update bitte neu laden.
 Eigene Trümmer/Gebäude mit beschädigtem Zustand lassen sich mit ausgewähltem
 Kran in klassischer und moderner Steuerung reparieren. Andere gleichzeitig
 ausgewählte Einheiten behalten dabei ihre bisherigen Aufträge.
+
+PANZERGRAFIK – 31.10.2026
+Leichte, mittlere und schwere Panzer wurden frisch mit Ghidra und den echten
+Sprites verglichen. Besetzte Panzer erhalten ihre bislang fehlende Luke und
+passende Auswahlrahmen. Einsteigen, Aussteigen und Besatzungsverlust verwenden
+die ursprünglichen unterschiedlichen Grafikbezugspunkte, ohne dass wiederholtes
+Bemannen den Abstellort verschiebt. Unbesetzte Panzer nutzen ihre eigene graue
+Standgrafik. Bei HD sind Größe und Mannschaftsfarben deutlicher; Leerpanzer
+behalten auch dort eine feste Abstellansicht. 162 Rust-Tests und 55 Node-
+Prüfprogramme bestehen. Befunde und verbleibende Animationsgrenzen stehen in
+ORIGINAL-PANZER.txt. Nach dem Update bitte die Spielseite neu laden.

@@ -28,10 +28,10 @@ function union(calls){const x=Math.min(...calls.map(p=>p.x)),y=Math.min(...calls
  assert(Math.hypot(head.x-robot.x,head.y-robot.y)>22,'Regression must include a visible robot head outside the old feet radius');
  assert(head.x>=box.x&&head.x<=box.x+box.w&&head.y>=box.y&&head.y<=box.y+box.h);
  assert.equal(art.unitBounds(robot,map),null,'Existing robot selection-bounds contract must remain unchanged');
- assert.equal(art.unitBounds({...sample,type:'medium'},map),null,'Existing tank selection-bounds contract must remain unchanged');
+ const tank={...sample,type:'medium'};check(tank,map,0);assert.deepEqual({...art.unitBounds(tank,map)},union(calls),'Tank selection includes the hull, turret, barrel and hatch');
  for(const invalid of [null,{...sample,x:NaN},{...sample,y:Infinity},{...sample,type:'unknown'},{...sample,type:'jeep',angle:NaN},{...sample,type:'heavy',aim:undefined}])assert.equal(art.attackBounds(invalid,map),null);
  check({...sample,type:'jeep',team:-1,angle:undefined,aim:undefined},map,0);
  assert.equal(art.attackBounds(sample,{original:false}),null);assert.equal(art.attackBounds(sample,undefined),null);
  console.log(JSON.stringify({worlds:5,types:kinds.length,cases}));
- console.log('PASS: full rendered attack bounds for every robot, vehicle and gun, all headings/aims, movement/fire/damage/crane phases, neutral hardware, fractional/negative anchors and unchanged selection bounds.');
+ console.log('PASS: full rendered attack bounds for every robot, vehicle and gun, all headings/aims, movement/fire/damage/crane phases, neutral hardware, fractional/negative anchors and complete tank selection bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

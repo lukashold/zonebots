@@ -427,3 +427,17 @@ bleiben bestanden. Detaillierte konkrete Befunde und Grenzen: FEHLERPRUEFUNG.txt
 Finales Wasm 566.954 Bytes, SHA256
 c4b84a4b8c14434296c17d1e3cd7af121267d6fa3401b5137aab9b13271cbd06.
 Neuer Gesamtlauf:node tools/check-all.cjs; benötigt das getrennte Originalpaket.
+
+PANZERGRAFIK – 31.10.2026
+162 Rust-Tests, 55 Node-Prüfprogramme und576 tatsächliche HD-Rasterfälle
+bestanden. Original-Layer-Prüfung:23040 besetzte+240 unbesetzte Panzerfälle.
+Die Browserseite prüfte6 echte Wasm-Einsteige-/Ausstiegsabläufe mit allen3
+Panzertypen und beiden Teams; Original und HD ohne Warnungen/Fehler geprüft.
+Mehrfaches Bemannen und Aussteigen sowie Besatzungsverlust mit gleichzeitigen
+Treffern erhalten den Abstellort bzw. verwenden genau eine native Umrechnung.
+Der optionale Skia-Lauf mit120 bewegten Einheiten besteht; er garantiert
+keine bestimmte Browser-Bildrate. Native Befunde/Grenzen:ORIGINAL-PANZER.txt.
+Finales Wasm568444Bytes, SHA256
+93f64659d18150587f727268eff07561635a1476a30ef672bf64cf5198ec96b4.
+Visuelle Nachweise außerhalb des Spielpakets:outputs/Z-Panzer-Vergleich.png
+undoutputs/Z-Panzer-HD-Vergleich.png. Temporäre Prüfseite wird nicht ausgeliefert.

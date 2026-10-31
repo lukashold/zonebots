@@ -5,6 +5,9 @@ window.OriginalArt=(()=>{
  const worlds=['DESERT','VOLCAN','ARCTIC','JUNGLE','CITY'];
  const FORT={DESERT:[809,1675],ARTIC:[2127,2148],ARCTIC:[2127,2148],CITY:[2304,2431],JUNGLE:[2613,2725],VOLCAN:[2800,2845]};
  const HULL={light:5719,medium:488,heavy:5305,apc:5655},TURRET={light:5731,medium:513,heavy:5329};
+ //00454ff0 ->00454f70, initialized by0041ba80/0041bad0/0041bb70:
+ // closed hatch533+3*aim, offsets from the composite anchor (native pixels).
+ const tankHatches={light:[[9,4],[8,3],[8,2],[8,2],[9,3],[9,2],[9,2],[10,3]],medium:Array.from({length:8},()=>[11,-6]),heavy:[[15,6],[13,9],[8,8],[8,5],[8,3],[9,0],[14,2],[15,3]]};
  const attack={grunt:[127,5],tough:[226,3],sniper:[127,5],psycho:[2570,2],pyro:[6022,3],laser:[1340,3]};
  const guns=new Set(['gatling','cannon','howitzer','missile']);
  //0041ad30/00455f10/00496e78. Cannon and Gatling use distinct states;
@@ -18,10 +21,11 @@ window.OriginalArt=(()=>{
  function gunFrame(u){if(u.team<0&&manifest?.neutralUnits?.[u.type]!==undefined)return manifest.neutralUnits[u.type];const layout=manifest?.gunLayouts?.[u.type]||gunLayouts[u.type];if(!layout)return null;const rate=u.originalCombat?.fireRate??({gatling:97,howitzer:10})[u.type],freshShot=u.cooldown>0&&Number.isFinite(rate)&&Math.abs(u.cooldown-(100-Math.min(100,rate))/17)<1e-6;return layout.base+dir(u.aim)*layout.stride+(layout.stride===2&&freshShot?1:0);}
  //00455f10 queues raw X; queue elevation is cancelled again in004549f0.
  // These are top-left sprite origins, including for the fort's fixed gun sockets.
- function unitBounds(u,map,time=0){if(!ready||!map?.original)return null;if(u.team<0&&manifest.neutralUnits?.[u.type]!==undefined){const f=manifest.frames[manifest.neutralUnits[u.type]];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}if(u.type==='jeep'){const layers=jeepLayers(u,time,map).map(p=>({...p,x:Math.round(p.x),y:Math.round(p.y),frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}
+ function layerBounds(parts){const layers=parts.map(p=>({...p,x:Math.round(p.x),y:Math.round(p.y),frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}
+ function unitBounds(u,map,time=0){if(!ready||!map?.original)return null;if(u.team<0&&manifest.neutralUnits?.[u.type]!==undefined){const f=manifest.frames[manifest.neutralUnits[u.type]];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}if(u.type==='jeep')return layerBounds(jeepLayers(u,time,map));if(manifest.unitLayouts?.[u.type])return layerBounds(vehicleLayers(u,time,map));if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}
  // Contextual attacks use the whole currently rendered unit, including heads,
  // barrels and crane arms. Collect renderer rectangles instead of duplicating
- // its offsets; the older selection/portrait bounds keep their existing contract.
+ // its offsets. Vehicles share their full composition with selection/portraits.
  function attackBounds(u,map,time=0){
   if(!ready||!map?.original||!u||!Number.isFinite(u.x)||!Number.isFinite(u.y))return null;
   const neutral=u.team<0&&manifest.neutralUnits?.[u.type]!==undefined;
@@ -62,17 +66,27 @@ window.OriginalArt=(()=>{
   if(u.type==='truck'||u.type==='firetruck')return centered(ctx,u.type==='truck'?5213:5215,u,map);
   return false;
  }
- function vehicle(ctx,u,time,map,d,aim,walking){
+ // Native layer origins are object coordinates, not centered sprite bounds.
+ // The same composition drives drawing, selection, portraits and HD placement.
+ function vehicleLayers(u,time,map,d=dir(u.angle),aim=dir(u.aim),walking=u.moving?Math.floor(time*8)%3:0){
+  if(!ready||!map?.original)return [];
+  if(u.team<0){const id=manifest.neutralUnits?.[u.type];return id===undefined?[]:[{id,x:u.x,y:u.y}];}
+  if(!manifest.unitLayouts?.[u.type])return [];
   const p=manifest.unitLayouts[u.type],x=u.x+p.anchor[0]*2,y=u.y+p.anchor[1]*2,hullDirection=d%p.directions,hullOffset=p.hullOffsets[hullDirection],hull=u.hp<Math.floor(u.maxHp/4)&&p.damagedHull?p.damagedHull:p.hull;
-  const draw=(id,dx=0,dy=0)=>native(ctx,id,x+dx*2,y+dy*2,map,u.team);
+  const parts=[],draw=(id,dx=0,dy=0)=>parts.push({id,x:x+dx*2,y:y+dy*2});
   const turret=p.turretOffsets?.[aim],tx=turret?(p.turretAnchor[0]+turret[0]):0,ty=turret?(p.turretAnchor[1]+turret[1]):0;
   const armPhase=Math.max(0,Math.min(63,Math.trunc(u.cranePhase||0))),armBehind=u.type==='crane'&&d>=3&&d<=5;
   if(armBehind)draw(p.arm+armPhase,turret[0]+p.armOffsets[aim][0],turret[1]+p.armOffsets[aim][1]);
   draw(hull+hullDirection*p.stride+walking,hullOffset[0],hullOffset[1]);
   if(p.turret)draw(p.turret+aim,tx,ty);
   if(p.barrel)draw(p.barrel+aim,tx+p.barrelOffsets[aim][0],ty+p.barrelOffsets[aim][1]);
+  if(tankHatches[u.type])draw(533+aim*3,...tankHatches[u.type][aim]);
   if(p.driver)draw(p.driver+Math.floor(time*17)%8,p.driverOffsets[d][0],p.driverOffsets[d][1]);
   if(u.type==='crane'&&!armBehind)draw(p.arm+armPhase,tx+p.armOffsets[aim][0],ty+p.armOffsets[aim][1]);
+  return parts;
+ }
+ function vehicle(ctx,u,time,map,d,aim,walking){
+  for(const p of vehicleLayers(u,time,map,d,aim,walking))native(ctx,p.id,p.x,p.y,map,u.team);
   return true;
  }
  function native(ctx,id,x,y,map,team=null){const im=sprite(id,map.world,team);if(!im)return false;ctx.drawImage(im,Math.round(x),Math.round(y),im.width*2,im.height*2);return true;}
@@ -172,5 +186,5 @@ window.OriginalArt=(()=>{
  function workshopMarker(ctx,x,y,map,elapsed=0){if(!ready||!map?.original)return false;return native(ctx,2763+Math.max(0,Math.floor(elapsed*8))%4,x-16,y-12,map);}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,unit,unitBounds,attackBounds,jeepLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,attackCursor,attackMarker,workshopCursor,workshopMarker,effects,object,objectShadows,objectDepth,crate,crateBounds,get ready(){return ready;}};
+ return {load,unit,unitBounds,attackBounds,jeepLayers,vehicleLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,attackCursor,attackMarker,workshopCursor,workshopMarker,effects,object,objectShadows,objectDepth,crate,crateBounds,get ready(){return ready;}};
 })();

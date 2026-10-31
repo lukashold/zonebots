@@ -47,6 +47,13 @@ work/rates, weapon values and selected damage/crew rules are checked against the
 original. The AI, projectile trajectories, animation timing and other behaviors
 still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle units seek nearby flags and vacant hardware; explicit commands retain priority.
 
+Occupied Light, Medium and Heavy tanks now include their native closed-hatch
+layer and full composite selection bounds. Boarding, unloading and crew death
+convert between the original parked/occupied sprite origins without position drift.
+Empty tanks use their separate gray parked artwork. HD tanks have corrected visible
+size, faction-colored turrets and a consistent empty parked pose. See the
+[tank artwork audit](rust-browser/ORIGINAL-PANZER.txt) for native evidence and limits.
+
 Owned factories now start a repeating production order immediately, including on capture. Robot factories and forts default to Grunts; choosing another valid product preserves that repeated order. The standard-production button restores the default without leaving the factory idle. Capture preserves existing valid production and its remaining work.
 
 Completed stationary guns wait in up to four factory storage slots. Choose **Place guns** or a factory storage button, then left-click a valid position in that factory's territory. Right-click or Escape cancels placement while preserving the gun. Fort placements snap to free roof sockets; the preview and final placement share the Rust validation. Robot and vehicle production still deploys automatically.

@@ -16,7 +16,7 @@ fn building(g:&mut Game,id:usize,team:i32,hp:f64)->usize{
 fn barrier(g:&mut Game,x:usize){for y in 1..g.map.height-1{g.map.tiles[y*g.map.width+x]=2;g.map.terrain_codes[y*g.map.width+x]=19;}}
 #[test]
 fn unload_clears_old_orders_and_recrewing_does_not_resume_them(){
- for original in [false,true]{let(mut g,id)=field(original,"medium");g.command(&json!({"ids":[id],"kind":"move","x":1000,"y":600}));assert!(!unit(&g,id).path.is_empty());g.command(&json!({"ids":[id],"kind":"unload"}));let u=unit(&g,id);assert_eq!(u.team,-1);assert!(u.path.is_empty());assert_eq!(u.dest,None);assert_eq!(u.target,None);let position=(u.x,u.y);let robot=g.units.last().unwrap().id;let ri=at(&g,robot);g.units[ri].x=position.0;g.units[ri].y=position.1;g.command(&json!({"ids":[robot],"kind":"enter","target":id}));g.step(0.);assert_eq!(unit(&g,id).team,0);g.step(0.1);assert_eq!((unit(&g,id).x,unit(&g,id).y),position);}
+ for original in [false,true]{let(mut g,id)=field(original,"medium");let occupied=(unit(&g,id).x,unit(&g,id).y);g.command(&json!({"ids":[id],"kind":"move","x":1000,"y":600}));assert!(!unit(&g,id).path.is_empty());g.command(&json!({"ids":[id],"kind":"unload"}));let u=unit(&g,id);assert_eq!(u.team,-1);assert!(u.path.is_empty());assert_eq!(u.dest,None);assert_eq!(u.target,None);let position=(u.x,u.y);let robot=g.units.last().unwrap().id;let ri=at(&g,robot);g.units[ri].x=position.0;g.units[ri].y=position.1;g.command(&json!({"ids":[robot],"kind":"enter","target":id}));g.step(0.);assert_eq!(unit(&g,id).team,0);g.step(0.1);assert_eq!((unit(&g,id).x,unit(&g,id).y),occupied);}
 }
 #[test]
 fn lost_boarding_targets_release_the_order_instead_of_chasing_forever(){
