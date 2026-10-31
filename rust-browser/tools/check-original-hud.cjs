@@ -18,7 +18,7 @@ function fixture({missing=false,broken=false}={}){
    classList:{add(k){classes.add(k);},contains(k){return classes.has(k);}},
    appendChild(child){child.parentElement=this;},addEventListener(name,handler){this[name]=handler;},click(){this.clicks=(this.clicks||0)+1;},
    toDataURL(){encoded.push(id);return 'data:image/png;base64,'+id;},
-   getContext(){return {clearRect(...args){calls.push([id,'clear',...args]);},createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)};},putImageData(image){node.pixelId=image.data[0];},getImageData(){const data=new Uint8ClampedArray(354*2*4);for(let y=0;y<2;y++)for(let x=0;x<354;x++){const at=(y*354+x)*4;data[at]=Math.floor(x/2);data[at+3]=255;}return {data};},drawImage(...args){calls.push([id,'draw',...args]);}};}};
+   getContext(){return {setTransform(...args){calls.push([id,'transform',...args]);},scale(...args){calls.push([id,'scale',...args]);},clearRect(...args){calls.push([id,'clear',...args]);},createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)};},putImageData(image){node.pixelId=image.data[0];},getImageData(){const data=new Uint8ClampedArray(354*2*4);for(let y=0;y<2;y++)for(let x=0;x<354;x++){const at=(y*354+x)*4;data[at]=Math.floor(x/2);data[at+3]=255;}return {data};},drawImage(...args){calls.push([id,'draw',...args]);}};}};
   return node;
  }
  for(const id of ['hud','nativeHud','mini','hudMenu','pauseButton','portrait','hudCaption','hudUnitArt','hudHealth','unitName','unitInfo','unitOrderInfo','cycleR','cycleG','cycleV','cycleB','overlayT','overlayD','overlayZ','overlay'])nodes[id]=element(id);
@@ -55,6 +55,11 @@ async function run(){
   for(const [kind,,descriptor] of nativeDescriptors){assert.equal(actual.frames[descriptor[0]].h,14,kind);assert.equal(actual.frames[descriptor[1]].h,nativeHeights[descriptor[1]],kind);}
  }
  let painted=0;f.api.update(state,{...unit,type:'grunt'},()=>painted++);assert.equal(painted,1,'robot unit preview comes from the actual renderer, separate from communicator');
+ let hdPainted=0;f.window.GameGraphics={isHD:()=>true};f.api.update(state,{...unit,type:'cannon'},()=>hdPainted++);
+ assert.equal(hdPainted,1,'HD hardware preview must come from the live HD renderer');assert.equal(f.nodes.hudUnitArt.width,192);assert.equal(f.nodes.hudUnitArt.height,156);
+ assert.ok(f.calls.some(call=>call[0]==='hudUnitArt'&&call[1]==='transform'&&call[2]===2),'HD preview must use a dense backing canvas');
+ f.window.GameGraphics={isHD:()=>false};f.api.update(state,{...unit,type:'cannon'},()=>hdPainted++);assert.equal(hdPainted,1);assert.equal(f.nodes.hudUnitArt.width,96);assert.equal(f.nodes.hudUnitArt.height,78);
+ assert.equal(f.calls.filter(call=>call[0]==='hudUnitArt'&&call[1]==='draw').at(-1)[2].pixelId,106,'switching back restores the original hardware portrait');
  f.api.update(state,null);assert.equal(f.nodes.hudCaption.hidden,true);
  f.window.innerWidth=600;f.api.resize();assert.equal(f.api.sidebarWidth(),0);assert.equal(f.nodes.mini.parentElement,f.nodes.hud);assert.equal(f.nodes.mini.style.left,'');assert.equal(f.nodes.mini.style.top,'');assert.equal(f.nodes.mini.style.width,'168px');assert.equal(f.nodes.mini.style.height,'84px');
  f.window.innerWidth=1280;f.api.resize();assert.equal(f.nodes.mini.parentElement,f.nodes.nativeHud);assert.equal(f.api.sidebarWidth(),144);
@@ -66,6 +71,6 @@ async function run(){
   for(const id of ['nativeHud','hudCaption','hudUnitArt','hudHealth','hudMenu'])assert.equal([...html.matchAll(new RegExp('id="'+id+'"','g'))].length,1);
   assert.ok(html.includes('original-hud.js'));assert.ok(html.includes('original-hud.css'));
  }
- console.log('Original HUD checks passed: all12 hardware portrait/caption/offset mappings against independent Ghidra table fixtures, text/image dimension separation, optional/broken-pack fallback, native sidebar width, independent rendered-unit preview, health bar, cached skins, menu action, map fit and mobile minimap restoration.');
+ console.log('Original HUD checks passed: all12 hardware portrait/caption/offset mappings against independent Ghidra table fixtures, text/image dimension separation, optional/broken-pack fallback, native sidebar width, independent rendered-unit preview, dense HD hardware preview and original restoration, health bar, cached skins, menu action, map fit and mobile minimap restoration.');
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});

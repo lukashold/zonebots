@@ -55,6 +55,16 @@ Gun artwork now keeps each original weapon family across crewing: the previously
 
 The menu now uses locally extracted original title, background and metal-panel textures, with separate new-game, options and help views. It remains usable without the private menu pack. `tools/extract-original-menu.py` copies the optional textures from an owned GOG installation; the local server prepares them automatically when available. These images are never included in this public repository. The responsive arrangement is a web adaptation of the original artwork.
 
+The Rust edition also offers **Originalgrafik** and **HD-Remake** in the new-game
+menu and options. The HD renderer newly draws all 19 unit types, buildings, flags,
+crates, effects and five terrain biomes with smooth high-resolution code-native art.
+Both modes use the same simulation, native map geometry and hit areas; switching
+through options preserves the current battle and the preference is stored locally.
+Original clocks, audio and menu/HUD resources still use the separate private pack.
+HD terrain, unit and scenery caches have fixed memory limits. The HD code contains
+no original game pixels. This optional presentation does not establish new original
+behavior parity.
+
 Use **Vollbild** in the menu or in battle to request native browser fullscreen. Escape or the same button exits. If embedding permissions prevent fullscreen, the game displays browser instructions. Chrome browser shortcuts: F11 on Windows/Linux, Ctrl+Command+F on macOS. Returning to the main menu pauses the current battle; **Fortsetzen** resumes it while the page remains open.
 
 The in-game sidebar now loads the original steel panel, German unit captions, portraits, health bars and control textures from a separate optional HUD pack. Its native 96×480 panel scales to the browser height; small screens retain the compact interface and minimap. `tools/extract-original-hud.py` prepares the locally owned indexed bitmaps and world palettes. The current communication portrait is static; the original speech/facial state machine remains incomplete.

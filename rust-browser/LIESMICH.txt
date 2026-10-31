@@ -98,3 +98,13 @@ sie sich bewegt. Der Weg wird unterwegs angepasst. Bei freier Sicht und gültige
 Waffenreichweite hält die Einheit an; läuft der Gegner wieder heraus, folgt sie
 weiter. Stopp oder ein neuer Befehl beendet die Verfolgung. Die Zielmarkierung
 bleibt am Gegner, solange derselbe Angriff aktiv ist.
+
+HD-REMAKE – 31.10.2026
+Beim neuen Spiel unter Grafik zwischen Originalgrafik und HD-Remake wählen.
+Optionen zeigt beide Varianten mit Vorschaubild. Während einer Schlacht:
+Pause → Hauptmenü → Optionen → Grafik wählen → Hauptmenü → Fortsetzen.
+Der Wechsel erhält die Partie; die Wahl bleibt im Browser gespeichert.
+HD zeichnet Gelände in fünf Welten, Gebäude, alle 19Einheitentypen, Fahnen,
+Kisten und Effekte mit neuem Code und höheren Rasterauflösungen. Die originalen
+Kartengeometrien, Trefferflächen, Regeln und Fabrikuhren bleiben maßgeblich.
+Originalton und die klassische Menü-/HUD-Gestaltung werden weiterhin verwendet.

@@ -108,7 +108,7 @@ jeweils im ursprünglichen und prozeduralen Modus. Alle53 Rust-Tests bestanden.
 Portable Frontendtests prüfen Kampfeinheitenfilter, Ziele und laufende Markierungen,
 stationäre Geschütze, bewegte Gegner, Brücken, Abbruch und Zielverlust.55 Cursor-/
 Markierungsfälle über fünf Welten prüfen die Originalbilder und getrennte Caches.
-Angriffstrefferflächen:36.561 Fälle für alle19 Typen, fünf Welten, Richtungen,
+Angriffstrefferflächen:36.561 Fälle für alle 19 Typen, fünf Welten, Richtungen,
 Zielwinkel und Animationszustände bestanden. Eingabetest mit echtem Wasm besteht
 klassisch und modern: Kampfeinheitenfilter, Körperrand, bewegtes Ziel, Gebäude-
 Route/Markermitte, Stopp, erzwungener Angriffsmarsch über Handzielen und Escape
@@ -218,3 +218,24 @@ und fünf prozedurale Welten bestehen weiterhin. Der Granaten-Sichtlinientest
 verwendet jetzt eine geschlossene Wand: Eine einzelne Kachel kann mit der neuen
 Verfolgung bewusst umgangen werden und ist deshalb kein dauerhaftes Hindernis.
 Die aktuelle Korrektur wurde auf Engine- und echtem Wasm-/Tracker-Niveau geprüft.
+
+HD-GRAFIK – 31.10.2026
+Die Rust-/Wasm-Simulation bleibt unverändert. Grafikumschaltung, gespeicherte
+Präferenz, synchronisierte Menüelemente, deaktivierter Browserspeicher,
+Originalstandard, unveränderte native Trefferflächen und Produktionstimer
+werden mit check-graphics-mode.cjs geprüft. Alle 2432Einheitenposen mit
+19 Typen bestehen check-hd-units.cjs (Richtungen, Besitzer, Cache, gültige
+Canvas-Geometrie). check-hd-terrain.cjs prüft alle fünf Welten, Cache-Reuse
+bei neuen Spielzustandsobjekten, Brückenänderung und Speichergrenzen.
+Bestehende Menü-/Vollbild-/HUD- und Angriffs-/Platzierungs-/Einsteige-/Aufnahme-
+Eingabetests bestehen. Neue Grafiken sind prozedurale Eigenzeichnungen;
+Originalressourcen bleiben vom öffentlichen Repository ausgeschlossen.
+
+Browserprüfung bestanden: Original ↔ HD in derselben Schlacht, fortbestehende
+Spielzeit, gespeicherte Wahl nach Neuladen, beide Vorschaukarten, alle 19 Typen
+und fünf Welten sowie hochauflösende HD-Auswahlbilder. Keine Warnungen/Fehler
+im Browserprotokoll. Die temporäre Galerie wurde wieder entfernt; Aufnahmen
+liegen außerhalb des öffentlichen Repositorys in outputs/.
+check-hd-structures.cjs prüft alle Gebäudetypen, Objekte und Kampfeffekte sowie
+gültige Zeichenkoordinaten und den 48-MiB-Cache. Der HUD-Test deckt HD-Bilder
+und die Rückkehr zum Original ab. Der Wasm-Kern ist unverändert 436.121Bytes.

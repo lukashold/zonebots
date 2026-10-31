@@ -49,14 +49,16 @@ window.OriginalHud=(()=>{
  }
  function update(state,unit,renderUnit){
   lastState=state;lastUnit=unit;lastPainter=renderUnit;if(!ready||!state)return;
-  const world=state.map.world,portrait=$('portrait'),art=$('hudUnitArt'),ctx=art.getContext('2d');
+  const world=state.map.world,portrait=$('portrait'),art=$('hudUnitArt'),hd=Boolean(window.GameGraphics?.isHD()),density=hd?Math.max(2,Math.min(4,Math.ceil(window.innerHeight/480*(window.devicePixelRatio||1)))):1;
+  if(art.width!==96*density||art.height!==78*density){art.width=96*density;art.height=78*density;}
+  const ctx=art.getContext('2d');if(hd)ctx.setTransform(density,0,0,density,0,0);else ctx.setTransform?.(1,0,0,1,0,0);
   if(skinWorld!==world){document.documentElement.style.setProperty('--hud-metal',texture(130,world));document.documentElement.style.setProperty('--hud-radio',texture(115,world));skinWorld=world;}
-  ctx.clearRect(0,0,art.width,art.height);ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,art.width,art.height);ctx.imageSmoothingEnabled=Boolean(window.GameGraphics?.isHD());
   const descriptor=hardware[unit?.type],background=frame(descriptor?114:115,world);
   if(background)ctx.drawImage(background,0,0,96,78);
   if(unit){
-   if(descriptor){const image=frame(descriptor[1],world,unit.team);if(image)ctx.drawImage(image,0,descriptor[2]*2);}
-   else if(renderUnit){const preview=document.createElement('canvas');preview.width=preview.height=96;renderUnit(preview.getContext('2d'),unit);ctx.drawImage(preview,9,0,78,78);}
+   if(descriptor&&!window.GameGraphics?.isHD()){const image=frame(descriptor[1],world,unit.team);if(image)ctx.drawImage(image,0,descriptor[2]*2);}
+   else if(renderUnit){const preview=document.createElement('canvas');preview.width=preview.height=96*density;const pc=preview.getContext('2d');if(hd)pc.scale(density,density);renderUnit(pc,unit);ctx.drawImage(preview,9,0,78,78);}
   }
   const caption=descriptor?.[0]??captions[unit?.type];
   if(caption!==undefined)paint($('hudCaption'),caption,world,unit?.team||0);
