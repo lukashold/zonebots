@@ -3,10 +3,10 @@
 window.HDStructures = (() => {
   'use strict';
   const cache = new Map(), SCALE = 3, LIMIT = 40, MAX_BYTES = 48 * 1024 * 1024;
-  let cacheBytes = 0;
+  let cacheBytes = 0,wear;
   const teams = ['#bc403b', '#416ea2', '#778570', '#b99442'];
   const team = n => teams[n] || '#72796d';
-  const metal = ['#cad3cf', '#8c9998', '#56646a', '#27383e'];
+  const metal = ['#bfc2b7', '#858e88', '#535d5d', '#293534'];
   function path(c, points, fill, stroke, width = 1) {
     c.beginPath(); c.moveTo(...points[0]); for (const p of points.slice(1)) c.lineTo(...p); c.closePath();
     if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = width; c.stroke(); }
@@ -29,6 +29,7 @@ window.HDStructures = (() => {
   function bolt(c, x, y, r = 1.25) { ellipse(c, x, y, r, r, '#d3d8cb', '#3b484a'); line(c, x - r / 2, y, x + r / 2, y, '#536064', .5); }
   function panel(c, x, y, w, h, color) {
     round(c, x, y, w, h, 2, color || grad(c, x, y, w, h), '#2c3a40', 1.2);
+    if(w>40&&h>30){const dirt=c.createLinearGradient(x,y,x,y+h);dirt.addColorStop(0,'#f5edcb18');dirt.addColorStop(.14,'#e9dab300');dirt.addColorStop(.75,'#292d2620');dirt.addColorStop(1,'#171e1b4f');c.fillStyle=dirt;c.fillRect(x+1,y+1,w-2,h-2);}
     line(c, x + 2, y + 1.4, x + w - 2, y + 1.4, '#e0e5db99', .8);
     for (const xx of [x + 3.4, x + w - 3.4]) for (const yy of [y + 3.4, y + h - 3.4]) if (w > 12 && h > 12) bolt(c, xx, yy, .9);
   }
@@ -77,6 +78,7 @@ window.HDStructures = (() => {
   function fort(c, b) {
     const accent = team(b.team), w = 320, h = 384;
     shadow(c, 180, 244, 182, 155, .36);
+    path(c,[[22,28],[306,26],[332,49],[333,372],[306,397],[39,398],[17,368]],'#1928223d');
     path(c, [[18,20],[300,20],[316,46],[316,360],[292,382],[26,382],[7,359],[7,46]], grad(c, 0, 0, w, h, ['#808a7e','#465a5d','#263d43']), '#253c42', 2);
     // Vertical armored flanks sit below the tower roofs, with a bright sunward
     // bevel and a dark east wall so their height remains clear at low zoom.
@@ -167,10 +169,19 @@ window.HDStructures = (() => {
     for(let x=13;x<w-12;x+=27){pipe(c,x,h*.55,x+5,h*.25,2);line(c,x+5,h*.25,x+12,h*.3,'#2a4046',2);}
     gate(c,w*.34,h*.76,w*.32,h*.16,team(b.team));
   }
+  function weather(c,w,h){
+    if(!wear){wear=document.createElement('canvas');wear.width=wear.height=128;const q=wear.getContext('2d'),data=q.createImageData(128,128);let seed=63738;
+      for(let n=0;n<128*128;n++){seed=(Math.imul(seed,1664525)+1013904223)|0;const v=seed>>>24,at=n*4,x=n%128,y=Math.floor(n/128),patch=Math.sin(x*.077+y*.02)+Math.sin(y*.12-x*.035);
+        const rusty=patch>1.42,chip=v<19;data.data[at]=rusty?99:chip?48:v;data.data[at+1]=rusty?68:chip?49:v;data.data[at+2]=rusty?37:chip?43:v;data.data[at+3]=rusty?46:chip?54:28;}
+      q.putImageData(data,0,0);}
+    c.save();c.globalCompositeOperation='source-atop';c.fillStyle=c.createPattern(wear,'repeat');c.fillRect(-16,-16,w+32,h+32);
+    c.globalAlpha=.27;for(let n=0;n<(w*h/2100);n++){const x=7+(n*47)%Math.max(1,w-14),y=8+(n*73)%Math.max(1,h-16);line(c,x,y,x+2+n%6,y-.6,n%3?'#bdb69c':'#553f28',.6);}
+    c.restore();
+  }
   function cached(key,w,h,paint) {
     let image=cache.get(key);if(image){cache.delete(key);cache.set(key,image);return image;}
     image=document.createElement('canvas');image.width=Math.ceil((w+32)*SCALE);image.height=Math.ceil((h+32)*SCALE);
-    const c=image.getContext('2d');c.scale(SCALE,SCALE);c.translate(16,16);paint(c);
+    const c=image.getContext('2d');c.scale(SCALE,SCALE);c.translate(16,16);paint(c);weather(c,w,h);
     const bytes=image.width*image.height*4;
     // Canvas storage grows with area, so a count limit alone is insufficient
     // for several large, differently owned or damaged forts.
@@ -187,7 +198,7 @@ window.HDStructures = (() => {
     const w=b.kind==='fort'?320:b.w||128,h=b.kind==='fort'?384:b.h||160,dead=b.hp<=0;
     const x=b.kind==='fort'&&b.rawBase?b.rawBase[0]*2:b.x,y=b.kind==='fort'&&b.rawBase?b.rawBase[1]*2:b.y;
     const key=['b',b.kind,b.team,w,h,b.stars,b.orientation,dead].join(':');const image=cached(key,w,h,q=>dead?ruin(q,b):b.kind==='fort'?fort(q,b):['robot','vehicle'].includes(b.kind)?factory(q,b):utility(q,b));
-    c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(image,x-16,y-16,w+32,h+32);
+    c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='medium';c.drawImage(image,x-16,y-16,w+32,h+32);
     if(!dead&&b.kind==='radar'){
       const a=time*.55,rx=x+83,ry=y+18; c.save();c.translate(rx,ry);c.scale(Math.max(.12,Math.abs(Math.cos(a))),1);
       c.beginPath();c.moveTo(-28,-12);c.bezierCurveTo(-20,18,20,18,28,-12);c.quadraticCurveTo(0,3,-28,-12);c.fillStyle=grad(c,-28,-12,56,30,['#e0e2cf','#8faaa9','#446575']);c.fill();c.strokeStyle='#43616b';c.lineWidth=1;c.stroke();

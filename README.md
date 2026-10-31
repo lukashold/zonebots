@@ -65,6 +65,29 @@ HD terrain, unit and scenery caches have fixed memory limits. The HD code contai
 no original game pixels. This optional presentation does not establish new original
 behavior parity.
 
+The HD renderer now loads baked, newly authored materials and a generated desert
+texture instead of building expensive pixel noise during animation. It draws only
+visible objects, amortizes sprite preparation, interpolates movement, and uses
+compact Wasm snapshots. HUD and minimap refresh independently from rendering.
+See [measured draw times](rust-browser/HD-PERFORMANCE.txt) for the isolated native
+Canvas benchmark and its limits; these numbers are not a browser FPS guarantee.
+
+**Two-player multiplayer:** choose **Mehrspieler**, then Internet or local network.
+The host gives an invitation code, the guest returns an answer code, and the host
+starts the shared match. A real encrypted WebRTC data channel carries validated
+commands and authoritative snapshots; the guest never simulates a second game.
+The game supports independent graphics preferences, fair normal damage, production,
+gun placement, pause and disconnect handling. The private hosted page stays private:
+an invitation code does not grant website access. Some internet/router combinations
+require a separately configured TURN relay. [Setup and limitations](rust-browser/MULTIPLAYER.txt).
+
+For local network play, run `rust-browser/Start-LAN.cmd` on Windows or
+`sh rust-browser/Start-LAN.command` on macOS/Linux, then open the printed LAN address
+on both devices. This explicitly serves the host's local resource pack to LAN
+players. No game-folder upload is required. The ordinary launcher remains loopback-only.
+Two browser clients were tested over the LAN interface on one PC; remote physical
+machines and separate internet connections were not independently tested.
+
 Use **Vollbild** in the menu or in battle to request native browser fullscreen. Escape or the same button exits. If embedding permissions prevent fullscreen, the game displays browser instructions. Chrome browser shortcuts: F11 on Windows/Linux, Ctrl+Command+F on macOS. Returning to the main menu pauses the current battle; **Fortsetzen** resumes it while the page remains open.
 
 The in-game sidebar now loads the original steel panel, German unit captions, portraits, health bars and control textures from a separate optional HUD pack. Its native 96×480 panel scales to the browser height; small screens retain the compact interface and minimap. `tools/extract-original-hud.py` prepares the locally owned indexed bitmaps and world palettes. The current communication portrait is static; the original speech/facial state machine remains incomplete.

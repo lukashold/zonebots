@@ -108,3 +108,23 @@ HD zeichnet Gelände in fünf Welten, Gebäude, alle 19Einheitentypen, Fahnen,
 Kisten und Effekte mit neuem Code und höheren Rasterauflösungen. Die originalen
 Kartengeometrien, Trefferflächen, Regeln und Fabrikuhren bleiben maßgeblich.
 Originalton und die klassische Menü-/HUD-Gestaltung werden weiterhin verwendet.
+
+HD-ÜBERARBEITUNG UND MEHRSPIELER – 31.10.2026
+HD nutzt jetzt vorbereitete detaillierte Boden-/Stein-/Straßen-/Wassertexturen,
+höhere Felskanten, verwittertes Metall und verteilte Animationsarbeit. Nur
+sichtbare Objekte werden gezeichnet; HUD und Minikarte werden seltener erneuert.
+Kompakte Wasm-Antworten vermeiden die vollständige Karte bei jedem Spielschritt.
+Messungen und Grenzen: HD-PERFORMANCE.txt. Bildtextur und Prompt:
+HD-TEXTURE-PROMPT.txt (integrierte Bildgenerierung, keine Originalpixel).
+
+Im Menü unter Mehrspieler eine 1-gegen-1-Partie erstellen oder einer Einladung
+beitreten. Einladungscode an den Mitspieler geben, Antwortcode übernehmen und
+gemeinsam starten. Internet kann bei strengen Routern einen eigenen TURN-Server
+benötigen; der Mitspieler braucht Zugang zur privaten Webseite. Anleitung und
+Grenzen: MULTIPLAYER.txt. Es wird keine Kamera und kein Mikrofon benötigt.
+
+LAN: Start-LAN.cmd unter Windows oder sh Start-LAN.command auf macOS/Linux.
+Der Host stellt dabei sein Spielpaket für Mitspieler im eigenen Netzwerk bereit.
+Die ausgegebene LAN-Adresse auf beiden Geräten öffnen; kein Ordner-Upload nötig.
+Danach im Mehrspieler-Menü Lokales Netzwerk wählen und die Codes austauschen.
+Die Originalressourcen wurden hierfür vom Nutzer ausdrücklich freigegeben.

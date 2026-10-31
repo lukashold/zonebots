@@ -7,6 +7,7 @@ const geometry=[];
 const ctx=new Proxy({}, {
   set(target,key,value){if(typeof value==='number')assert(Number.isFinite(value),`${key} must be finite`);target[key]=value;return true;},
   get(target,key){if(key in target)return target[key];
+    if(key==='createImageData')return(w,h)=>({data:new Uint8ClampedArray(w*h*4)});if(key==='putImageData'||key==='createPattern')return()=>({});
     if(key==='createLinearGradient'||key==='createRadialGradient')return(...args)=>{args.forEach(x=>assert(Number.isFinite(x),`${key} coordinate`));paintCalls++;return{addColorStop(offset){assert(Number.isFinite(offset)&&offset>=0&&offset<=1);}};};
     if(key==='drawImage')return(image,...args)=>{args.forEach(x=>assert(Number.isFinite(x),'image position'));drawCalls++;};
     return(...args)=>{for(const x of args)if(typeof x==='number')assert(Number.isFinite(x),`${key} coordinate`);geometry.push([key,...args]);paintCalls++;};

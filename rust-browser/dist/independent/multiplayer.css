@@ -1,0 +1,23 @@
+/* The lobby follows the existing steel-and-brass menu. */
+#menu[data-page=multiplayer] .menu-layout{grid-template-columns:minmax(250px,.8fr) minmax(410px,1.2fr);align-items:start}
+#menu[data-page=multiplayer] .menu-identity{position:sticky;top:65px}
+#menu[data-page=multiplayer] .menu-panel{padding:30px}
+#mpLobby h2{margin-bottom:6px}#mpLobby .mp-eyebrow{margin:0 0 20px;font:10px/1.5 Arial,sans-serif;letter-spacing:2px;color:#cbb784}
+.mp-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.mp-fields>div{min-width:0}.mp-fields .mp-graphics{grid-column:1/-1}
+#mpLobby label{font:11px/1.4 Arial,sans-serif;margin:10px 0 5px;color:#e2cf9f}
+#mpLobby input,#mpLobby select,#mpLobby textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #9a8357;background:#1c211d;color:#f3e6bd;padding:9px;font:12px/1.5 Arial,sans-serif;box-shadow:inset 1px 2px 4px #0006}
+#mpLobby textarea{resize:vertical;min-height:70px;max-height:160px;font:10px/1.4 monospace;overflow-wrap:anywhere;word-break:break-all}
+#mpLobby textarea:focus,#mpLobby input:focus{outline:2px solid #d9b85c;outline-offset:2px}
+#mpLobby button:not(.menu-back){font:bold 11px/1.4 Arial,sans-serif;letter-spacing:.5px;background:linear-gradient(#837550,#51452e);color:#ffe8ad;border:1px solid #b5a06a;padding:10px 14px;box-shadow:inset 0 1px #e6d49b44,2px 3px #0005}
+#mpLobby button:disabled{opacity:.38;cursor:default}#mpLobby #mpHost,#mpLobby #mpJoin,#mpLobby #mpAccept,#mpLobby #mpStart{width:100%}
+#mpRoleButtons{margin:16px 0}.mp-divider{height:1px;background:linear-gradient(90deg,transparent,#ad925b70,transparent);margin:18px 0 12px}
+#mpLocalSection{padding:12px;background:#192720bb;border:1px solid #8c945b;margin:15px 0}#mpLocalSection label{margin-top:0}#mpLocalSection #mpCopy{width:100%;margin-top:7px}
+#mpRemoteSection #mpJoin,#mpRemoteSection #mpAccept{margin-top:8px}
+#mpReady{padding:14px;margin-top:16px;background:#1e3329bf;border:1px solid #94b47c}#mpReadyText{font:12px/1.7 Arial,sans-serif;color:#e5e6b9;margin:0 0 9px}#mpStart{margin-top:12px}
+#mpStatus{padding:10px 12px;margin:16px 0 10px;border-left:3px solid #bc9a54;background:#181d18c9;color:#e6d6ad;font:12px/1.6 Arial,sans-serif;overflow-wrap:anywhere;min-height:40px}
+#mpStatus[data-kind=connected]{border-color:#9bc778;color:#d7ecc0}#mpStatus[data-kind=error]{border-color:#dd9277;color:#f4c6a4}
+#mpCancel{margin:0 0 12px}#mpLobby .mp-note{font:10px/1.6 Arial,sans-serif;color:#c5b795;margin:11px 0 0}
+#mpLobby details{font:11px/1.6 Arial,sans-serif;color:#ccbd98;margin-top:13px}#mpLobby summary{cursor:pointer;color:#dac58f}#mpLobby details p{margin:8px 0}#mpLobby code{display:block;overflow-wrap:anywhere;color:#f2ddb0;background:#191d17bd;padding:8px;font:10px/1.6 monospace}
+#mpTurn .mp-fields{margin-top:4px}#mpTurnPassword{font-family:monospace!important}
+@media(max-width:800px){#menu[data-page=multiplayer] .menu-layout{grid-template-columns:1fr}#menu[data-page=multiplayer] .menu-identity{position:static}#menu[data-page=multiplayer] .menu-panel{padding:26px 24px}}
+@media(max-width:390px){.mp-fields{grid-template-columns:1fr}.mp-fields .mp-graphics{grid-column:auto}}

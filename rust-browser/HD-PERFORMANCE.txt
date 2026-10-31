@@ -1,0 +1,53 @@
+HD-RENDERER – MESSUNG UND ÄNDERUNGEN, 31.10.2026
+
+Optionaler realer Raster-Benchmark mit @napi-rs/canvas (Skia auf CPU), kein
+Canvas-Dummy. 1280 × 720, prozedurale 80×80-Karte mit Land, Wasser, Straßen,
+Felsen; 120 bewegte Einheiten aller 19 Typen, 80 Zeichenframes. Die Kamera
+schwenkt zunächst durch noch nicht gerenderte Bereiche, danach bleibt sie stehen.
+
+Messung                             Vorher         Jetzt
+Einheiten, Median                156,35 ms      17,31 ms
+Einheiten, 95. Perzentil         297,89 ms      32,82 ms
+Einheiten, Gesamtdauer         12713,16 ms    1518,29 ms
+Neues Gelände, schlimmster       854,49 ms      45,00 ms
+Warmes Gelände, Median            12,05 ms       9,63 ms
+Canvas-Allokationen                   4819           294
+
+Die Jetzt-Spalte wurde nach der abschließenden Klippen- und Materialpolitur
+erneut mit dem unveränderten Benchmark gemessen.
+
+Das sind CPU-Zeichenzeiten dieses isolierten Stresstests und keine zugesicherte
+Browser-Bildrate. Browser, Bildschirmauflösung, sichtbare Einheiten, GPU und
+Simulation beeinflussen die tatsächliche Bildrate zusätzlich. Der Benchmark
+lädt die Texturen vor den Zeichenframes; Assetdecodierung dauerte 10,49 ms bei
+diesem nativen Durchlauf. Die bereitgestellte generierte PNG-Datei wird vom
+Browser geladen; nur für die ältere Skia-PNG-Decodierung wurde eine temporäre,
+pixelgleiche PNG-Neukodierung verwendet. Die ausgelieferte Bilddatei blieb
+unverändert.
+
+Wesentliche Änderungen:
+- Kleine vorab gebackene Mikrotexturen statt zehntausender Korn- und
+  Wasser-Verlaufsoperationen im Animationsframe. 20 prozedurale WebP-Texturen
+  brauchen zusammen 324.540 Bytes; der Wüstenboden ist ein neu generiertes Bild.
+- Höchstens ein neuer sichtbarer Geländeblock pro Zeichenframe. Die Karte bleibt
+  während der schrittweisen Detaillierung über eine zwischengespeicherte
+  Übersicht vollständig sichtbar. Keine große synchrone Pixelrauschberechnung.
+- Einheitensprites mit weniger redundanten Kombinationen von Rumpf-, Waffen-
+  und Laufposen. Pro Frame höchstens vier neue Posen mit zusätzlichem 3,5-ms-
+  Arbeitsbudget. Fertige Posen bleiben sichtbar, bis die nächste Pose bereit ist;
+  alte nicht mehr gewünschte Aufträge verfallen. Dies senkt Lastspitzen gezielt.
+- Zwischengespeicherte Einheitenauflösung 2× statt 3× und mehr Posen innerhalb
+  eines 48-MiB-Limits. Gelände behält 64 MiB; Gebäude 48 MiB als Speicherobergrenzen.
+- Korrigierte Kontaktschatten, metallische Gebrauchsspuren, kantigere Roboter-
+  helme und unterscheidbare Silhouetten leichter, mittlerer und schwerer Panzer.
+
+Reproduzierbar mit:
+node tools/check-hd-performance.cjs --canvas-module /pfad/zu/@napi-rs/canvas
+Für einen Vergleich den Quellstand vor der Änderung mit --source übergeben.
+Die normalen Rendererprüfungen benötigen das optionale Canvas-Paket nicht:
+node tools/check-hd-units.cjs
+node tools/check-hd-terrain.cjs
+node tools/check-hd-structures.cjs
+
+Die Änderungen zeichnen nur die Darstellung. Originale Kartengeometrie,
+Trefferflächen, Waffenidentitäten und Spielregeln bleiben davon unabhängig.

@@ -1,7 +1,7 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from functools import partial
-import mimetypes, argparse, webbrowser, os, subprocess, sys
+import mimetypes, argparse, webbrowser, os, subprocess, sys, socket
 from urllib.parse import unquote,urlsplit
 root = Path(__file__).resolve().parents[1] / 'dist' / 'independent'
 mimetypes.add_type('application/wasm', '.wasm')
@@ -49,11 +49,27 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8765);p.add_argument('--no-browser',action='store_true')
+    p.add_argument('--lan',action='store_true',help='Allow other devices on your local network to load this game; binds all local interfaces')
     p.add_argument('--game','--zdir',dest='game',type=Path,default=Path(os.environ.get('Z_GAME_DIR',r'C:\GOG Games\Z')),help='Local Z installation for automatic extraction of missing original art/maps')
     args=p.parse_args()
     ensure_original_pack(args.game.expanduser().resolve())
-    server=ThreadingHTTPServer(('127.0.0.1',args.port),partial(Handler,directory=str(root)))
-    url=f'http://127.0.0.1:{args.port}/';print(url,flush=True)
+    bind='0.0.0.0' if args.lan else '127.0.0.1'
+    server=ThreadingHTTPServer((bind,args.port),partial(Handler,directory=str(root)))
+    port=server.server_port
+    url=f'http://127.0.0.1:{port}/';print(url,flush=True)
+    if args.lan:
+        print('LAN mode: other devices on this network can load this game and its local resource pack.',flush=True)
+        try:
+            addresses=sorted({address for address in socket.gethostbyname_ex(socket.gethostname())[2] if not address.startswith('127.') and ':' not in address})
+        except OSError:
+            addresses=[]
+        for address in addresses:
+            print(f'LAN game: http://{address}:{port}/',flush=True)
+        if not addresses:
+            print(f'LAN game: http://<this-computers-local-IP>:{port}/',flush=True)
+        print('Both players: Multiplayer > Local network. Exchange invitation and answer codes.',flush=True)
+        print('If another device cannot open the page, allow Python on your private network in the system firewall.',flush=True)
+        print('No router port forwarding is needed for devices on the same local network.',flush=True)
     if not args.no_browser:webbrowser.open(url)
     try:server.serve_forever()
     except KeyboardInterrupt:pass

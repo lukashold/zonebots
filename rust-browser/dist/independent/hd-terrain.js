@@ -2,7 +2,10 @@
 (function (global) {
   'use strict';
   const TILE = 32, CHUNK = 256, PAD = 2, MAX_CACHE_BYTES = 64*1024*1024;
-  const cache = new Map(), overviews = new Map();
+  const cache = new Map(), overviews = new Map(), materials = new Map(), materialRevisions = new Map();
+  const assetBase=document.currentScript?.src?new URL('hd-materials/',document.currentScript.src):null;let loading;
+  const timings={chunksBuilt:0,chunkBuildMs:0,maxChunkMs:0,pendingChunks:0};
+  const clock=()=>typeof performance==='object'?performance.now():Date.now();
   let cacheBytes = 0;
   const wetCodes = new Set([9, 38, 39, 40, 42]);
   const palettes = [
@@ -56,61 +59,43 @@
     return `${map.seed||0}:${map.world||0}:${map.revision||map.version||0}:${map.width}:${map.height}:${map.original?1:0}`;
   }
 
-  function ground(ctx,map,x0,y0,size,p) {
-    ctx.fillStyle=p.ground;ctx.fillRect(x0,y0,size,size);
-    // Broad transparent mineral washes straddle cell and chunk boundaries.
-    for(let gy=Math.floor((y0-120)/96);gy<=(y0+size+120)/96;gy++){
-      for(let gx=Math.floor((x0-120)/96);gx<=(x0+size+120)/96;gx++){
-        const q=hash(gx,gy,map.world+71),x=gx*96+q*72,y=gy*96+hash(gy,gx,20)*72;
-        const g=ctx.createRadialGradient(x,y,1,x,y,90+q*28);
-        g.addColorStop(0,q>.45?p.wash+'80':p.shade+'38');g.addColorStop(1,p.ground+'00');
-        ctx.fillStyle=g;ctx.fillRect(x-120,y-120,240,240);
-      }
+  function material(world,kind){
+    const key=world+':'+kind;if(materials.has(key))return materials.get(key);
+    // Cheap readable fallback while image decoding runs asynchronously. No
+    // per-pixel terrain generation is allowed on the animation thread.
+    const p=palettes[world]||palettes[0],image=canvas(32,32),c=image.getContext('2d');c.fillStyle=kind==='road'?p.road:kind==='water'?p.water:kind==='rock'?p.rock:p.ground;c.fillRect(0,0,32,32);
+    materials.set(key,image);return image;
+  }
+  function load(){
+    if(loading)return loading;if(!assetBase||typeof Image!=='function')return Promise.resolve(false);
+    loading=Promise.all(palettes.map((_,world)=>Promise.all(['ground','road','water','rock'].map(kind=>new Promise(resolve=>{
+      const image=new Image();image.decoding='async';image.onload=()=>{const size=world===0&&kind==='ground'?512:256,normalized=canvas(size,size),c=normalized.getContext('2d');c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(image,0,0,size,size);materials.set(world+':'+kind,normalized);resolve(true);};let retried=false;image.onerror=()=>{if(world===0&&kind==='ground'&&!retried){retried=true;image.src=new URL('0-ground.webp',assetBase).href;}else resolve(false);};
+      image.src=new URL(world===0&&kind==='ground'?'desert-ground-v2.png':`${world}-${kind}.webp`,assetBase).href;
+    }))).then(ok=>{materialRevisions.set(world,1);if(typeof Event==='function')global.dispatchEvent?.(new Event('hdmaterialsready'));return ok.every(Boolean);}))).then(results=>results.every(Boolean));return loading;
+  }
+  function texture(ctx,map,kind,x,y,w,h){ctx.fillStyle=ctx.createPattern(material(map.world||0,kind),'repeat');ctx.fillRect(x,y,w,h);}
+  function ground(ctx,map,x0,y0,size,p){
+    texture(ctx,map,'ground',x0,y0,size,size);
+    for(let gy=Math.floor((y0-180)/240);gy<=(y0+size+180)/240;gy++)for(let gx=Math.floor((x0-180)/240);gx<=(x0+size+180)/240;gx++){
+      const q=hash(gx,gy,map.world+71),x=gx*240+q*140,y=gy*240+hash(gy,gx,20)*140,r=130+q*65,g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,q>.5?p.wash+'3d':p.shade+'33');g.addColorStop(1,p.ground+'00');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);
     }
-    // Fine stones and sand are placed in world space; no regular tile noise seams.
-    for(let y=y0-3;y<y0+size+3;y+=4){
-      for(let x=x0-3;x<x0+size+3;x+=4){
-        const q=hash(x,y,map.seed||0),xx=x+q*3,yy=y+hash(y,x,7)*3;
-        if(q<.37)continue;
-        ellipse(ctx,xx+.4,yy+.55,q>.94?1.45:.38,q>.94?.6:.25,q>.76?p.light+'66':p.grit+'48');
-        if(q>.968){ellipse(ctx,xx,yy,.85,.34,p.light+'bb');}
-      }
-    }
-    // Fractured dry soil, exposed roots, or hairline ice fissures.
-    for(let gy=Math.floor(y0/64)-1;gy<=(y0+size)/64;gy++){
-      for(let gx=Math.floor(x0/64)-1;gx<=(x0+size)/64;gx++){
-        const q=hash(gx,gy,54+map.world);if(q<.37)continue;
-        const x=gx*64+q*41,y=gy*64+hash(gy,gx,84)*48;
-        const points=[[x-10,y-3],[x-4,y-7],[x+4,y-4],[x+9,y-7],[x+15,y-3],[x+18,y+3]];
-        ctx.save();ctx.globalAlpha=map.world===2?.32:.38;
-        path(ctx,points,null,p.shade,.8);path(ctx,points.map(v=>[v[0],v[1]-.7]),null,p.light,.5);
-        line(ctx,x+4,y-4,x+2,y+3,p.shade,.6);ctx.restore();
-      }
-    }
-    if(map.world===3){
-      for(let y=Math.floor((y0-4)/13)*13;y<y0+size+4;y+=13)for(let x=Math.floor((x0-4)/13)*13;x<x0+size+4;x+=13){
-        const q=hash(x,y,304);if(q<.64)continue;const xx=x+q*8,yy=y+hash(y,x)*8;
-        line(ctx,xx,yy,xx-1.5,yy-3.2,'#365b3b88',.7);line(ctx,xx+.7,yy,xx+2.6,yy-2,'#bdc28b80',.65);
-      }
+    // Sparse eroded fissures and actual tufts keep the material organic at zoom.
+    for(let gy=Math.floor(y0/64)-1;gy<=(y0+size)/64;gy++)for(let gx=Math.floor(x0/64)-1;gx<=(x0+size)/64;gx++){
+      const q=hash(gx,gy,map.world+24),x=gx*64+q*48,y=gy*64+hash(gy,gx,91)*48;if(q<.65)continue;
+      const pts=[[x,y],[x+5,y-3],[x+13,y-1],[x+19,y-5],[x+26,y-3]];path(ctx,pts,null,p.shade+'6b',.75);path(ctx,pts.map(a=>[a[0],a[1]+.8]),null,p.light+'4a',.65);
+      if(map.world===3){line(ctx,x,y,x-2,y-5,'#34513e8c',.9);line(ctx,x+1,y,x+4,y-3,'#bdc68a99',.7);}
     }
   }
-
+  function waterSurface(ctx,map,x0,y0,size,p){
+    ctx.save();ctx.beginPath();let wet=false;
+    for(let ty=Math.max(0,Math.floor(y0/32));ty<Math.min(map.height,Math.ceil((y0+size)/32));ty++)for(let tx=Math.max(0,Math.floor(x0/32));tx<Math.min(map.width,Math.ceil((x0+size)/32));tx++)if(isWater(map,tx,ty)){ctx.rect(tx*32,ty*32,32,32);wet=true;}
+    if(wet){ctx.clip();texture(ctx,map,'water',x0,y0,size,size);const g=ctx.createLinearGradient(0,0,map.width*32,map.height*32);g.addColorStop(0,p.waterHi+'26');g.addColorStop(1,'#142b3433');ctx.fillStyle=g;ctx.fillRect(x0,y0,size,size);}ctx.restore();
+  }
   function water(ctx,map,tx,ty,p) {
     const x=tx*TILE,y=ty*TILE;
     const n=isWater(map,tx,ty-1),s=isWater(map,tx,ty+1),w=isWater(map,tx-1,ty),e=isWater(map,tx+1,ty);
     ctx.save();ctx.beginPath();ctx.rect(x,y,TILE,TILE);ctx.clip();
-    ctx.fillStyle=p.water;ctx.fillRect(x,y,TILE,TILE);
-    // Every cell samples the same world-space material. A local diagonal
-    // gradient would restart its light/deep colours every32 pixels.
-    const g=ctx.createLinearGradient(0,0,map.width*TILE,map.height*TILE);
-    g.addColorStop(0,p.waterHi+'26');g.addColorStop(.6,p.water+'00');g.addColorStop(1,'#142b3428');
-    ctx.fillStyle=g;ctx.fillRect(x,y,TILE,TILE);
-    for(let gy=Math.floor((y-96)/80);gy<=(y+TILE+96)/80;gy++)for(let gx=Math.floor((x-96)/80);gx<=(x+TILE+96)/80;gx++){
-      const q=hash(gx,gy,map.world+212),xx=gx*80+q*36,yy=gy*80+hash(gy,gx,213)*36;
-      const r=45+q*25,swirl=ctx.createRadialGradient(xx,yy,1,xx,yy,r);
-      swirl.addColorStop(0,q>.55?p.waterHi+'22':'#142e3518');swirl.addColorStop(1,p.water+'00');
-      ctx.fillStyle=swirl;ctx.fillRect(xx-r,yy-r,r*2,r*2);
-    }
     // The lighter material belongs to the actual shore, fading inward. Wide
     // lakes and lava pools keep a continuous centre rather than a tile grid.
     function shallows(x1,y1,x2,y2,rx,ry,rw,rh){
@@ -160,12 +145,8 @@
   }
   function road(ctx,map,tx,ty,p) {
     const a=roadShape(ctx,map,tx,ty,32);ctx.fillStyle=p.roadEdge;ctx.fill();
-    roadShape(ctx,map,tx,ty,28);ctx.fillStyle=p.road;ctx.fill();
+    roadShape(ctx,map,tx,ty,28);ctx.fillStyle=ctx.createPattern(material(map.world||0,'road'),'repeat');ctx.fill();
     ctx.save();roadShape(ctx,map,tx,ty,28);ctx.clip();
-    for(let k=0;k<70;k++){
-      const q=hash(tx*59+k,ty,63),x=a.x+q*32,y=a.y+hash(ty*47+k,tx,15)*32;
-      ellipse(ctx,x,y,.22+q*.5,.16+q*.18,k%3?p.light+'22':p.grit+'48');
-    }
     // Worn wheel ruts follow the outside lanes of a continuous road; broad
     // road interiors are fine gravel, rather than repeated crosshatching.
     const horizontal=(a.w||a.e)&&(!a.n||!a.s),vertical=(a.n||a.s)&&(!a.w||!a.e);
@@ -203,22 +184,28 @@
       if(tile(map,tx,ty)===2){ctx.rect(tx*32,ty*32,32,32);present=true;}
     }
     if(!present){ctx.restore();return;}ctx.clip();
-    ctx.fillStyle=p.rockLo;ctx.fillRect(x0,y0,size,size);
-    for(let gy=Math.floor((y0-24)/18);gy<=(y0+size+24)/18;gy++)for(let gx=Math.floor((x0-24)/21);gx<=(x0+size+24)/21;gx++){
-      const h=hash(gx,gy,79),xx=gx*21+h*13,yy=gy*18+hash(gy,gx,67)*12;
-      const rx=10+hash(gx,gy,87)*9,ry=6+hash(gy,gx,89)*7;
-      const pts=[[xx-rx,yy],[xx-rx*.65,yy-ry],[xx+rx*.15,yy-ry-1],[xx+rx,yy-ry*.15],[xx+rx*.65,yy+ry],[xx-rx*.6,yy+ry*.7]];
-      const g=ctx.createLinearGradient(xx-rx,yy-ry,xx+rx,yy+ry);
-      g.addColorStop(0,p.rockHi);g.addColorStop(.42,p.rock);g.addColorStop(1,p.rockLo);
-      path(ctx,pts,g,p.rockLo,.7);path(ctx,pts.slice(0,4),null,p.rockHi+'af',.8);
-      line(ctx,xx-1,yy-ry*.8,xx+2,yy-1,p.rockLo+'88',.6);
-      if(map.world===2)path(ctx,[[xx-rx*.7,yy-ry*.7],[xx-rx*.4,yy-ry],[xx+rx*.1,yy-ry-1],[xx+rx*.55,yy-ry*.4],[xx,yy-ry*.35]],'#e9f0e8e0');
+    texture(ctx,map,'rock',x0,y0,size,size);
+    // Broad natural relief lives in the baked material. Sparse hairline
+    // fractures add scale without the old repeating polygon/zigzag grid.
+    for(let gy=Math.floor(y0/96);gy<=(y0+size)/96;gy++)for(let gx=Math.floor(x0/96);gx<=(x0+size)/96;gx++){
+      const q=hash(gx,gy,79),x=gx*96+q*64,y=gy*96+hash(gy,gx,67)*64;if(q<.55)continue;
+      const pts=[[x-9,y+5],[x-2,y-3],[x+5,y-1],[x+12,y-8]];path(ctx,pts,null,p.rockLo+'55',.7);path(ctx,pts.map(a=>[a[0]-.7,a[1]-.7]),null,p.rockHi+'55',.5);
     }
+    // Explicit vertical cliff faces sit inside the blocked cells. The former
+    // microtexture alone read as grey flooring rather than raised terrain.
     for(let ty=Math.max(0,Math.floor(y0/32));ty<Math.min(map.height,Math.ceil((y0+size)/32));ty++)for(let tx=Math.max(0,Math.floor(x0/32));tx<Math.min(map.width,Math.ceil((x0+size)/32));tx++){
-      if(tile(map,tx,ty)!==2||tile(map,tx,ty+1)===2)continue;const x=tx*32,y=ty*32;
-      const g=ctx.createLinearGradient(x,y+23,x,y+32);g.addColorStop(0,p.rockLo+'00');g.addColorStop(1,p.rockLo+'a0');
-      ctx.fillStyle=g;ctx.fillRect(x,y+23,32,9);
+      if(tile(map,tx,ty)!==2)continue;const x=tx*32,y=ty*32,n=tile(map,tx,ty-1)!==2,s=tile(map,tx,ty+1)!==2,w=tile(map,tx-1,ty)!==2,e=tile(map,tx+1,ty)!==2;
+      if(n){const g=ctx.createLinearGradient(x,y,x,y+12);g.addColorStop(0,p.rockLo);g.addColorStop(.55,p.rock);g.addColorStop(1,p.rockHi);ctx.fillStyle=g;ctx.fillRect(x,y,32,12);line(ctx,x,y+.7,x+32,y+.7,'#192420aa',1.2);line(ctx,x,y+12,x+32,y+12,p.rockHi,1.4);}
+      if(s){const g=ctx.createLinearGradient(x,y+20,x,y+32);g.addColorStop(0,p.rock);g.addColorStop(.12,p.rockLo+'c9');g.addColorStop(1,'#1d2727');ctx.fillStyle=g;ctx.fillRect(x,y+20,32,12);line(ctx,x,y+20,x+32,y+20,p.rockHi+'d9',1.5);line(ctx,x,y+31,x+32,y+31,'#172021cc',1);}
+      if(w){const g=ctx.createLinearGradient(x,y,x+7,y);g.addColorStop(0,p.rockLo);g.addColorStop(.4,p.rock);g.addColorStop(1,p.rockHi);ctx.fillStyle=g;ctx.fillRect(x,y,7,32);line(ctx,x+7,y,x+7,y+32,p.rockHi+'c9',1);}
+      if(e){const g=ctx.createLinearGradient(x+24,y,x+32,y);g.addColorStop(0,p.rockLo+'77');g.addColorStop(1,'#182222dd');ctx.fillStyle=g;ctx.fillRect(x+24,y,8,32);line(ctx,x+24,y,x+24,y+32,p.rockHi+'99',1);}
+      if(n||s)for(let k=0;k<5;k++){const q=hash(tx*11+k,ty,947),xx=x+2+q*28,top=n?y+2:y+21,fall=6+hash(ty*7+k,tx,948)*5;line(ctx,xx,top,xx-.8,top+fall,p.rockLo+'bc',.7);line(ctx,xx+.8,top,xx+.4,top+fall,p.rockHi+'55',.5);}
     }ctx.restore();
+    for(let ty=Math.max(0,Math.floor(y0/32));ty<Math.min(map.height,Math.ceil((y0+size)/32));ty++)for(let tx=Math.max(0,Math.floor(x0/32));tx<Math.min(map.width,Math.ceil((x0+size)/32));tx++){
+      if(tile(map,tx,ty)!==2)continue;const x=tx*32,y=ty*32;
+      if(tile(map,tx,ty+1)!==2){const g=ctx.createLinearGradient(x,y+32,x,y+38);g.addColorStop(0,'#16201e70');g.addColorStop(1,'#16201e00');ctx.fillStyle=g;ctx.fillRect(x,y+32,32,6);}
+      if(tile(map,tx+1,ty)!==2){const g=ctx.createLinearGradient(x+32,y,x+37,y);g.addColorStop(0,'#16201e55');g.addColorStop(1,'#16201e00');ctx.fillStyle=g;ctx.fillRect(x+32,y,5,32);}
+    }
   }
 
   function makeChunk(map,cx,cy,density) {
@@ -228,7 +215,7 @@
     const size=CHUNK+PAD*2,image=canvas(size*density,size*density),ctx=image.getContext('2d');
     const x0=cx*CHUNK-PAD,y0=cy*CHUNK-PAD,p=palettes[map.world]||palettes[0];
     ctx.scale(density,density);ctx.translate(-x0,-y0);
-    ground(ctx,map,x0,y0,size,p);
+    ground(ctx,map,x0,y0,size,p);waterSurface(ctx,map,x0,y0,size,p);
     const tx0=Math.max(0,Math.floor(x0/32)),ty0=Math.max(0,Math.floor(y0/32));
     const tx1=Math.min(map.width,Math.ceil((x0+size)/32)),ty1=Math.min(map.height,Math.ceil((y0+size)/32));
     for(let ty=ty0;ty<ty1;ty++)for(let tx=tx0;tx<tx1;tx++){
@@ -255,35 +242,27 @@
     }
     ctx.drawImage(image,0,0,map.width*32,map.height*32);return true;
   }
-  function terrain(ctx,map,time=0,viewport) {
-    if(!map||!map.width||!map.height)return false;
-    if(!viewport)return overview(ctx,map);
-    const transform=ctx.getTransform?.(),projection=transform?Math.hypot(transform.a,transform.b):1;
-    const density=projection<.7?1:2;
-    const key=worldKey(map),x0=Math.max(0,Math.floor(viewport.x/CHUNK)),y0=Math.max(0,Math.floor(viewport.y/CHUNK));
-    const x1=Math.min(Math.ceil(map.width*32/CHUNK)-1,Math.floor((viewport.x+viewport.w)/CHUNK));
-    const y1=Math.min(Math.ceil(map.height*32/CHUNK)-1,Math.floor((viewport.y+viewport.h)/CHUNK));
-    ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
-      const stamp=`${key}:${density}:${x}:${y}`;let image=cache.get(stamp);
-      if(!image){
-        image=makeChunk(map,x,y,density);cache.set(stamp,image);cacheBytes+=image.width*image.height*4;
-        while(cacheBytes>MAX_CACHE_BYTES){const first=cache.keys().next().value,old=cache.get(first);cacheBytes-=old.width*old.height*4;cache.delete(first);}
-      }
-      else {cache.delete(stamp);cache.set(stamp,image);}
-      ctx.drawImage(image,x*CHUNK-PAD,y*CHUNK-PAD,CHUNK+PAD*2,CHUNK+PAD*2);
-    }
-    // A low-opacity moving glint makes water alive without rebuilding its chunks.
+  function terrain(ctx,map,time=0,viewport){
+    if(!map||!map.width||!map.height)return false;if(!viewport)return overview(ctx,map);
+    const transform=ctx.getTransform?.(),projection=transform?Math.hypot(transform.a,transform.b):1,density=projection>1.6?2:1;
+    const key=worldKey(map)+':materials'+(materialRevisions.get(map.world||0)||0),x0=Math.max(0,Math.floor(viewport.x/CHUNK)),y0=Math.max(0,Math.floor(viewport.y/CHUNK)),x1=Math.min(Math.ceil(map.width*32/CHUNK)-1,Math.floor((viewport.x+viewport.w)/CHUNK)),y1=Math.min(Math.ceil(map.height*32/CHUNK)-1,Math.floor((viewport.y+viewport.h)/CHUNK));
+    ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';overview(ctx,map);
+    const missing=[];
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const stamp=`${key}:${density}:${x}:${y}`;if(!cache.has(stamp))missing.push({x,y,stamp});}
+    // A newly exposed viewport never creates an entire high resolution map in
+    // one frame. Fill from the overview, then complete its nearest chunk first.
+    missing.sort((a,b)=>Math.hypot((a.x+.5)*CHUNK-viewport.x-viewport.w/2,(a.y+.5)*CHUNK-viewport.y-viewport.h/2)-Math.hypot((b.x+.5)*CHUNK-viewport.x-viewport.w/2,(b.y+.5)*CHUNK-viewport.y-viewport.h/2));
+    if(missing.length){const item=missing.shift(),at=clock(),image=makeChunk(map,item.x,item.y,density),elapsed=clock()-at;cache.set(item.stamp,image);cacheBytes+=image.width*image.height*4;timings.chunksBuilt++;timings.chunkBuildMs+=elapsed;timings.maxChunkMs=Math.max(timings.maxChunkMs,elapsed);
+      while(cacheBytes>MAX_CACHE_BYTES){const first=cache.keys().next().value,old=cache.get(first);cacheBytes-=old.width*old.height*4;cache.delete(first);}}
+    timings.pendingChunks=missing.length;
     const p=palettes[map.world]||palettes[0],phase=(Number(time)||0)*.65;
-    ctx.strokeStyle=p.waterHi+'32';ctx.lineWidth=.65;ctx.lineCap='round';
-    for(let ty=Math.max(0,Math.floor(viewport.y/32));ty<Math.min(map.height,Math.ceil((viewport.y+viewport.h)/32));ty++){
-      for(let tx=Math.max(0,Math.floor(viewport.x/32));tx<Math.min(map.width,Math.ceil((viewport.x+viewport.w)/32));tx++){
-        if(tile(map,tx,ty)!==3||hash(tx,ty,6)<.65)continue;
-        const q=hash(tx,ty,8),xx=tx*32+6+q*13,yy=ty*32+9+Math.sin(phase+q*12)*1.4;
-        ctx.globalAlpha=.3+.6*Math.sin(phase+q*10)**2;ctx.beginPath();ctx.moveTo(xx,yy);ctx.quadraticCurveTo(xx+3,yy-1,xx+7,yy);ctx.stroke();
-      }
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const stamp=`${key}:${density}:${x}:${y}`,image=cache.get(stamp);if(!image)continue;cache.delete(stamp);cache.set(stamp,image);ctx.drawImage(image,x*CHUNK-PAD,y*CHUNK-PAD,CHUNK+PAD*2,CHUNK+PAD*2);
+      // A handful of stable world-space glints adds movement without scanning
+      // every map tile and rebuilding the static water material each frame.
+      ctx.strokeStyle=p.waterHi+'4a';ctx.lineWidth=.7;ctx.lineCap='round';for(let n=0;n<8;n++){const tx=x*8+Math.floor(hash(x,y,n)*8),ty=y*8+Math.floor(hash(y,x,n+90)*8);if(tile(map,tx,ty)!==3)continue;const q=hash(tx,ty,8),xx=tx*32+6+q*13,yy=ty*32+9+Math.sin(phase+q*12)*1.4;ctx.globalAlpha=.35+.5*Math.sin(phase+q*10)**2;ctx.beginPath();ctx.moveTo(xx,yy);ctx.quadraticCurveTo(xx+3,yy-1,xx+7,yy);ctx.stroke();}ctx.globalAlpha=1;
     }
     ctx.restore();return true;
   }
-  global.HDTerrain={terrain,overview,minimap:overview,clear(){cache.clear();overviews.clear();cacheBytes=0;},get cacheSize(){return cache.size;},get cacheBytes(){return cacheBytes;}};
+  global.HDTerrain={terrain,overview,load,minimap:overview,clear(){cache.clear();overviews.clear();cacheBytes=0;},get cacheSize(){return cache.size;},get cacheBytes(){return cacheBytes;},get stats(){return{...timings,cacheBytes,cacheSize:cache.size,materialCount:materials.size};}};
+  if(assetBase&&typeof Image==='function')load();
 })(window);

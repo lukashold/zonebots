@@ -12,7 +12,7 @@ async function check(mode){
  const exports={...raw,run:(ptr,length)=>{
   const request=JSON.parse(Buffer.from(new Uint8Array(raw.memory.buffer,ptr,length)).toString());
   if(request.op==='command')commands.push(request);
-  const n=raw.run(ptr,length);response=JSON.parse(Buffer.from(new Uint8Array(raw.memory.buffer,raw.output(),n)).toString());return n;
+  const n=raw.run(ptr,length);const part=JSON.parse(Buffer.from(new Uint8Array(raw.memory.buffer,raw.output(),n)).toString());response=part.map?part:{...response,...part};return n;
  }};
  const bounds=u=>{const f=u.team<0&&metadata.frames[metadata.neutralUnits[u.type]];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;};
  const art=new Proxy({ready:true,load:async()=>true,unitBounds:bounds,fortGuns:()=>[],flagBounds:()=>null,entryCursor:()=> 'entry-arrow',entryArrow:(c,x,y,map,elapsed)=>{arrows.push({x,y,elapsed});return true;}},{get:(o,k)=>k in o?o[k]:(()=>true)});

@@ -43,6 +43,8 @@ window.GameGraphics=(()=>{
  for(const select of document.querySelectorAll('[data-graphics-select]'))select.addEventListener('change',()=>setMode(select.value));
  for(const radio of document.querySelectorAll('[data-graphics-choice]'))radio.addEventListener('change',()=>{if(radio.checked)setMode(radio.value);});
  window.addEventListener('storage',event=>{if(event.key===key){mode=event.newValue==='hd'?'hd':'original';reflect();window.dispatchEvent(new Event('graphicschange'));}});
+ function warmPreviews(){paintPreviews();let frames=8;const next=()=>{paintPreviews();if(--frames>0)window.requestAnimationFrame?.(next);};window.requestAnimationFrame?.(next);}
+ window.addEventListener('hdmaterialsready',warmPreviews);
  reflect();
- return Object.freeze({art,isHD,setMode,get mode(){return mode;},setPreviewScene(scene){previewScene=scene;paintPreviews();},paintPreviews});
+ return Object.freeze({art,isHD,setMode,get mode(){return mode;},setPreviewScene(scene){previewScene=scene;warmPreviews();},paintPreviews});
 })();

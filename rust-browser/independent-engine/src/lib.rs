@@ -187,6 +187,9 @@ pub struct Game {
     pub winner: Option<i32>,
     pub difficulty: usize,
     pub mission: usize,
+    /// Two human players share one authoritative simulation; difficulty must not favor a side.
+    #[serde(default)]
+    pub multiplayer: bool,
     #[serde(skip)]
     next_id: usize,
     #[serde(skip)]
@@ -228,6 +231,7 @@ impl Game {
             winner: None,
             difficulty: difficulty.min(3),
             mission,
+            multiplayer: false,
             next_id: 1,
             ai_clock: 3.,
             rng: seed.max(1),
@@ -517,12 +521,12 @@ impl Game {
             .as_array()
             .map(|a| {
                 a.iter()
-                    .filter_map(|n| n.as_u64().map(|x| x as usize))
+                    .filter_map(|n| n.as_u64().and_then(|x| usize::try_from(x).ok()))
                     .collect()
             })
             .unwrap_or_default();
         let kind = v["kind"].as_str().unwrap_or("move");
-        let team = v["team"].as_i64().unwrap_or(0) as i32;
+        let Ok(team) = request_team(v) else { return; };
         for (n, id) in ids.iter().enumerate() {
             let Some(i) = self
                 .units
@@ -579,17 +583,18 @@ impl Game {
         }
     }
     pub fn produce(&mut self, id: usize, k: Option<&str>) {
-        if id >= self.buildings.len() || self.buildings[id].team != 0 {
-            return;
+        self.produce_for_team(id, k, 0);
+    }
+    pub fn produce_for_team(&mut self, id: usize, k: Option<&str>, team: i32) -> bool {
+        if !(0..=1).contains(&team) { return false; }
+        let Some(i) = self.buildings.iter().position(|b| b.id == id && b.team == team && b.hp > 0.) else { return false; };
+        if k.is_some_and(|kind| !self.products(&self.buildings[i]).contains(&kind)) { return false; }
+        let product = k.map(str::to_string).or_else(|| self.default_product(&self.buildings[i]));
+        if self.buildings[i].product != product {
+            self.buildings[i].progress = 0.;self.buildings[i].remaining_work=None;
         }
-        if k.is_some_and(|kind| !self.products(&self.buildings[id]).contains(&kind)) {
-            return;
-        }
-        let product = k.map(str::to_string).or_else(|| self.default_product(&self.buildings[id]));
-        if self.buildings[id].product != product {
-            self.buildings[id].progress = 0.;self.buildings[id].remaining_work=None;
-        }
-        self.buildings[id].product = product;
+        self.buildings[i].product = product;
+        true
     }
     fn ai(&mut self) {
         let teams = self.ai_teams.clone();
@@ -923,7 +928,7 @@ impl Game {
         for attack in original_damage {
             if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp)) {
                 let mut rng=self.rng;
-                original_combat::apply_attack(&mut self.units[i],attack,self.difficulty,||advance_random(&mut rng));
+                original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||advance_random(&mut rng));
                 self.rng=rng;
                 if self.units[i].hp<0. {
                     let u=&self.units[i];
@@ -1081,39 +1086,81 @@ impl Game {
     }
 }
 thread_local! {static GAME:RefCell<Option<Game>>=const{RefCell::new(None)};static OUT:RefCell<Vec<u8>>=const{RefCell::new(Vec::new())};}
+fn request_team(v: &Value) -> Result<i32, &'static str> {
+    match v.get("team") {
+        None | Some(Value::Null) => Ok(0),
+        Some(team) => match team.as_i64() {
+            Some(team @ 0..=1) => Ok(team as i32),
+            _ => Err("Invalid player team"),
+        },
+    }
+}
+
+/// Static map and resource-independent descriptors are unchanged in almost all
+/// ticks. Do not serialize their large arrays just to discard them in JavaScript.
+fn game_snapshot(g: &Game, request: &Value) -> Value {
+    let compact = request["compact"].as_bool().unwrap_or(false);
+    let known_seed = request["knownMapSeed"].as_u64() == Some(g.map.seed as u64);
+    let known_revision = request["knownMapRevision"].as_u64() == Some(g.map.revision as u64);
+    let include_static = !compact || request["op"] == "init" || request["includeStatic"] == true || !known_seed;
+    let include_map = include_static || !known_revision;
+    let mut value = json!({
+        "sectors": &g.sectors, "buildings": &g.buildings, "units": &g.units,
+        "effects": &g.effects, "crates": &g.crates, "events": &g.events,
+        "time": g.time, "winner": g.winner, "difficulty": g.difficulty,
+        "mission": g.mission, "multiplayer": g.multiplayer,
+        "mapSeed": g.map.seed, "mapRevision": g.map.revision,
+        "productionSeconds": g.buildings.iter().map(|b| g.remaining_seconds(b)).collect::<Vec<_>>(),
+        "buildMenus": g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>(),
+    });
+    if include_map { value["map"] = serde_json::to_value(&g.map).unwrap(); }
+    if include_static {
+        value["objects"] = json!(&g.objects);
+        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
+    }
+    value
+}
+
 pub fn request(v: Value) -> Value {
     GAME.with(|cell| {
         let mut state = cell.borrow_mut();
         if v["op"] == "init" {
-            let mut g = Game::new(v["mission"].as_u64().unwrap_or(0) as usize, v["difficulty"].as_u64().unwrap_or(1) as usize, v["seed"].as_u64().unwrap_or(7163) as u32);
+            let multiplayer = v["multiplayer"].as_bool().unwrap_or(false);
+            let difficulty = if multiplayer { 1 } else { v["difficulty"].as_u64().unwrap_or(1) as usize };
+            let mut g = Game::new(v["mission"].as_u64().unwrap_or(0) as usize, difficulty, v["seed"].as_u64().unwrap_or(7163) as u32);
+            g.multiplayer = multiplayer;
             if !v["originalMission"].is_null() {
                 if let Err(e) = g.apply_original(&v["originalMission"]) { return json!({"error":e}); }
             }
-            if let Some(a) = v["aiTeams"].as_array() { g.ai_teams = a.iter().filter_map(|x| x.as_i64().map(|x| x as i32)).collect(); }
+            if multiplayer { g.ai_teams.clear(); }
+            else if let Some(a) = v["aiTeams"].as_array() { g.ai_teams = a.iter().filter_map(|x| x.as_i64().filter(|x| (0..=1).contains(x)).map(|x| x as i32)).collect(); }
             *state = Some(g);
         }
         let Some(g) = state.as_mut() else { return json!({"error":"Initialize first"}); };
-        let id = v["id"].as_u64().unwrap_or(usize::MAX as u64) as usize;
-        let slot = v.get("slot").map(|n| n.as_u64().map(|i| i as usize).unwrap_or(usize::MAX)).unwrap_or(0);
+        let requested_team = if matches!(v["op"].as_str(), Some("command" | "produce" | "placeGun" | "previewGun")) {
+            match request_team(&v) { Ok(team) => team, Err(error) => return json!({"error":error}) }
+        } else { 0 };
+        // Single-player gun/production endpoints historically belong to red.
+        // A client-supplied team becomes meaningful only in an explicit PvP game.
+        let team = if !g.multiplayer && matches!(v["op"].as_str(), Some("produce" | "placeGun" | "previewGun")) { 0 } else { requested_team };
+        let id = v["id"].as_u64().and_then(|id| usize::try_from(id).ok()).unwrap_or(usize::MAX);
+        let slot = v.get("slot").map(|n| n.as_u64().and_then(|i| usize::try_from(i).ok()).unwrap_or(usize::MAX)).unwrap_or(0);
         let x = v["x"].as_f64().unwrap_or(f64::NAN);
         let y = v["y"].as_f64().unwrap_or(f64::NAN);
         if v["op"] == "previewGun" {
-            return serde_json::to_value(g.gun_placement_preview(id, slot, x, y, 0)).unwrap();
+            return serde_json::to_value(g.gun_placement_preview(id, slot, x, y, team)).unwrap();
         }
-        g.events.clear();
+        if v["op"] != "snapshot" { g.events.clear(); }
         let mut placement = None;
         match v["op"].as_str().unwrap_or("") {
             "tick" => g.step(v["dt"].as_f64().unwrap_or(0.04)),
             "advance" => for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000) { g.step(0.1); },
             "command" => g.command(&v),
-            "produce" => g.produce(id, v["product"].as_str()),
-            "placeGun" => placement = Some(g.place_gun_for_team(id, slot, x, y, 0)),
+            "produce" => { g.produce_for_team(id, v["product"].as_str(), team); },
+            "placeGun" => placement = Some(g.place_gun_for_team(id, slot, x, y, team)),
             _ => {},
         }
-        let mut value = serde_json::to_value(&*g).unwrap();
-        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
-        value["productionSeconds"] = json!(g.buildings.iter().map(|b| g.remaining_seconds(b)).collect::<Vec<_>>());
-        value["buildMenus"] = json!(g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>());
+        let mut value = game_snapshot(g, &v);
         if let Some(result) = placement { value["placementResult"] = serde_json::to_value(result).unwrap(); }
         value
     })
@@ -1159,6 +1206,8 @@ mod attack_target_tests;
 mod pursuit_tests;
 #[cfg(test)]
 mod terrain_tests;
+#[cfg(test)]
+mod multiplayer_tests;
 
 fn production_sector()->bool{true}
 

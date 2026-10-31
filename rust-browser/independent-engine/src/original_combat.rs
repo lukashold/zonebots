@@ -133,6 +133,17 @@ pub fn apply_attack(
     difficulty: usize,
     next_random: impl FnMut() -> u32,
 ) -> bool {
+    apply_attack_with_mode(unit, attack, difficulty, false, next_random)
+}
+
+/// The original multiplayer branch bypasses single-player damage modifiers.
+pub fn apply_attack_with_mode(
+    unit: &mut Unit,
+    attack: Attack,
+    difficulty: usize,
+    multiplayer: bool,
+    next_random: impl FnMut() -> u32,
+) -> bool {
     let p = profile(&unit.kind);
     let mechanical = super::stats(&unit.kind).cls > 0;
     let state = unit
@@ -165,11 +176,11 @@ pub fn apply_attack(
             attack.facing,
             attack.damage,
             difficulty,
-            false,
+            multiplayer,
             next_random,
         )
     } else {
-        apply_body_damage(&mut target, attack.damage, difficulty, false)
+        apply_body_damage(&mut target, attack.damage, difficulty, multiplayer)
     };
     if result.route == DamageRoute::Body && !state.immune {
         if let Some(mut hull) = old_hull {

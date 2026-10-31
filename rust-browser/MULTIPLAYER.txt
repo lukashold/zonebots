@@ -1,0 +1,63 @@
+MULTIPLAYER – Z / RUST / BROWSER
+
+Verbindung
+Zwei Browser verbinden sich direkt über einen verschlüsselten WebRTC-Datenkanal.
+Der Gastgeber berechnet die gemeinsame Partie; der Gast sendet seine Befehle an
+den Gastgeber. Unterschiedliche Grafikmodi sind möglich, die Spielversion muss
+auf beiden Seiten übereinstimmen. Es werden keine Mikrofon- oder Kamerarechte
+benötigt. Verbindungscodes und optionale TURN-Zugangsdaten werden nicht gespeichert.
+
+Internet
+1. Beide Spieler öffnen dieselbe aktuelle Spielversion und das Multiplayer-Menü.
+2. Der Gastgeber erstellt eine Einladung im Internet-Modus und gibt den Code
+   an den Mitspieler weiter.
+3. Der Mitspieler fügt die Einladung ein und gibt den erzeugten Antwortcode an
+   den Gastgeber zurück.
+4. Der Gastgeber übernimmt den Antwortcode. Erst wenn beide verbunden sind,
+   kann die gemeinsame Partie gestartet werden.
+
+Die Codes ersetzen einen zentralen Vermittlungsdienst. Der Internet-
+Modus verwendet den STUN-Server aus dem offiziellen WebRTC-Beispiel. Manche
+Router- und Firmennetz-Konfigurationen erlauben keine direkte Verbindung; dann
+ist ein eigener TURN-Server oder ein anderes Netzwerk erforderlich. Ein STUN-
+Server allein garantiert keine Verbindung durch jede NAT-/Firewall-Kombination.
+Die private Spielseite bleibt privat. Ein Einladungscode erteilt dem Mitspieler
+keine zusätzlichen Zugriffsrechte auf diese Webseite.
+
+Lokales Netzwerk
+Auf dem Rechner mit der lokalen Spielversion ausführen:
+
+    python independent-engine/serve.py --lan --no-browser --port 8765
+
+Das Terminal zeigt die LAN-Spieladressen, z.B. http://192.168.1.20:8765/ . Beide
+Geräte öffnen dieselbe LAN-Adresse. Im Multiplayer-Menü lokales Netzwerk wählen
+und Einladung/Antwort wie oben austauschen. Dieser Modus benötigt keinen STUN-
+Server und keine Portweiterleitung im Router. Der HTTP-Server stellt das Spiel
+einschließlich seines lokalen Ressourcenpakets den Geräten im Netzwerk bereit.
+Ohne --lan bleibt der Server ausschließlich auf dem eigenen Rechner erreichbar.
+
+Falls die Seite auf dem zweiten Gerät nicht erreichbar ist, muss Python für das
+private Netzwerk in der System-Firewall erlaubt sein. In Gast-WLANs kann eine
+Client-Isolation direkte Verbindungen zwischen Geräten verhindern. Der Server
+ändert keine Firewall- oder Router-Einstellungen automatisch.
+
+Abbruch
+Eine unterbrochene Verbindung hält die Partie an und wird im Pausenfenster
+gemeldet. Ein endgültig getrennter Kanal braucht eine neue Einladung und einen
+neuen Partiestart. Das Fortsetzen eines alten Spielstands nach einer neuen
+Verbindung sowie automatische Gastgeberübernahme sind nicht implementiert.
+Der Gastgeber muss den Spieltab während der Partie geöffnet und aktiv halten.
+
+Technik und Prüfungen
+Das Protokoll prüft Version, Spielstand-Build, Rollen und Einladung vor der ersten
+Spielnachricht. Große Zustände werden in 12-KiB-Pakete zerlegt. Datenwarteschlangen
+sind begrenzt; bei Rückstau wartet der Spielkern mit weiteren Zustandsbildern.
+Der Transport unterstützt zusätzlich ersetzbare Nachrichten für geeignete Daten.
+Ein Heartbeat erkennt Verbindungsverlust. Der Transport führt selbst keine
+Spielbefehle aus; Eigentums- und Befehlsprüfung erfolgen beim Gastgeber.
+
+    node tools/check-multiplayer.cjs
+
+Quellen:
+https://webrtc.org/getting-started/peer-connections
+https://webrtc.org/getting-started/data-channels
