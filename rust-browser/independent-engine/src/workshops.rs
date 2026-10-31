@@ -65,7 +65,7 @@ impl Game {
         let Some(path)=self.workshop_path(&self.units[index],&b)else{return false;};
         let total=work_for(u.hp,u.max_hp);
         let unit=&mut self.units[index];unit.order="repairVehicle".into();unit.target=Some(target);
-        unit.dest=Some(stage(&b,self.map.original));unit.path=path;unit.initiative=None;unit.pursuit=None;unit.hold_position=false;
+        unit.dest=Some(stage(&b,self.map.original));unit.path=path;unit.initiative=None;unit.march_resume=None;unit.pursuit=None;unit.hold_position=false;
         unit.workshop=Some(State{building_id:target,phase:"approach".into(),remaining:total,total,seconds:None,progress:0.,tick_clock:0.,heal_ticks:0,admitting:false});
         true
     }

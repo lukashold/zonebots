@@ -45,7 +45,13 @@ The active engine is `rust-browser/independent-engine/`; rendering and input are
 building technology and start groups from the separately extracted pack. Production
 work/rates, weapon values and selected damage/crew rules are checked against the
 original. The AI, projectile trajectories, animation timing and other behaviors
-still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle units seek nearby flags and vacant hardware; explicit commands retain priority.
+still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle and marching units seek nearby flags and vacant hardware; targeted combat, repair and Stop orders retain priority.
+
+Ordinary marches now detour to nearby eligible flags and empty hardware, then
+continue toward the ordered destination. One infantry driver reserves each vehicle;
+after boarding, mobile hardware replans toward that destination using its own terrain
+rules. Fixed guns remain in place. Other squad members retain their formation goals.
+See the [march interaction evidence and tests](rust-browser/ORIGINAL-MARSCH.txt).
 
 Occupied Light, Medium and Heavy tanks now include their native closed-hatch
 layer and full composite selection bounds. Boarding, unloading and crew death

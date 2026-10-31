@@ -200,3 +200,14 @@ Standgrafik. Bei HD sind Größe und Mannschaftsfarben deutlicher; Leerpanzer
 behalten auch dort eine feste Abstellansicht. 162 Rust-Tests und 55 Node-
 Prüfprogramme bestehen. Befunde und verbleibende Animationsgrenzen stehen in
 ORIGINAL-PANZER.txt. Nach dem Update bitte die Spielseite neu laden.
+
+FAHNEN UND FAHRZEUGE UNTERWEGS – 31.10.2026
+Soldaten suchen jetzt auch während eines normalen Marsches nach geeigneten
+Fahnen und unbesetzten Fahrzeugen oder Geschützen in ihrer Nähe. Nach einem
+Fahnenumweg geht der Marsch weiter. Ein bewegliches Fahrzeug übernimmt nach
+dem Bemannen das bisherige Marschziel und berechnet dafür seinen eigenen Weg.
+Ein festes Geschütz bleibt an seinem Platz. Je leerer Hardware steigt genau
+ein Roboter ein; übrige Truppmitglieder behalten ihre jeweiligen Ziele.
+Stopp, neue Befehle, gezielte Angriffe und Reparaturen werden berücksichtigt.
+175 Rust-Tests und56 Node-Prüfprogramme bestehen. Originalbelege, angepasste
+Abläufe und Prüfungen: ORIGINAL-MARSCH.txt. Bitte nach dem Update neu laden.

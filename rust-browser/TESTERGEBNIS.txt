@@ -441,3 +441,13 @@ Finales Wasm568444Bytes, SHA256
 93f64659d18150587f727268eff07561635a1476a30ef672bf64cf5198ec96b4.
 Visuelle Nachweise außerhalb des Spielpakets:outputs/Z-Panzer-Vergleich.png
 undoutputs/Z-Panzer-HD-Vergleich.png. Temporäre Prüfseite wird nicht ausgeliefert.
+
+MARSCH-INTERAKTIONEN – 31.10.2026
+175 Rust-Tests und56 Node-Prüfprogramme bestehen. Neue Fälle:13 Rust-Tests,
+11 tatsächliche Wasm-Szenarien ohne eingebettete Originalkarten. Vorherige
+Wasm-Datei lässt Fahnen/Fahrzeuge unterwegs neutral; korrigierte Datei erobert,
+bemannt und setzt den Marsch fort. Tatsächliche Fahrzeug-Wegplanung über eine
+Brücke, Reservierungsrennen, Gruppen- und Befehlswechsel bleiben geprüft.
+Frischer Ghidra-Abgleich und genaue Grenzen:ORIGINAL-MARSCH.txt.
+Wasm569990Bytes, SHA256
+4983038d0f3919c66bc689d349fc380343a644bf5478dd7e54095687c834181f.

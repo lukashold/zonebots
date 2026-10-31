@@ -1,7 +1,7 @@
 //! Local object initiative, based on GOG Z.exe 0044d920/0044d290/004578b0.
 //! The original rotates directional scans through an animation/state machine.
-//! Here an idle/arrived unit scans all directions every 0.35 simulation seconds;
-//! this cadence and the explicit Stop hold are deliberate browser adaptations.
+//! Here idle and marching units scan all directions every0.35 simulation seconds;
+//! this cadence, march continuation and Stop hold are browser adaptations.
 //! Native range quantization, nearest-object choice, infantry-only crewing and
 //! exclusive object reservation follow the verified code. This is not full AI.
 use super::{original_combat, stats, Game};
@@ -135,13 +135,13 @@ mod tests {
             .any(|e| e["kind"] == "crewed" && e["type"] == "jeep"));
     }
     #[test]
-    fn explicit_move_and_stop_override_local_initiative() {
+    fn marching_scans_objects_and_stop_holds_until_a_new_order() {
         let mut g = game();
         let robot = g.units[0].id;
         g.command(&json!({"kind":"move","ids":[robot],"x":100,"y":320}));
         g.step(0.1);
-        assert_eq!(g.units[0].initiative, None);
-        assert_eq!(g.units[0].dest, Some((100., 320.)));
+        assert_eq!(g.units[0].initiative, Some(Initiative::Flag(0)));
+        assert_eq!(g.units[0].march_resume, Some((100., 320.)));
         g.command(&json!({"kind":"stop","ids":[robot]}));
         let x = g.units[0].x;
         run(&mut g, 40);
@@ -200,6 +200,19 @@ mod tests {
 }
 
 impl Game {
+    /// Complete/release an opportunistic detour without losing a player's march.
+    /// Crewing transfers this destination to mobile hardware, with a fresh route
+    /// for that vehicle's terrain rules. Stationary guns simply stay crewed.
+    pub(super) fn resume_march(&mut self, index:usize, destination:Option<(f64,f64)>) {
+        let u=&mut self.units[index];
+        u.initiative=None;u.march_resume=None;u.order="guard".into();u.target=None;
+        u.dest=None;u.path.clear();u.pursuit=None;u.moving=false;u.hold_position=false;
+        if u.team<0||!original_combat::alive(self.map.original,u.hp)||stats(&u.kind).speed<=0. { return; }
+        if let Some((x,y))=destination {
+            let route=self.route_unit(&self.units[index],x,y);
+            let u=&mut self.units[index];u.order="move".into();u.dest=Some((x,y));u.path=route;
+        }
+    }
     fn initiative_valid(&self, team: i32, goal: Initiative) -> bool {
         match goal {
             Initiative::Flag(id) => self
@@ -239,12 +252,7 @@ impl Game {
                     || !self.initiative_valid(self.units[i].team, goal)
                     || stopped_short
                 {
-                    let u = &mut self.units[i];
-                    u.initiative = None;
-                    u.order = "guard".into();
-                    u.path.clear();
-                    u.dest = None;
-                    u.target = None;
+                    self.resume_march(i,self.units[i].march_resume);
                 }
             }
         }
@@ -270,18 +278,16 @@ impl Game {
                 || u.hold_position
                 || u.initiative.is_some()
                 || d.speed <= 0.
-                || !u.path.is_empty()
+                || u.workshop.is_some()
             {
                 continue;
             }
-            // Complete a player's destination before acquiring another objective.
-            let arrived = u.order == "move"
-                && u.dest
-                    .map(|(x, y)| (x - u.x).hypot(y - u.y) <= 48.)
-                    .unwrap_or(false);
-            if u.order != "guard" && !arrived {
+            // Native moving states also scan objects (00452200/00448060).
+            // Explicit attack/repair/entry orders retain their own target.
+            if !matches!(u.order.as_str(),"guard"|"move") {
                 continue;
             }
+            let marching=u.order=="move"&&!u.path.is_empty();
             let limit = ((d.range / 2.) as u32) >> 3;
             if limit == 0 {
                 continue;
@@ -295,7 +301,7 @@ impl Game {
                     && !reserved.contains(&goal)
                 {
                     let distance = object_distance(u.x, u.y, s.x, s.y);
-                    if distance < limit {
+                    if distance < limit || marching && distance == limit {
                         candidates.push((distance, (u.x - s.x).hypot(u.y - s.y), goal, s.x, s.y));
                     }
                 }
@@ -310,7 +316,7 @@ impl Game {
                         && !reserved.contains(&goal)
                     {
                         let distance = object_distance(u.x, u.y, v.x, v.y);
-                        if distance < limit {
+                        if distance < limit || marching && distance == limit {
                             candidates.push((
                                 distance,
                                 (u.x - v.x).hypot(u.y - v.y),
@@ -328,10 +334,12 @@ impl Game {
                     continue;
                 }
                 let route = self.route_unit(&u,x,y);
-                if route.is_empty() && distance >= 22. {
+                let arrival=if matches!(goal,Initiative::Vehicle(_)){28.}else{22.};
+                if distance>=arrival && route.back().is_none_or(|(px,py)|(px-x).hypot(py-y)>=arrival) {
                     continue;
                 }
                 let unit = &mut self.units[i];
+                unit.march_resume=if u.order=="move" { u.dest.filter(|(x,y)|(x-u.x).hypot(y-u.y)>1e-6) }else{None};
                 unit.initiative = Some(goal);
                 unit.dest = Some((x, y));
                 unit.path = route;

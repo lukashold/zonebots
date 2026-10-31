@@ -1,0 +1,87 @@
+Fahnen und leere Fahrzeuge während des Marschierens – 31.10.2026
+
+Grundlage
+Frischer schreibgeschützter Ghidra12.2-Lauf mit Dekompilation und Assembler
+des vorhandenen Projekts zur lokalen GOG-Datei Z.exe. SHA256 der Originaldatei:
+ed5b16c486824c0761235dbdffcb3cda7e9f9df6188186aef7f662981a44e43e.
+Rohcode und Prüflogs bleiben privat unter work/march-native-audit; dieser
+Bericht enthält ausschließlich Befunde und Grenzen der eigenen Umsetzung.
+
+Im Original belegtes Verhalten
+Die bisherige Beschränkung der Webfassung auf wartende oder bereits
+angekommene Einheiten war eine Anpassung. Das Original sucht auch während
+laufender Bewegung nach geeigneten lokalen Objekten.
+
+00452200 aktualisiert zunächst die Bewegung und untersucht danach Zustand
+unit+35==2. Bei task+5d==0 und gesetztem Wechseltakt00622dc0 ruft die Funktion
+0044d3a0 auf. Ein geeignetes Objekt wird bei Abstand*2 <= signed unit+4 sowie
+erfolgreicher Prüfung00450a90 an004578b0 übergeben.00448060 und00457590 besitzen
+ebenfalls Such-/Übernahmepfade während entsprechender Bewegungszustände.
+Der frische Assembler bestätigt die inklusive Grenze bei diesen Marschpfaden;
+die Warteschleife0044d920 verwendet dagegen eine strikte Kleiner-Grenze.
+
+0044d3a0/0044d290 durchsuchen die lokale Nachbarschaft unter Berücksichtigung
+von Richtung, Fraktions-Eignungsbit object+13 und Geländesicht00432510. Die
+nativen ganzzahligen Koordinatendifferenzen werden um3Bits verschoben; die
+euklidische Entfernung wird anschließend ganzzahlig abgeschnitten. Aus den
+geeigneten Kandidaten wird das nächste Objekt gewählt. Die Webwelt verwendet
+zwei Pixel je nativem Pixel.
+
+004578b0 lehnt bereits reservierte Objekte (object+0d Bit1), Einheiten mit
+bestehendem Objektauftrag (unit+31 Bit8) und bestimmte Sonder-/Belegt-Zustände
+ab. Die Fahne mit Sprite480 nimmt den Zweig00457860: Reservierung und task5.
+Der allgemeine Zweig für unbesetzte Hardware erfordert Infanterie
+(unit+30==FF), reserviert das Objekt und erzeugt task2 samt Anmarsch.
+Kisten, APC-Sonderfälle und weitere Originalobjekte besitzen zusätzliche
+Zweige und sind nicht vollständig durch diese Korrektur rekonstruiert.
+
+Wegspeicherung und Abgrenzung
+004578b0 setzt DAT004d02ba auf0 und ruft00459c60 auf. Diese Funktion fügt einen
+Objektwegpunkt ein und speichert den vorherigen Routenzeiger unit+14 in dessen
+Verknüpfung(+4). Der alte Weg wird also nicht grundsätzlich verworfen.
+00452810 liest später den Routenkopf und ruft004525a0 für den nächsten Anmarsch
+auf. Der Fahnenzweig00457860 ruft004525a0 direkt auf; sein frisch geprüfter
+Aufruf enthält kein ausdrückliches Löschen des bisherigen Weges.
+
+Dies belegt das Erkennen während der Bewegung und vorhandene Mechanismen zur
+Wegspeicherung. Der vollständige Ablauf nach Fahnenübernahme, alle Regeln zum
+Entfernen alter Wegpunkte und die Auftragsübernahme nach Fahrzeugbesetzung
+wurden damit nicht vollständig nachgebaut.
+
+Vertrag der Webfassung
+Ein normaler Marsch darf geeignete Fahnen und leere Hardware in der Nähe
+berücksichtigen. Das genaue Speichern der letzten angeklickten Zielposition,
+Fortsetzen nach einem Fahnenumweg und Übertragen dieses Marschziels auf ein
+neu bemanntes bewegliches Fahrzeug sind bewusst festgelegte Webabläufe.
+Die vollständige Originalgleichheit dieser Zielübergaben ist nicht belegt.
+Auch der Rundum-Scan alle0,35 Simulationssekunden bleibt eine Anpassung der
+ursprünglichen gerichteten, abwechselnden Such-/Animationszustände.
+
+Ein ausdrücklicher Stopp sowie gezielte Angriffs-, Reparatur- und
+Besetzungsaufträge werden dadurch nicht zu beliebigen lokalen Suchaufträgen.
+Die Umsetzung dieses Bedienvertrags ersetzt keine vollständige Original-KI.
+
+Korrektur und Nachweis
+Der Scanner berücksichtigt jetzt laufende normale Marschwege. Nach dem
+Erobern einer Fahne oder dem Verlust eines reservierten Ziels wird zum
+gespeicherten Ziel neu geplant. Ein neu bemanntes bewegliches Fahrzeug plant
+seinen Weg mit seiner eigenen Fahrzeugklasse; der Fußweg des Roboters wird
+nicht übernommen. Feste Geschütze bleiben nach dem Bemannen stationär.
+Ein neuer gültiger Befehl verwirft den alten gespeicherten Marsch. Stopp hält
+die Einheit; gezielte Angriffe und Reparaturen werden nicht umgelenkt.
+
+175 Rust-Tests und alle56 aktuellen Node-Prüfprogramme bestehen. Darunter sind
+13 neue echte Game::step-Regressionsfälle und11 Szenarien über das ausgelieferte
+Wasm. Zwei Fahnen je Team liegen100Pixel neben dem direkten Marschweg. Der
+Vorher-Stand erreicht nur das Ziel und lässt beide Fahnen und den Jeep neutral;
+der neue Stand nimmt beide Fahnen, bemannt genau einmal und erreicht das Ziel.
+Weitere Fälle prüfen Truppenziele, Reservierungsrennen im selben Tick,
+verlorene Ziele, stationäre Waffen, Stopp/neuen Auftrag, prozedurale Karten
+sowie eine Fahrzeugroute über eine entfernte Brücke anstelle des Wasserwegs
+des eingestiegenen Roboters. Der Gesamtlauf enthält weiterhin alle20 echten
+Kampagnenkarten mit beiden KIs bis300Simulationssekunden oder Spielende.
+
+Die lokale Browser-Prüfansicht führt denselben Wasm-Ablauf über eine sichtbare
+Schaltfläche aus und zeichnet den tatsächlichen Weg mit Originalgrafik.
+Keine Browserwarnungen oder Fehler. Nachweis außerhalb des Spielpakets:
+outputs/Z-Marsch-Interaktionen.png. Die temporäre Prüfseite wird entfernt.

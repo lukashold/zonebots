@@ -83,15 +83,20 @@ Ghidra0046dcb0/0046de20 bestätigen PCM-Format und0046e3d0/0046e4c8 die Weltmusi
 DESERT/ARCTIC=AA16,CITY/VOLCAN=aC16,JUNGLE=aJ16. Sprachzuordnung, Queue, Mischung
 und räumliche Begrenzung sind teilweise Anpassungen der Webfassung.
 
-Freie bzw. angekommene mobile Einheiten suchen lokal nach fremden Fahnen und
+Freie und marschierende mobile Einheiten suchen lokal nach fremden Fahnen und
 unbesetzter Hardware. Ghidra0044d920/0044d290/004578b0 belegen die quantisierte
 Entfernung, nächste geeignete Ziele, Infanterie als Besatzung und Reservierungen.
 Nur ein Roboter beansprucht dasselbe Fahrzeug; andere Truppmitglieder bleiben
-erhalten. Ausdrückliche Bewegungs-/Angriffsaufträge haben Vorrang, Stopp hält die
+erhalten. Normale Marschaufträge erlauben lokale Abstecher mit gespeichertem
+Ziel; bewegliche neu bemannte Fahrzeuge setzen diesen Marsch mit ihrer eigenen
+Wegplanung fort. Gezielte Angriffe/Reparaturen behalten Vorrang, Stopp hält die
 Position und ausgestiegene Roboter steigen nicht sofort wieder ein.
 Abweichung: Ein Rundum-Scan alle 0,35 Simulationssekunden ersetzt die originale
-gerichtete Scan-/Animationszustandsmaschine. Nicht alle Suchzustände während
-laufender Originalbefehle sind übernommen. Das ist keine vollständige Original-KI.
+gerichtete Scan-/Animationszustandsmaschine. Frisch geprüfte Marschpfade
+00452200/00448060/00457590 bestätigen die Suche auch während der Bewegung und
+eine inklusive Reichweitengrenze. Genaue Ziel- und Fahrzeugübergaben der Webfassung
+bleiben Anpassungen. Befunde und Grenzen: ORIGINAL-MARSCH.txt; keine vollständige
+Original-KI.
 
 FORTGESCHÜTZE
 Die Basiskoordinaten der Geschütze aus dem Original bleiben erhalten. Im

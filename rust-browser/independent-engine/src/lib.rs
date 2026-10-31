@@ -108,6 +108,9 @@ pub struct Unit {
     pub original_combat: Option<original_combat::CombatState>,
     #[serde(default)]
     pub initiative: Option<original_initiative::Initiative>,
+    /// A nearby object temporarily interrupts this ordinary march.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub march_resume: Option<(f64, f64)>,
     #[serde(default)]
     pub hold_position: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -458,6 +461,7 @@ impl Game {
             cooldown: 0.,
             original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
             initiative: None,
+            march_resume: None,
             hold_position: false,
             workshop: None,
             pursuit: None,
@@ -567,6 +571,7 @@ impl Game {
             }
             self.cancel_workshop(i);
             self.units[i].initiative=None;
+            self.units[i].march_resume=None;
             self.units[i].pursuit=None;
             self.units[i].hold_position=self.map.original&&kind=="stop";
             if kind == "unload" {
@@ -764,7 +769,10 @@ impl Game {
                 }else{
                     let target=u.target.and_then(|id|self.units.iter().find(|v|v.id==id&&original_combat::alive(self.map.original,v.hp)&&!workshops::hidden(v))).cloned();
                     let valid=target.as_ref().is_some_and(|v|if u.order=="enter"{v.team<0&&v.crew.is_none()&&stats(&v.kind).cls>0}else{v.team==u.team&&v.kind=="apc"&&v.cargo.len()<6});
-                    if d.cls!=0||!valid{self.finish_order(i);continue;}
+                    if d.cls!=0||!valid{
+                        if u.initiative.is_some(){self.resume_march(i,u.march_resume);}else{self.finish_order(i);}
+                        continue;
+                    }
                     let v=target.unwrap();goal=Some((v.x,v.y));
                     if (u.x-v.x).hypot(u.y-v.y)<28. {
                         let vi=self.units.iter().position(|v0|v0.id==v.id).unwrap();
@@ -780,6 +788,9 @@ impl Game {
                             }
                             self.units[vi].team=u.team;self.units[vi].crew=Some(Crew{kind:u.kind.clone(),hp:u.hp});
                             if let Some(state)=&mut self.units[vi].original_combat{state.crew_boarded(&u.kind);}
+                            if u.initiative==Some(original_initiative::Initiative::Vehicle(v.id)) {
+                                self.resume_march(vi,u.march_resume);
+                            }
                         }else{self.units[vi].cargo.push(Crew{kind:u.kind.clone(),hp:u.hp});}
                         self.units[i].hp=if self.map.original{-1.}else{0.};
                         self.events.push(json!({"kind":"crewed","team":u.team,"type":v.kind}));continue;
@@ -1219,6 +1230,8 @@ fn advance_random(rng:&mut u32)->u32 {
 mod audit_order_tests;
 #[cfg(test)]
 mod tank_lifecycle_tests;
+#[cfg(test)]
+mod march_initiative_tests;
 
 /// Original objects and occupied tanks use different native origins. Boarding
 /// reads004967e0 by object type (00450db0/00456c90); Heavy also adds00496934

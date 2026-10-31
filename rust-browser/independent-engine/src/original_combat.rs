@@ -223,6 +223,9 @@ pub fn apply_attack_with_mode(
             unit.dest = None;
             unit.target = None;
             unit.order = "guard".into();
+            unit.initiative = None;
+            unit.march_resume = None;
+            unit.pursuit = None;
             unit.moving = false;
             return true;
         }

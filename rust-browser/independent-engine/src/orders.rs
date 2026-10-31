@@ -3,7 +3,7 @@ use super::*;
 impl Game {
     pub(crate) fn finish_order(&mut self,index:usize) {
         let u=&mut self.units[index];u.order="guard".into();u.target=None;u.dest=None;
-        u.path.clear();u.pursuit=None;u.initiative=None;u.moving=false;u.hold_position=self.map.original;
+        u.path.clear();u.pursuit=None;u.initiative=None;u.march_resume=None;u.moving=false;u.hold_position=self.map.original;
     }
     pub(crate) fn bridge_at_point(&self,x:f64,y:f64)->Option<usize> {
         if !x.is_finite()||!y.is_finite()||x<0.||y<0.||x>=self.map.width as f64*TILE||y>=self.map.height as f64*TILE{return None;}
