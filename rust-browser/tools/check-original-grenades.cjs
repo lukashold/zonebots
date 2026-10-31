@@ -19,6 +19,8 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
  const mission=clone(campaign.missions[0]),size=32,count=size*size;
  mission.number=1;mission.name='Synthetic original grenade contact';
+ // The synthetic arena replaces every campaign layer, including v2 walls.
+ mission.walls=[];for(const key of ['wallCells','wallGroundTiles','wallGroundCodes','wallGroundClasses','wallTileLookup'])delete mission.map[key];
  Object.assign(mission.map,{width:size,height:size,tileSize:32,world:0,seed:1,revision:0,
   original:true,tiles:Array(count).fill(0),territory:Array(count).fill(0),
   bridgeBase:Array(count).fill(-1),bridgeHp:[],originalTiles:Array(count).fill(0),terrainCodes:Array(count).fill(0)});

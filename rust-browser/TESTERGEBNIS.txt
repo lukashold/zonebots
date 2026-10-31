@@ -318,3 +318,57 @@ Regressionen bestehen weiterhin: alle 20 Originalmissionen, fünf prozedurale
 Welten, Mehrspielertransport/-koordination, Angriffs-, Aufnahme-, Einsteige-
 und Geschützplatzierungs-Eingaben in beiden Steuerungen, Geschützidentität,
 Original-HUD, Grafikumschaltung sowie HD-Gelände/-Einheiten/-Strukturen.
+
+WEGFINDUNG UND ABBKÜRZUNGEN – 31.10.2026
+Zwei frische schreibgeschützte Ghidra-Läufe prüfen Direktvergleich,
+Rasterpreis und geometrische Wegpunktreduktion in Decompilation und Assembler.
+Die Befunde mit Adressen und verbleibenden Annäherungen stehen in ORIGINAL-WEGE.txt.
+
+133 Rust-Tests bestanden, davon elf neue Navigationsfälle. Release-Wasm:
+541.870 Bytes, SHA256
+4fba1c7bb1649ec202105bb02a0147a69648c8a05b4be27f2b0d13c67b9188fa.
+Neue Fälle: exakte schräge Klickziele einschließlich teilweise belegter Zellen,
+Straßenumwege gegen manuelle Zwischenziele, nützliche Straßen, Wegpunkt-Zeitbudget,
+exakter Küsten-/Endpunktkontakt und subpixelkurze Wasserquerung, legale knappe
+Vorbeifahrt, echte Gebäuderänder und beide Forttore, blockierter Spawn-Austritt,
+versetzter Startanker sowie gültige Schussposition nach der Reduktion.
+Native Rasterpreise, hohe Folgepreise und Zurücksetzen je Abschnitt sind geprüft.
+
+Reale Wasm-Ankunftszeiten, jeweils ein Befehl auf unveränderter Originalkarte:
+  Mission 16, Heavy: vorher 25,60 s /1.041 px, jetzt 18,25 s /516 px.
+  Mission 2, Grunt: vorher 22,05 s /1.489 px, jetzt 15,80 s /797 px.
+Die bisher notwendigen sechs bzw. sieben manuellen Teilbefehle sind nicht mehr
+schneller: auf dem neuen Kern 18,55 s bzw.16,00 s. Eine nützliche nahe Straße
+bleibt erhalten:15,25 s statt22,90 s auf freiem Normalboden im synthetischen Fall.
+
+Identische begrenzte Stichprobe:2.197 maskenbasierte direkte Bewegungsaufträge
+über alle20 Originalmissionen. Vorher967 automatische Wege mit mehr als5%
+zusätzlicher geschätzter Gelände-Reisezeit gegenüber einer freien Direktlinie,
+jetzt0. Diese Auswertung schätzt Terrain-Reiseaufwand; sie misst nicht alle
+2.197 Ankunftszeiten und beweist keine vollständige Originalplanerparität.
+Die beiden obigen realen Problemfälle wurden tatsächlich bis zur Ankunft getickt.
+
+check-route-quality.cjs besteht mit exakten Endpunkten, gefahrenen Strecken,
+Ankunftszeiten, nützlicher Straße, versetzter Brücke ohne Wasserfahrt, Küstenecke
+und den beiden privaten Kampagnenfällen. Gelände-, Verfolgungs-, Wand- und
+Mehrspieler-Wandtests sowie alle20 Originalmissionen und fünf prozedurale Welten
+bestehen. Aufnahme, Einsteigen, Angriffsmarkierung, Geschützplatzierung und
+Geschützidentität bestehen ebenfalls. Granaten- und Produktionsprüfungen bestehen.
+Ältere Formtests prüfen jetzt die tatsächlich überquerten Straßen-/Brückenzellen
+statt überflüssiger Kachelmittelpunkte; die Granaten-Arena setzt auch die neue
+Wandebene ausdrücklich zurück, bevor sie ihre eigene Kartengröße einrichtet.
+
+Rechenlast, ein lokaler Vergleich von60 Bewegungsbefehlen über20 Karten:
+Median vorher9,12 ms /jetzt9,34 ms,95.Perzentil19,70 /21,22 ms. Der neue
+Code vermeidet wiederholte Gebäudeabfragen je Zelle und Speicherbelegungen je
+Kante. Enthält Wasm-Aufruf und JSON-Verarbeitung auf diesem PC; keine FPS-Zusage.
+
+Browserprüfung: zwei echte Rust/Wasm-Versionen mit gleicher Mission16, gleicher
+Kamera, Gelände, Einheitenstart und Ziel. Sichtbar gemessene Ankunft25,60gegen
+18,25 s und1.041gegen516 gefahrene Pixel. Keine Browserfehler/-warnungen.
+Der Nachweis liegt außerhalb des Spielpakets unter outputs/Z-Wegfindung-Vergleich.png.
+Temporäre Vergleichsseite und altes Wasm wurden vor dem Paketbau entfernt.
+
+Die vollständige native Hierarchie, dynamische gegenseitige Einheitenbelegung
+und ursprüngliche Fahrzeug-/Infanterie-Fußabdrücke sind weiterhin dokumentierte
+Grenzen; Reisezeitschutz und kontinuierliche Segmentprüfung sind Webanpassungen.

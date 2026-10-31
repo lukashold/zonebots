@@ -98,6 +98,8 @@ The in-game sidebar now loads the original steel panel, German unit captions, po
 
 Movement now uses original terrain masks for infantry, tracked vehicles, Jeep/APC and crane. Vehicles avoid water; infantry can cross supported water types, with deep-water and volcanic restrictions. Road/bridge route prices and relative terrain speeds come from Ghidra-verified tables. A* prefers useful roads, respects diagonal distance and coastal corners, and rechecks movement segments when bridges or terrain change. The original route-candidate planner and full movement scheduler remain partly adapted.
 
+Navigation now explicitly compares a passable direct route with the candidate and reduces redundant tile-center waypoints to arbitrary-angle legs. Legal clicked endpoints remain exact, and unused movement time carries through waypoints. A separate browser travel-time guard prevents slow road detours while preserving useful roads; continuous terrain and building-edge checks protect coasts, walls, bridges and fort gate corridors. Native direct-price and movement-probe findings, plus remaining hierarchy/occupancy/footprint limits, are documented in [ORIGINAL-WEGE.txt](rust-browser/ORIGINAL-WEGE.txt).
+
 Directed attacks now track the live enemy while the old route is still active. Pursuers choose reachable firing positions with range and line of sight, stop to fire and resume when the enemy escapes. Moving target markers stay attached to the same enemy ID. Stop, replacement orders or invalid targets cancel pursuit; strategic AI does not overwrite an active attack merely because its firing path is empty.
 
 Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The existing immediate-hit model remains: the native throw wind-up, trajectory, scatter and blast area are not yet reconstructed. The howitzer also uses its proper original artillery profile.
@@ -135,6 +137,7 @@ From `rust-browser/`, validate with:
     node tools/check-original-hud.cjs
     node tools/check-original-grenades.cjs
     node tools/check-original-terrain.cjs
+    node tools/check-route-quality.cjs
     node tools/check-gun-identity.cjs
     node tools/check-gun-sprites.cjs
     node tools/check-pursuit.cjs

@@ -336,14 +336,43 @@ wurden zu Wasser korrigiert; Originalkacheln, Positionen und sonstige Missionsda
 blieben gleich. Der Kern prüft zusätzlich die originalen Geländecodes selbst.
 
 0043bbe0/0043e190 und0045cf90 bewerten Straßen7 und Brücken23 mit2 statt5 für
-normales Land.51 kostet6 und ist keine Straße. Die Web-Wegsuche verwendet diese
-Originalpreise mit A*, geometrisch längeren Diagonalen und gesperrten Küstenecken.
-Ein gesperrtes Klickziel wird nur durch ein erreichbares nahes Feld ersetzt. Die
-ursprüngliche Kandidatensuche und der Rabatt für aufeinanderfolgende hohe Preise
-sind damit nicht vollständig nachgebildet. Bereits geplante Wegstücke werden vor
-der Bewegung erneut geprüft; zerstörte Brücken und nachträglich gesperrte Felder
-können dadurch keine Wasserfahrt mehr auslösen. Das gilt auch für Verfolgung,
-Reparaturfahrten und die automatische Suche nach Fahnen oder freier Hardware.
+normales Land.51 kostet6 und ist keine Straße. Die zusätzliche frische Prüfung
+von0043ba60 belegt einen ausdrücklichen Vergleich der verketteten Route mit dem
+direkten Ziel: Nur eine strikt billigere verkettete Route bleibt bestehen, bei
+Gleichstand gewinnt die direkte Verbindung.0045cf90/0045cdc0 summieren Preise
+je Hauptachsen-Rasterschritt, ohne diagonalen Wurzel-2-Faktor. Hohe Folgepreise
+ab10 werden innerhalb derselben Linie halbiert; jede Linie beginnt neu.
+
+0043c1b0/0043bfb0 entfernen außerdem geometrisch überflüssige Zwischenpunkte,
+wenn eine Probe mit den Bewegungs- und Kollisionsmasken der Einheit den direkten
+Abschnitt wirklich erreicht.004525a0 richtet dabei beliebige Bewegungswinkel
+ein; die acht Sprite-Blickrichtungen sind keine Bewegungsbeschränkung. Ein
+bloßer A*-Rasterweg mit den Originalpreisen hatte diese Stufen bisher ausgelassen.
+Der ausführliche Befund und die Trennung von Originalregel und Webanpassung
+stehen in ORIGINAL-WEGE.txt.
+
+Die überarbeitete Webplanung erhält erlaubte pixelgenaue Zielpunkte, verkürzt
+Rastertreppen zu passierbaren geraden Abschnitten und vergleicht den direkten
+Gesamtweg mit dem Kandidaten. Der Vergleich nutzt die belegten nativen
+Segmentpreise einschließlich hoher Folgen und Gleichstandsregel. Ein zusätzlicher
+Reisezeitvergleich mit den Web-Geländegeschwindigkeiten verhindert langsamere
+Straßenumwege. Auch die Reisezeitbedingung der Zwischenpunktreduktion ist eine
+Webanpassung; das Original verwendet dort seine eigene Bewegungsprobe.
+Kontinuierliche Zellgrenzprüfungen erfassen auch sehr kurze berührte Sperrfelder;
+Gebäudekanten und der bestehende Torkorridor werden zusätzlich geometrisch geprüft.
+
+Die originale Sektorhierarchie, Belegungszustände und der vollständige lokale
+Bewegungsscheduler bleiben nur teilweise nachgebildet.0043ddb0 prüft mehrere
+Geländeecken mit größeren Fahrzeugbereichen; die Web-Segmentprüfung behauptet
+keine identische native Fußabdruck-Kollision. Eine zusätzliche Absicherung gegen
+im Web-Temposystem langsamere Straßenumwege ist eine bewusste Webanpassung,
+kein belegter Original-Reisezeitvergleich.
+
+Ein gesperrtes Klickziel wird nur durch ein erreichbares nahes Feld ersetzt.
+Bereits geplante Wegstücke werden vor der Bewegung erneut geprüft; zerstörte
+Brücken und nachträglich gesperrte Felder können dadurch keine Wasserfahrt mehr
+auslösen. Das gilt auch für Verfolgung, Reparaturfahrten und die automatische
+Suche nach Fahnen oder freier Hardware.
 
 0044f509..0044f564,00499b50 und00499fd4 belegen quantisierte Bewegungsschritte.
 Straßen/Brücken verschieben den Tempoindex um+2; Wasser9/39/42 um-1/-2/-3,38 um0.

@@ -150,3 +150,18 @@ Der lokale Starter erneuert ältere Kartenpakete automatisch auf Kampagnenformat
 Im Mehrspieler müssen beide Geräte die aktualisierte Fassung neu laden. Wand-HP,
 Einsturz und geöffnete Wege werden vom Host an den Gast übertragen. Belege und
 verbleibende Darstellungsgrenzen stehen in ORIGINAL-WAENDE.txt.
+
+WEGFINDUNG – 31.10.2026
+Freie Flächen werden jetzt in geraden Abschnitten statt als Treppe aus
+Kachelmitten durchlaufen. Der Planer vergleicht direkte Verbindungen, erhält
+nützliche Straßen und vermeidet langsamere Straßenumwege. Er erreicht erlaubte
+Klickpositionen pixelgenau und verbraucht an Wegpunkten keine zusätzliche Zeit.
+Wasser, Küstenecken, Wände, beschädigte Brücken und Gebäudekanten bleiben
+Bewegungshindernisse; Forttore besitzen ihren eigenen erlaubten Korridor.
+
+Die Originalroutinen für Direktvergleich und Wegpunktreduktion wurden frisch
+mit Ghidra geprüft. Die eigene Rasterkandidatensuche, der zusätzliche Schutz
+nach erwarteter Reisezeit und der vollständige native Kollisionsscheduler
+sind voneinander zu unterscheiden: Dies ist weiterhin eine Annäherung.
+Originalbefunde und Grenzen stehen in ORIGINAL-WEGE.txt, reale Vergleichsfälle
+und die Prüfungen in TESTERGEBNIS.txt. Nach dem Update die Seite neu laden.

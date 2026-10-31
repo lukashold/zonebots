@@ -72,6 +72,22 @@ fn legal_route(g: &Game, start: (f64, f64), path: &VecDeque<(f64, f64)>, kind: &
     }
 }
 
+// Check the traveled geometry rather than requiring redundant grid centers.
+fn sampled_cells(start: (f64, f64), path: &VecDeque<(f64, f64)>) -> Vec<(usize, usize)> {
+    let mut result = Vec::new();
+    let mut previous = start;
+    for &point in path {
+        let samples = (point.0 - previous.0).hypot(point.1 - previous.1).ceil().max(1.) as usize;
+        for n in 0..=samples {
+            let t = n as f64 / samples as f64;
+            result.push((((previous.0 + (point.0 - previous.0) * t) / TILE).floor() as usize,
+                         ((previous.1 + (point.1 - previous.1) * t) / TILE).floor() as usize));
+        }
+        previous = point;
+    }
+    result
+}
+
 #[test]
 fn vehicle_chooses_short_road_detour_instead_of_fewest_hops() {
     let mut g = field(false);
@@ -81,7 +97,7 @@ fn vehicle_chooses_short_road_detour_instead_of_fewest_hops() {
     let (start, end) = (xy(3, 10), xy(28, 10));
     let path = g.route_for(start.0, start.1, end.0, end.1, "jeep");
     assert_eq!(path.back(), Some(&end));
-    assert!(path.iter().filter(|p| (p.1 / TILE) as usize == 9).count() >= 20,
+    assert!(sampled_cells(start, &path).iter().filter(|p| p.1 == 9).count() >= 20 * TILE as usize,
         "A nearby faster road must beat the fewer-hop direct offroad row");
     legal_route(&g, start, &path, "jeep");
     let foot = g.route_for(start.0, start.1, end.0, end.1, "grunt");
@@ -164,7 +180,7 @@ fn bridge_is_the_vehicle_crossing_and_destroyed_bridge_cannot_inherit_native_cod
     g.map.bridge_hp.push(400.);
     let (start, end) = (xy(5, 12), xy(20, 12));
     let path = g.route_for(start.0, start.1, end.0, end.1, "jeep");
-    assert!(path.contains(&xy(12, 8)), "Use the intact bridge, not a water shortcut");
+    assert!(sampled_cells(start, &path).contains(&(12, 8)), "Use the intact bridge, not a water shortcut");
     legal_route(&g, start, &path, "jeep");
     g.map.tiles[bridge] = 3;
     g.map.bridge_hp[0] = 0.;
@@ -210,7 +226,7 @@ fn actual_vehicle_halts_at_destroyed_planned_bridge_and_can_cross_after_repair()
     let id = mover(&mut g, "jeep", 10, 12);
     let end = xy(18, 12);
     g.command(&json!({"ids":[id],"kind":"move","x":end.0,"y":end.1}));
-    assert!(unit(&g, id).path.contains(&xy(12, 12)));
+    assert!(sampled_cells((unit(&g, id).x, unit(&g, id).y), &unit(&g, id).path).contains(&(12, 12)));
     g.map.tiles[bridge] = 3;
     g.map.bridge_hp[0] = 0.;
     g.map.revision += 1;
@@ -238,7 +254,7 @@ fn stale_ground_paths_do_not_let_infantry_or_vehicles_cross_new_deep_water() {
         let id = mover(&mut g, kind, 10, 12);
         let end = xy(18, 12);
         g.command(&json!({"ids":[id],"kind":"move","x":end.0,"y":end.1}));
-        assert!(unit(&g, id).path.contains(&xy(12, 12)));
+        assert!(sampled_cells((unit(&g, id).x, unit(&g, id).y), &unit(&g, id).path).contains(&(12, 12)));
         river(&mut g, 12, 40);
         g.map.revision += 1;
         for _ in 0..100 {

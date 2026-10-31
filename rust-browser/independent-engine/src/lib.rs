@@ -873,8 +873,7 @@ impl Game {
                     }
                 }
             }
-            let terrain_factor=self.terrain_factor_unit(&u);
-            let speed=d.speed*terrain_factor*if d.cls==0&&u.order=="move"{1.2}else{1.};
+            let base_speed=d.speed*if d.cls==0&&u.order=="move"{1.2}else{1.};
             // Revalidate the next segment: bridges and map occupancy can change
             // after the route was planned. Never interpolate across forbidden water.
             if let Some(&(nx,ny))=self.units[i].path.front() {
@@ -884,23 +883,30 @@ impl Game {
                 }
             }
             let hold = pursuit_hold || wall_hold || enemy.is_some() && u.order == "guard";
-            if !hold && d.speed > 0. {
-                if let Some((x, y)) = self.units[i].path.front().copied()
-                    .filter(|&(x,y)|self.movement_segment_clear_for(u.x,u.y,x,y,&u.kind)) {
-                    let dist = (x - u.x).hypot(y - u.y);
-                    if dist < speed * dt + 1. {
-                        self.units[i].x = x;
-                        self.units[i].y = y;
-                        self.units[i].path.pop_front();
-                    } else {
-                        self.units[i].angle = (y - u.y).atan2(x - u.x);
-                        self.units[i].x += (x - u.x) / dist * speed * dt;
-                        self.units[i].y += (y - u.y) / dist * speed * dt;
-                        self.units[i].moving = true;
-                        if enemy.is_none() {
-                            self.units[i].aim = self.units[i].angle;
-                        }
-                    }
+            if !hold && base_speed > 0. {
+                // Waypoints are geometry, not pauses: carry unused movement
+                // time into the next leg, instead of losing part of every
+                // update at every tile center. Terrain is re-evaluated there.
+                let mut remaining=dt;
+                for _ in 0..128 {
+                    let Some((x,y))=self.units[i].path.front().copied()else{break;};
+                    let(cx,cy)=(self.units[i].x,self.units[i].y);
+                    if !self.movement_segment_clear_for(cx,cy,x,y,&u.kind){break;}
+                    let dist=(x-cx).hypot(y-cy);
+                    if dist<=1e-9{self.units[i].path.pop_front();continue;}
+                    if remaining<=1e-10{break;}
+                    let speed=base_speed*self.terrain_factor_unit(&self.units[i]);
+                    if speed<=0.{break;}
+                    let traveled=(speed*remaining).min(dist);
+                    self.units[i].angle=(y-cy).atan2(x-cx);
+                    self.units[i].x=cx+(x-cx)/dist*traveled;
+                    self.units[i].y=cy+(y-cy)/dist*traveled;
+                    self.units[i].moving=true;
+                    if enemy.is_none(){self.units[i].aim=self.units[i].angle;}
+                    remaining=(remaining-traveled/speed).max(0.);
+                    if traveled>=dist-1e-9 {
+                        self.units[i].x=x;self.units[i].y=y;self.units[i].path.pop_front();
+                    }else{break;}
                 }
             }
             if d.cls == 0 {
@@ -1223,6 +1229,8 @@ mod attack_target_tests;
 mod pursuit_tests;
 #[cfg(test)]
 mod terrain_tests;
+#[cfg(test)]
+mod route_quality_tests;
 #[cfg(test)]
 mod multiplayer_tests;
 #[cfg(test)]

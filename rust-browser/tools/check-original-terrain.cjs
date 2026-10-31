@@ -20,9 +20,12 @@ const wet=new Set([9,38,39,40,42]),vehicles=new Set(['jeep','light','medium','he
  const player=s=>s.units.find(u=>u.team===0);
  function order(s,x=496,y=336){return request({op:'command',team:0,kind:'move',ids:[player(s).id],x,y});}
  function crosses(s){return player(s).path.some(([x])=>Math.floor(x/32)>10);}
+ // Sample the geometric route, not the presence of a redundant bridge waypoint.
+ function routeCells(u){const cells=[];let a=[u.x,u.y];for(const b of u.path){const n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])));for(let i=1;i<=n;i++){const t=i/n;cells.push([Math.floor((a[0]+(b[0]-a[0])*t)/32),Math.floor((a[1]+(b[1]-a[1])*t)/32)]);}a=b;}return cells;}
  function pathAvoidsWater(s,u=player(s)){
-  for(const [x,y]of u.path){const j=Math.floor(y/32)*s.map.width+Math.floor(x/32),code=s.map.terrainCodes[j];assert(!wet.has(code),`${u.type} path enters native wet code${code} at(${x},${y})`);}
+  for(const [x,y]of routeCells(u)){const j=y*s.map.width+x,code=s.map.terrainCodes[j];assert(!wet.has(code),`${u.type} path enters native wet code${code} at cell(${x},${y})`);}
  }
+
  let shallowCases=0;
  for(const world of [0,2,3,4])for(const code of [9,38,39,42]){
   let s=order(init(fixture(code,'grunt',world)));assert(crosses(s),`Infantry should cross code${code},world${world}`);
@@ -46,7 +49,7 @@ const wet=new Set([9,38,39,40,42]),vehicles=new Set(['jeep','light','medium','he
  bridge.map.terrainCodes[bj]=23;bridge.map.tiles[bj]=5;bridge.map.bridgeBase[bj]=0;bridge.map.bridgeHp=[1];
  bridge.spawns.push({type:'heavy',team:0,x:272,y:336,squad:3});s=order(init(bridge));
  const car=player(s).id,attacker=s.units.find(u=>u.type==='heavy').id;
- assert(s.units.find(u=>u.id===car).path.some(([x,y])=>Math.floor(x/32)===10&&Math.floor(y/32)===10),'Vehicle should initially use the intact bridge');
+ assert(routeCells(s.units.find(u=>u.id===car)).some(([x,y])=>x===10&&y===10),'Vehicle should initially use the intact bridge');
  s=request({op:'command',team:0,kind:'attackBridge',ids:[attacker],x:336,y:336});
  s=request({op:'tick',dt:0.1});assert(s.map.bridgeHp[0]<=0,'Fixture shot must destroy bridge');assert.equal(s.map.tiles[bj],3);
  for(let i=0;i<160;i++){

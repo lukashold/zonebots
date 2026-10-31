@@ -1,0 +1,111 @@
+Z – Wegfindung und Abkürzungen, Ghidra-Abgleich vom 31.10.2026
+
+ANLASS UND QUELLE
+Die Browserfassung bevorzugte Straßen mit den belegten Originalpreisen, benutzte
+aber einen eigenen A*-Planer auf acht Kachelnachbarn. Damit konnten lange
+Straßenumwege entstehen, während derselbe erlaubte direkte Weg durch einzelne
+Zwischenbefehle erreichbar war. Die Originalpreise allein bilden die originale
+Wegfindung nicht nach.
+
+Die lokale GOG-Fassung wurde dafür erneut mit Ghidra schreibgeschützt untersucht.
+Zwei gezielte Läufe exportierten die betreffenden Funktionen samt Assembler und
+Aufrufstellen. Diese Datei beschreibt eigene Verhaltensbefunde; sie enthält
+keinen kopierten dekompilierten Originalcode. Das Originalprogramm und lokale
+Decompilationen werden nicht veröffentlicht.
+
+GROSSER WEGPLANER UND DIREKTER KANDIDAT
+0043bbe0 erzeugt bei größeren Entfernungen eine verkettete Route über die
+originalen Kartensektoren und Wegknoten. Unter dem Quadratabstand 0x3840 bleibt
+zunächst das direkte Ziel bestehen: 120 native Pixel, bei Browsermaßstab 2 also
+240 Weltpixel. Auch Fehler der höheren Planung führen auf diesen Zielpunkt
+zurück. Das erlaubt kein Durchqueren von Wasser oder Wänden; der nachfolgende
+lokale Bewegungsablauf prüft weiterhin seine Hindernisse.
+
+0043ba60 bewertet ausdrücklich zwei Kandidaten: die verkettete Route und die
+Verbindung vom aktuellen Standort direkt zum letzten gewünschten Zielpunkt.
+Nur eine strikt billigere verkettete Route bleibt erhalten. Bei gleichen Preisen
+gewinnt die direkte Verbindung. Der Assemblervergleich 0043bb39/0043bb3f belegt
+auch diese Gleichstandsregel. Die Preisberechnung selbst ersetzt keine
+Passierbarkeitsprüfung.
+
+0043df20 zieht den großen Planer erst bei Rasterkosten über 29 als Alternative
+zu einem lokalen Weg heran und übernimmt auch diese Alternative nur bei einem
+strikt niedrigeren Preis. Das Original ist damit eine mehrstufige Kandidaten-
+und Bewegungsplanung, kein einzelner globaler A*-Durchlauf.
+
+WAS DIE ORIGINALPREISE GENAU BEDEUTEN
+0045cf90/0045cdc0 bewerten Linien rasterweise nach ihrer längsten Achse. Die
+Koordinaten werden auf native 16-Pixel-Zellen umgerechnet. Pro Hauptachsenschritt
+wird ein Geländepreis summiert; die letzte Zelle bleibt dabei ungezählt. Es gibt
+hier keinen zusätzlichen Faktor Wurzel 2 für diagonale Rasterbewegungen. Bei
+abnehmendem X werden die Endpunkte vor dem Rasterlauf vertauscht.
+
+Die Tabellen 00499b98 und 00499ec8 gelten für Nicht-Fahrzeugklasse bzw.
+Laufzeitklasse 1. Normales Land (Code 0) kostet 5, Straße (7) und Brücke (23)
+kosten 2. Code 51 kostet 6 und wird nicht als Straße behandelt. Bei mehreren
+aufeinanderfolgenden Rohpreisen ab 10 zählt der erste voll, jeder weitere
+halbiert und abgerundet. Ein Preis unter 10 beendet diese Folge. Jede neue
+Linie beginnt eine neue Folge; eine Rechnung über einzelne A*-Kanten bildet
+diese Segmentregel nicht automatisch ab.
+
+Preise sind keine Fahrzeit. Die wirkliche Bewegung verwendet die getrennten
+quantisierten Geschwindigkeitsmuster und Geländeänderungen. Lange Straßenwege
+können in einem vereinfachten Planer deshalb billig, aber trotzdem langsamer
+als eine erlaubte Abkürzung sein.
+
+GEOMETRISCHE ABKÜRZUNGEN SIND IM ORIGINAL BELEGT
+0043c1b0 entfernt überflüssige Zwischenpunkte. Die Routine prüft den direkten
+Weg zwischen einem beibehaltenen Punkt und einem späteren Punkt mit 0043bfb0.
+Bei exaktem Erreichen des früheren Punkts im Probeablauf wird der dazwischen-
+liegende Wegpunkt entfernt. Nach Erfolg wird erneut mit der verkürzten Route
+geprüft; bei einem Hindernis bleibt der nötige Knick erhalten.
+
+0043bfb0 übernimmt dafür die tatsächliche Wegmaske, Kollisionsmaske, Klasse und
+Richtung der Einheit in eine Probeeinheit. 004525a0 richtet die Bewegung ein,
+004502f0 führt den Probeablauf aus. Ein bloßer Stopp des Probeablaufs reicht
+nicht: 0043c1b0 vergleicht die erreichte Position. Diese Vereinfachung enthält
+keinen neuen Geländepreisvergleich.
+
+004525a0 speichert Haupt- und Nebendifferenz sowie einen Fehlerakkumulator für
+beliebige Zielwinkel. Acht Blickrichtungen der Sprites bedeuten daher keine
+Beschränkung der tatsächlichen Bewegung auf acht Richtungen. Freie Flächen
+müssen nicht als Treppe von Kachelmitten durchlaufen werden.
+
+ÜBERNAHME IM BROWSER-KERN
+Die überarbeitete Webplanung erhält erlaubte pixelgenaue Klickziele auch dann,
+wenn Start und Ziel in verschiedenen Rasterzellen liegen. Sie reduziert die
+Treppen aus Kachelmitten auf passierbare gerade Abschnitte und prüft den direkten
+Gesamtweg ausdrücklich gegen den verbliebenen Kandidaten. Der native
+Rasterpreisvergleich enthält die beschriebenen hohen Folgen und die Regel,
+dass Gleichstand die direkte Verbindung bevorzugt.
+
+Zusätzlich vergleicht die Webfassung die erwartete Reisezeit mit ihren eigenen
+Geländegeschwindigkeiten. Eine freie Abkürzung muss nicht wegen eines langsameren
+Straßenumwegs verworfen werden. Der Schutz bei der Zwischenpunktreduktion und der
+abschließende Reisezeitvergleich sind Webanpassungen; das Original entfernt seine
+Zwischenpunkte über den oben beschriebenen Bewegungsprobeablauf.
+
+Kontinuierliche Zellgrenzdurchläufe ersetzen die bisherige feste Abtastweite.
+Auch sehr kurze berührte Wasser- oder Wandfelder und Küstenecken werden geprüft;
+Gebäudekanten werden als echte Rechtecke mit dem bestehenden Torkorridor getestet.
+Das ist eine eigene robuste Segmentprüfung, keine Ausführung des Original-
+Bewegungsschedulers. Die Rasterkandidatensuche bleibt A*, während die nativen
+Segmentpreise beim anschließenden Kandidatenvergleich verwendet werden.
+
+GRENZEN DER WEB-ANNÄHERUNG
+Die ursprüngliche Sektorhierarchie, dynamische Belegung, Probeeinheiten und der
+vollständige lokale Bewegungsscheduler sind noch nicht identisch rekonstruiert.
+0043ddb0 prüft mehrere Geländeecken; Fahrzeuge verwenden einen größeren Bereich
+als Infanterie. Die Webprüfung gegen Kartenfelder und Gebäude ist keine Behauptung
+vollständiger ursprünglicher Fußabdruck- oder Kollisionsparität. APC-Sonderzustände
+und die eigene Wegmaske des Tough-Anführers bleiben ebenfalls gesonderte Grenzen.
+
+Ein zusätzlicher Vergleich mit der im Browser erwarteten Reisezeit kann falsche
+Straßenumwege des Ersatzplaners verhindern. Ein solcher Reisezeit-Schutz ist eine
+bewusste Webanpassung; die frische Originalprüfung belegt ihn nicht als identische
+Originalroutine. Native Rasterpreise, direkte Kandidaten, freie Winkel und
+Zwischenpunktentfernung müssen davon ausdrücklich unterschieden werden.
+
+Die beschriebenen Originalbefunde sind keine Behauptung, sämtliche nativen
+Wegkandidaten, Bewegungsphasen oder Hindernisreaktionen bereits nachzubilden.
+Aktuelle Integrations- und Prüfergebnisse stehen in TESTERGEBNIS.txt.

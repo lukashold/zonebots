@@ -90,6 +90,23 @@ fn current_destination(g: &Game, attacker: usize, target: usize) {
         "The destination may lag one simulation snapshot, not an old target position");
 }
 
+// A legal smoothed route can cross a bridge without a waypoint at its center.
+fn path_visits_cell(g: &Game, id: usize, cx: usize, cy: usize) -> bool {
+    let u = get(g, id);
+    let mut previous = (u.x, u.y);
+    for &point in &u.path {
+        let samples = (point.0 - previous.0).hypot(point.1 - previous.1).ceil().max(1.) as usize;
+        for n in 0..=samples {
+            let t = n as f64 / samples as f64;
+            let p = ((previous.0 + (point.0 - previous.0) * t) / TILE,
+                     (previous.1 + (point.1 - previous.1) * t) / TILE);
+            if (p.0.floor() as usize, p.1.floor() as usize) == (cx, cy) { return true; }
+        }
+        previous = point;
+    }
+    false
+}
+
 #[test]
 fn live_target_updates_an_attack_route_before_the_old_path_finishes() {
     for original in [false, true] {
@@ -97,7 +114,8 @@ fn live_target_updates_an_attack_route_before_the_old_path_finishes() {
         attack(&mut g, attacker, target);
         g.step(0.05);
         let initial = last_point(&g, attacker);
-        assert!(get(&g, attacker).path.len() > 3);
+        assert!((initial.0 - get(&g, attacker).x).hypot(initial.1 - get(&g, attacker).y) > 3. * TILE,
+            "The initial route must still have substantial untraveled distance");
         move_target(&mut g, target, 880., 1000.);
         run(&mut g, 40);
         let a = get(&g, attacker);
@@ -305,10 +323,10 @@ fn vehicle_pursuit_uses_a_bridge_and_never_follows_a_stale_path_into_water() {
         g.map.bridge_base[bridge] = 0; g.map.bridge_hp.push(400.);
         attack(&mut g, attacker, target);
         g.step(0.05);
-        assert!(get(&g, attacker).path.contains(&(656., 496.)));
+        assert!(path_visits_cell(&g, attacker, 20, 15));
         move_target(&mut g, target, 880., 1000.);
         run(&mut g, 10);
-        assert!(get(&g, attacker).path.contains(&(656., 496.)),
+        assert!(path_visits_cell(&g, attacker, 20, 15),
             "Updated pursuit must keep using the only legal crossing");
         g.map.tiles[bridge] = 3; g.map.bridge_hp[0] = 0.; g.map.revision += 1;
         for _ in 0..40 {
@@ -321,7 +339,7 @@ fn vehicle_pursuit_uses_a_bridge_and_never_follows_a_stale_path_into_water() {
         g.map.tiles[bridge] = 5; g.map.bridge_hp[0] = 400.; g.map.revision += 1;
         run(&mut g, 10);
         assert!(!get(&g, attacker).path.is_empty(), "Repair must restore pursuit without another attack click");
-        assert!(get(&g, attacker).path.contains(&(656., 496.)));
+        assert!(path_visits_cell(&g, attacker, 20, 15));
     }
 }
 

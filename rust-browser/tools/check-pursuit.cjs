@@ -20,7 +20,7 @@ const trackerEnv={window:{}};vm.createContext(trackerEnv);vm.runInContext(fs.rea
  function firingGoal(s,id,targetId){const u=unit(s,id),v=unit(s,targetId),end=tail(u),range=s.catalog.find(d=>d.type===u.type).range;assert(end,'Missing firing route');assert(distance(end,point(v))<=range+16,'Pursuit endpoint should be a current firing position');assert(sight(s,end,point(v)),'Pursuit endpoint must have target line of sight');}
  let s=init(fixture()),attacker=s.units[0].id,target=s.units[1].id;
  const originalTarget=point(unit(s,target));s=command(s,attacker,'attack',{target,x:originalTarget[0],y:originalTarget[1]});
- assert(unit(s,attacker).path.length>3,'Fixture must retain an old route while target moves');
+ assert(Math.hypot(unit(s,attacker).path.at(-1)[0]-unit(s,attacker).x,unit(s,attacker).path.at(-1)[1]-unit(s,attacker).y)>96,'Fixture must retain substantial untraveled route distance while target moves');
  const tracker=trackerEnv.window.AttackCommand.createTracker();tracker.assign({kind:'attack',targetType:'unit',target,ids:[attacker],x:originalTarget[0],y:originalTarget[1]},s);
  assert.equal(tracker.targets(s,new Set([attacker])).length,1);
  s=command(s,target,'move',{x:originalTarget[0],y:1008});s=tick(60);
