@@ -9,7 +9,7 @@ window.VehicleCommand=(()=>{
   return iterableIds(selectedIds).filter(id=>{const u=units.get(id);return u?.team===0&&live(state,u)&&catalog.get(u.type)?.class===0;});
  }
  function entryKind(state,u,catalog){
-  if(!live(state,u)||!Number.isFinite(u.x)||!Number.isFinite(u.y))return null;
+  if(!live(state,u)||u.workshop?.phase==='repairing'||!Number.isFinite(u.x)||!Number.isFinite(u.y))return null;
   const cls=catalog.get(u.type)?.class;
   if(cls!==1&&cls!==2)return null;
   if(u.team<0&&u.crew==null)return 'enter';

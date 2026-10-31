@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CombatState {
     pub aim_skill: u8,
+    /// Native unit+3 retains the pre-damage crew/vehicle aim for workshop repair.
+    #[serde(default, skip_serializing)]
+    base_aim_skill: Option<u8>,
     pub movement_control: u8,
     pub fire_rate: u8,
     /// Original hardware+0x19. The engine leaves the hatch closed until its
@@ -68,6 +71,7 @@ impl CombatState {
         let p = profile(kind);
         Self {
             aim_skill: p.aim,
+            base_aim_skill: Some(p.aim),
             movement_control: p.movement,
             fire_rate: p.fire,
             secondary_state: -1,
@@ -81,8 +85,15 @@ impl CombatState {
     pub fn reload_seconds(&self) -> f64 {
         f64::from(100 - self.fire_rate.min(100)) / 17.
     }
+    /// 0044ebf0 restores movement and base aim on workshop admission. The
+    /// native path does not restore fire rate, crew health or hatch state.
+    pub fn workshop_entered(&mut self, kind: &str) {
+        self.movement_control = profile(kind).movement;
+        self.aim_skill = self.base_aim_skill.unwrap_or(profile(kind).aim);
+    }
     pub fn crew_boarded(&mut self, kind: &str) {
         self.aim_skill = profile(kind).aim;
+        self.base_aim_skill = Some(self.aim_skill);
     }
 }
 pub fn initial_crew_hp(kind: &str) -> f64 {

@@ -3,7 +3,7 @@
 (function(global){
  'use strict';
  const ACTIONS=new Set(['command','produce','placeGun']);
- const ORDERS=new Set(['move','attack','attackBuilding','attackWall','attackBridge','repair','repairBridge','enter','board','stop','unload']);
+ const ORDERS=new Set(['move','attack','attackBuilding','attackWall','attackBridge','repair','repairVehicle','repairBridge','enter','board','stop','unload']);
  const STATIC=['map','catalog','objects','walls'],FRAME_STEP=1/8,MAX_EVENTS=1024;
  const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o!==null&&typeof o==='object'&&!Array.isArray(o);
  const integer=(n,max=0xffffffff)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
@@ -41,7 +41,8 @@
    result.ids=[...new Set(request.ids)].filter(id=>{const u=units.get(id);return u&&u.team===team&&(state.map.original?u.hp>=0:u.hp>0);});
    if(!result.ids.length)return null;result.kind=request.kind;
    if(own(request,'target')){if(!integer(request.target))return null;result.target=request.target;}
-   if(['enter','board','repair','attackBuilding'].includes(result.kind)&&!own(result,'target'))return null;
+   if(['enter','board','repair','repairVehicle','attackBuilding'].includes(result.kind)&&!own(result,'target'))return null;
+   if(result.kind==='repairVehicle'){const b=state.buildings.find(b=>b.id===result.target&&b.kind==='repair'&&b.team===team&&b.hp>0);if(!b)return null;result.ids=result.ids.filter(id=>{const u=units.get(id),d=state.catalog.find(d=>d.type===u.type);return d?.class===1&&u.crew!=null&&u.hp<u.maxHp;});if(!result.ids.length)return null;}
    if(result.kind==='attackWall'&&(!own(result,'target')||!(state.walls||[]).some(w=>w.id===result.target&&w.hp>0)))return null;
    if(own(request,'x')||own(request,'y')){if(!position())return null;}
    if(['move','attackBridge','repairBridge'].includes(result.kind)&&!own(result,'x'))return null;

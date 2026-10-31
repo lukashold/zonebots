@@ -51,6 +51,8 @@ Owned factories now start a repeating production order immediately, including on
 
 Completed stationary guns wait in up to four factory storage slots. Choose **Place guns** or a factory storage button, then left-click a valid position in that factory's territory. Right-click or Escape cancels placement while preserving the gun. Fort placements snap to free roof sockets; the preview and final placement share the Rust validation. Robot and vehicle production still deploys automatically.
 
+Vehicle workshops now accept an explicit repair order: capture the workshop territory, select a damaged crewed vehicle, then command it onto your workshop (classic left click or modern right click). It approaches, queues if occupied, repairs hidden inside, and exits with a restored hull. The panel shows its progress instead of an empty production menu. Native work, territory/health rates, repair cursor and selected stat restoration are checked against the original; queue/portal/cancellation behavior remains a browser adaptation. Stop, capture and destruction release occupants safely. All 21 original workshops were tested through real combat damage and full repair. [Findings and limits](rust-browser/ORIGINAL-WERKSTATT.txt). Both multiplayer clients must reload after this update.
+
 Gun artwork now keeps each original weapon family across crewing: the previously swapped occupied Cannon/Gatling sprite blocks are corrected using native animation descriptors. Neutral models, weapon values and hardware identity remain consistent through unload/re-entry, including approaches within a single map tile.
 
 Unoccupied hardware now uses the original neutral gray palette in pixel mode and gray team paint in HD. Crewing, unloading and recapturing change only the team paint, without changing the weapon type.
@@ -138,6 +140,10 @@ From `rust-browser/`, validate with:
     node tools/check-original-grenades.cjs
     node tools/check-original-terrain.cjs
     node tools/check-route-quality.cjs
+    node tools/check-workshop-input.cjs
+    node tools/check-workshop-multiplayer.cjs
+    node tools/check-workshop-art.cjs
+    node tools/check-workshop-campaign.cjs
     node tools/check-gun-identity.cjs
     node tools/check-gun-sprites.cjs
     node tools/check-pursuit.cjs

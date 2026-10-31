@@ -17,7 +17,7 @@ impl Game {
         if unit.order=="attackWall" {return false;}
         if unit.order!="attack"||unit.target.is_none(){self.units[index].pursuit=None;return false;}
         let target=unit.target.and_then(|id|snapshot.iter().find(|u|u.id==id
-            &&original_combat::alive(self.map.original,u.hp)&&u.team>=0&&u.team!=unit.team));
+            &&original_combat::alive(self.map.original,u.hp)&&!super::workshops::hidden(u)&&u.team>=0&&u.team!=unit.team));
         let Some(target)=target else{
             let u=&mut self.units[index];u.order="guard".into();u.target=None;
             u.dest=None;u.path.clear();u.pursuit=None;u.moving=false;return false;

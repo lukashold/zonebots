@@ -165,3 +165,18 @@ nach erwarteter Reisezeit und der vollständige native Kollisionsscheduler
 sind voneinander zu unterscheiden: Dies ist weiterhin eine Annäherung.
 Originalbefunde und Grenzen stehen in ORIGINAL-WEGE.txt, reale Vergleichsfälle
 und die Prüfungen in TESTERGEBNIS.txt. Nach dem Update die Seite neu laden.
+
+WERKSTÄTTEN – 31.10.2026
+Zuerst die Fahne des Werkstattgebiets einnehmen. Ein beschädigtes, bemanntes
+eigenes Fahrzeug auswählen und auf die eigene Werkstatt befehlen: klassisch
+mit Linksklick, modern mit Rechtsklick. Der Original-Reparaturzeiger erscheint
+bei einem geeigneten Fahrzeug. Es fährt zur Einfahrt, wartet bei Belegung,
+wird im Gebäude repariert und fährt danach mit vollem Rumpf wieder heraus.
+
+Die Werkstattanzeige nennt Anfahrt, Warteschlange, Reparatur-HP und Restzeit.
+Werkstätten produzieren keine Einheiten und reparieren keine Roboter oder
+stationären Geschütze. Stopp/neuer Auftrag bricht ab; bei Besitzerwechsel oder
+Zerstörung wird ein belegtes Fahrzeug freigegeben. Es gibt keine passive
+Heilung durch bloßes Parken vor der Werkstatt mehr. Im Mehrspieler müssen nach
+diesem Update beide Spieler neu laden; alte Programmstände werden erkannt.
+Originalbefunde und Grenzen stehen in ORIGINAL-WERKSTATT.txt.

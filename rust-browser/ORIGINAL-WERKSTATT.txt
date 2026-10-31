@@ -1,0 +1,106 @@
+Z – Werkstätten: Originalbefunde, 31.10.2026
+
+GRUNDLAGE UND BESTAND
+Fünf frische schreibgeschützte Ghidra-Läufe gegen das behaltene Projekt der
+lokalen GOG-Datei C:\GOG Games\Z\Z.exe liefern gezielte Decompilation und x86-
+Assembler. Originaldatei und Datenbank wurden nicht verändert. Die lokalen
+Rohbelege umfassen 231.233 Bytes; eigene Zusammenfassung ohne kopierten
+Originalquellcode. Rohbelege bleiben außerhalb des veröffentlichten Projekts.
+
+Die Kampagne enthält 21 Werkstätten in den Missionen 11 bis 20:
+11:1, 12:2, 13:1, 14:2, 15:2, 16:2, 17:2, 18:2, 19:4, 20:3.
+Der Gebäudedeskriptor 00498c78 ist Typ0 „Vehicle Repair Facility“, Grundfläche
+5×4 native Kacheln, entsprechend160×128 Pixeln der Browserwelt.
+0040cd20 initialisiert den Typ, 0040d050 zeichnet und aktualisiert ihn.
+
+ZULÄSSIGE NUTZUNG UND RÜCKMELDUNG
+00434c60 fragt 0041c3f0 ab. Die Trefferprüfung akzeptiert eine lebende Werkstatt
+mit Restarbeit0. Der ausgewählte Besitzer muss zur Werkstatt passen. Für den
+Reparaturzeiger muss das Fahrzeug die normalisierte Laufzeitklasse1 besitzen
+und aktuelle Rumpf-HP von maximalen Rumpf-HP abweichen. Das ist Fahrzeugreparatur,
+nicht der Reparaturkran-Auftrag für beschädigte Gebäude und keine Produktion.
+
+Der native Reparaturzeiger ist Sprite43 (0x2b), Offset(-8,-6), entsprechend
+CSS-Hotspot(16,12) bei zweifacher Grafikgröße. 00441430 ordnet diesem Zeiger die
+vier Bestätigungsbilder2763..2766 zu. Die Originalphase stammt aus einem
+Zeichenzähler; eine Zeitphase im Browser ist eine eigene Anpassung.
+
+EINFAHRT STATT PASSIVER UMGEBUNGSHEILUNG
+0041c3f0 wandelt den Klick in das native Ziel Gebäude+(32,24), im Browser
++(64,48), um. Das Ziel liegt hinter dem Tor. 0044f1e0 behandelt Geländecode26
+als Aktionswert102 und ruft 0044edd0. Diese Routine prüft beschädigte Fahrzeuge
+und eine freie Werkstatt; 0044ebf0 beginnt die Reparatur.
+
+0044eba0 findet die Werkstatt anhand der Fahrzeug-Kartenposition: ihr Ursprung
+plus0x181, also Spalte1/Reihe3 bei fester nativer Kartenzeilenbreite128. Die
+Fahrzeug-Kartenposition verwendet floor((AnkerX+8)/16) und entsprechendY.
+Daraus folgt für die browsergroße Fahrzeug-Ankerposition ein Eintrittsfenster
+GebäudeX+[16,48), GebäudeY+[80,112). Dessen Mitte ist Gebäude+(32,96).
+Die Maschine wird damit vor Erreichen des weiter innen liegenden Klickziels
+aufgenommen. Ein beliebiger Radius um die Gebäudemitte beschreibt dies nicht.
+
+0040cc90 trägt die Besitz-/Tormaske in die Geländekarte ein. Die offene native
+Maske bei0047840c hat5Spalten und4Reihen:
+  32 32 32 32 32
+  32 26 26 32 32
+  32 26 26 32 32
+  32 26 26 32 32
+Die beiden inneren Spalten bilden den von Süden offenen Korridor. In der
+Browserwelt entsprechen sie X+32..96. Die geschlossene Anfangsmaske bei
+0047828c enthält stattdessen im unteren Bereich andere Sperr-/Torcoden.
+
+BELEGUNG, ARBEIT UND FORTSCHRITT
+0044ebf0 speichert genau eine Fahrzeugkennung bei Gebäude+8 und setzt das
+Fahrzeugflag+0x69 Bit0x40. Das Fahrzeug ist während des Werkstattaufenthalts
+nicht als frei bedienbare Einheit auf der Karte aktiv. Die anfängliche Arbeit
+bei Gebäude+0x24 ist ganzzahlig:
+  D = maximale Rumpf-HP minus aktuelle Rumpf-HP
+  A = max(1, trunc(D/5))
+  W = trunc((A+1) ×884 / gameFactor)
+Der Standardzweispieler-/Kampagnenfaktor des bestehenden Befunds ist12.
+Die Formel verwendet fehlende Rumpf-HP, nicht Fabrik-Produktionspunkte.
+
+Die aktuelle Arbeitsrate entspricht der gemeinsamen ursprünglichen
+Gebäude-/Gebietsrate: ganzzahliger Gebietsgrundwert multipliziert mit dem
+abgerundeten Gebäude-Gesundheitsprozentsatz, geteilt durch100.
+Bei RateR>0 zeigt0040ab30 Restsekunden trunc(Restarbeit/(R×17)); R0 liefert0.
+0040d050 zieht je UpdateR ab. Alle17 Updates erhöht es bei positiver Restzeit
+und fehlenden HP den Rumpf um max(1,trunc(fehlendeHP/Restsekunden)+1).
+Dies ist bei exakter Division ein zusätzlicher Punkt, kein bloßes Aufrunden.
+Bei Arbeitsende wird der Rumpf abschließend exakt auf sein Maximum gesetzt.
+Die Umrechnung17 ist belegt; eine exakte globale Echtzeit-Kadenz ist damit
+nicht vollständig dynamisch rekonstruiert.
+
+WELCHE WERTE WERDEN ZURÜCKGESETZT?
+Beim Eintritt kopiert0044ebf0 den Hardware-Bewegungsgrundwert+0x0c in den
+aktuellen Hardware-Bewegungswert+7. Ebenso wird aktuelle Zielgenauigkeit
+Einheit+2 aus ihrem erhaltenen GrundwertEinheit+3 wiederhergestellt.
+In diesen Werkstatt-Eintritts-/Abschlussroutinen ist keine entsprechende
+Wiederherstellung der Feuerrate oder Heilung der Fahrer-HP belegt. Daher nicht
+pauschal den gesamten Kampfzustand oder Fahrerzustand neu initialisieren.
+Der Grundwert der Zielgenauigkeit gehört zum tatsächlichen ursprünglichen
+Fahrer; er kann nach Bemannen von dem eines frisch gestarteten Panzers abweichen.
+
+ENDE UND BESITZERWECHSEL
+0040d050 kontrolliert periodisch den Besitzer. Bei Besitzerwechsel wird das
+Fahrzeug freigegeben, ohne den Rumpf abschließend auf maximale HP zu setzen.
+Bei normalem Ende entfernt die Routine Belegung und Bit0x40, räumt den alten
+Bewegungsauftrag auf und schickt das Fahrzeug aus der Werkstatt: neue native
+Zielposition Fahrzeuganker+(8,66), im Browser+(16,132). Der Fahrzeugtyp bleibt
+unverändert. 0045a9b0 und0045ef00 gehören hier zur Auftrags-/Bewegungsausgabe,
+sind keine nachgewiesene Wiederherstellung sämtlicher Kampfattribute.
+Alle Sonderfälle bei zerstörter Werkstatt oder neutralisiertem Besitzer sind
+mit dieser begrenzten Prüfung nicht vollständig als Originalablauf bewiesen.
+
+GRENZEN DER ÜBERTRAGUNG
+Ein expliziter Browserbefehl repairVehicle, sichtbare Bedienhinweise und eine
+geordnete Warteschlange mehrerer ausgewählter Fahrzeuge sind Webanpassungen.
+Das Original belegt eine einzige aktive Belegung; es macht eine beschäftigte
+Werkstatt in0041c3f0 vorübergehend nicht zum freien Reparaturziel.
+Ein im Browser zusätzlich geregelter Anfahrpunkt, Durchlass im Gebäuderechteck
+oder kontrollierter Übergang in den Reparaturzustand ersetzt die ursprünglichen
+Terrainaktionen und Fußabdruckprüfungen. Er darf nicht als identischer nativer
+Bewegungsscheduler bezeichnet werden. Auch das Verhalten beim Abbruch und bei
+Zerstörung muss als eigene robuste Implementierung von den obigen nachgewiesenen
+Originalschritten getrennt werden. Aktuelle Umsetzung und Tests stehen in
+TESTERGEBNIS.txt; dieses Dokument behauptet keine ungeprüften Testergebnisse.

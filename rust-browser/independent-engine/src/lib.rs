@@ -11,6 +11,7 @@ mod original_initiative;
 mod original_terrain;
 mod terrain;
 mod walls;
+mod workshops;
 mod pursuit;
 mod gun_placement;
 #[derive(Clone, Serialize, Deserialize)]
@@ -108,6 +109,8 @@ pub struct Unit {
     pub initiative: Option<original_initiative::Initiative>,
     #[serde(default)]
     pub hold_position: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workshop: Option<workshops::State>,
     #[serde(skip)]
     pub(crate) pursuit: Option<pursuit::State>,
     #[serde(skip_deserializing)]
@@ -455,6 +458,7 @@ impl Game {
             original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
             initiative: None,
             hold_position: false,
+            workshop: None,
             pursuit: None,
             path: VecDeque::new(),
         });
@@ -544,6 +548,11 @@ impl Game {
                 continue;
             };
             if kind=="attackWall" && (!walls::capable(&self.units[i]) || v["target"].as_u64().and_then(|id| self.wall(id as usize)).is_none()) { continue; }
+            if kind=="repairVehicle" {
+                if let Some(target)=v["target"].as_u64().and_then(|n|usize::try_from(n).ok()) { self.begin_workshop(i,target); }
+                continue;
+            }
+            self.cancel_workshop(i);
             self.units[i].initiative=None;
             self.units[i].pursuit=None;
             self.units[i].hold_position=self.map.original&&kind=="stop";
@@ -628,7 +637,7 @@ impl Game {
                 .units
                 .iter()
                 .filter(|u| {
-                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && !u.hold_position
+                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && !u.hold_position && u.workshop.is_none()
                         && matches!(u.order.as_str(),"guard"|"move")
                 })
                 .map(|u| u.id)
@@ -668,6 +677,7 @@ impl Game {
         let mut original_damage:Vec<original_combat::Attack>=vec![];
         let mut bdamage: Vec<(usize, f64)> = vec![];
         for i in 0..self.units.len() {
+            if self.update_workshop(i,dt) { continue; }
             let mut u = self.units[i].clone();
             if !original_combat::alive(self.map.original,u.hp) || u.team < 0 {
                 continue;
@@ -749,7 +759,7 @@ impl Game {
                                 self.buildings[target].hp = (b.hp + dt * 48.).min(b.max_hp);
                             }
                         }
-                    } else if let Some(v) = snapshot.iter().find(|v| v.id == target && original_combat::alive(self.map.original,v.hp)) {
+                    } else if let Some(v) = snapshot.iter().find(|v| v.id == target && original_combat::alive(self.map.original,v.hp) && !workshops::hidden(v)) {
                         if u.order=="enter"&&(v.team>=0||v.crew.is_some()||stats(&v.kind).cls==0) {
                             self.units[i].order="guard".into();self.units[i].target=None;
                             self.units[i].dest=None;self.units[i].path.clear();self.units[i].initiative=None;
@@ -819,6 +829,7 @@ impl Game {
                     !building_target_in_range
                         && !wall_hold
                         && original_combat::alive(self.map.original,v.hp)
+                        && !workshops::hidden(v)
                         && v.team >= 0
                         && v.team != u.team
                         && (v.x - u.x).hypot(v.y - u.y) <= d.range
@@ -918,17 +929,7 @@ impl Game {
                     }
                 }
             }
-            for b in &mut self.buildings {
-                if b.kind == "repair"
-                    && b.team == u.team
-                    && d.cls == 1
-                    && (u.x - (b.x + b.w / 2.)).hypot(u.y - (b.y + b.h + 20.)) < 65.
-                {
-                    let owned = self.sectors.iter().filter(|s| s.owner == u.team).count();
-                    self.units[i].hp =
-                        (self.units[i].hp + dt * (8. + owned as f64 * 4.)).min(u.max_hp);
-                }
-            }
+
         }
         for b in &self.buildings {
             if b.kind == "fort" && b.hp > 0. {
@@ -949,7 +950,7 @@ impl Game {
             return;
         }
         for attack in original_damage {
-            if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp)) {
+            if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp) && !workshops::hidden(u)) {
                 let mut rng=self.rng;
                 original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||advance_random(&mut rng));
                 self.rng=rng;
@@ -962,7 +963,7 @@ impl Game {
             }
         }
         for (id, amount, sniper) in damage {
-            if let Some(i) = self.units.iter().position(|u| u.id == id && u.hp > 0.) {
+            if let Some(i) = self.units.iter().position(|u| u.id == id && u.hp > 0. && !workshops::hidden(u)) {
                 if sniper {
                     if let Some(c) = &mut self.units[i].crew {
                         c.hp -= amount;
@@ -1010,7 +1011,7 @@ impl Game {
             if let Some(u) = self
                 .units
                 .iter()
-                .find(|u| original_combat::alive(self.map.original,u.hp) && u.team >= 0 && (u.x - s.x).hypot(u.y - s.y) < 22.)
+                .find(|u| original_combat::alive(self.map.original,u.hp) && !workshops::hidden(u) && u.team >= 0 && (u.x - s.x).hypot(u.y - s.y) < 22.)
             {
                 if s.owner != u.team {
                     let prev = s.owner;
@@ -1235,6 +1236,8 @@ mod route_quality_tests;
 mod multiplayer_tests;
 #[cfg(test)]
 mod wall_tests;
+#[cfg(test)]
+mod workshop_tests;
 
 fn production_sector()->bool{true}
 

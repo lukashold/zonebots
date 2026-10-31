@@ -9,9 +9,9 @@ window.AttackCommand=(()=>{
  function fighterIds(state,selected){
   if(!state)return [];
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));
-  return iterableIds(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&Number.isFinite(d?.damage)&&d.damage>0&&Number.isFinite(d?.range)&&d.range>0;});
+  return iterableIds(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&u.workshop?.phase!=='repairing'&&Number.isFinite(d?.damage)&&d.damage>0&&Number.isFinite(d?.range)&&d.range>0;});
  }
- const enemyUnit=(state,u)=>live(state,u)&&finitePoint(u)&&Number.isFinite(u.team)&&u.team>=0&&u.team!==0;
+ const enemyUnit=(state,u)=>live(state,u)&&u.workshop?.phase!=='repairing'&&finitePoint(u)&&Number.isFinite(u.team)&&u.team>=0&&u.team!==0;
  const enemyBuilding=b=>finitePoint(b)&&Number.isFinite(b.w)&&b.w>0&&Number.isFinite(b.h)&&b.h>0&&Number.isFinite(b.hp)&&b.hp>0&&Number.isFinite(b.team)&&b.team!==0;
  function inMap(state,p){const m=state.map,t=m?.tileSize||32;return finitePoint(p)&&Number.isFinite(m?.width)&&m.width>0&&Number.isFinite(m?.height)&&m.height>0&&p.x>=0&&p.y>=0&&p.x<m.width*t&&p.y<m.height*t;}
  function bridgeAt(state,p){

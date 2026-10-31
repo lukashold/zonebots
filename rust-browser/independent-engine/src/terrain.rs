@@ -191,6 +191,9 @@ impl Game {
     pub(crate) fn movement_segment_clear(&self,x:f64,y:f64,dx:f64,dy:f64,infantry:bool)->bool{
         self.segment_profile(x,y,dx,dy,if infantry{Profile::Infantry}else{Profile::Tracked})
     }
+    pub(crate) fn navigation_point_clear(&self,kind:&str,x:f64,y:f64)->bool{
+        self.point_profile(x,y,original_terrain::profile(kind))
+    }
     pub(crate) fn movement_segment_clear_for(&self,x:f64,y:f64,dx:f64,dy:f64,kind:&str)->bool{
         self.segment_profile(x,y,dx,dy,original_terrain::profile(kind))
     }

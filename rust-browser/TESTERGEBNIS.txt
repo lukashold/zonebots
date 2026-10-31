@@ -372,3 +372,49 @@ Temporäre Vergleichsseite und altes Wasm wurden vor dem Paketbau entfernt.
 Die vollständige native Hierarchie, dynamische gegenseitige Einheitenbelegung
 und ursprüngliche Fahrzeug-/Infanterie-Fußabdrücke sind weiterhin dokumentierte
 Grenzen; Reisezeitschutz und kontinuierliche Segmentprüfung sind Webanpassungen.
+
+WERKSTATT-REPARATUR – 31.10.2026
+145 Rust-Tests bestanden, davon12 neue Werkstattfälle. Release-Wasm559.883Bytes,
+SHA25639e21788bd116ca1bc594701a521bd8c9fef207fca89d86aa8eacff9c1c6c95b.
+Geprüft: expliziter Auftrag/Anfahrt, Einfahrt durch autorisierten Werkstattbereich,
+verdeckte Belegung, native Arbeitsmenge und17Tick-Heilung, Wiederherstellung nur
+der belegten Bewegungs-/Basiszielwerte, volleRumpfHP und sichtbare Ausfahrt.
+Queue, Pause beiRate0, HP0 als nativer lebender Zustand, Stopp, Ersatzauftrag,
+Eroberung/Zerstörung und verborgene Kampf-/Bemannungs-/Fahnenziele sind abgedeckt.
+
+check-workshop-input.cjs besteht in klassischer und moderner Steuerung gegen
+echte App-Handler und Wasm: Schaden aus normalem Granatenkampf, Cursor/Klick,
+Eignungs-/Besitzfilter, Stopp, Anfahrt ohne Fernheilung, Reparatur, Ausfahrt,
+ein Abschlussereignis, Markierungsbereinigung und Servicehilfe statt Produktion.
+Vollreparierte/neutrale/gegnerische Fahrzeuge, Roboter und stationäre Geschütze
+werden nicht als eigene Reparaturkandidaten angenommen.
+check-workshop-multiplayer.cjs besteht: echter Kampfschaden, Gastperspektive und
+Besitzprüfung, abgelehntes gegnerisches Ziel, voller Host-Reparaturablauf,
+synchron identisches Fahrzeug und genau ein Ereignis, kein Tick beim Gast.
+check-workshop-art.cjs besteht über5 Welten und55 Posen: Cursor43/Hotspot16,12,
+2763..2766, unabhängige Bildcaches und Fallback ohne Originalpaket.
+
+check-workshop-campaign.cjs besteht für alle21 tatsächlichen Werkstätten
+in Missionen11–20: unveränderte Gelände-/Gebäude-/Mauerkarten, normaler schwerer
+Panzerschuss beschädigt APC200→80, Fahrer30HP bleibt erhalten, Reparaturauftrag
+passiert die tatsächliche geschlossene Werkstatttür kontrolliert, verborgene
+Reparatur auf200HP, sichtbarer Austritt, unveränderte Kennung/Typ/Team/Fahrer.
+Kontrollierte volleGebietsrate:8,6–9,5s Simulation pro gesamtem Ablauf. Diese
+Testzeit ist keine universelle Reparaturdauer; Gebäudezustand/Gebiete zählen.
+
+Regressionen bestehen: alle20 Originalmissionen, automatische Produktion,
+Gelände und echte Abkürzungsfälle, Zielverfolgung, Granaten, Geschützidentität,
+Bemannen, Angriffs-/Aufnahme-/Platzierungseingaben, Wandbeschuss samtMehrspieler,
+Originalaudio, Einstiegspfeile und Menü.
+
+Browserprüfung der echten App-Oberfläche mit Originalkarte11: Ein realer
+Panzerschuss beschädigt einen Transporter auf80/200HP. Fahrzeug überV gewählt
+und mit klassischem Linksklick auf die Original-Werkstatt geschickt. Anzeige
+wechselt zur Anfahrt; anschließend Reparatur und sichtbare Ausfahrt mit200/200HP,
+AuftragBereit, keine Browserfehler/-warnungen. Screenshot außerhalb desPakets:
+outputs/Z-Werkstatt-Reparatur.png. Temporäre Prüfseite wurde vor dem Paketbau
+entfernt. Der zusätzliche Statusbalken der Aufnahme gehört nur zur Prüfung.
+
+Native Einfahr-/Arbeitsbefunde wurden in fünf frischen schreibgeschützten
+Ghidra-Läufen mit Decompilation und ASM abgeglichen. Original-Rohcode bleibt
+lokal. Warteschlange/Portal-/Notfreigabe bleiben dokumentierte Webanpassungen.

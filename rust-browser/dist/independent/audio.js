@@ -10,7 +10,7 @@ window.RadioAudio=(()=>{
   grenades:['Granaten eingesammelt!','Grenades collected!'],victory:['Geschafft!','We have done it!'],
   defeat:['Schlacht verloren.','Battle lost.'],start:['Einheiten bereit.','Units reporting.'],select:['Einheit meldet sich.','Unit reporting.'],
   order:['Wir sind unterwegs.','We are on our way.'],production:['Produktion gestartet.','Starting manufacture.'],cancel:['Produktion abgebrochen.','Manufacturing cancelled.'],
-  repair:['Gebäude repariert.','Building repaired.'],bridge:['Brücke repariert.','Bridge repaired.'],underAttack:['Wir werden angegriffen!','We are under attack!']};
+  repair:['Gebäude repariert.','Building repaired.'],vehicleRepaired:['Fahrzeug repariert.','Vehicle repaired.'],bridge:['Brücke repariert.','Bridge repaired.'],underAttack:['Wir werden angegriffen!','We are under attack!']};
  const infantry=new Set(['grunt','psycho','tough','sniper','pyro','laser']),guns=new Set(['gatling','cannon','howitzer','missile']);
  const reports={grunt:'ROB07',psycho:'ROB08',sniper:'ROB09',tough:'ROB10',laser:'ROB11',pyro:'ROB12'};
  const shots={grunt:'RIFLE3',sniper:'RIFLE3',psycho:'MACHGUN2',tough:'MOBIMISS',pyro:'FLAMER',laser:'LASERGUN',
@@ -49,7 +49,7 @@ window.RadioAudio=(()=>{
   if(kind==='order')return detail.order==='stop'?'ROB'+String(1+rotation++%3).padStart(2,'0'):'ROB'+String(13+rotation++%12).padStart(2,'0');
   if(kind==='ready')return infantry.has(type)||!type?'COMP02':guns.has(type)?'COMP03':'COMP01';
   if(kind==='crewed')return guns.has(type)?'ROB51':'ROB52';
-  return {capture:'ROB49',lost:'COMP08',grenades:'ROB53',victory:'ROB65',defeat:'COMP11',start:'ROB04',production:'COMP04',cancel:'COMP05',repair:'ROB48',bridge:'ROB47',underAttack:'ROB25'}[kind];
+  return {capture:'ROB49',lost:'COMP08',grenades:'ROB53',victory:'ROB65',defeat:'COMP11',start:'ROB04',production:'COMP04',cancel:'COMP05',repair:'ROB48',vehicleRepaired:'ROB48',bridge:'ROB47',underAttack:'ROB25'}[kind];
  }
  function caption(kind,detail){if(kind==='order'&&detail.order==='stop')return lang==='de'?'Verstanden.':'Acknowledged.';if(kind==='ready')return lang==='de'?(infantry.has(detail.type)||!detail.type?'Roboter hergestellt.':guns.has(detail.type)?'Geschütz hergestellt.':'Fahrzeug hergestellt.'):(infantry.has(detail.type)||!detail.type?'Robot manufactured.':guns.has(detail.type)?'Gun manufactured.':'Vehicle manufactured.');if(kind==='order'&&detail.order==='stop')return lang==='de'?'Zu Befehl.':'Affirmative.';if(kind==='select'&&detail.type){const group={grunt:'Grunts',psycho:'Psychos',sniper:'Scharfschützen',tough:'Toughs',laser:'Lasers',pyro:'Pyros'}[detail.type];return lang==='de'?(group?group+' melden sich.':'Einheit meldet sich.'):'Unit reporting.';}return labels[kind]?.[lang==='de'?0:1]||'';}
  async function pump(){

@@ -457,3 +457,17 @@ sind noch nicht vollständig umgesetzt. Die Auswahl von Innentexturen und Trümm
 ist hier deterministisch. Automatisches Durchsprengen während beliebiger
 Bewegungsbefehle sowie alle nativen Sonderzustände werden nicht als identisch
 behauptet. Format, Funktionsbelege und genaue Grenzen: ORIGINAL-WAENDE.txt.
+
+Werkstätten – frischer Abgleich31.10.2026
+21 Original-Werkstätten aus Missionen11–20 sind mit echtem Wasm durchgeprüft.
+Die zuvor fehlende Fahrzeugaktion und das leere Produktionsfenster sind durch
+repairVehicle, native Cursor-/Bestätigungsbilder und eine Reparaturanzeige
+ersetzt. Eigene beschädigte bemannte Fahrzeuge fahren ein, werden verborgen
+nach ursprünglicher Arbeits-/Gebiets-/Gesundheitsformel repariert und fahren aus.
+Bewegungsgrundwert und erhaltene Fahrer-Basiszielgenauigkeit werden beim Eintritt
+wiederhergestellt; Feuerrate, Luke und Fahrer-HP werden dabei nicht zurückgesetzt.
+Verborgene Insassen sind von Beschuss, Bemannen und Fahneneinnahme ausgeschlossen.
+Warteschlange, Anfahrpunkt, kontrollierter Tordurchlass und sichere Freigabe bei
+Abbruch/Zerstörung sind eigene Webanpassungen anstelle des ganzen nativen
+Terrainaktions-/Belegungsschedulers. Sie öffnen keine normalen Kartenhindernisse.
+Detaillierte eigene Originalbefunde: ORIGINAL-WERKSTATT.txt.
