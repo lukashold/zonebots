@@ -23,7 +23,7 @@ const trackerEnv={window:{}};vm.createContext(trackerEnv);vm.runInContext(fs.rea
  assert(Math.hypot(unit(s,attacker).path.at(-1)[0]-unit(s,attacker).x,unit(s,attacker).path.at(-1)[1]-unit(s,attacker).y)>96,'Fixture must retain substantial untraveled route distance while target moves');
  const tracker=trackerEnv.window.AttackCommand.createTracker();tracker.assign({kind:'attack',targetType:'unit',target,ids:[attacker],x:originalTarget[0],y:originalTarget[1]},s);
  assert.equal(tracker.targets(s,new Set([attacker])).length,1);
- s=command(s,target,'move',{x:originalTarget[0],y:1008});s=tick(60);
+ s=command(s,target,'move',{x:originalTarget[0],y:1008});s=tick(100);
  assert(distance(point(unit(s,target)),originalTarget)>160,'Fixture target must move significantly');
  assert(unit(s,attacker).path.length>0,'Pursuer should still be en route');
  assert(unit(s,attacker).path.some(([,y])=>y>originalTarget[1]+16),'Old route must bend toward a displaced enemy before its old endpoint is reached');
@@ -32,12 +32,12 @@ const trackerEnv={window:{}};vm.createContext(trackerEnv);vm.runInContext(fs.rea
  assert.equal(tracker.targets(s,new Set([attacker])).length,1,'Moving-target marker must survive engine replanning');
  // Stop the enemy: the pursuer should reach valid firing range and stop advancing.
  s=command(s,target,'stop');let fired=false;
- for(let i=0;i<300;i++){s=tick();if(s.events.some(e=>e.kind==='shot'&&e.team===0)){fired=true;break;}}
+ for(let i=0;i<450;i++){s=tick();if(s.events.some(e=>e.kind==='shot'&&e.team===0)){fired=true;break;}}
  assert(fired,'Pursuer should eventually fire at the stopped target');
  const inRange=point(unit(s,attacker));s=tick(2);assert(distance(point(unit(s,attacker)),inRange)<1,'Pursuer should not drive through an enemy once it can shoot');
  // Moving away again must restart pursuit after the route was cleared in range.
  const stoppedTarget=point(unit(s,target));s=command(s,target,'move',{x:stoppedTarget[0]+400,y:stoppedTarget[1]});let resumed=false;
- for(let i=0;i<25;i++){s=tick();resumed ||= unit(s,attacker).path.length>0||unit(s,attacker).moving;}
+ for(let i=0;i<50;i++){s=tick();resumed ||= unit(s,attacker).path.length>0||unit(s,attacker).moving;}
  assert(resumed,'Target leaving range must restart pursuit');
  assert(distance(point(unit(s,attacker)),inRange)>4,'Pursuer should resume movement');
  // Explicit Stop and a new move order must cancel all pursuit state.
@@ -51,7 +51,7 @@ const trackerEnv={window:{}};vm.createContext(trackerEnv);vm.runInContext(fs.rea
  for(let y=0;y<bank.map.height;y++){const j=y*bank.map.width+10;bank.map.terrainCodes[j]=9;bank.map.tiles[j]=3;}
  s=init(bank);attacker=s.units[0].id;target=s.units[1].id;s=command(s,target,'stop');s=command(s,attacker,'attack',{target,x:unit(s,target).x,y:unit(s,target).y});s=tick();
  assert(unit(s,attacker).path.length>0);assert(unit(s,attacker).path.every(([x])=>x<320),'Firing route must stay on own river bank');firingGoal(s,attacker,target);
- let bankShot=false;for(let i=0;i<120;i++){s=tick();assert(unit(s,attacker).x<320);if(s.events.some(e=>e.kind==='shot'&&e.team===0)){bankShot=true;break;}}assert(bankShot,'Same-bank firing position should eventually yield a shot');
+ let bankShot=false;for(let i=0;i<240;i++){s=tick();assert(unit(s,attacker).x<320);if(s.events.some(e=>e.kind==='shot'&&e.team===0)){bankShot=true;break;}}assert(bankShot,'Same-bank firing position should eventually yield a shot');
  // Mere distance is insufficient when a nearby target is behind a rock wall.
  const wall=fixture({type:'heavy',distance:160});for(let y=0;y<20;y++){const j=y*wall.map.width+7;wall.map.terrainCodes[j]=19;wall.map.tiles[j]=2;}
  s=init(wall);attacker=s.units[0].id;target=s.units[1].id;s=command(s,target,'stop');s=command(s,attacker,'attack',{target,x:unit(s,target).x,y:unit(s,target).y});s=tick();

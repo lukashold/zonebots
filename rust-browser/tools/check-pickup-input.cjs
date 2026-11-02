@@ -41,7 +41,7 @@ async function check(mode){
  render();assert.equal(hands.length,1,'A shared target gets one hand marker');
  element('stop').onclick();render();assert.equal(hands.length,0,'Stop clears the pickup marker');
  hover(670,542);click(670,542,button);render();assert.equal(hands.length,1);
- let collected=false;for(let i=0;i<400;i++){render(50);if(response.crates[0].taken){collected=true;break;}}
+ let collected=false;for(let i=0;i<700;i++){render(50);if(response.crates[0].taken){collected=true;break;}}
  assert(collected,`${mode}: actual Rust movement must reach and collect the crate`);
  render(50);render(50);assert.equal(hands.length,0,'Collected crates lose their hand marker');assert.notEqual(canvas.style.cursor,'pickup-hand');
  const grenades=()=>response.units.filter(u=>u.team===0).reduce((n,u)=>n+u.grenades,0);

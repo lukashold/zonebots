@@ -300,7 +300,7 @@ fn first_step_distance(kind: &str, tile: u8, native: u8) -> (f64, f64) {
     let end = xy(20, 10);
     let factor = g.terrain_factor_for(5, 10, kind);
     g.command(&json!({"ids":[id],"kind":"move","x":end.0,"y":end.1}));
-    g.step(0.05);
+    for _ in 0..60 {g.step(0.059);}
     let u = unit(&g, id);
     ((u.x - start.0).hypot(u.y - start.1), factor)
 }

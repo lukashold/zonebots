@@ -86,7 +86,7 @@ fn out_of_range_manual_target_keeps_pursuit_and_nearby_return_fire() {
         let (attacker, chosen) = (game.units[0].id, game.units[2].id);
         let chosen_hp = game.units[2].hp;
         game.command(&json!({"ids":[attacker],"kind":"attack","target":chosen}));
-        game.step(0.05);
+        game.step(0.1);game.step(0.1);
         assert_shot_at(&game, 400., 320.);
         assert_eq!(game.units[2].hp, chosen_hp);
         assert!(!game.units[0].path.is_empty());

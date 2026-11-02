@@ -12,8 +12,10 @@ const copy=v=>JSON.parse(JSON.stringify(v)),xy=(x,y)=>[(x+.5)*32,(y+.5)*32],dist
  function walk(m,goals,inspect=()=>{}){let s=init(m),u=s.units.find(u=>u.team===0),id=u.id,previous=[u.x,u.y],length=0,ticks=0;const terrain=s.map;for(const goal of goals){s=request({op:'command',kind:'move',team:0,ids:[id],x:goal[0],y:goal[1]});u=s.units.find(u=>u.id===id);for(let i=0;i<4000&&u.path.length;i++){s=request({op:'tick',dt:.05,compact:true});u=s.units.find(u=>u.id===id);assert(u,'Mover must survive');ticks++;const p=[u.x,u.y];length+=distance(previous,p);previous=p;inspect(p,terrain,s);assert.equal(s.winner,null,'Fixture must not end while checking movement');}assert(!u.path.length,'Movement must eventually finish');assert(distance([u.x,u.y],goal)<.01,`Requested endpoint ${goal} was replaced by ${u.x},${u.y}`);}return {seconds:ticks*.05,length,end:[u.x,u.y]};}
  // A long oblique command should not bounce through every intervening tile
  // center, and arbitrary legal click positions must survive route construction.
- let m=fixture();m.spawns[0].x=179;m.spawns[0].y=340;const end=[771,549],direct=distance([179,340],end);
- const flat=walk(m,[end]);assert(flat.length<=direct*1.015,`Open-field detour ${flat.length} exceeds direct ${direct}`);
+ let m=fixture();m.spawns[0].x=179;m.spawns[0].y=340;const end=[770,548],direct=distance([179,340],end);
+ let maxDeviation=0;const startOblique=[179,340];
+ const flat=walk(m,[end],p=>{maxDeviation=Math.max(maxDeviation,Math.abs((end[0]-startOblique[0])*(p[1]-startOblique[1])-(end[1]-startOblique[1])*(p[0]-startOblique[0]))/direct);});
+ assert(maxDeviation<=2,`Native integer path deviates ${maxDeviation}px from the direct line`);
  // Streets are useful when their actual speed advantage pays for the approach.
  m=fixture();const start=xy(3,10),goal=xy(28,10);const plain=walk(m,[goal]);
  for(let x=3;x<=28;x++){const j=9*m.map.width+x;m.map.tiles[j]=1;m.map.terrainCodes[j]=7;}

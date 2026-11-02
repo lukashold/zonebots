@@ -1,0 +1,71 @@
+Original-Bewegungstakt – 02.11.2026
+
+Der vorherige gemeinsame Faktor32 Weltpixel/s war eine freie Webanpassung und
+ist entfernt. Die normale Bewegung wird nun anhand der lokalen GOG-EXE ausgeführt.
+Dies ist weiterhin eine Teilrekonstruktion, keine vollständige Originalgleichheit.
+
+Frischer schreibgeschützter Ghidra-/ASM-Abgleich
+Z.exe SHA256 ed5b16c486824c0761235dbdffcb3cda7e9f9df6188186aef7f662981a44e43e.
+Private Rohbefunde:work/native-movement-audit. Keine dekompilierten Quelltexte,
+Originalprogramme oder Ressourcen kommen ins öffentliche Repository.
+
+0046daa0 vergleicht SDL_GetTicks mit1000/17 Millisekunden. Der ganzzahlige
+Zeitabstand erlaubt eine normale Ausführung frühestens nach59ms. Anschließend
+wird der gespeicherte Zeitpunkt auf die aktuelle Zeit gesetzt, ohne Nachholschleife.
+00431370 setzt nach Medienwiedergabe17Hz zurück.25Hz und12,5Hz sind eigene
+Medienzustände, kein Geschwindigkeitsfaktor für eine Partei.
+00435ad8 erhöht alle gemeinsamen Musterzähler vor den Einheitenaufrufen.
+Die Phasen laufen auch während eine Einheit steht; spätere Marschbefehle setzen
+sie nicht zurück. 00451d40 wechselt lediglich Zeiger auf dieselben Mustertabellen.
+Alle13 Folgen an00499fd4 wurden direkt mit den binären Datensätzen verglichen.
+
+0044f1e0 wählt Bewegungssteuerung/10 + Geländemodifikator/10, ganzzahlig auf0..12
+begrenzt. Beschädigte Steuerwerte wirken vor der Auswahl. Die Geländeabfrage
+addiert acht native Pixel zur jeweiligen Position. Zwei Weltpixel entsprechen
+einem nativen Pixel. 004525a0 richtet Hauptachse und Fehlerakkumulator ein;
+00451da0/00451ea0/00451fa0/004520a0 führen ganzzahlige Hauptachsenschritte aus.
+Die Nebenachse folgt Bresenham. Diagonale Bewegung wird nicht euklidisch normiert.
+Am Zwischenpunkt wird der aktuelle Schritt abgeschnitten; der Überschuss geht
+nicht im selben Takt auf den nächsten Abschnitt über. 00452810 zieht acht native
+Pixel von beiden gespeicherten Wegpunktkoordinaten ab. Der Rasteradapter nutzt
+entsprechende Zwischenpunktanker und native Pixelziele. Sein Reisezeitvergleich
+berücksichtigt Hauptachse und verschobene Geländeabfrage.
+
+Mittlere axiale Geschwindigkeit auf normalem Boden, ohne Sonderzustände
+Grunt/Psycho/Pyro/Medium: Steuerwert40, Muster1/2, etwa16,949 Weltpixel/s.
+Tough/Heavy:30, Muster2/5, etwa13,559.
+Sniper/Laser/Light/APC/Kran/Firetruck:50, Muster2/3, etwa22,599.
+Jeep/Truck:60, Muster4/5, etwa27,119.
+Launcher:20, Muster1/3, etwa11,299. Feste Geschütze bewegen sich nicht.
+Beide Parteien und alle Schwierigkeiten verwenden dieselben Bewegungsregeln.
+Nach5,00s ab gemeinsamer Phase0:84 Takte; Grunt84, Sniper112, Jeep134 und Heavy66
+Weltpixel. Einzelne Zeitfenster weichen wegen der diskreten Schritte vom Mittel ab.
+
+Prüfung
+185 Rust-Tests und58 Node-Prüfprogramme bestehen. Neue Wasm-Spurprüfung:38 Verläufe,
+4120 einzeln geprüfte Positionen,15 mobile Typen, normaler Boden und Straße,
+59ms-Grenze, späterer Start der zweiten Partei, acht Diagonaloktanten und gleiche
+Ergebnisse bei unterschiedlicher Aufteilung der Browser-Zeitschritte.
+Rust prüft alle13 Indizes über60 Takte, Gelände-/Schadenswechsel ohne Phasenreset
+und728 Richtungsvektoren gegen eine unabhängige geschlossene Formel. Vorhandene
+Eingabe-, Aufnahme-, Marsch-, Brücken- und Verfolgungsfälle bestehen. Ihre weiterhin
+begrenzten Wartezeiten berücksichtigen das belegte Tempo. Der freie diagonale Weg
+muss innerhalb eines nativen Pixels an der direkten Linie bleiben.
+Python check-native-movement-source.py prüft13 Folgen, Startzähler und Taktwerte
+direkt aus der EXE. Brückenimport und LAN-Server bestehen. Browser: tatsächlicher
+Wasm-Kern und Originalsprites im5s-Vergleich beider Farben, zusätzlich Start einer
+Originalmission in der App. Bildnachweis:outputs/Z-Original-Bewegungstakt.png.
+Die temporäre Prüfseite wird vor Veröffentlichung entfernt.
+
+Verbleibende Grenzen
+59ms emulieren den frühesten normalen GOG-Intervall; SDL-Überziehungen durch
+Rechnerlast werden nicht künstlich nachgebildet. Die Websimulation holt ihre
+eigenen fälligen Bewegungstakte nach. Produktion, Kampf und Initiative behalten
+getrennte bisherige Zeitschritte. Das ist noch kein vollständiger einheitlicher
+Original-Scheduler. Die Renderanimation verwendet weiterhin die Webzeit.
+Die EXE kennt Gruppenbonus+3 und den individuellen Zusatz unit+0x8c. Vollständige
+Zustandsauslöser und Dauer fehlen; sie werden nicht pauschal für den Gegner erfunden.
+Formationssynchronisation, Tough-Sondermasken, Hierarchieplanung, dynamische Belegung
+und vollständige Fußabdruck-/Hindernisreaktionen bleiben unvollständig. Kandidaten-
+suche und Kollisionsprüfung sind weiterhin Webadapter. Kranarbeit65HP/s, Gegner-KI,
+Projektilflug und weitere Animationen sind ebenfalls keine vollständigen Nachbauten.

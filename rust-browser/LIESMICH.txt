@@ -212,17 +212,14 @@ Stopp, neue Befehle, gezielte Angriffe und Reparaturen werden berücksichtigt.
 175 Rust-Tests und56 Node-Prüfprogramme bestehen. Originalbelege, angepasste
 Abläufe und Prüfungen: ORIGINAL-MARSCH.txt. Bitte nach dem Update neu laden.
 
-EINHEITENTEMPO UND BRÜCKEN – 02.11.2026
-Das Bewegungstempo auf Originalkarten wurde für beide Parteien gesenkt und
-die Unterschiede aus den ursprünglichen Bewegungsmustern übernommen.
-Scharfschützen sind auf normalem Boden ein Drittel schneller als Grunts.
-Gleiche Typen sind bei gleichem Gelände/Zustand auf beiden Seiten gleich schnell;
-Schwierigkeit gibt dem Gegner keinen zusätzlichen Bewegungsvorteil.
-
-19 Brücken in Missionen14,15,17,18 und20 beginnen jetzt wie im Original zerstört.
-Mit einem eigenen bemannten Kran auf die Brücke befehlen: klassisch Linksklick,
-modern Rechtsklick. Erst nach vollständigem Wiederaufbau ist sie passierbar.
+ORIGINAL-BEWEGUNGSTAKT UND BRÜCKEN – 02.11.2026
+Auf Originalkarten ersetzen die aus der EXE belegten59ms-Schritte den freien
+Tempofaktor. Beide Parteien verwenden dieselben gemeinsamen Phasen; Scharfschützen
+sind im Mittel auf normalem Boden ein Drittel schneller als Grunts. Gelände und
+Beschädigungen bestimmen denselben quantisierten Bewegungsindex.
+19 Brücken in Missionen14,15,17,18 und20 beginnen zerstört. Ein eigener bemannter
+Kran kann sie wiederaufbauen; bis zur vollständigen Reparatur bleiben sie gesperrt.
 Der Starter aktualisiert ältere lokale Kartenpakete automatisch auf Format3.
-182 Rust-Tests und57 weitere Prüfprogramme bestehen. Originalbefunde und
-angepasste Zeitwerte: ORIGINAL-TEMPO-BRUECKEN.txt. Spielseite bitte neu laden;
-für den korrigierten Anfangszustand eine neue Schlacht starten.
+185 Rust-Tests und58 weitere Prüfprogramme bestehen. Befunde und Grenzen:
+ORIGINAL-BEWEGUNGSTAKT.txt und ORIGINAL-TEMPO-BRUECKEN.txt. Spielseite neu laden;
+für korrigierte Anfangszustände eine neue Schlacht starten.

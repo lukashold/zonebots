@@ -93,6 +93,10 @@ impl Game {
     }
     fn route_profile_surface(&self,x:f64,y:f64,dx:f64,dy:f64,profile:Profile,control:u8,firing_range:Option<f64>,wall_target:Option<usize>,building_target:Option<usize>,target_mount:Option<usize>)->VecDeque<(f64,f64)>{
         let empty=VecDeque::new();
+        let (dx,dy)=if self.map.original {((dx/2.).floor()*2.,(dy/2.).floor()*2.)}else{(dx,dy)};
+        // Native waypoints store cell centers;00452810 subtracts eight
+        // native pixels from both coordinates before starting the segment.
+        let anchor=if self.map.original{0.}else{16.};
         if ![x,y,dx,dy].iter().all(|n|n.is_finite())||x<0.||y<0.{return empty;}
         let(w,h)=(self.map.width,self.map.height);
         let(sx,sy)=((x/TILE)as usize,(y/TILE)as usize);
@@ -125,7 +129,7 @@ impl Game {
         }else{5./1.3};
         let heuristic=|j:usize|->u32{
             if let Some(range)=firing_range{
-                let(px,py)=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
+                let(px,py)=((j%w)as f64*TILE+anchor,(j/w)as f64*TILE+anchor);
                 let radius=building_target.and_then(|id|self.buildings.iter().find(|b|b.id==id)).map(|b|b.w.hypot(b.h)/2.).or_else(||wall_target.and_then(|id|self.wall(id)).map(|wall|wall.w.hypot(wall.h)/2.)).unwrap_or(TILE*std::f64::consts::SQRT_2);
                 return (((px-dx).hypot(py-dy)-range-radius).max(0.)/TILE*1000.*minimum_cost).floor()as u32;
             }
@@ -141,7 +145,7 @@ impl Game {
             if j==end{reached=Some(j);break;}
             let(cx,cy)=((j%w)as i32,(j/w)as i32);
             if let Some(range)=firing_range{
-                let(px,py)=(cx as f64*TILE+16.,cy as f64*TILE+16.);
+                let(px,py)=(cx as f64*TILE+anchor,cy as f64*TILE+anchor);
                 let can_fire=if let Some(b)=building_target.and_then(|id|self.buildings.iter().find(|b|b.id==id)){let p=Self::building_point(b,px,py);(px-p.0).hypot(py-p.1)<=range&&self.structure_los(px,py,p.0,p.1,Some(b.id),None)}else if let Some(wall)=wall_target.and_then(|id|self.wall(id)){let point=wall.point_from(px,py);(px-point.0).hypot(py-point.1)<=range&&self.wall_los(px,py,point.0,point.1,wall.id)}else{(px-dx).hypot(py-dy)<=range&&if target_mount.is_some(){self.structure_los(px,py,dx,dy,target_mount,None)}else{self.los(px,py,dx,dy)}};
                 if passable(cx,cy)&&can_fire{
                     reached=Some(j);break;
@@ -155,8 +159,8 @@ impl Game {
                 let(nx,ny)=(cx+xx,cy+yy);
                 let goal=exact&&nx==gx&&ny==gy;
                 if (!goal&&!passable(nx,ny))||(xx!=0&&yy!=0&&(!passable(cx+xx,cy)||!passable(cx,cy+yy))){continue;}
-                let from=if j==start{(x,y)}else{(cx as f64*TILE+16.,cy as f64*TILE+16.)};
-                let to=if goal{(dx,dy)}else{(nx as f64*TILE+16.,ny as f64*TILE+16.)};
+                let from=if j==start{(x,y)}else{(cx as f64*TILE+anchor,cy as f64*TILE+anchor)};
+                let to=if goal{(dx,dy)}else{(nx as f64*TILE+anchor,ny as f64*TILE+anchor)};
                 if (j==start&&!self.segment_profile(from.0,from.1,to.0,to.1,profile))
                     ||(j!=start&&!self.building_segment_clear(from.0,from.1,to.0,to.1)){continue;}
                 let k=ny as usize*w+nx as usize;
@@ -171,11 +175,11 @@ impl Game {
         }
         let Some(mut j)=reached.or_else(||fallback.map(|v|v.2))else{return empty;};
         if j==start&&firing_range.is_some(){
-            let point=((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.);
+            let point=((j%w)as f64*TILE+anchor,(j/w)as f64*TILE+anchor);
             return if (point.0-x).hypot(point.1-y)>1.&&self.segment_profile(x,y,point.0,point.1,profile){VecDeque::from([point])}else{empty};
         }
         let mut path=Vec::new();
-        while j!=start{path.push(((j%w)as f64*TILE+16.,(j/w)as f64*TILE+16.));j=prev[j];}
+        while j!=start{path.push(((j%w)as f64*TILE+anchor,(j/w)as f64*TILE+anchor));j=prev[j];}
         path.reverse();
         if exact {
             // A click is a pixel position, not merely the containing tile.
@@ -283,8 +287,11 @@ impl Game {
             &&self.building_segment_clear(x,y,dx,dy)
     }
     fn segment_time(&self,a:(f64,f64),b:(f64,f64),profile:Profile,control:u8)->f64{
-        self.segment_cells(a.0,a.1,b.0,b.1).map(|cells|cells.into_iter()
-            .map(|(x,y,length)|length/self.factor_profile(x,y,profile,control).max(0.001)).sum()).unwrap_or(f64::INFINITY)
+        let offset=if self.map.original{16.}else{0.};
+        let length=(b.0-a.0).hypot(b.1-a.1);
+        let ratio=if self.map.original&&length>0.{(b.0-a.0).abs().max((b.1-a.1).abs())/length}else{1.};
+        self.segment_cells(a.0+offset,a.1+offset,b.0+offset,b.1+offset).map(|cells|cells.into_iter()
+            .map(|(x,y,length)|length*ratio/self.factor_profile(x,y,profile,control).max(0.001)).sum()).unwrap_or(f64::INFINITY)
     }
     /// 0045cf90/0045cdc0 compare dominant-axis raster cells, not Euclidean
     /// distance. The final cell is excluded, and high-price runs reset per leg.

@@ -33,8 +33,9 @@ Gebietsfaktor = 1 + (floor(eigene_Gebiete * 100 / gültige_Gebiete) >> 2).
 Rate = floor(floor(HP * 100 / maxHP) * Gebietsfaktor / 100).
 Ein Fabrikaufruf zieht diese ganzzahlige Rate von der Restarbeit ab. Fertig bei
 Restarbeit < 0. Sekundenanzeige = floor(Restarbeit / (Rate * 17)); Rate 0 hält an.
-Die ursprüngliche Spielsekundenzählung verwendet 17 Updates. Der exakte Windows-
-Scheduler und alle Sonderzustände sind damit noch nicht vollständig vermessen.
+Die ursprüngliche Spielsekundenzählung verwendet17 Updates. Der normale SDL-
+Bewegungsintervall ist inzwischen mit59ms belegt; Produktion behält ihre separate
+nominelle17Hz-Skala. Näheres: ORIGINAL-BEWEGUNGSTAKT.txt.
 Beispiel: Grunt-Score 1062 -> 19558 Arbeit; bei 1/9 Gebieten und voller Fabrik
 Rate 3 -> Anzeige 6:23, bei 3/9 Rate 9 -> 2:07. Fort-HP 10000 werden zu 9999 gerundet.
 
@@ -50,8 +51,9 @@ Die Integration bleibt deshalb eine Teilrekonstruktion; siehe Codekommentare.
 NOCH OFFEN
 Die KI ist ein eigener Gegner. Originale Projektilflugbahnen, Streuung, Kollisionen,
 vollständige Explosionswirkung und Kontaktabfolge sind noch nicht vollständig
-nachgebildet. Bewegung, Animationsgeschwindigkeit, Schusskadenz und Formation sind
-teilweise geschätzt. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranimationen
+nachgebildet. Normaler Bewegungstakt und ganzzahlige Schritte sind nun belegt;
+Sonderzustände, Animationsgeschwindigkeit, Schusskadenz und Formation bleiben
+unvollständig. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranimationen
 und die ursprüngliche Gesichtszustandsmaschine im Statuspanel fehlen bzw. sind unvollständig. Originale
 Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
 Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte

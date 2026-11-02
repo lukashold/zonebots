@@ -117,7 +117,7 @@ fn live_target_updates_an_attack_route_before_the_old_path_finishes() {
         assert!((initial.0 - get(&g, attacker).x).hypot(initial.1 - get(&g, attacker).y) > 3. * TILE,
             "The initial route must still have substantial untraveled distance");
         move_target(&mut g, target, 880., 1000.);
-        run(&mut g, 40);
+        run(&mut g, 70);
         let a = get(&g, attacker);
         let t = get(&g, target);
         let updated = last_point(&g, attacker);
@@ -170,7 +170,7 @@ fn each_member_of_a_selected_group_keeps_tracking_the_same_live_target() {
         // Observe a physical turn of256px, independent of the chosen world
         // pace. Four seconds no longer moves the slower original APC far enough.
         let initial_y=get(&g,target).y;
-        for _ in 0..100 {g.step(0.1);if get(&g,target).y>=initial_y+256. {break;}}
+        for _ in 0..150 {g.step(0.1);if get(&g,target).y>=initial_y+256. {break;}}
         assert!(get(&g,target).y>=initial_y+256.);
         for (id, before) in ids.iter().zip(initial) {
             let u = get(&g, *id);
@@ -211,7 +211,7 @@ fn chase_resumes_when_a_previously_reachable_target_leaves_weapon_range() {
         g.step(0.05);
         assert!(get(&g, attacker).path.is_empty());
         move_target(&mut g, target, 1100., 320.);
-        run(&mut g, 25);
+        run(&mut g, 45);
         let a = get(&g, attacker);
         assert!(a.x > 320., "Holding to fire must not lose the explicit attack order");
         assert!(a.moving);

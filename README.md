@@ -53,10 +53,11 @@ after boarding, mobile hardware replans toward that destination using its own te
 rules. Fixed guns remain in place. Other squad members retain their formation goals.
 See the [march interaction evidence and tests](rust-browser/ORIGINAL-MARSCH.txt).
 
-Original-map movement now uses the native relative step patterns at a slower
-shared browser pace. Snipers are one third faster than Grunts on ordinary ground;
-both factions use the same speeds at every difficulty. Terrain and damage still
-modify the same native pattern index. The absolute pace remains a web adaptation.
+Original-map movement now follows the GOG executable's normal59ms interval,
+shared step phases and integer major-axis motion. The arbitrary32px/s browser
+factor is removed. Both factions use the same type/terrain/damage rules. The
+full original scheduler, formations and transient state modifiers remain partial.
+See [native movement evidence and limits](rust-browser/ORIGINAL-BEWEGUNGSTAKT.txt).
 Campaign format3 also restores19 initially destroyed bridges in missions14,15,17,
 18 and20. They remain blocked until a crane completes reconstruction to their
 native600HP capacity. The local/LAN launcher refreshes older resource packs.

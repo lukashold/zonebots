@@ -45,7 +45,7 @@ function fixture({team=0,original=true,flags=true,hardware='jeep',squad=1,near=f
  for(const team of [0,1]){
   init({team,flags:false,squad:3,near:true});const robots=state.units.filter(u=>u.type==='grunt').map(u=>u.id),car=state.units.find(u=>u.team<0).id;
   move(robots,team);const destinations=new Map(robots.map(id=>[id,clone(get(id).dest)]));let consumed;
-  until(()=>get(car).team===team&&get(car).path.length===0&&state.units.filter(u=>robots.includes(u.id)).every(u=>at(u,destinations.get(u.id))),650,'squad crewing and march continuation',()=>{
+  until(()=>get(car).team===team&&get(car).path.length===0&&state.units.filter(u=>robots.includes(u.id)).every(u=>at(u,destinations.get(u.id))),900,'squad crewing and march continuation',()=>{
    const claimants=state.units.filter(u=>u.initiative?.kind==='vehicle'&&u.target===car);assert(claimants.length<=1,'Only one automatic claimant may reserve a hardware object.');
    if(get(car).team===team){const missing=robots.filter(id=>!state.units.some(u=>u.id===id));assert.equal(missing.length,1);consumed=missing[0];assert.deepEqual(get(car).dest,destinations.get(consumed));}
   });

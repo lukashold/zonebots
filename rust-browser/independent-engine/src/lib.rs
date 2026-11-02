@@ -9,6 +9,7 @@ pub mod original_combat;
 mod original_grenades;
 mod original_initiative;
 mod original_terrain;
+mod original_motion;
 mod terrain;
 mod walls;
 mod workshops;
@@ -119,6 +120,8 @@ pub struct Unit {
     pub workshop: Option<workshops::State>,
     #[serde(skip)]
     pub(crate) pursuit: Option<pursuit::State>,
+    #[serde(skip)]
+    pub(crate) original_motion: Option<original_motion::Segment>,
     #[serde(skip_deserializing)]
     pub path: VecDeque<(f64, f64)>,
 }
@@ -216,6 +219,8 @@ pub struct Game {
     ai_teams: Vec<i32>,
     #[serde(skip)] production_clock:f64,
     #[serde(skip)] initiative_clock:f64,
+    #[serde(skip)] motion_clock:f64,
+    #[serde(skip)] motion_tick:u64,
 }
 impl Game {
     fn random(&mut self) -> f64 {
@@ -252,7 +257,7 @@ impl Game {
             next_id: 1,
             ai_clock: 3.,
             rng: seed.max(1),
-            ai_teams: vec![1], production_clock:0., initiative_clock:0.,
+            ai_teams: vec![1], production_clock:0., initiative_clock:0.,motion_clock:0.,motion_tick:0,
         };
         // Own nine-territory layout. Voronoi edges and a meandering river avoid a square sector grid.
         let sites = [
@@ -468,6 +473,7 @@ impl Game {
             hold_position: false,
             workshop: None,
             pursuit: None,
+            original_motion: None,
             path: VecDeque::new(),
         });
     }
@@ -578,6 +584,7 @@ impl Game {
             self.units[i].initiative=None;
             self.units[i].march_resume=None;
             self.units[i].pursuit=None;
+            self.units[i].original_motion=None;
             self.units[i].hold_position=self.map.original&&kind=="stop";
             if kind == "unload" {
                 let u = self.units[i].clone();
@@ -692,6 +699,13 @@ impl Game {
         }
         let dt = dt.clamp(0., 0.1);
         self.time += dt;
+        let first_motion_tick=self.motion_tick+1;
+        let motion_ticks=if self.map.original {
+            self.motion_clock+=dt;
+            let ticks=((self.motion_clock+1e-10)/original_motion::TICK_SECONDS).floor()as u64;
+            self.motion_clock-=ticks as f64*original_motion::TICK_SECONDS;
+            self.motion_tick+=ticks;ticks
+        }else{0};
         self.effects.iter_mut().for_each(|e| e.age += dt);
         self.effects.retain(|e| e.age < e.life);
         self.update_initiative(dt);
@@ -880,7 +894,9 @@ impl Game {
                 }
             }
             let hold = pursuit_hold || wall_hold || building_hold || bridge_hold || enemy.is_some() && u.order == "guard";
-            if !hold && base_speed > 0. {
+            if !hold && base_speed > 0. && self.map.original {
+                self.move_original(i,first_motion_tick,motion_ticks,enemy.is_none());
+            } else if !hold && base_speed > 0. {
                 // Waypoints are geometry, not pauses: carry unused movement
                 // time into the next leg, instead of losing part of every
                 // update at every tile center. Terrain is re-evaluated there.

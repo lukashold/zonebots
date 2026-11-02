@@ -24,7 +24,7 @@ fn add_building(g:&mut Game,x:f64,y:f64,w:f64,h:f64,gate:Option<(f64,f64)>,orien
 }
 #[test]
 fn exact_oblique_click_keeps_a_straight_open_field_route(){
- let(g,_)=field("medium",(179.,340.));let goal=(771.,549.);let path=g.route_for(179.,340.,goal.0,goal.1,"medium");
+ let(g,_)=field("medium",(179.,340.));let goal=(770.,548.);let path=g.route_for(179.,340.,goal.0,goal.1,"medium");
  assert_eq!(path.back(),Some(&goal));let mut p=(179.,340.);let mut length=0.;
  for q in path{assert!(g.movement_segment_clear_for(p.0,p.1,q.0,q.1,"medium"));length+=(q.0-p.0).hypot(q.1-p.1);p=q;}
  assert!((length-(goal.0-179.).hypot(goal.1-340.)).abs()<1e-6);
@@ -44,13 +44,16 @@ fn a_nearby_useful_road_still_improves_arrival_time(){
  assert!(paved<ground*0.93,"nearby road {paved}s vs ground {ground}s");
 }
 #[test]
-fn movement_budget_survives_multiple_short_waypoints(){
- let(mut g,id)=field("jeep",(144.,496.));g.command(&json!({"ids":[id],"kind":"move","x":208.,"y":496.}));
+fn native_waypoints_truncate_the_current_step_and_wait_for_the_next_native_tick(){
+ let(mut g,id)=field("jeep",(144.,496.));g.map.terrain_codes.fill(7);
+ g.command(&json!({"ids":[id],"kind":"move","x":208.,"y":496.}));
  let i=g.units.iter().position(|u|u.id==id).unwrap();g.units[i].path=VecDeque::from([(146.,496.),(148.,496.),(176.,496.),(208.,496.)]);
- // Native-pattern Jeep pace51.2px/s:4px reach both tiny waypoints, and the
- // remaining1.12px must be spent on the next leg in the same update.
- g.step(0.1);assert!((get(&g,id).x-(148.+1.12)).abs()<1e-8,"unused time must continue through both short waypoints");
+ // Road Jeep index8: tick1 carries one native pixel, tick2 one, tick3 two.
+ g.step(0.059);assert_eq!(get(&g,id).x,146.);
+ g.step(0.059);assert_eq!(get(&g,id).x,148.);
+ g.step(0.059);assert_eq!(get(&g,id).x,152.);
 }
+
 #[test]
 fn exact_grid_traversal_rejects_a_corner_and_accepts_a_legal_near_miss(){
  let(mut g,_)=field("jeep",(127.,127.));let j=4*g.map.width+3;g.map.tiles[j]=3;g.map.terrain_codes[j]=40;

@@ -98,16 +98,19 @@ pub const VEHICLE_ROUTE_COST:[u8;67]=[
 const MEAN_STEP:[f64;13]=[1./5.,1./4.,1./3.,2./5.,1./2.,2./3.,4./5.,1.,4./3.,3./2.,2.,7./3.,5./2.];
 
 /// Relative terrain speed in the ordinary native movement state. Absolute
-/// scheduler, pattern phase, squad boost+3 and unit+0x8c are deliberately separate.
+/// scheduler and shared phase live in original_motion. Transient squad boost+3
+/// and unit+0x8c triggers remain separate, not guessed faction multipliers.
 pub fn speed_factor_for(code:u8,movement_control:u8)->f64 {
-    let code=code&127;
-    let modifier=if code==40 {-10} else {
-        TERRAIN_EFFECT.get(code as usize).copied().filter(|v|*v<100).unwrap_or(0)
-    };
+    let modifier=movement_modifier(code);
     let raw=i32::from(movement_control)/10;
     let base=raw.clamp(0,12)as usize;
-    let adjusted=(raw+i32::from(modifier)/10).clamp(0,12)as usize;
+    let adjusted=(raw+modifier/10).clamp(0,12)as usize;
     MEAN_STEP[adjusted]/MEAN_STEP[base]
+}
+
+pub(crate) fn movement_modifier(code:u8)->i32 {
+    let code=code&127;
+    if code==40 {-10} else {i32::from(TERRAIN_EFFECT.get(code as usize).copied().filter(|v|*v<100).unwrap_or(0))}
 }
 
 /// Damage changes the same quantized control index as terrain, rather than

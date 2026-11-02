@@ -462,3 +462,11 @@ aus Mission14 bestanden. Keine Browserwarnungen oder -fehler.
 Details und explizite Zeit-/Animationsgrenzen:ORIGINAL-TEMPO-BRUECKEN.txt.
 Wasm571911Bytes,SHA256
 2b0342348faa069f6858b8ea568d8d3f033f67f6d22597806d01733be2f40505.
+
+Original-Bewegungstakt,02.11.2026:185 Rust-Tests und58 Node-Prüfprogramme
+bestanden.13 Muster und normaler SDL-Takt direkt gegen die lokale EXE geprüft.
+4120 Wasm-Positionen und728 Richtungsvektoren verglichen. Beide Farben, späterer
+Start, Gelände-/Schadenswechsel und acht Diagonaloktanten geprüft. Bisherige
+Brücken-, Navigations-, Kampf-, Pickup- und Marschfälle bestehen, ebenso der
+Python-Brückenimport und LAN-Server. Browsernachweis und Grenzen in
+ORIGINAL-BEWEGUNGSTAKT.txt.

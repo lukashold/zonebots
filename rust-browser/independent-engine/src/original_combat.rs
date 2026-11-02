@@ -102,12 +102,11 @@ pub fn initial_crew_hp(kind: &str) -> f64 {
 pub fn runtime_class(kind: &str) -> u8 {
     profile(kind).class
 }
-/// Relative native movement-pattern means, normalized to the browser's32px/s
-/// Grunt pace. The absolute native scheduler and special squad boosts are not
-/// reconstructed by this common time scale.
+/// Mean axial speed at the GOG executable's normal 59ms movement interval.
+/// Actual displacement uses the shared discrete patterns in original_motion.
 pub fn movement_speed(kind: &str) -> f64 {
     let control=profile(kind).movement;
-    if control==0 {0.} else {32.*super::original_terrain::control_speed_factor(control,40)}
+    if control==0 {0.} else {super::original_motion::speed(control)}
 }
 pub fn alive(original: bool, hp: f64) -> bool {
     if original {

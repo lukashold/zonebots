@@ -7,9 +7,9 @@ function req(v){const b=enc.encode(JSON.stringify(v)),p=e.alloc(b.length);new Ui
 function init(m,difficulty=1){state=null;return req({op:'init',mission:0,difficulty,seed:985,aiTeams:[],originalMission:m});}
 const near=(a,b)=>assert(Math.abs(a-b)<1e-6,`${a} != ${b}`),tick=()=>req({op:'tick',dt:.1,compact:true,knownMapSeed:state.map.seed,knownMapRevision:state.map.revision});
 let speedCases=0;
-for(const [kind,speed]of [['grunt',32],['psycho',32],['tough',25.6],['sniper',128/3],['pyro',32],['laser',128/3],['jeep',51.2],['medium',32],['heavy',25.6],['light',128/3],['crane',128/3]])for(const team of [0,1])for(const difficulty of [0,1,2,3]){
+for(const [kind,speed,mean]of [['grunt',16,0.5],['psycho',16,0.5],['tough',12,0.4],['sniper',22,2/3],['pyro',16,0.5],['laser',22,2/3],['jeep',26,0.8],['medium',16,0.5],['heavy',12,0.4],['light',22,2/3],['crane',22,2/3]])for(const team of [0,1])for(const difficulty of [0,1,2,3]){
  const m=field();m.spawns=[{type:kind,team,x:320,y:320,squad:1},{type:'gatling',team:1-team,x:2900,y:1400,squad:2}];init(m,difficulty);const id=state.units[0].id;
- near(state.catalog.find(u=>u.type===kind).speed,speed);req({op:'command',kind:'move',ids:[id],team,x:2500,y:320});for(let i=0;i<10;i++)tick();near(state.units.find(u=>u.id===id).x-320,speed);speedCases++;
+ near(state.catalog.find(u=>u.type===kind).speed,mean*2/.059);req({op:'command',kind:'move',ids:[id],team,x:2500,y:320});for(let i=0;i<10;i++)tick();near(state.units.find(u=>u.id===id).x-320,speed);speedCases++;
 }
 // A600HP original bridge must still be unbuilt at520HP; the old400 threshold
 // may neither reject its repair order nor release vehicles prematurely.
@@ -31,5 +31,5 @@ for(const mission of campaign.missions)for(const bridge of mission.bridges.filte
  for(const cell of bridge.tiles){const tx=cell%map.width,ty=Math.floor(cell/map.width);for(let dy=-3;dy<=3&&!pair;dy++)for(let dx=-3;dx<=3;dx++){const x=tx+dx,y=ty+dy,j=y*map.width+x;if(x<1||y<1||x>=map.width-1||y>=map.height-1||![0,1].includes(map.tiles[j])||![0,7,51].includes(map.terrainCodes[j]&127))continue;const p=[x*32+16,y*32+16],target=[tx*32+16,ty*32+16];if(Math.hypot(p[0]-target[0],p[1]-target[1])>100||m.buildings.some(b=>b.hp>0&&p[0]>b.x&&p[0]<b.x+b.w&&p[1]>b.y&&p[1]<b.y+b.h))continue;pair={p,target};break;}if(pair)break;}
  assert(pair,`Mission${m.number} bridge${bridge.id} has a nearby dry bank`);m.spawns=[{type:'crane',team:0,x:pair.p[0],y:pair.p[1],squad:1},{type:'gatling',team:1,x:32,y:32,squad:2}];m.sectors.forEach(s=>s.owner=-1);m.buildings.forEach(b=>{b.team=-1;b.product=null;});init(m);const id=state.units[0].id;assert.equal(state.map.bridgeHp[bridge.id],0);assert(bridge.tiles.every(j=>state.map.tiles[j]===3));req({op:'command',kind:'repairBridge',ids:[id],team:0,x:pair.target[0],y:pair.target[1]});for(let i=0;i<250&&state.map.bridgeHp[bridge.id]<bridge.maxHp;i++)tick();near(state.map.bridgeHp[bridge.id],bridge.maxHp);assert(bridge.tiles.every(j=>state.map.tiles[j]===5));actual++;
 }
-assert.equal(actual,19);console.log(JSON.stringify({speedCases,syntheticBridgeTeams:2,repairedOriginalBridges:actual}));console.log('PASS: native relative speeds, slower common original pace, faction/difficulty equality,600HP crane repairs, blocked/reopened crossing and all19 real destroyed bridges.');
+assert.equal(actual,19);console.log(JSON.stringify({speedCases,syntheticBridgeTeams:2,repairedOriginalBridges:actual}));console.log('PASS: native relative speeds, GOG59ms movement clock, faction/difficulty equality,600HP crane repairs, blocked/reopened crossing and all19 real destroyed bridges.');
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

@@ -67,10 +67,10 @@ mod tests {
             g.units[0].team = team;
             g.units[1].team = 1 - team;
             g.units[0].hp = 0.;
-            g.step(0.1);
+            g.step(0.1);g.step(0.1);
             assert_eq!(g.units[0].initiative, Some(Initiative::Flag(0)));
             assert!(g.units[0].x > 320.);
-            run(&mut g, 30);
+            run(&mut g, 60);
             assert_eq!(g.sectors[0].owner, team);
         }
     }
@@ -90,7 +90,7 @@ mod tests {
                 .count(),
             1
         );
-        run(&mut g, 30);
+        run(&mut g, 60);
         let car = g.units.iter().find(|u| u.id == vehicle).unwrap();
         assert_eq!(car.team, 0);
         assert!(car.crew.is_some());

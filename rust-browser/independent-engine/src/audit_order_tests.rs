@@ -24,7 +24,7 @@ fn lost_boarding_targets_release_the_order_instead_of_chasing_forever(){
 }
 #[test]
 fn boarding_a_moving_apc_replans_before_the_old_route_finishes(){
- let(mut g,id)=field(true,"grunt");g.spawn("apc",0,900.,320.,3,None);let carrier=g.units.last().unwrap().id;g.command(&json!({"ids":[carrier],"kind":"move","x":900,"y":1000}));g.command(&json!({"ids":[id],"kind":"board","target":carrier}));g.step(0.05);let initial=unit(&g,id).dest.unwrap();for _ in 0..20{g.step(0.1);}let u=unit(&g,id);assert_eq!(u.order,"board");assert!(!u.path.is_empty());assert!(u.dest.unwrap().1>initial.1+32.);assert!((u.dest.unwrap().1-unit(&g,carrier).y).abs()<40.);
+ let(mut g,id)=field(true,"grunt");g.spawn("apc",0,900.,320.,3,None);let carrier=g.units.last().unwrap().id;g.command(&json!({"ids":[carrier],"kind":"move","x":900,"y":1000}));g.command(&json!({"ids":[id],"kind":"board","target":carrier}));g.step(0.05);let initial=unit(&g,id).dest.unwrap();for _ in 0..40{g.step(0.1);}let u=unit(&g,id);assert_eq!(u.order,"board");assert!(!u.path.is_empty());assert!(u.dest.unwrap().1>initial.1+32.);assert!((u.dest.unwrap().1-unit(&g,carrier).y).abs()<40.);
 }
 #[test]
 fn cranes_repair_stable_building_ids_and_stop_exactly_at_completion(){
