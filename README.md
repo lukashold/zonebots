@@ -53,6 +53,15 @@ after boarding, mobile hardware replans toward that destination using its own te
 rules. Fixed guns remain in place. Other squad members retain their formation goals.
 See the [march interaction evidence and tests](rust-browser/ORIGINAL-MARSCH.txt).
 
+Original-map movement now uses the native relative step patterns at a slower
+shared browser pace. Snipers are one third faster than Grunts on ordinary ground;
+both factions use the same speeds at every difficulty. Terrain and damage still
+modify the same native pattern index. The absolute pace remains a web adaptation.
+Campaign format3 also restores19 initially destroyed bridges in missions14,15,17,
+18 and20. They remain blocked until a crane completes reconstruction to their
+native600HP capacity. The local/LAN launcher refreshes older resource packs.
+See [movement and bridge evidence](rust-browser/ORIGINAL-TEMPO-BRUECKEN.txt).
+
 Occupied Light, Medium and Heavy tanks now include their native closed-hatch
 layer and full composite selection bounds. Boarding, unloading and crew death
 convert between the original parked/occupied sprite origins without position drift.

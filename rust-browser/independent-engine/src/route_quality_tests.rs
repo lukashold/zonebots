@@ -47,7 +47,9 @@ fn a_nearby_useful_road_still_improves_arrival_time(){
 fn movement_budget_survives_multiple_short_waypoints(){
  let(mut g,id)=field("jeep",(144.,496.));g.command(&json!({"ids":[id],"kind":"move","x":208.,"y":496.}));
  let i=g.units.iter().position(|u|u.id==id).unwrap();g.units[i].path=VecDeque::from([(146.,496.),(148.,496.),(176.,496.),(208.,496.)]);
- g.step(0.1);assert!((get(&g,id).x-(144.+stats("jeep").speed*0.1)).abs()<1e-8,"unused time must continue through both short waypoints");
+ // Native-pattern Jeep pace51.2px/s:4px reach both tiny waypoints, and the
+ // remaining1.12px must be spent on the next leg in the same update.
+ g.step(0.1);assert!((get(&g,id).x-(148.+1.12)).abs()<1e-8,"unused time must continue through both short waypoints");
 }
 #[test]
 fn exact_grid_traversal_rejects_a_corner_and_accepts_a_legal_near_miss(){

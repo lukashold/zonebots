@@ -167,7 +167,11 @@ fn each_member_of_a_selected_group_keeps_tracking_the_same_live_target() {
         g.step(0.05);
         let initial: Vec<_> = ids.iter().map(|id| last_point(&g, *id)).collect();
         move_target(&mut g, target, 880., 1000.);
-        run(&mut g, 40);
+        // Observe a physical turn of256px, independent of the chosen world
+        // pace. Four seconds no longer moves the slower original APC far enough.
+        let initial_y=get(&g,target).y;
+        for _ in 0..100 {g.step(0.1);if get(&g,target).y>=initial_y+256. {break;}}
+        assert!(get(&g,target).y>=initial_y+256.);
         for (id, before) in ids.iter().zip(initial) {
             let u = get(&g, *id);
             assert_eq!(u.order, "attack");

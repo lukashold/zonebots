@@ -483,3 +483,14 @@ getestet. Frische schreibgeschützte Ghidra-Prüfung 0041c4f0 bestätigt eigene
 Gebäudetrümmer mit HP 0 als Kran-Ziele. Der ganze native Wiederaufbau-Scheduler
 bleibt vom allgemeinen Gesundheitsadapter getrennt. FEHLERPRUEFUNG.txt enthält
 Vorher/Nachher-Reproduktionen, Prüfumfang und Grenzen, keine neue 1:1-Behauptung.
+
+Tempo/Brücken02.11.2026: Originalkarten verwenden die relativen nativen
+Bewegungsmuster mit einem langsameren gemeinsamen Web-Grundtempo; Spieler
+und KI haben identische Geschwindigkeit je Typ/Gelände/Zustand. Sniper/Grunt
+ist auf normalem Boden4/3. Absolute Zeitskala und besondere Truppboni bleiben
+als Anpassungen gekennzeichnet. Der Brückenimport übernimmt jetzt auch die
+Startinitialisierung004097b0 statt gespeicherte HP falsch zu interpretieren:
+19 der49 Brücken beginnen zerstört und benötigen Kran-Wiederaufbau. Format3
+überträgt die600HP-Kapazität; neue lokale Pakete werden automatisch erzeugt.
+Originalbelege, genaue Tempo-/Reparaturgrenzen und Tests stehen in
+ORIGINAL-TEMPO-BRUECKEN.txt.

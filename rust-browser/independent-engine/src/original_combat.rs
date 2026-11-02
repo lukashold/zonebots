@@ -102,6 +102,13 @@ pub fn initial_crew_hp(kind: &str) -> f64 {
 pub fn runtime_class(kind: &str) -> u8 {
     profile(kind).class
 }
+/// Relative native movement-pattern means, normalized to the browser's32px/s
+/// Grunt pace. The absolute native scheduler and special squad boosts are not
+/// reconstructed by this common time scale.
+pub fn movement_speed(kind: &str) -> f64 {
+    let control=profile(kind).movement;
+    if control==0 {0.} else {32.*super::original_terrain::control_speed_factor(control,40)}
+}
 pub fn alive(original: bool, hp: f64) -> bool {
     if original {
         hp >= 0.

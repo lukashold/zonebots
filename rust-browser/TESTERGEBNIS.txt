@@ -451,3 +451,14 @@ Brücke, Reservierungsrennen, Gruppen- und Befehlswechsel bleiben geprüft.
 Frischer Ghidra-Abgleich und genaue Grenzen:ORIGINAL-MARSCH.txt.
 Wasm569990Bytes, SHA256
 4983038d0f3919c66bc689d349fc380343a644bf5478dd7e54095687c834181f.
+
+TEMPO UND BRÜCKEN – 02.11.2026
+182 Rust-Tests,57 Node-Prüfprogramme, Python-Brückenimport und LAN-Starter grün.
+88 tatsächliche Wasm-Geschwindigkeitsfälle; gleiche Seiten und Schwierigkeiten.
+Alle49 Brücken mit lokalen Originalrecords verglichen; alle19 zerstörten Brücken
+der echten Kampagne durch einen Kran im Wasm vollständig wiederaufgebaut.
+Browserprüfung mit beiden Robotertypen/beiden Farben und einer echten Brücke
+aus Mission14 bestanden. Keine Browserwarnungen oder -fehler.
+Details und explizite Zeit-/Animationsgrenzen:ORIGINAL-TEMPO-BRUECKEN.txt.
+Wasm571911Bytes,SHA256
+2b0342348faa069f6858b8ea568d8d3f033f67f6d22597806d01733be2f40505.

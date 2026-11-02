@@ -26,6 +26,8 @@ pub struct Map {
     pub territory: Vec<usize>,
     pub bridge_base: Vec<i32>,
     pub bridge_hp: Vec<f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bridge_max_hp: Vec<f64>,
     pub seed: u32,
     pub revision: u32,
     #[serde(default)] pub original:bool,
@@ -232,6 +234,7 @@ impl Game {
                 territory: vec![0; n],
                 bridge_base: vec![-1; n],
                 bridge_hp: vec![],
+                bridge_max_hp: vec![],
                 seed,
                 revision: 0, original:false,original_tiles:vec![],terrain_codes:vec![],water_tile:0,wall_tile_lookup:Value::Null,wall_ground_tiles:vec![],wall_ground_codes:vec![],wall_ground_classes:vec![],
             },
@@ -507,6 +510,8 @@ impl Game {
       let buildings:Vec<Building>=serde_json::from_value(v["buildings"].clone()).map_err(|e|e.to_string())?;
       let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
       self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.next_id=1;
+      if !self.map.bridge_max_hp.is_empty() && (self.map.bridge_max_hp.len()!=self.map.bridge_hp.len() || self.map.bridge_max_hp.iter().any(|hp|!hp.is_finite()||*hp<=0.)) {return Err("Invalid bridge capacities".into());}
+      for j in 0..self.map.tiles.len(){if let Some(id)=self.map.bridge_base.get(j).copied().filter(|id|*id>=0){if self.map.bridge_hp.get(id as usize).is_some_and(|hp|*hp<=0.){self.map.tiles[j]=3;}}}
       self.import_walls(v)?;
       self.map.water_tile=self.map.terrain_codes.iter().position(|c|[9,39,40].contains(c)).and_then(|i|self.map.original_tiles.get(i).copied()).unwrap_or(0);
       for spawn in v["spawns"].as_array().ok_or("Missing spawns")?{let kind=spawn["type"].as_str().ok_or("Missing unit type")?;let kind=if kind=="mobile_missile"{"launcher"}else{kind};if !TYPES.contains(&kind){return Err(format!("Unsupported original unit {kind}"));}let x=spawn["x"].as_f64().ok_or("Missing x")?;let y=spawn["y"].as_f64().ok_or("Missing y")?;let team=spawn["team"].as_i64().unwrap_or(-1)as i32;let squad=spawn["squad"].as_u64().unwrap_or(self.next_id as u64)as usize;self.spawn(kind,team,x,y,squad,None);
@@ -562,7 +567,7 @@ impl Game {
             if matches!(kind,"enter"|"board")&&(!matches!(stats(&actor.kind).cls,0)||!target.is_some_and(|id|self.units.iter().any(|u|u.id==id&&original_combat::alive(self.map.original,u.hp)&&!workshops::hidden(u)&&if kind=="enter"{u.team<0&&u.crew.is_none()&&stats(&u.kind).cls>0}else{u.team==team&&u.kind=="apc"&&u.cargo.len()<6}))){continue;}
             if matches!(kind,"repairBridge"|"attackBridge") {
                 let bridge=v["x"].as_f64().zip(v["y"].as_f64()).and_then(|(x,y)|self.bridge_at_point(x,y));
-                if !bridge.is_some_and(|id|if kind=="repairBridge"{self.map.bridge_hp[id]<400.}else{self.map.bridge_hp[id]>0.&&stats(&actor.kind).damage>0.}){continue;}
+                if !bridge.is_some_and(|id|if kind=="repairBridge"{self.map.bridge_hp[id]<self.bridge_capacity(id)}else{self.map.bridge_hp[id]>0.&&stats(&actor.kind).damage>0.}){continue;}
             }
             if kind=="attackWall" && (!walls::capable(&self.units[i]) || target.and_then(|id| self.wall(id)).is_none()) { continue; }
             if kind=="repairVehicle" {
@@ -707,6 +712,7 @@ impl Game {
             }
             let mut d = stats(&u.kind);
             if self.map.original {
+                d.speed=original_combat::movement_speed(&u.kind);
                 if let Some(state)=&u.original_combat {
                     d.speed*=state.speed_scale(&u.kind);
                     d.reload=state.reload_seconds();
@@ -723,15 +729,16 @@ impl Game {
                 let target=u.dest.and_then(|(x,y)|self.bridge_at_point(x,y).map(|id|(x,y,id)));
                 if let Some((x,y,id))=target {
                     let repairing=u.order=="repairBridge";
-                    let valid=if repairing{u.kind=="crane"&&self.map.bridge_hp[id]<400.}else{d.damage>0.&&self.map.bridge_hp[id]>0.};
+                    let capacity=self.bridge_capacity(id);
+                    let valid=if repairing{u.kind=="crane"&&self.map.bridge_hp[id]<capacity}else{d.damage>0.&&self.map.bridge_hp[id]>0.};
                     if !valid{self.finish_order(i);continue;}
                     let range=if repairing{110.}else{d.range};
                     bridge_hold=(u.x-x).hypot(u.y-y)<=range&&self.unit_los(&u,x,y);
                     if bridge_hold {
                         self.units[i].path.clear();
                         if repairing {
-                            self.map.bridge_hp[id]=(self.map.bridge_hp[id]+dt*65.).min(400.);
-                            if self.map.bridge_hp[id]>=400. {
+                            self.map.bridge_hp[id]=(self.map.bridge_hp[id]+dt*65.).min(capacity);
+                            if self.map.bridge_hp[id]>=capacity {
                                 for k in 0..self.map.tiles.len(){if self.map.bridge_base[k]==id as i32{self.map.tiles[k]=5;}}
                                 self.map.revision=self.map.revision.wrapping_add(1);
                                 self.events.push(json!({"kind":"bridgeRepaired","team":u.team}));self.finish_order(i);
@@ -863,7 +870,7 @@ impl Game {
                     }
                 }
             }
-            let base_speed=d.speed*if d.cls==0&&u.order=="move"{1.2}else{1.};
+            let base_speed=d.speed*if !self.map.original&&d.cls==0&&u.order=="move"{1.2}else{1.};
             // Revalidate the next segment: bridges and map occupancy can change
             // after the route was planned. Never interpolate across forbidden water.
             if let Some(&(nx,ny))=self.units[i].path.front() {
@@ -1121,7 +1128,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     if include_map { value["map"] = serde_json::to_value(&g.map).unwrap(); }
     if include_static {
         value["objects"] = json!(&g.objects);
-        value["catalog"] = json!(TYPES.iter().map(|k| { let d = stats(k); json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"canDestroyWalls":walls::primary_capable(k),"wallGrenades":walls::grenade_capable(k),"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
+        value["catalog"] = json!(TYPES.iter().map(|k| { let mut d = stats(k);if g.map.original {d.speed=original_combat::movement_speed(k);} json!({"type":k,"hp":d.hp,"range":d.range,"damage":d.damage,"speed":d.speed,"seconds":d.seconds,"members":d.members,"stars":d.stars,"workload":original_stats::workload(k),"class":d.cls,"canDestroyWalls":walls::primary_capable(k),"wallGrenades":walls::grenade_capable(k),"requirements":{"vehicle":original_stats::required(k,"vehicle"),"robot":original_stats::required(k,"robot"),"fort":original_stats::required(k,"fort")}}) }).collect::<Vec<_>>());
     }
     value
 }
@@ -1232,6 +1239,8 @@ mod audit_order_tests;
 mod tank_lifecycle_tests;
 #[cfg(test)]
 mod march_initiative_tests;
+#[cfg(test)]
+mod speed_bridge_tests;
 
 /// Original objects and occupied tanks use different native origins. Boarding
 /// reads004967e0 by object type (00450db0/00456c90); Heavy also adds00496934

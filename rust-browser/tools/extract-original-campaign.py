@@ -93,6 +93,28 @@ def extract_walls(d,w,h,rawtiles,codes,tiles,lookup):
     codes[k]=height if dy==0 else 18;tiles[k]=6
  return walls,base_tiles,base_codes,base_classes
 
+def extract_bridges(data,w,h,tiles):
+ """0045fef0 loads26-byte records;004097b0 initializes current HP from+10.
+
+ Saved+8 is overwritten on mission start. Zero+10 means destroyed; the native
+ initializer sets current HP=-1 and capacity=600. Browser HP0 means unavailable.
+ """
+ bridgebase=[-1]*(w*h);bridgehp=[];bridgecaps=[];bridges=[]
+ for o,r in records(data,26):
+  x,y,bw,bh,savedhp,initialhp=struct.unpack_from('<6H',r,0);cells=[]
+  for ty in range(y//16,min(h,(y+bh+15)//16)):
+   for tx in range(x//16,min(w,(x+bw+15)//16)):
+    if tiles[ty*w+tx]==5:cells.append(ty*w+tx)
+  if not cells:continue
+  destroyed=initialhp==0;hp=0 if destroyed else initialhp;capacity=initialhp or 600
+  bid=len(bridges)
+  bridges.append({'id':bid,'x':x*2,'y':y*2,'w':bw*2,'h':bh*2,'hp':hp,'maxHp':capacity,'initiallyDestroyed':destroyed,'rawSavedHp':savedhp,'tiles':cells,'sourceOffset':o,'confidence':'0045fef0_disk_to_runtime_and_004097b0_mission_initialization'})
+  bridgehp.append(hp);bridgecaps.append(capacity)
+  for j in cells:
+   bridgebase[j]=bid
+   if destroyed:tiles[j]=3
+ return bridgebase,bridgehp,bridgecaps,bridges
+
 def extract(root,out):
  robot=(root/'robots.dat').read_bytes();levels=(root/'levels.dat').read_bytes();exe=Exe(root/'Z.exe')
  groups=[]
@@ -159,15 +181,7 @@ def extract(root,out):
    tx,ty=u16(r,0)//16,u16(r,2)//16;kind={0:'repair',1:'vehicle',4:'robot',8:'radar'}[typ];wh=tuple(exe.read(0x498c78+typ*0x4c+0x30,2))
    sid=sec_at(tx+wh[0]//2,ty+wh[1]//2);owner=sectors[sid]['owner'] if sid>=0 else -1;prod=GROUP.get(r[7]);stars=u32(r,12)//1000
    buildings.append({'id':len(buildings),'kind':kind,'team':owner,'sector':sid,'x':u16(r,0)*2,'y':u16(r,2)*2,'w':wh[0]*32,'h':wh[1]*32,'hp':u16(r,0x1c),'maxHp':u16(r,0x1a),'stars':stars,'product':prod,'progress':0,'rawType':typ,'rawProductId':r[7],'rawTechnology':u32(r,12),'sourceOffset':o,'gate':[(tx+wh[0]/2)*32,(ty+wh[1])*32],'confidence':{'position':'exact_BUILD_native_xy','size':'exact_exe_descriptor_00498c78_plus30','owner':'territory_lookup','gate':'provisional_bottom_center_exit','progress':'not_recovered_initial_zero'}})
-  bridgebase=[-1]*n;bridgehp=[];bridges=[]
-  for o,r in records((root/f'BRIDGE{nn}.DAT').read_bytes(),26):
-   x,y,bw,bh,hp,maxhp=struct.unpack_from('<6H',r,0);cells=[]
-   for ty in range(y//16,min(h,(y+bh+15)//16)):
-    for tx in range(x//16,min(w,(x+bw+15)//16)):
-     if tiles[ty*w+tx]==5:cells.append(ty*w+tx)
-   if not cells:continue
-   bid=len(bridges);bridges.append({'id':bid,'x':x*2,'y':y*2,'w':bw*2,'h':bh*2,'hp':hp,'maxHp':maxhp,'tiles':cells,'sourceOffset':o});bridgehp.append(hp)
-   for j in cells:bridgebase[j]=bid
+  bridgebase,bridgehp,bridgecaps,bridges=extract_bridges((root/f'BRIDGE{nn}.DAT').read_bytes(),w,h,tiles)
   # Object byte5 points into the hardware table, not the product/group table.
   objects=[];spawns=[];crates=[]
   for o,r in records((root/f'OBJECT{nn}.DAT').read_bytes(),10):
@@ -209,11 +223,12 @@ def extract(root,out):
   walls,wall_ground_tiles,wall_ground_codes,wall_ground_classes=extract_walls(d,w,h,rawtiles,codes,tiles,wall_lookup)
   data={'number':number,'name':text(lv,0,20),'map':{'width':w,'height':h,'tileSize':32,'world':WORLDS[world],'worldName':world,'tiles':tiles,'territory':compatible,'originalTerritory':territory,'lookupTerritory':lookup,'originalTiles':rawtiles,'terrainCodes':codes,'bridgeBase':bridgebase,'bridgeHp':bridgehp,'seed':number,'revision':0,'original':True},'sectors':sectors,'buildings':buildings,'spawns':spawns,'startingGroups':anchors,'originalObjects':objects,'bridges':bridges,'crates':crates,'sourceFiles':{'map':f'LEVEL{nn}.MAP','build':f'BUILD{nn}.DAT','objects':f'OBJECT{nn}.DAT','cpu':f'CPUPLR{nn}.DAT','bridge':f'BRIDGE{nn}.DAT'},'diagnostics':{'inactiveBuildRecordsSkipped':skipped,'outsideTiles':territory.count(-1),'outsideLookupTiles':lookup.count(-1),'terrainCodes':dict(Counter(codes)),'unsupportedUnitTypes':sorted({s['type']for s in spawns} - set(RAW.values()))}}
   data['walls']=walls
+  data['map']['bridgeMaxHp']=bridgecaps
   data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes})
   data['diagnostics']['wallRecords']=len({wall['wallRecord']for wall in walls})
   data['diagnostics']['wallPieces']=len(walls)
   missions.append(data)
- result={'version':2,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Wall positions, height, hit points, exposed-side shapes and world graphics recovered from MAP/EXE. Interior texture variants use a stable adapter instead of unrecovered shared RNG state. Native auxiliary right-edge shadow adjustments are not yet reconstructed.','Terrain visual tile indices exact apart from documented wall variants; compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
+ result={'version':3,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; subsequent follower formation behaviour not implemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Wall positions, height, hit points, exposed-side shapes and world graphics recovered from MAP/EXE. Interior texture variants use a stable adapter instead of unrecovered shared RNG state. Native auxiliary right-edge shadow adjustments are not yet reconstructed.','Terrain visual tile indices exact apart from documented wall variants; compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
  out.mkdir(parents=True,exist_ok=True);(out/'campaign.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
  (out/'summary.json').write_text(json.dumps([{'level':m['number'],'name':m['name'],'width':m['map']['width'],'height':m['map']['height'],'sectors':len(m['sectors'])-1,'buildings':len(m['buildings']),'spawns':len(m['spawns']),'walls':len(m['walls']),'unsupported':m['diagnostics']['unsupportedUnitTypes']}for m in missions],indent=2),encoding='utf-8')
  print(f'Extracted {len(missions)} missions to {out / "campaign.json"}')

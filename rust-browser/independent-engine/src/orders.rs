@@ -1,6 +1,9 @@
 //! Validated interaction lifecycles and structure firing positions.
 use super::*;
 impl Game {
+    pub(crate) fn bridge_capacity(&self,id:usize)->f64 {
+        self.map.bridge_max_hp.get(id).copied().filter(|hp|hp.is_finite()&&*hp>0.).unwrap_or(400.)
+    }
     pub(crate) fn finish_order(&mut self,index:usize) {
         let u=&mut self.units[index];u.order="guard".into();u.target=None;u.dest=None;
         u.path.clear();u.pursuit=None;u.initiative=None;u.march_resume=None;u.moving=false;u.hold_position=self.map.original;

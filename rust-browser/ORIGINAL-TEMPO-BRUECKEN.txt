@@ -1,0 +1,87 @@
+Einheitentempo und zerstörte Missionsbrücken – 02.11.2026
+
+Originalbefunde
+Schreibgeschützter frischer Ghidra12.2-Lauf des lokalen GOG-Z.exe;
+SHA256 ed5b16c486824c0761235dbdffcb3cda7e9f9df6188186aef7f662981a44e43e.
+Private Rohbefunde:work/speed-bridge-audit/fresh.txt. Dieser Bericht enthält
+Fakten und Grenzen, keinen dekompilierten Originalcode.
+
+Geschwindigkeiten
+0044f1e0 berechnet den Bewegungsindex aus Steuerwert/10 und Geländeaktionen.
+00451d40 wählt eines der13 Muster an00499fd4. Deren mittlere Schrittweiten
+sind1/5,1/4,1/3,2/5,1/2,2/3,4/5,1,4/3,3/2,2,7/3,5/2.
+Die vorhandenen ursprünglichen Typsteuerwerte waren bereits übernommen,
+die tatsächliche Bewegung multiplizierte jedoch weiterhin Näherungswerte.
+Dadurch waren z.B.Sniper nur10Prozent schneller als Grunts und Pyros unnötig
+langsamer, obwohl Grunts/Pyros denselben ursprünglichen Steuerwert40 haben.
+
+Die Originalkarten verwenden jetzt dieselbe Musterskala für die Typen:
+Typ               Steuerwert    Tempo der Webfassung auf normalem Boden
+Grunt/Psycho/Pyro       40       32 Weltpixel/Simulationssekunde
+Tough                  30       25,6
+Sniper/Laser           50       42,6667
+Jeep/Truck             60       51,2
+Light/APC/Crane        50       42,6667
+Medium                 40       32
+Heavy                  30       25,6
+Launcher               20       21,3333
+Firetruck              50       42,6667
+Feste Geschütze         0       0
+
+Die Verhältnisse stammen aus Originalsteuerwerten und Originalmustern. Das
+gemeinsame absolute Tempo von32 für einen Grunt ist eine bewusst langsamere
+Web-Zeitskala nach Nutzerhinweis; es ist keine Messung des ursprünglichen
+Windows-Schedulers. Der zusätzliche pauschale20Prozent-Marschbonus der alten
+Webfassung entfällt auf Originalkarten. Native besondere Trupp-/Zustandsboni
+und deren Animationsphasen werden nicht als vollständig rekonstruiert behauptet.
+Prozedurale Karten behalten ihr bisheriges Tempo.
+
+Beide Parteien verwenden dieselbe Geschwindigkeitsfunktion, ohne KI- oder
+Schwierigkeitsmultiplikator. Der Gruntmarsch sinkt von48 auf32 Weltpixel/s;
+der Jeep von72 auf51,2. Gelände und beschädigte Bewegungssteuerung wirken
+weiter über dieselben quantisierten Muster. Sniper/Grunt ist auf normalem
+Boden4/3; andere Gelände können das Verhältnis ändern. Der ausgegebene
+Einheitenkatalog nennt die tatsächlich verwendeten Grundgeschwindigkeiten.
+
+Brückenformat
+0045fef0 lädt26Byte je BRIDGE-Diskrecord in32Byte Laufzeitdaten.
+004097b0 überschreibt den gespeicherten HP-Wert an+8 mit dem Startwert an+10.
+Bei Startwert0 setzt die Originalroutine aktuelle HP auf-1, die Kapazität auf600
+und den Zerstörtzustand. Sonst wird der Startwert in die aktuellen HP kopiert.
+Der frühere Konverter las+8 als HP und+10 als maximale HP. Dadurch blieben alle
+ursprünglich zerstörten Brücken befahrbar und hatten eine angebliche Kapazität0.
+
+Kampagnenformat3 übernimmt stattdessen diesen Initialisierungsschritt:
+49 Brücken gesamt, davon19 bei Missionsbeginn zerstört:
+Mission14:4,15:5,17:2,18:4,20:4.
+Die19 Brücken behalten ihre Kennung und ursprünglichen Deckzellen, beginnen
+mit Web-HP0 und sind blockiert. Die Brückenkapazität wird inbridgeMaxHp erhalten.
+Der lokale/LAN-Starter erneuert ältere Kartenpakete automatisch auf Format3.
+Originaldateien und das private Kartenpaket bleiben außerhalb öffentlichen Git.
+
+Kranreparatur und Grenzen
+Ein eigener bemannter Kran kann durch den üblichen Reparaturbefehl wiederbauen.
+Unterhalb der vollen Kapazität bleibt ein zerstörtes Deck gesperrt; erst bei600
+werden Deck, Kartenrevision und Wegfindung gemeinsam freigegeben. Auch die
+Mauseingabe akzeptiert die Fortsetzung oberhalb des alten400HP-Abbruchs.
+Alte/synthetische Karten ohne Kapazitätsfeld behalten die400HP-Fallbackregel.
+Die Reparaturgeschwindigkeit65HP/s bleibt eine Webanpassung; die ganze native
+Kran-/Brückenanimation und ihr Arbeitsplan sind nicht vollständig nachgebildet.
+
+Prüfung
+182 Rust-Tests,57 aktuelle Node-Prüfprogramme und der lokale/LAN-Starter bestehen.
+Sie umfassen88 echte Wasm-Geschwindigkeitsfälle beider Parteien über alle4
+Schwierigkeiten, einen strategisch laufenden KI-Marsch, Straßen/Wasser/Schäden,
+unveränderte prozedurale Bewegung sowie die vollständige Kranreparatur jeder
+der19 real zerstörten Missionsbrücken von einem legalen Uferpunkt.
+Eine synthetische600HP-Brücke bleibt bei520HP gesperrt und wird erst bei600HP
+für ein tatsächlich darüberfahrendes Fahrzeug geöffnet; beide Parteien geprüft.
+Python vergleicht alle49 extrahierten Brücken unmittelbar mit den lokalen
+GOG-Records sowie unabhängigen künstlichen Testrecords und deren Deckzellen.
+Die Mauseingabe wurde in klassischer und moderner Steuerung bei520/600HP geprüft.
+Vorhandene Kurzwegtests vergleichen die Zeiten nun bei gleichem Bewegungstempo;
+ihre Strecken- und Vergleichsanforderungen bleiben bestehen.
+
+Die lokale Browseransicht prüft5Sekunden gleichzeitigen Marsch beider Farben
+und die tatsächliche Reparatur einer Brücke aus Mission14 mit Originalgrafik.
+Bildnachweis:outputs/Z-Speed-Bruecken.png. Temporäre Prüfseite wird entfernt.

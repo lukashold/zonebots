@@ -59,7 +59,7 @@
   if(building)return {kind:'repair',ids,target:building.id};
   const x=Math.floor(p.x/32),y=Math.floor(p.y/32);if(x<0||y<0||x>=state.map.width||y>=state.map.height)return null;
   const bridge=state.map.bridgeBase?.[y*state.map.width+x];
-  return bridge>=0&&state.map.bridgeHp?.[bridge]<400?{kind:'repairBridge',ids,x:p.x,y:p.y}:null;
+  return bridge>=0&&state.map.bridgeHp?.[bridge]<(state.map.bridgeMaxHp?.[bridge]??400)?{kind:'repairBridge',ids,x:p.x,y:p.y}:null;
  }
  function repairAt(p){const intent=repairIntent(p);if(!intent)return false;const extra=intent.kind==='repair'?{target:intent.target}:{x:intent.x,y:intent.y};if(!command(intent.kind,extra,intent.ids))return false;$('orderMode').textContent=intent.kind==='repair'?'Kran repariert das Gebäude':'Kran repariert die Brücke';return true;}
  function workshopIntent(p){return window.WorkshopCommand?.intent(state,selected,p,{paused,menu,commandMode,placement:Boolean(placement)});}

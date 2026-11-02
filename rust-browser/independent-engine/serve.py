@@ -16,7 +16,7 @@ def ensure_original_pack(game):
     jobs = []
     campaign_path = private / 'campaign.json'
     try:
-        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 2
+        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 3
     except (OSError, ValueError, AttributeError, TypeError):
         campaign_current = False
     if not campaign_current:
