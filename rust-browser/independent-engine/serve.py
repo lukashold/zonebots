@@ -16,7 +16,7 @@ def ensure_original_pack(game):
     jobs = []
     campaign_path = private / 'campaign.json'
     try:
-        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 4
+        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 8
     except (OSError, ValueError, AttributeError, TypeError):
         campaign_current = False
     if not campaign_current:
@@ -31,7 +31,11 @@ def ensure_original_pack(game):
     if not (private / 'menu.json').is_file() and (game / 'PNG' / 'IPBackground.png').is_file():
         jobs.append(('menu', repo / 'tools' / 'extract-original-menu.py',
                      ['--game', str(game), '--output', str(private)]))
-    if not (private / 'hud.json').is_file() and (game / 'de.lproj' / 'NSNEWPAN.DAT').is_file():
+    try:
+        hud_current = json.loads((private / 'hud.json').read_text(encoding='utf-8')).get('version', 0) >= 2
+    except (OSError, ValueError, AttributeError, TypeError):
+        hud_current = False
+    if not hud_current and (game / 'de.lproj' / 'NSNEWPAN.DAT').is_file():
         jobs.append(('HUD', repo / 'tools' / 'extract-original-hud.py',
                      ['--game', str(game), '--output', str(private)]))
     for label, script, arguments in jobs:

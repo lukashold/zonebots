@@ -1,3 +1,7 @@
+Historische Detailbefunde: Der aktuelle Implementierungsstand und die noch
+offenen Punkte stehen in ORIGINAL-ABGLEICH.txt (03.11.2026). Ältere Angaben zu
+fehlenden Funktionen oder Testzahlen in diesem Dokument sind kein aktueller Status.
+
 Original tank artwork audit, 31 October 2026
 
 Evidence

@@ -6,14 +6,14 @@ window.VehicleCommand=(()=>{
  function iterableIds(ids){return ids&&typeof ids[Symbol.iterator]==='function'?[...new Set(ids)]:[];}
  function infantryIds(state,selectedIds){
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));
-  return iterableIds(selectedIds).filter(id=>{const u=units.get(id);return u?.team===0&&live(state,u)&&catalog.get(u.type)?.class===0;});
+  return iterableIds(selectedIds).filter(id=>{const u=units.get(id);return u?.team===0&&live(state,u)&&u.nativeTransport?.visible!==false&&catalog.get(u.type)?.class===0;});
  }
  function entryKind(state,u,catalog){
-  if(!live(state,u)||u.workshop?.phase==='repairing'||!Number.isFinite(u.x)||!Number.isFinite(u.y))return null;
+  if(!live(state,u)||u.workshop?.phase==='repairing'||u.nativeTransport?.visible===false||!Number.isFinite(u.x)||!Number.isFinite(u.y))return null;
   const cls=catalog.get(u.type)?.class;
   if(cls!==1&&cls!==2)return null;
   if(u.team<0&&u.crew==null)return 'enter';
-  if(u.team===0&&u.type==='apc'&&(Array.isArray(u.cargo)?u.cargo.length:0)<6)return 'board';
+  if(u.team===0&&u.type==='apc'&&(Array.isArray(u.cargo)?u.cargo.length:0)<(state.map?.original?20:6))return 'board';
   return null;
  }
  function hit(unit,point,boundsFn){

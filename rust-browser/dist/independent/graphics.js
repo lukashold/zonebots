@@ -8,7 +8,7 @@ window.GameGraphics=(()=>{
  const isHD=()=>mode==='hd';
  function reflect(){root.dataset.graphicsMode=mode;for(const select of document.querySelectorAll('[data-graphics-select]'))select.value=mode;for(const radio of document.querySelectorAll('[data-graphics-choice]'))radio.checked=radio.value===mode;for(const label of document.querySelectorAll('[data-graphics-current]'))label.textContent=isHD()?'HD-Remake':'Originalgrafik';}
  function setMode(value){if(value!=='original'&&value!=='hd')return false;const changed=mode!==value;mode=value;try{localStorage.setItem(key,mode);}catch{}reflect();if(changed)window.dispatchEvent(new Event('graphicschange'));return true;}
- function unit(ctx,u,time,map){if(!isHD())return original.unit(ctx,u,time,map);const bounds=original.attackBounds?.(u,map,time)||original.unitBounds?.(u,map,time);return window.HDUnits?.unit(ctx,u,time,map,bounds)??false;}
+ function unit(ctx,u,time,map){original.selectNativePalette?.(ctx,u.team);if(!isHD())return original.unit(ctx,u,time,map);const bounds=original.attackBounds?.(u,map,time)||original.unitBounds?.(u,map,time);return window.HDUnits?.unit(ctx,u,time,map,bounds)??false;}
  function delegate(name,module,args){if(!isHD())return original[name]?.(...args)??false;return window[module]?.[name]?.(...args)??false;}
  const art={
   unit,
@@ -23,6 +23,7 @@ window.GameGraphics=(()=>{
   bullets(...args){return original.bullets?.(...args)??false;},
   projectiles(...args){return original.projectiles?.(...args)??false;},
   blasts(...args){return original.blasts?.(...args)??false;},
+  nativeEffects(...args){return original.nativeEffects?.(...args)??false;},
   fires(...args){return original.fires?.(...args)??false;},
   effects(...args){return delegate('effects','HDStructures',args);},
   // The original production display is authoritative for completion holds and timing.

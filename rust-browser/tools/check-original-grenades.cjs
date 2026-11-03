@@ -18,6 +18,9 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 
 function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
  const mission=clone(campaign.missions[0]),size=32,count=size*size;
+ //The arena replaces source geometry; no original linked rows/buckets survive.
+ for(const key of ["nativeAi","nativeWorldBuildings","nativeWorldObjects","startingGroups","bridges"])delete mission[key];
+ for(const key of ["nativeRoadGraph","nativeTerrainPlane","nativeLevelRecord"])delete mission.map[key];
  mission.number=1;mission.name='Synthetic original grenade contact';
  // The synthetic arena replaces every campaign layer, including v2 walls.
  mission.walls=[];for(const key of ['wallCells','wallGroundTiles','wallGroundCodes','wallGroundClasses','wallTileLookup'])delete mission.map[key];
@@ -100,8 +103,9 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
 
  ({state,shooter,target}=collected(fixture({target:'gatling'})));
  state=firstAttack(shooter,target);
- assert.equal(playerShots(state)[0].weapon,'primary','Gatling class5 does not trigger the class1/2 grenade branch');
- assert.equal(unit(state,shooter).grenades,8);
+ assert.equal(unit(state,target).nativeClass7c,2,'The live gun has normalized to native fixed-hardware class2');
+ assert.equal(playerShots(state)[0].weapon,'grenade','Live class2 takes the native grenade branch');
+ assert.equal(unit(state,shooter).grenades,7);
 
  for(const config of [{x:420,wall:true},{x:420,team:0}]){
   ({state,shooter,target}=collected(fixture(config)));
@@ -110,5 +114,5 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
   assert.equal(unit(state,shooter).grenades,8,'Blocked/friendly target must preserve ammunition');
   assert.equal(playerShots(state).length,0);
  }
- console.log('Original grenades passed with real Wasm: one crate pickup (+8), out-of-range preservation, eligible contact50 and one grenade event, cooldown, empty inventory, class5 primary fallback, wall and friendly-target preservation.');
+ console.log('Original grenades passed with real Wasm: one crate pickup (+8), out-of-range preservation, eligible contact50 and one grenade event, cooldown, empty inventory, normalized class2 fixed-hardware fallback, wall and friendly-target preservation.');
 })().catch(error=>{console.error(error.stack||error);process.exitCode=1;});

@@ -44,13 +44,19 @@ if(process.argv[2]){assert.equal(process.argv[2],'--wasm');assert(process.argv[3
  const owned=path.join(root,'dist/original/campaign.json');
  if(fs.existsSync(owned)){
   const campaign=JSON.parse(fs.readFileSync(owned,'utf8'));assert.equal(campaign.missions.length,20);let count=0,maxBytes=0;
-  for(const m of campaign.missions){assert(Array.isArray(m.walls),'Regenerate owned campaign with wall metadata first');s=init(m);count+=s.walls.length;maxBytes=Math.max(maxBytes,bytes);assert(bytes<4*1024*1024,'Full state exceeds network snapshot limit');assert.deepEqual(s.map.originalTiles,m.map.originalTiles);assert.deepEqual(s.map.terrainCodes,m.map.terrainCodes);assert.deepEqual(s.map.tiles,m.map.tiles);assert.equal(s.walls.length,m.walls.length);}
+  for(const m of campaign.missions){assert(Array.isArray(m.walls),'Regenerate owned campaign with wall metadata first');s=init(m);count+=s.walls.length;maxBytes=Math.max(maxBytes,bytes);assert(bytes<4*1024*1024,'Full state exceeds network snapshot limit');assert.deepEqual(s.map.originalTiles.map(n=>n&255),m.map.originalTiles.map(n=>n&255),'Source artwork survives native startup stamping');assert.deepEqual(s.map.bridgeBase,m.map.bridgeBase);assert.equal(s.map.terrainCodes.length,m.map.width*m.map.height);assert(s.map.terrainCodes.every(n=>Number.isInteger(n)&&n>=0&&n<128));assert.equal(s.map.tiles.length,m.map.width*m.map.height);assert(s.map.tiles.every(n=>Number.isInteger(n)&&n>=0&&n<=6));assert.equal(s.walls.length,m.walls.length);}
   assert.equal(count,6038,'All original bitmap wall pieces must be imported');
   const largest=campaign.missions.reduce((a,b)=>a.map.width*a.map.height>b.map.width*b.map.height?a:b),m=structuredClone(largest),width=m.map.width,height=m.map.height,n=width*height;
   // Preserve actual map/wall geometry but isolate actors from campaign combat.
   const owners=Array(n).fill(0);for(const w of m.walls)for(const cell of w.cells)owners[cell]++;
   let candidate;for(const w of m.walls){for(const cell of w.cells){if(owners[cell]!==1)continue;const x=cell%width,y=Math.floor(cell/width);for(const [dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){const nx=x+dx,ny=y+dy,j=ny*width+nx;if(nx>=0&&ny>=0&&nx<width&&ny<height&&[0,1].includes(m.map.tiles[j])&&[0,7,22].includes(m.map.terrainCodes[j])){candidate={wall:w,cell,from:[nx*32+16,ny*32+16],to:[x*32+16,y*32+16]};break;}}if(candidate)break;}if(candidate)break;}
   assert(candidate,'Largest original map must contain a reachable isolated wall face');
+  //This arena deliberately replaces every source actor/building/sector.
+  //Remove linked native rows and road metadata: they refer to the original
+  //scene, while this check isolates wall import/rubble and the graphless ABI.
+  //Native two-cell vehicle contacts and native routes have separate tests.
+  for(const key of ['nativeAi','nativeWorldBuildings','startingGroups','bridges'])delete m[key];
+  for(const key of ['nativeRoadGraph','nativeTerrainPlane','nativeLevelRecord'])delete m.map[key];
   m.buildings=[];m.crates=[];m.originalObjects=[];m.map.territory.fill(0);m.sectors=[{id:0,x:-1000,y:-1000,owner:-1,home:true,countsForProduction:false}];
   m.spawns=[{type:'light',team:0,x:candidate.from[0],y:candidate.from[1],squad:1},{type:'gatling',team:1,x:-1000,y:-1000,squad:2}];
   s=init(m);const id=candidate.wall.id;s=command(s,'attackWall',{target:id});for(let i=0;i<100&&wall(s,id).hp>0;i++)s=tick();

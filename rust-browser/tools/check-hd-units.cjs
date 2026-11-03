@@ -24,6 +24,22 @@ art.unit(context,still,0);const afterFirst=allocated;
 for(let i=0;i<60;i++)art.unit(context,still,i/60);
 assert.equal(allocated,afterFirst,'Stationary art must reuse its high resolution raster across frames');
 art.beginFrame(1);const beforeBurst=art.stats.rasters;for(let i=0;i<100;i++)art.unit(context,{...still,type:expected[i%expected.length],team:i%2,aim:i*Math.PI/8,moving:true},4);assert(art.stats.rasters-beforeBurst<=4,'A rendering frame may create at most four unit rasters');assert(art.stats.pending>0,'Unfinished pose work must be queued while units remain visible');
+// Rendering a newly opened hatch or recovery pose must invalidate the cached
+// closed/standing raster, even when hull/turret headings remain unchanged.
+art.clearCache();
+for(const type of ['light','medium','heavy']){
+ const u={...still,type};art.unit(context,u,0);const before=art.stats.rasters;
+ for(const hatchFrame of [0,1,2,3,4])art.unit(context,{...u,nativeHardware:{hatchFrame,hatchBody:2}},0);
+ assert.equal(art.stats.rasters,before+5,'Hatch animation must prepare five distinct crew poses.');
+}
+const beforeContact=art.stats.rasters;
+for(const phase of [0,1])for(const frame of [0,5,10])art.unit(context,{...still,type:'grunt',nativeContact:{phase,frame,side:false}},0);
+assert.equal(art.stats.rasters,beforeContact+6,'Knockdown and stand-up poses must not reuse the standing robot.');
+const beforeTransport=art.stats.rasters;
+for(const phase of ['entering','exiting'])for(const frame of [0,1,2])art.unit(context,{...still,type:'grunt',nativeTransport:{phase,frame,direction:0,visible:true}},0);
+assert.equal(art.stats.rasters,beforeTransport+6,'Boarding and exiting frames must not reuse the standing robot.');
+art.unit(context,{...still,type:'grunt',nativeTransport:{phase:'inside',frame:0,direction:0,visible:false}},0);assert.equal(art.stats.rasters,beforeTransport+6,'Hidden passengers must not consume the raster budget.');
+const beforeCover=art.stats.rasters;for(let frame32=0;frame32<3;frame32++)art.unit(context,{...still,type:'grunt',nativeCover:{frame32}},0);assert.equal(art.stats.rasters,beforeCover+3,'Cover phases must invalidate the standing raster.');
 assert.equal(art.unit(context,{type:'unknown',x:0,y:0}),false);
 assert.equal(art.unit(context,{type:'jeep',x:NaN,y:0}),false);
 console.log(`HD units: ${cases} poses, all 19 types, finite Canvas geometry, cache bound and idle reuse passed (${operations} drawing operations).`);

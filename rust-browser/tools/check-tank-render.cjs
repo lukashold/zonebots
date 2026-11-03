@@ -52,7 +52,34 @@ function expectedLayers(u,d,aim,phase){const f=fixtures[u.type],x=u.x+f.anchor[0
   assert.deepEqual(plain(art.unitBounds(u,map,.25)),union(draws));assert.deepEqual(plain(art.attackBounds(u,map,.25)),union(draws));
   const pal=metadata.palettes[world],color=[pal[80*3],pal[80*3+1],pal[80*3+2],255];for(const draw of draws)assert.deepEqual(draw.color,color,'Empty tank faction paint uses native palette4 grayscale.');neutral++;
  }
+ //120 crew sprite samples independently executed by ZNativeHardwareOracle.
+ let crewHash=2166136261,crewCases=0;
+ for(const [family,type]of [[6,'medium'],[25,'heavy'],[30,'light']])for(let aim=0;aim<8;aim++)for(let frame=0;frame<5;frame++){
+  const f=fixtures[type],u={id:3,type,team:0,x:200-f.anchor[0]*2,y:400-f.anchor[1]*2,hp:300,maxHp:300,angle:angle(0),aim:angle(aim),moving:false,cooldown:0,crew:{kind:'grunt',hp:30},nativeHardware:{turret:aim,hatchFrame:frame,hatchBody:2,hatchMotion:0}},map={original:true,world:0};
+  const layers=plain(art.vehicleLayers(u,0,map)),crew=layers.find(p=>p.id>=1464&&p.id<=1487),hatch=layers.find(p=>p.id===535+aim*3);
+  assert(crew&&hatch,'Both the crew and partly opened hatch must be composed.');
+  assert.equal(layers.indexOf(crew)<layers.indexOf(hatch),[0,1,2,6,7].includes(aim),'Native depth order depends on turret facing.');
+  for(const n of [family,aim,frame,crew.x/2,crew.y/2,crew.id])crewHash=Math.imul((crewHash^n)>>>0,16777619)>>>0;
+  const bounds=plain(art.unitBounds(u,map,0));assert(bounds.x<=crew.x&&bounds.y<=crew.y);crewCases++;
+ }
+ assert.equal(crewHash,461582372,'All native hatch crew IDs and origins must match the emulated renderer.');
+ // Native APC entry/exit frames share the actual robot portal anchor.
+ let transportCases=0;
+ for(const phase of ['entering','exiting'])for(let direction=0;direction<8;direction++){
+  const count=(phase==='entering'?[5,3,1,1,1,1,1,3]:[2,2,2,4,6,4,2,2])[direction];
+  for(let frame=0;frame<count;frame++){
+   const u={id:4,type:'grunt',team:0,x:400,y:500,angle:0,aim:0,nativeTransport:{phase,direction,frame,visible:true}},map={original:true,world:0};draws=[];art.unit(ctx,u,0,map);
+   assert.deepEqual(draws.map(({id,x,y})=>({id,x,y})),[{id:(phase==='entering'?5217+direction*5:5257+direction*6)+frame,x:400,y:500}]);transportCases++;
+  }
+ }
+ draws=[];art.unit(ctx,{id:5,type:'grunt',team:0,x:400,y:500,nativeTransport:{phase:'inside',direction:0,frame:0,visible:false}},0,{original:true,world:0});assert.equal(draws.length,0,'Passengers inside the APC must not render as separate robots.');
+ let idleCases=0,coverCases=0;
+ for(let direction=0;direction<8;direction++)for(let frame=0;frame<3;frame++){
+  const u={id:6,type:'grunt',team:0,x:400,y:500,angle:angle(direction),aim:angle(direction),moving:false},map={original:true,world:0};
+  draws=[];art.unit(ctx,{...u,nativeIdle:{direction,frame}},0,map);assert.equal(draws[0].id,184+direction*3+frame);idleCases++;
+  draws=[];art.unit(ctx,{...u,nativeCover:{frame32:direction*3+frame}},0,map);assert.equal(draws[0].id,2075+direction*3+frame);assert.deepEqual([draws[0].x,draws[0].y],[400,500],'Cover does not shift the robot anchor');coverCases++;
+ }
  assert.deepEqual(invalid,[],'Every requested original frame must exist.');
- console.log(JSON.stringify({occupiedCases:owned,neutralCases:neutral}));
+ console.log(JSON.stringify({occupiedCases:owned,neutralCases:neutral,crewCases,transportCases,idleCases,coverCases}));
  console.log('PASS: original Light/Medium/Heavy tank composition, independent hull/turret headings, tracks, damage gates, neutral templates, world/team palettes and complete rounded visual bounds.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

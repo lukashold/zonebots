@@ -3,7 +3,7 @@ window.RadioAudio=(()=>{
  'use strict';
  const base=new URL('../original/',document.currentScript.src),levels={music:.5,effects:.7,voice:.9};
  let manifest=null,loading=null,ctx=null,effectsBus=null,voiceBus=null,unlocked=false,enabled=true,lang='de',scene='menu',world=0;
- let music=null,musicKey='',musicToken=0,voiceToken=0,activeVoice=null,speaking=false,queue=[],rotation=0;
+ let music=null,musicKey='',musicToken=0,voiceToken=0,activeVoice=null,activeVoicePose=null,speaking=false,queue=[],rotation=0;
  const buffers=new Map(),recent=new Map(),activeEffects=new Set();
  const labels={capture:['Gebiet erobert!','Territory taken!'],lost:['Gebiet verloren.','Territory lost.'],
   ready:['Verstärkung hergestellt.','Reinforcements manufactured.'],crewed:['Fahrzeug übernommen.','Vehicle captured.'],
@@ -41,7 +41,7 @@ window.RadioAudio=(()=>{
   mix();if(enabled&&music?.paused)Promise.resolve(music.play()).catch(()=>{});else if(!enabled)music?.pause();
  }
  async function buffer(clip){if(!ctx||!clip)return null;let promise=buffers.get(clip.url);if(!promise){promise=fetch(new URL(clip.url,base)).then(r=>{if(!r.ok)throw Error('Audio unavailable');return r.arrayBuffer();}).then(data=>ctx.decodeAudioData(data)).catch(error=>{if(buffers.get(clip.url)===promise)buffers.delete(clip.url);throw error;});buffers.set(clip.url,promise);}return promise;}
- function stopVoice(){voiceToken++;queue=[];if(activeVoice){try{activeVoice.stop();}catch{}activeVoice=null;}speaking=false;window.speechSynthesis?.cancel();mix();}
+ function stopVoice(){voiceToken++;queue=[];activeVoicePose=null;if(activeVoice){try{activeVoice.stop();}catch{}activeVoice=null;}speaking=false;window.speechSynthesis?.cancel();mix();}
  function chosen(kind,detail){
   const type=detail.type||'';
   if(/^(ROB|COMP)\d\d$/.test(kind))return kind;
@@ -55,12 +55,12 @@ window.RadioAudio=(()=>{
  async function pump(){
   if(speaking||!unlocked||!enabled||!queue.length||levels.voice===0)return;
   const item=queue.shift(),token=++voiceToken;speaking=true;mix();
-  const finished=()=>{if(token!==voiceToken)return;activeVoice=null;speaking=false;mix();pump();};
+  const finished=()=>{if(token!==voiceToken)return;activeVoice=null;activeVoicePose=null;speaking=false;mix();pump();};
   try{
    if(manifest){
     const clip=(manifest.voices?.[lang]||manifest.voices?.de||manifest.voices?.en)?.[item.id];
     if(!clip||!ctx){finished();return;}const decoded=await buffer(clip);if(token!==voiceToken||!enabled)return;
-    const source=ctx.createBufferSource();source.buffer=decoded;source.connect(voiceBus);activeVoice=source;source.onended=finished;source.start();
+    const source=ctx.createBufferSource();source.buffer=decoded;source.connect(voiceBus);activeVoice=source;activeVoicePose={clip:item.id,started:ctx.currentTime};source.onended=finished;source.start();
    }else if(window.speechSynthesis&&typeof SpeechSynthesisUtterance!=='undefined'){
     const voice=new SpeechSynthesisUtterance(item.text);voice.lang=lang==='de'?'de-DE':'en-US';voice.volume=levels.voice;voice.onend=finished;voice.onerror=finished;window.speechSynthesis.speak(voice);
    }else finished();
@@ -84,5 +84,6 @@ window.RadioAudio=(()=>{
  return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0)stopVoice();mix();if(key==='voice'&&levels.voice>0)pump();},
   mute(value){enabled=!value;if(value){stopVoice();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
   setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,
+  voicePose(){return activeVoicePose&&ctx?{clip:activeVoicePose.clip,seconds:Math.max(0,ctx.currentTime-activeVoicePose.started)}:null;},
   status(){return {original:Boolean(manifest),unlocked,enabled,scene,world,music:music?.src||null,musicTime:music?.currentTime||0,musicPaused:music?.paused??true,musicError:music?.error?.code||null,contextState:ctx?.state||'locked',speaking,queued:queue.length};}};
 })();

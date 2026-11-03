@@ -1,0 +1,624 @@
+//! World-state bindings for the verified contact kernels. An OBJECT pool slot
+//! has one lifetime even when it is represented by a selectable neutral unit,
+//! a pickup and a renderer record. Capturing a unit retires that OBJECT slot.
+use super::{Game, Building, json, stats, original_combat::{self, Attack}, original_world_contact as native, native_ai_tasks as task};
+use serde_json::Value;
+use std::collections::{BTreeSet,VecDeque};
+#[path="original_world_effects.rs"] mod effects;
+#[path="original_world_fire.rs"] pub(crate) mod fire;
+#[path="original_pickups.rs"] pub(crate) mod pickups;
+
+#[derive(Clone)]
+struct ObjectSlot {
+    active: bool, record: native::Object, hp: u8, maximum: u8, kind: u16, sprite: u16,extent21:i8,
+    bucket12:u8,flags19:u8,flags26: u8,lifetime24:i16,animation18:u8,sprite_offset21:i8,motion22:i8,hardware:Option<super::original_entry::ObjectHardware>, flag_sector:Option<usize>,flag_delay1f:u8,saved: [u8;4], unit: Option<usize>, pickup: Option<usize>, render: Option<usize>, fire: Option<usize>,
+}
+
+#[derive(Clone)]
+struct BuildingSlot { record: native::Building, maximum: i16, binding: Option<usize>, fort_proxy: bool, constructor:Option<super::original_factory::ConstructorFields> }
+#[derive(Clone)]
+struct BridgeSlot { record: native::Bridge, binding: usize, native_slot:usize, orientation:i16,
+    retired_road:Option<(usize,[i16;4])>, restored_terrain:Vec<(i16,u8)> }
+#[derive(Clone, Copy)]
+struct Fort { binding: usize, base: [i16;2] }
+pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pub flags13:u8,pub flags19:u8,pub flags26:u8,pub definition:u16,pub sprite:u16,pub template_flags18:u8,pub extent20:i8,pub extent21:i8,pub unit:Option<usize>,pub flag_sector:Option<usize>,pub flag_delay1f:u8}
+
+pub struct State {
+    objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,
+    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_draws:Vec<(usize,effects::Draw)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,
+}
+impl State {
+    fn empty() -> Self { Self { objects: vec![None;200], buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,last_projection:[0,0],crate_sound_played:false,quiet_blasts:false } }
+    fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
+}
+
+fn number(v:&Value,key:&str,default:i64)->i64 { v[key].as_i64().unwrap_or(default) }
+fn native_point(x:f64,y:f64)->[i16;2] { [(x/2.).floor() as i16,(y/2.).floor() as i16] }
+fn native_bucket(p:[i16;2])->u8{native::initial_object_bucket(p)}
+fn equipment_kind(eq:u16)->Option<&'static str> { ["cannon","medium","grunt","tough","sniper","heavy","launcher","psycho","light","missile","apc","gatling","howitzer","jeep","firetruck","crane","truck","pyro","laser"].get(usize::from(eq)).copied() }
+fn object_kind(kind:&str)->Option<u16> { Some(match kind { "cannon"=>5,"medium"=>8,"missile"=>21,"gatling"=>22,"howitzer"=>23,"launcher"=>24,"heavy"=>26,"light"=>29,"apc"=>31,"jeep"=>33,"crane"=>35,"firetruck"=>37,_=>return None }) }
+fn building_kind(kind:&str)->Option<i8> { Some(match kind { "repair"=>0,"vehicle"=>1,"fort"=>2,"robot"=>4,"radar"=>8,_=>return None }) }
+
+impl Game {
+    fn world_sector(&self,point:[i16;2])->Option<usize> {
+        if let Some(s)=&self.native_strategy { return s.sector_at(f64::from(point[0])*2.,f64::from(point[1])*2.); }
+        let(x,y)=(point[0]>>4,point[1]>>4);if x<0||y<0||x as usize>=self.map.width||y as usize>=self.map.height{return None;}
+        let id=*self.map.territory.get(y as usize*self.map.width+x as usize)?;
+        self.sectors.iter().find(|s|s.id==id&&s.counts_for_production).map(|s|s.id)
+    }
+    fn world_code(&self,cell:i16)->u8 {
+        if cell<0{return 0;}let i=cell as usize;let(x,y)=(i&127,i>>7);
+        if x<self.map.width&&y<self.map.height { (self.map.terrain_codes.get(y*self.map.width+x).copied().unwrap_or(0)&127)|(self.map.native_terrain_plane.get(i).copied().unwrap_or_else(||((self.map.original_tiles.get(y*self.map.width+x).copied().unwrap_or(0)&256)>>1)as u8)&128) }
+        else { self.map.native_terrain_plane.get(i).copied().unwrap_or(0) }
+    }
+    fn world_cell(point:[i16;2])->i16 { ((point[1] as u16&0xfff0).wrapping_mul(8)).wrapping_add((point[0]>>4)as u16)as i16 }
+    fn set_world_code(&mut self,cell:i16,code:u8) {
+        if cell<0{return;}let i=cell as usize;let(x,y)=(i&127,i>>7);
+        if let Some(c)=self.map.native_terrain_plane.get_mut(i){*c=code;}
+        if x<self.map.width&&y<self.map.height { let j=y*self.map.width+x;if let Some(c)=self.map.terrain_codes.get_mut(j){*c=code&127;}
+            if let Some(tile)=self.map.original_tiles.get_mut(j){*tile=(*tile&255)|(u16::from(code&128)<<1);}
+            //36/46 mark OBJECT occupancy in the collision plane. The road or
+            //ground artwork under that object keeps its original visual class.
+            if !matches!(code&127,36|46){if let Some(t)=self.map.tiles.get_mut(j){*t=match code&127 {7=>1,19|43=>2,9|38|39|40|42=>3,23=>5,_=>0};}}
+        }
+    }
+    fn world_saved(&self,point:[i16;2])->[u8;4] { let base=Self::world_cell(point);[0,1,128,129].map(|o|self.world_code(base.wrapping_add(o))) }
+    fn world_restriction(&self,point:[i16;2])->u8 {
+        let plane=(0..16384).map(|i|self.world_code(i as i16)).collect::<Vec<_>>();
+        u8::from(super::native_ai_scoring::enclosed_object_area(&plane,point,|x,y|self.world_sector([x,y])))
+    }
+    fn make_object(&self,kind:u16,point:[i16;2],hp:u8)->Option<ObjectSlot> {
+        let(sprite,flags,extent)=native::object_metadata(kind)?;
+        Some(ObjectSlot { active:true,record:native::Object{position:point,flags13:native::initial_object_flags(kind,flags),metadata_flags18:flags,metadata_extent20:extent},hp,maximum:hp,kind,sprite,extent21:native::object_height(kind)?,bucket12:native_bucket(point),flags19:native::initial_object_scan_flags(kind),flags26:self.world_restriction(point),lifetime24:0,animation18:0,sprite_offset21:0,motion22:0,hardware:None,flag_sector:None,flag_delay1f:0,saved:self.world_saved(point),unit:None,pickup:None,render:None,fire:None })
+    }
+    pub(crate) fn import_native_world(&mut self,v:&Value) {
+        let previous=self.native_world.take();
+        let old_saved=(0..200).map(|i|previous.as_ref().and_then(|s|s.objects[i].as_ref()).map(|o|o.saved).unwrap_or([0;4])).collect::<Vec<_>>();
+        let mut plane=(0..16384).map(|i|self.world_code(i as i16)).collect::<Vec<_>>();
+        //The visible A/B planes may already contain native wall autotiles.
+        //Upgrade older packages whose full B plane accidentally lost bit7,
+        //without rewriting any visual or compatibility cell during import.
+        for y in 0..self.map.height.min(128){for x in 0..self.map.width.min(128){let cell=y*128+x;let visual=self.map.original_tiles.get(y*self.map.width+x).copied().unwrap_or(0);plane[cell]=(plane[cell]&127)|((visual&256)>>1)as u8;}}
+        let initial_plane=plane.clone();self.map.native_terrain_plane=initial_plane.clone();
+        let mut state=State::empty();let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
+        //33ca0 calls41d280 before33700.17a50 already ran through the menu's
+        //human-roster initialization, so authored stale CP low bits are not
+        //the fort flags used here. Only the first/second native fort sectors
+        //are excluded by41d280's runtime flags&3 gate.
+        let mut forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|(b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y)),b.sector)).collect::<Vec<_>>();forts.sort_by_key(|(p,_)|(p[1],p[0]));let fort_sectors=forts.iter().take(2).map(|(p,fallback)|self.world_sector(*p).unwrap_or(*fallback)).collect::<BTreeSet<_>>();
+        let mut flag_sectors=v["sectors"].as_array().into_iter().flatten().filter(|s|s["nativeSlot"].as_u64().is_some_and(|n|n<64)&&s["rawFlagTile"].as_array().is_some_and(|p|p.len()==2)&&!s["countsForProduction"].as_bool().is_some_and(|b|!b)).collect::<Vec<_>>();flag_sectors.sort_by_key(|s|s["nativeSlot"].as_u64());
+        for sector in flag_sectors{let id=number(sector,"id",-1);if id<0||fort_sectors.contains(&(id as usize)){continue;}let point=[(sector["rawFlagTile"][0].as_i64().unwrap_or(0)as i8 as i16).wrapping_shl(4),(sector["rawFlagTile"][1].as_i64().unwrap_or(0)as i8 as i16).wrapping_shl(4)];let cell=Self::world_cell(point);if cell>=0{if let Some(c)=plane.get_mut(cell as usize){*c=(*c&0xa3)|35;}}
+            let Some(slot)=state.free()else{continue;};if let Some(mut flag)=self.make_object(28,point,50){flag.record.flags13=0;flag.flag_sector=Some(id as usize);flag.saved=old_saved[slot];flag.flags26=u8::from(super::native_ai_scoring::enclosed_object_area(&plane,point,|x,y|self.world_sector([x,y])));state.objects[slot]=Some(flag);}
+        }
+        for (index,raw) in self.objects.iter().enumerate() {
+            let kind=number(raw,"type",-1);if !(0..78).contains(&kind)||kind==37{continue;}
+            let mut point=native_point(raw["x"].as_f64().unwrap_or(0.),raw["y"].as_f64().unwrap_or(0.));let bucket=native_bucket(point);
+            if kind==7 { point=[point[0]&!15,(point[1]&!15).wrapping_sub(14)]; }
+            let eq=number(raw,"equipmentId",255) as u16;
+            let hp=number(raw,"nativeHp",equipment_kind(eq).map(|k|(stats(k).hp as i16/25)as i64).unwrap_or(0))as u8;
+            let Some(mut object)=self.make_object(kind as u16,point,hp)else{continue;};
+            object.hardware=u8::try_from(eq).ok().and_then(super::original_entry::equipment_attributes);if let Some(h)=object.hardware{object.maximum=h.byte(40);}
+            object.record.flags13=number(raw,"nativeFlags13",i64::from(object.record.flags13))as u8;
+            object.record.metadata_flags18=number(raw,"templateFlags",i64::from(object.record.metadata_flags18))as u8;
+            object.record.metadata_extent20=number(raw,"templateExtent",i64::from(object.record.metadata_extent20))as i8;
+            object.extent21=number(raw,"templateHeight",i64::from(object.extent21))as i8;
+            if raw["nativeFlags13"].is_null(){object.record.flags13=native::initial_object_flags(kind as u16,object.record.metadata_flags18);}
+            object.sprite=number(raw,"templateSprite",i64::from(object.sprite))as u16;object.render=Some(index);
+            //43ef70 sets4d18cc=1 for authored APC31;43ecf0 selects30.
+            //58af0 writes zero directly, so dynamic conversion keeps make_object's0.
+            object.sprite_offset21=number(raw,"nativeSpriteOffset21",if kind==31{30}else{0})as i8;
+            object.flags19=number(raw,"nativeFlags19",i64::from(object.flags19))as u8;
+            object.bucket12=number(raw,"nativeBucket12",i64::from(bucket))as u8;
+            object.flags26=number(raw,"nativeFlags26",i64::from(u8::from(super::native_ai_scoring::enclosed_object_area(&plane,point,|x,y|self.world_sector([x,y])))))as u8;
+            if let Some(kind)=equipment_kind(eq) { object.unit=self.units.iter().find(|u|u.team<0&&u.kind==kind&&!units.contains(&u.id)&&native_point(u.x,u.y)==point).map(|u|u.id);if let Some(id)=object.unit{units.insert(id);} }
+            if kind==10 { object.pickup=self.crates.iter().enumerate().find(|(i,c)|!pickups.contains(i)&&native_point(c.x,c.y)==point).map(|(i,_)|i);if let Some(id)=object.pickup{pickups.insert(id);} }
+            let slot=raw["nativeSlot"].as_u64().map(|n|n as usize).filter(|n|*n<200&&state.objects[*n].as_ref().is_none_or(|o|!o.active)).or_else(||state.free());
+            if let Some(slot)=slot{
+                object.saved=old_saved[slot];
+                let flags=object.record.metadata_flags18;
+                if flags&4!=0||flags&3<=1{
+                    let p=[point[0],point[1].wrapping_add(if flags&6==6{16}else{0})];let cell=Self::world_cell(p);
+                    if cell>=0{if let Some(code)=plane.get_mut(cell as usize){object.saved[0]=*code;if !(71..=77).contains(&(kind as u16)){*code=if flags&4!=0{(*code&0xae)|46}else{(*code&0xa4)|36};}}}
+                }
+                state.objects[slot]=Some(object);
+            }
+        }
+        if let Some(records)=v["nativeWorldBuildings"].as_array() {
+            state.buildings=(0..35).map(|_|BuildingSlot{record:native::Building{position:[-1,-1],kind:-1,hp:-1},maximum:-1,binding:None,fort_proxy:false,constructor:None}).collect();
+            for b in records { let slot=number(b,"nativeSlot",-1);if !(0..35).contains(&slot){continue;}state.buildings[slot as usize]=BuildingSlot{record:native::Building{position:[number(b,"x",-1)as i16,number(b,"y",-1)as i16],kind:number(b,"kind",-1)as i8,hp:number(b,"hp",-1)as i16},maximum:number(b,"maxHp",-1)as i16,binding:b["buildingId"].as_u64().map(|n|n as usize),fort_proxy:b["fortProxy"].as_bool().unwrap_or(false),constructor:None}; }
+        } else {
+            // Synthetic arenas still use the native descriptors and HP rules.
+            for b in &self.buildings { if let Some(kind)=building_kind(&b.kind){let mut position=native_point(b.x,b.y);if kind==2{position=b.raw_base.map(|p|[p.0 as i16,p.1 as i16+16]).unwrap_or([position[0],position[1]+16]);}state.buildings.push(BuildingSlot{record:native::Building{position,kind,hp:b.hp as i16},maximum:b.max_hp as i16,binding:Some(b.id),fort_proxy:kind==2,constructor:None});} }
+        }
+        state.forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|Fort{binding:b.id,base:b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y))}).collect();state.forts.sort_by_key(|f|(f.base[1],f.base[0]));state.forts.truncate(2);
+        for b in v["bridges"].as_array().into_iter().flatten() { let id=number(b,"id",-1);if id<0{continue;}let hp=number(b,"hp",0)as i16;let flags=number(b,"nativeFlags15",if hp<=0{2}else{0})as u8;
+            state.bridges.push(BridgeSlot{record:native::Bridge{position:native_point(b["x"].as_f64().unwrap_or(0.),b["y"].as_f64().unwrap_or(0.)),size:native_point(b["w"].as_f64().unwrap_or(0.),b["h"].as_f64().unwrap_or(0.)),hp:if hp<=0{-1}else{hp},maximum:number(b,"maxHp",600)as i16,flags15:flags},binding:id as usize,native_slot:number(b,"nativeSlot",number(b,"sourceOffset",id*26)/26)as usize,orientation:number(b,"nativeOrientation",0)as i16,retired_road:None,restored_terrain:Vec::new()}); }
+        state.bridges.sort_by_key(|b|b.native_slot);
+        //Only actual native OBJECT writes change the planes. Synthetic fixtures
+        //can intentionally have compatibility collision classes without codes.
+        for (cell,code) in plane.into_iter().enumerate(){if code!=initial_plane[cell]{self.set_world_code(cell as i16,code);}}
+        //4097b0 initializes already-destroyed bridges before live groups spawn.
+        for bridge in &mut state.bridges{if bridge.record.flags15&2!=0{self.collapse_native_bridge_terrain(bridge);for(cell,&owner)in self.map.bridge_base.iter().enumerate(){if owner==bridge.binding as i32{if let Some(tile)=self.map.tiles.get_mut(cell){*tile=3;}}}}}
+        self.native_world=Some(state);let forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|b.id).collect::<Vec<_>>();for id in forts{self.copy_native_fort_producer_health(id,true);}self.sync_native_world();
+    }
+    pub(crate) fn sync_native_world(&mut self) {
+        let Some(mut state)=self.native_world.take()else{if self.map.original{self.import_native_world(&Value::Null);}return;};
+        for object in state.objects.iter_mut().flatten().filter(|o|o.active) {
+            if let Some(id)=object.unit { if let Some(u)=self.units.iter().find(|u|u.id==id&&u.team<0&&u.crew.is_none()&&original_combat::alive(true,u.hp)){object.record.position=native_point(u.x,u.y);object.bucket12=native_bucket(object.record.position);object.hp=(u.hp as i16/25)as u8;}else{object.active=false;} }
+            if object.pickup.is_some_and(|id|self.crates.get(id).is_none_or(|c|c.taken)){object.active=false;}
+            if let Some(id)=object.fire { if let Some(f)=self.fires.iter().find(|f|f.id==id){object.record.position=native_point(f.x,f.y);object.bucket12=native_bucket(object.record.position);} }
+        }
+        // Retire old renderer bindings before a free slot can be reused by a
+        // different entity. Keeping just the new slot would lose this link.
+        for object in state.objects.iter().flatten().filter(|o|!o.active){if let Some(index)=object.render{if let Some(v)=self.objects.get_mut(index){v["nativeActive"]=json!(false);}}}
+        for u in self.units.iter().filter(|u|u.team<0&&u.crew.is_none()&&original_combat::alive(true,u.hp)) {
+            if state.objects.iter().flatten().any(|o|o.active&&o.unit==Some(u.id)){continue;}let Some(kind)=object_kind(&u.kind)else{continue;};let Some(slot)=state.free()else{break;};
+            if let Some(mut object)=self.make_object(kind,native_point(u.x,u.y),(u.hp as i16/25)as u8){object.unit=Some(u.id);object.hardware=(0..19u8).find(|&eq|equipment_kind(u16::from(eq))==Some(u.kind.as_str())).and_then(super::original_entry::equipment_attributes);if let Some(h)=object.hardware{object.maximum=h.byte(40);}object.saved=state.objects[slot].as_ref().map(|o|o.saved).unwrap_or([0;4]);state.objects[slot]=Some(object);}
+        }
+        for (id,c) in self.crates.iter().enumerate().filter(|(_,c)|!c.taken){if state.objects.iter().flatten().any(|o|o.active&&o.pickup==Some(id)){continue;}let Some(slot)=state.free()else{break;};if let Some(mut object)=self.make_object(10,native_point(c.x,c.y),0){object.pickup=Some(id);state.objects[slot]=Some(object);}}
+        for record in &mut state.buildings { if !record.fort_proxy {if let Some(b)=record.binding.and_then(|id|self.buildings.iter().find(|b|b.id==id)){record.record.hp=b.hp as i16;record.record.position=native_point(b.x,b.y);}} }
+        for record in &mut state.bridges {if let Some(&hp)=self.map.bridge_hp.get(record.binding){let hp=hp as i16;
+            if record.record.flags15&2!=0 {if hp>=record.record.maximum {
+                record.record.hp=hp;record.record.flags15&=!(2|32);
+                for &(cell,code)in &record.restored_terrain{self.set_world_code(cell,code);}
+                if let Some((slot,bounds))=record.retired_road.take(){if let Some(region)=self.map.native_road_graph.as_mut().and_then(|g|g.regions.get_mut(slot)){region.bounds=bounds;}}
+                record.restored_terrain.clear();
+            }}else if hp>0{record.record.hp=hp;if hp>record.record.maximum>>1{record.record.flags15&=!32;}}
+        }}
+        for (slot,o) in state.objects.iter().enumerate().filter_map(|(slot,o)|o.as_ref().map(|o|(slot,o))){if let Some(i)=o.render{if let Some(v)=self.objects.get_mut(i){v["nativeActive"]=json!(o.active);v["nativeSlot"]=json!(slot);v["nativeHp"]=json!(o.hp);v["nativeFlags13"]=json!(o.record.flags13);v["nativeFlags19"]=json!(o.flags19);v["nativeFlags26"]=json!(o.flags26);v["nativeSpriteOffset21"]=json!(o.sprite_offset21);v["nativeAnimation18"]=json!(o.animation18);if o.active{v["x"]=json!(i32::from(o.record.position[0])*2);v["y"]=json!(i32::from(o.record.position[1])*2);}}}}
+        self.native_world=Some(state);
+    }
+    pub(crate) fn native_work_health(&self,b:&Building)->(f64,f64) {
+        self.native_world.as_ref().and_then(|s|s.buildings.iter().find(|r|r.fort_proxy&&r.binding==Some(b.id))).map(|r|(if r.record.kind==-1{0.}else{f64::from(r.record.hp)},f64::from(r.maximum))).unwrap_or((b.hp,b.max_hp))
+    }
+    ///40b250 initializes unconditionally.40b2a0's regular callback first
+    ///rejects a zero-HP record, then calls40b1c0 before40a6d0.
+    pub(crate) fn sync_native_fort_producer_health(&mut self,id:usize){self.copy_native_fort_producer_health(id,false);}
+    fn copy_native_fort_producer_health(&mut self,id:usize,initial:bool){let Some(b)=self.buildings.iter().find(|b|b.id==id&&b.kind=="fort")else{return;};let(hp,max)=(b.hp as i16,b.max_hp as i16);if let Some(state)=&mut self.native_world{for record in state.buildings.iter_mut().filter(|r|r.fort_proxy&&r.record.kind==2&&r.binding==Some(id)&&(initial||r.record.hp!=0)){record.record.hp=hp;record.maximum=max;}}}
+    pub(crate) fn native_producer_position(&self,b:&Building)->[i16;2]{self.native_world.as_ref().and_then(|s|s.buildings.iter().find(|r|r.binding==Some(b.id))).map(|r|r.record.position).unwrap_or_else(||if b.kind=="fort"{b.raw_base.map(|p|[p.0 as i16,(p.1 as i16).wrapping_add(16)]).unwrap_or_else(||{let mut p=native_point(b.x,b.y);p[1]=p[1].wrapping_add(16);p})}else{native_point(b.x,b.y)})}
+    pub(crate) fn native_ai_world_objects(&self)->Option<Vec<task::WorldObject>> {Some(self.native_world.as_ref()?.objects.iter().enumerate().filter_map(|(slot,o)|{let o=o.as_ref()?;o.active.then(||task::WorldObject{id:slot,position:o.record.position,definition:Some(o.kind as i16),flags13:o.record.flags13,flags26:o.flags26,sector:self.world_sector(o.record.position)})}).collect())}
+    pub(crate) fn native_neutral_unit_sprite(&self,id:usize)->Option<i16>{let o=self.native_world.as_ref()?.objects.iter().flatten().find(|o|o.active&&o.unit==Some(id))?;Some((o.sprite as i16).wrapping_add(i16::from(o.animation18 as i8)).wrapping_add(i16::from(o.sprite_offset21)))}
+    pub(crate) fn native_object_visuals(&self)->Vec<Value>{self.native_world.as_ref().map(|s|s.objects.iter().flatten().filter_map(|o|o.render.map(|id|json!({"id":id,"nativeActive":o.active,"x":i32::from(o.record.position[0])*2,"y":i32::from(o.record.position[1])*2,"nativeAnimation18":o.animation18,"nativeSpriteOffset21":o.sprite_offset21}))).collect()).unwrap_or_default()}
+    pub(crate) fn native_object_unit(&self,slot:usize)->Option<usize>{self.native_world.as_ref()?.objects.get(slot)?.as_ref().filter(|o|o.active)?.unit}
+    pub(crate) fn native_object_hardware_input(&self,slot:u8)->Option<super::original_entry::ObjectHardware>{let o=self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().filter(|o|o.active)?;let mut h=o.hardware?;h.set_byte(15,o.hp);h.set_byte(40,o.maximum);Some(h)}
+    pub(crate) fn native_object_slot(&self,unit:usize)->Option<u8>{self.native_world.as_ref()?.objects.iter().position(|o|o.as_ref().is_some_and(|o|o.active&&o.unit==Some(unit))).map(|n|n as u8)}
+    ///Ordinary41c600 query (6a=6b=0); blast-specific overrides remain explicit
+    ///arguments at their callers and do not leak into a later UNIT callback.
+    pub(crate) fn native_first_object_contact(&self,point:[i16;2])->Option<u8>{let state=self.native_world.as_ref()?;let objects=state.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::first_object(&objects,point,false,false).map(|slot|slot as u8)}
+    pub(crate) fn native_world_scan_objects(&self)->Vec<ScanObject>{self.native_world.as_ref().map(|s|s.objects.iter().enumerate().filter_map(|(slot,o)|o.as_ref().filter(|o|o.active).map(|o|ScanObject{slot:slot as u8,position:o.record.position,bucket12:o.bucket12,flags13:o.record.flags13,flags19:o.flags19,flags26:o.flags26,definition:o.kind,sprite:o.sprite,template_flags18:o.record.metadata_flags18,extent20:o.record.metadata_extent20,extent21:o.extent21,unit:o.unit,flag_sector:o.flag_sector,flag_delay1f:o.flag_delay1f})).collect()).unwrap_or_default()}
+    pub(crate) fn native_world_buildings(&self)->Option<Vec<native::Building>>{Some(self.native_world.as_ref()?.buildings.iter().map(|b|b.record).collect())}
+    ///The constructor delta records only source-written fields; None bytes
+    ///retain their imported value and are not fabricated from cold defaults.
+    pub(crate) fn set_native_building_constructor(&mut self,slot:usize,fields:super::original_factory::ConstructorFields){if let Some(b)=self.native_world.as_mut().and_then(|s|s.buildings.get_mut(slot)){if let Some(maximum)=fields.maximum1c{b.maximum=maximum;}b.constructor=Some(fields);}}
+    pub(crate) fn native_building_constructor(&self,slot:usize)->Option<super::original_factory::ConstructorFields>{self.native_world.as_ref()?.buildings.get(slot)?.constructor}
+    pub(crate) fn native_world_bridges(&self)->Option<Vec<native::Bridge>>{let state=self.native_world.as_ref()?;Some((0..12).map(|slot|state.bridges.iter().find(|b|b.native_slot==slot).map(|b|b.record).unwrap_or(native::Bridge{position:[-1,-1],size:[0,0],hp:0,maximum:0,flags15:2})).collect())}
+    pub(crate) fn native_fort_bases(&self)->Option<[[i16;2];2]>{let s=self.native_world.as_ref()?;Some([s.forts.first()?.base,s.forts.get(1)?.base])}
+    pub(crate) fn native_ai_world_buildings(&self,team:i32)->Option<Vec<task::BuildingRecord>>{let s=self.native_world.as_ref()?;Some(s.buildings.iter().enumerate().map(|(slot,b)|{let binding=b.binding.and_then(|id|self.buildings.iter().find(|v|v.id==id));let shape=usize::try_from(b.record.kind).ok().and_then(|kind|native::BUILDING_SHAPES.get(kind));task::BuildingRecord{id:b.binding.unwrap_or(65536+slot),position:b.record.position,kind:b.record.kind,owner:binding.map_or(4,|v|if v.team==team{1}else if v.team>=0{0}else{4}),sector:binding.map(|v|v.sector).or_else(||self.world_sector(b.record.position)),hit_points:b.record.hp,attack_offset:shape.map_or([0,0],|v|[v[2],v[3]])}}).collect())}
+    pub(crate) fn set_native_flag_delay(&mut self,slot:u8,delay:u8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){o.flag_delay1f=delay;}}
+    ///43f260, after UNIT updates and before the projectile callbacks. The
+    ///byte is tested as signed; values128..255 do not count toward zero.
+    pub(crate) fn update_native_world_object_delays(&mut self){self.update_native_world_objects();}
+    ///43f260 processes each live OBJECT slot completely before the next one:
+    ///delay, fire/door animation, then lifetime. Contacts may allocate later slots.
+    pub(crate) fn update_native_world_objects(&mut self){
+        self.sync_native_world();
+        for slot in 0..200{
+            let base=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut).filter(|o|o.active&&o.record.position[0]>0).map(|o|{if (o.flag_delay1f as i8)>0{o.flag_delay1f-=1;}o.sprite});
+            let Some(base)=base else{continue;};if base==5215{continue;}
+            if self.motion_tick&1==0{
+                if [557,469,5836,5840,5844,5848,5854].contains(&base){self.advance_native_world_fire(slot);}
+                else if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut){o.animation18=o.animation18.wrapping_add(o.motion22 as u8);if [0,4].contains(&o.animation18){o.motion22=0;}}
+            }
+            let expired=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut).filter(|o|o.active).and_then(|o|super::original_death::advance_object_lifetime(&mut o.lifetime24).then_some(o.record.position));
+            if let Some(point)=expired{let origin=point.map(|c|c.wrapping_add(1));let selected=self.native_world.as_ref().and_then(|s|{let objects=s.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::blast_object(&objects,origin,false,false)});if let Some((hit,sample))=selected{let d=[[4,16],[20,16],[20,32],[4,32]][sample];self.damage_native_world_object_mode(hit,80,[origin[0].wrapping_add(d[0]),origin[1].wrapping_add(d[1])],true);}if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut){o.active=false;o.record.position[0]=-1;if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeActive"]=json!(false);}}}
+            if let Some(o)=self.native_world.as_ref().and_then(|s|s.objects[slot].as_ref()){if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeAnimation18"]=json!(o.animation18);raw["nativeSpriteOffset21"]=json!(o.sprite_offset21);}}
+        }
+    }
+    pub(crate) fn configure_native_world_fire_slot(&mut self,slot:usize,point:[i16;2],base:u16,frame:u8,lifetime:i8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut){o.record.position=point;o.bucket12=native_bucket(point);o.sprite=base;o.animation18=frame;o.motion22=lifetime;if let Some(kind)=(71..=77).find(|&k|native::object_metadata(k).is_some_and(|r|r.0==base)){o.kind=kind;let(_,flags,extent)=native::object_metadata(kind).unwrap();o.record.metadata_flags18=flags;o.record.metadata_extent20=extent;o.extent21=native::object_height(kind).unwrap_or(0);}}}
+    fn advance_native_world_fire(&mut self,slot:usize){
+        let Some(snapshot)=self.native_world.as_ref().and_then(|s|s.objects.get(slot)).and_then(Option::as_ref).cloned()else{return;};let mut frame=snapshot.animation18;let pulse=fire::advance_frame(snapshot.sprite,&mut frame);if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects[slot].as_mut()){o.animation18=frame;}
+        if pulse{let point=snapshot.record.position;if self.native_random()&7==7{self.spawn_native_smoke(point);}let damage=self.native_fire_strength(i32::from(point[0]),i32::from(point[1]),self.native_fire_base_strength);self.native_blast_environment(i32::from(point[0]),i32::from(point[1]),damage,255,true);self.native_direct_environment_contact_mode([point[0],point[1],point[0].wrapping_add(24),point[1].wrapping_add(24)],damage,true);let retired=self.native_world.as_mut().and_then(|s|s.objects[slot].as_mut()).is_some_and(|o|fire::finish_pulse(&mut o.motion22));if retired{self.spawn_native_smoke(point);if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects[slot].as_mut()){o.active=false;o.record.position[0]=-1;}}}
+        if let Some(o)=self.native_world.as_ref().and_then(|s|s.objects[slot].as_ref()){if let Some(id)=o.fire{if !o.active{self.fires.retain(|f|f.id!=id);}else if let Some(f)=self.fires.iter_mut().find(|f|f.id==id){f.sync_native_object(o.animation18,o.motion22);}}if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeActive"]=json!(o.active);}}
+    }
+    pub(crate) fn set_native_object_scan_mask(&mut self,slot:u8,mask:u8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){o.flags19=mask;}}
+    pub(crate) fn apply_native_ambient_object(&mut self,slot:u8,position:[i16;2],flags13:u8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){o.record.position=position;o.record.flags13=flags13;o.active=position[0]!=-1;if let Some(v)=o.render.and_then(|i|self.objects.get_mut(i)){v["nativeActive"]=json!(o.active);v["nativeFlags13"]=json!(flags13);v["x"]=json!(i32::from(position[0])*2);v["y"]=json!(i32::from(position[1])*2);}}}
+    ///Reservation is an explicit native contact transition, never inferred from
+    ///the browser order string.4bba0 releases bit0 on a detached member's slot.
+    pub(crate) fn reserve_native_object(&mut self,slot:u8)->bool{let Some(object)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut).filter(|o|o.active)else{return false;};object.record.flags13|=1;true}
+    pub(crate) fn release_native_object(&mut self,slot:u8){if let Some(object)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){object.record.flags13&=!1;}}
+    pub(crate) fn set_native_object_animation(&mut self,slot:u8,frame:u8,motion:i8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){o.animation18=frame;o.motion22=motion;}}
+    pub(crate) fn native_object_animation(&self,slot:u8)->Option<(u8,i8)>{self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().filter(|o|o.active).map(|o|(o.animation18,o.motion22))}
+    pub(crate) fn set_native_object_sprite_offset(&mut self,slot:u8,offset:i8){if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut){o.sprite_offset21=offset;if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeSpriteOffset21"]=json!(offset);}}}
+    pub(crate) fn native_object_sprite_offset(&self,slot:u8)->Option<i8>{self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().filter(|o|o.active).map(|o|o.sprite_offset21)}
+    ///59d80's successful APC portal cancellation. The distinct flags26 field
+    ///does not participate:612f92 is OBJECT+12h and612fa2 is OBJECT+22h.
+    pub(crate) fn clear_native_apc_object_contact(&mut self,slot:u8)->bool{let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut).filter(|o|o.active&&o.kind==31&&o.sprite==5173&&o.animation18!=0)else{return false;};o.motion22=-1;true}
+    pub(crate) fn clear_native_hardware_restrictions(&mut self,sector:usize){let Some(mut objects)=self.native_ai_world_objects()else{return;};task::clear_hardware_capture_restrictions(&mut objects,sector,self.map.native_level_record);if let Some(state)=&mut self.native_world{for o in objects{if let Some(Some(slot))=state.objects.get_mut(o.id){slot.flags26=o.flags26;}}}}
+    pub(crate) fn reserve_native_world_fire_slot(&mut self)->Option<usize>{self.sync_native_world();let mut state=self.native_world.take()?;let slot=state.free();if let Some(slot)=slot{if let Some(mut object)=self.make_object(71,[0,0],0){object.fire=Some(slot);object.flags26=0;state.objects[slot]=Some(object);}}self.native_world=Some(state);slot}
+    pub(crate) fn release_native_world_fire_slot(&mut self,id:usize){if let Some(state)=&mut self.native_world{if let Some(Some(object))=state.objects.get_mut(id){if object.fire==Some(id){object.active=false;}}}}
+    pub(crate) fn native_fire_strength(&self,x:i32,y:i32,base:u8)->u8 {
+        let point=[x as i16,y as i16];let hit=self.native_world.as_ref().is_some_and(|s|native::first_building(&s.buildings.iter().map(|b|b.record).collect::<Vec<_>>(),point,true,false).is_some()||s.bridges.iter().take(12).any(|b|native::bridge_contains(b.record,point)));
+        native::fire_strength(base,hit)
+    }
+    pub(crate) fn native_blast_environment(&mut self,x:i32,y:i32,strength:u8,team:i32,fire_mode:bool){
+        self.sync_native_world();let origin=[x as i16,y as i16];
+        let selected=self.native_world.as_ref().and_then(|s|{if s.suppress_objects!=0{return None;}let objects=s.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::blast_object(&objects,origin,false,false)});
+        if let Some((slot,sample))=selected {let delta=[[4,16],[20,16],[20,32],[4,32]][sample];self.damage_native_world_object(slot,strength,[origin[0].wrapping_add(delta[0]),origin[1].wrapping_add(delta[1])]);}
+        let Some(mut state)=self.native_world.take()else{return;};
+        let mut collapse=None;
+        let point=native::building_blast_point(origin,fire_mode);let records=state.buildings.iter().map(|b|b.record).collect::<Vec<_>>();
+        if let Some((slot,_))=native::first_building(&records,point,true,false){let b=&mut state.buildings[slot];let damage=native::building_damage(b.record.hp,i16::from(strength));b.record.hp=damage.hp;
+            if !b.fort_proxy {if let Some(building)=b.binding.and_then(|id|self.buildings.iter_mut().find(|b|b.id==id)){building.hp=f64::from(damage.hp);if damage.destroyed{building.ready_guns.clear();self.events.push(json!({"kind":"buildingLost","team":building.team,"id":building.id}));}}}else if damage.destroyed{b.record.kind=-1;}
+            if damage.destroyed&&!b.fort_proxy{if let Some(shape)=usize::try_from(b.record.kind).ok().and_then(|k|native::BUILDING_SHAPES.get(k)){
+                let [x,y]=b.record.position;collapse=Some([x.wrapping_add(16),y.wrapping_add(16),x.wrapping_add(i16::from(shape[0])*16).wrapping_sub(16),y.wrapping_add(i16::from(shape[1])*16).wrapping_sub(16)]);
+            }}
+        }
+        self.native_world=Some(state);if let Some(rect)=collapse{self.collapse_native_units(rect,false);}let Some(state)=self.native_world.take()else{return;};
+        let bases=std::array::from_fn(|i|state.forts.get(i).map(|f|f.base).unwrap_or([32767,32767]));let hp=std::array::from_fn(|i|state.forts.get(i).and_then(|f|self.buildings.iter().find(|b|b.id==f.binding)).map(|b|b.hp as i16).unwrap_or(0));
+        let damage=native::fort_damage(origin,if (0..4).contains(&team){Some(team as u8)}else{None},fire_mode,bases,hp,i16::from(strength));
+        for i in 0..state.forts.len(){if let Some(b)=self.buildings.iter_mut().find(|b|b.id==state.forts[i].binding){b.hp=f64::from(damage.hp[i]);if damage.destroyed[i]{self.winner=Some(1-b.team);self.events.push(json!({"kind":"buildingLost","team":b.team,"id":b.id}));}}}
+        self.native_world=Some(state);
+        //420200 enables both41cab0 lookup flags and probes origin+(16,24).
+        //41cb40 and OBJECT/terrain retirement occur only for that first hit.
+        if let Some((blocker,point,object_slot))=self.native_ambient_blocker([origin[0].wrapping_add(16),origin[1].wrapping_add(24)]){
+            self.native_ambient_terrain_retired(point);
+            if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(object_slot))).and_then(Option::as_mut){o.active=false;o.record.position[0]=-1;if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeActive"]=json!(false);}}
+            let cell=Self::world_cell(point);self.set_world_code(cell,self.world_code(cell)&128);self.retire_native_ambient_blocker(blocker);
+            let world=self.map.wall_tile_lookup["nativeWorld"].as_u64().map(|n|n as usize).unwrap_or([0,3,1,4,2][self.map.world.min(4)]);let sprite=[2951,2945,2948,2957,2954][world.min(4)];for delta in 0..3{self.spawn_native_world_particles(effects::Kind::FallingObject(sprite+delta),[point[0].wrapping_sub(160),point[1].wrapping_sub(92)],1);}
+        }
+        if strength!=0{let tint=self.world_code(Self::world_cell([origin[0].wrapping_add(12),origin[1].wrapping_add(32)]))&127;if let Some(state)=&mut self.native_world{state.effect_tint=tint;}}
+        match native::environment_contact(origin,fire_mode,|cell|self.world_code(cell)) {
+            Some(native::TerrainContact::Wall(cell))=>{self.damage_native_wall(cell,strength,team);}
+            Some(native::TerrainContact::Bridge(cell))=>{let point=[(cell&127)*16,(cell>>7)*16];self.damage_native_bridge(point,strength,team);},None=>{}
+        }
+        self.sync_native_world();
+    }
+    fn damage_native_world_object(&mut self,slot:usize,strength:u8,sample:[i16;2]){
+        self.damage_native_world_object_mode(slot,strength,sample,false);
+    }
+    fn damage_native_world_object_mode(&mut self,slot:usize,strength:u8,sample:[i16;2],force:bool){
+        let Some(mut state)=self.native_world.take()else{return;};let Some(Some(object))=state.objects.get_mut(slot)else{self.native_world=Some(state);return;};
+        let(hp,dead)=native::object_damage(object.hp,i16::from(strength),force);object.hp=hp;let snapshot=object.clone();if dead{object.active=false;}
+        if dead{if let Some(index)=snapshot.render{if let Some(v)=self.objects.get_mut(index){v["nativeActive"]=json!(false);}}}
+        if let Some(id)=snapshot.unit{if let Some(u)=self.units.iter_mut().find(|u|u.id==id){u.hp=if dead{-1.}else{f64::from(hp)*25.};if dead&&snapshot.kind!=31{u.cargo.clear();}}}
+        if dead{if let Some(id)=snapshot.pickup{if let Some(c)=self.crates.get_mut(id){c.taken=true;}}}
+        self.native_world=Some(state);self.spawn_native_object_particles(effects::Kind::Hit,sample);if !dead{return;}
+        self.spawn_native_object_particles(effects::Kind::Destroyed,sample);
+        if snapshot.kind==31{self.remove_native_apc_object_occupants(slot as u8);}
+        let base=Self::world_cell(snapshot.record.position);
+        if native::object_secondary_explosion(snapshot.sprite){let old=self.world_code(base);self.set_world_code(base,(old&0x96)|22);if let Some(s)=&mut self.native_world{s.suppress_objects=s.suppress_objects.saturating_add(1);}
+            self.spawn_native_blast(i32::from(snapshot.record.position[0])-16,i32::from(snapshot.record.position[1])-16,Attack{target:0,damage:127,aim:0,facing:0,bullet:false},255,None);
+            if let Some(s)=&mut self.native_world{s.suppress_objects=s.suppress_objects.saturating_sub(1);}
+            self.spawn_native_world_particles(effects::Kind::CrateBurst,[snapshot.record.position[0].wrapping_sub(176),snapshot.record.position[1].wrapping_sub(108)],if snapshot.sprite==350{10}else{20});
+        }
+        if snapshot.record.metadata_flags18&4!=0 {let cell=Self::world_cell([snapshot.record.position[0],snapshot.record.position[1].wrapping_add(if snapshot.record.metadata_flags18&2!=0{16}else{0})]);let old=self.world_code(cell);if old&127!=7{self.set_world_code(cell,(old&0x96)|22);}}
+        else if native::restores_wreck_tiles(snapshot.kind){for(i,delta)in[0,1,128,129].into_iter().enumerate(){let cell=base.wrapping_add(delta);let old=self.world_code(cell);self.set_world_code(cell,(old&128)|native::restored_wreck_terrain(snapshot.saved[i]));}}
+        if snapshot.record.metadata_flags18&12==12{self.spawn_native_world_particles(effects::Kind::FallingObject(snapshot.sprite as i16),[snapshot.record.position[0].wrapping_sub(160),snapshot.record.position[1].wrapping_sub(92)],1);}
+        for delta in [0,1,128,129]{let cell=base.wrapping_add(delta);let old=self.world_code(cell);self.set_world_code(cell,native::clear_object_terrain(old));}
+        self.map.revision=self.map.revision.wrapping_add(1);
+    }
+    fn damage_native_bridge(&mut self,point:[i16;2],strength:u8,team:i32){
+        let Some(mut state)=self.native_world.take()else{return;};
+        if let Some(index)=state.bridges.iter().position(|b|b.native_slot<12&&native::bridge_contains(b.record,point)){let bridge=&mut state.bridges[index];let(hp,flags,dead,half)=native::bridge_damage(bridge.record,i16::from(strength));bridge.record.hp=hp;bridge.record.flags15=flags;
+            if let Some(value)=self.map.bridge_hp.get_mut(bridge.binding){*value=f64::from(hp.max(0));}
+            if half{self.events.push(json!({"kind":"bridgeDamaged","id":bridge.binding}));}
+            if dead{let rect=native::bridge_collapse_rectangle(bridge.record,bridge.orientation);self.native_world=Some(state);self.collapse_native_units(rect,true);let Some(updated)=self.native_world.take()else{return;};state=updated;
+                for object in state.objects.iter_mut().flatten().filter(|o|o.active&&native::collapse_object(o.kind,o.record.position,rect)){
+                    let base=Self::world_cell(object.record.position);for(i,delta)in[0,1,128,129].into_iter().enumerate(){let cell=base.wrapping_add(delta);let old=self.world_code(cell);self.set_world_code(cell,(old&128)|native::restored_wreck_terrain(object.saved[i]));}
+                    object.active=false;if let Some(id)=object.unit{if let Some(u)=self.units.iter_mut().find(|u|u.id==id){u.hp=-1.;}}
+                    if let Some(index)=object.render{if let Some(v)=self.objects.get_mut(index){v["nativeActive"]=json!(false);}}
+                }
+                let bridge=&mut state.bridges[index];self.collapse_native_bridge_terrain(bridge);
+                for j in 0..self.map.tiles.len(){if self.map.bridge_base.get(j)==Some(&(bridge.binding as i32)){self.map.tiles[j]=3;let code=self.map.water_tile;self.map.original_tiles[j]=code;}}
+                self.map.revision=self.map.revision.wrapping_add(1);self.events.push(json!({"kind":"bridgeDestroyed","id":bridge.binding,"team":team}));
+            }
+        }
+        self.native_world=Some(state);
+    }
+    fn collapse_native_units(&mut self,rect:[i16;4],bridge_mode:bool){
+        for index in 0..self.units.len(){let u=&self.units[index];
+            let flags=u.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref).map(|m|m.flags31).unwrap_or_else(||if original_combat::alive(true,u.hp)&&u.team>=0&&u.transport_carrier.is_none()&&!super::workshops::hidden(u){4}else{0});
+            if native::collapse_unit(flags,u.native_class7c,native_point(u.x,u.y),rect,bridge_mode){let before=u.clone();self.units[index].hp=-1.;self.units[index].cargo.clear();self.native_contact_removal(index,&before,super::original_death::RemovalSource::Collapse,false);}
+        }
+    }
+    fn damage_native_wall(&mut self,cell:i16,strength:u8,team:i32){
+        let(head,_height)=native::wall_anchor(cell,|cell|self.world_code(cell));
+        let Some(index)=self.walls.iter().take(5000).position(|w|w.alive()&&Self::world_cell(native_point(w.x,w.y))==head)else{return;};
+        let w=&mut self.walls[index];let hp=w.native_hp.unwrap_or(w.hp as i16)as i8;let(hp,dead)=native::wall_damage(hp,strength);w.native_hp=Some(i16::from(hp));
+        if !dead{w.hp=f64::from(hp);return;}
+        let id=w.id;let amount=w.hp.max(1.);self.damage_wall(id,amount,team);
+        //The wall renderer regenerates both native planes, including sprite
+        //bank bits. Publish those writes to the full128-column terrain plane.
+        for y in 0..self.map.height{for x in 0..self.map.width{let j=y*self.map.width+x;let code=(self.map.terrain_codes[j]&127)|(((self.map.original_tiles[j]&256)>>1)as u8);if let Some(v)=self.map.native_terrain_plane.get_mut(y*128+x){*v=code;}}}
+    }
+    fn collapse_native_bridge_terrain(&mut self,bridge:&mut BridgeSlot){
+        let(changes,_state14)=native::collapse_bridge_terrain(bridge.record,bridge.orientation,|cell|self.world_code(cell));
+        for(cell,code)in changes{if !bridge.restored_terrain.iter().any(|&(old,_)|old==cell){bridge.restored_terrain.push((cell,self.world_code(cell)));}self.set_world_code(cell,code);}
+        if let Some((index,bounds))=self.map.native_road_graph.as_ref().and_then(|g|g.region_at((bridge.record.position[0],bridge.record.position[1])).map(|slot|(usize::from(slot),g.regions[usize::from(slot)].bounds))){
+            let changes=native::collapsed_road_terrain(bounds,|cell|self.world_code(cell));for(cell,code)in changes{if !bridge.restored_terrain.iter().any(|&(old,_)|old==cell){bridge.restored_terrain.push((cell,self.world_code(cell)));}self.set_world_code(cell,code);}
+            bridge.retired_road=Some((index,bounds));if let Some(g)=&mut self.map.native_road_graph{g.regions[index].bounds=[0;4];}
+        }
+    }
+    fn spawn_native_object_particles(&mut self,kind:effects::Kind,sample:[i16;2]){
+        self.spawn_native_world_particles(kind,[sample[0].wrapping_sub(154),sample[1].wrapping_sub(80)],16);
+    }
+    fn spawn_native_world_particles(&mut self,kind:effects::Kind,origin:[i16;2],count:u8){
+        self.spawn_native_owned_particles(kind,origin,count,0);
+    }
+    fn spawn_native_owned_particles(&mut self,kind:effects::Kind,origin:[i16;2],count:u8,owner:u8){
+        let Some(state)=&mut self.native_world else{return;};state.effect_owner=owner;match kind{effects::Kind::Destroyed=>state.effect_maximum=5,effects::Kind::FallingObject(_)|effects::Kind::CrateBurst=>state.effect_maximum=0,effects::Kind::Poof{maximum,..}|effects::Kind::Fragment{maximum,..}=>state.effect_maximum=maximum,_=>{}}
+        for _ in 0..count{let Some(slot)=state.effects.iter().position(|p|p.as_ref().is_none_or(|p|!p.active))else{break;};let mut p=effects::initialize(kind,origin,state.effect_tint,||self.original_rng.next_u32());p.owner=owner;p.maximum_phase=state.effect_maximum;state.effects[slot]=Some(p);}
+    }
+    pub(crate) fn spawn_native_ambient_fragment(&mut self,point:[i16;2],sprite:i16){let owner=self.native_world.as_ref().map_or(0,|s|s.effect_owner);self.spawn_native_owned_particles(effects::Kind::AmbientFragment(sprite),[point[0].wrapping_sub(160),point[1].wrapping_sub(92)],1,owner);}
+    ///402670 intentionally constructs a hit particle and immediately returns
+    ///the same slot to the pool. It is a seven-RNG write, not a visible poof.
+    pub(crate) fn native_lava_burst(&mut self,point:[i16;2]){let Some(slot)=self.native_world.as_ref().and_then(|s|s.effects.iter().position(|p|p.as_ref().is_none_or(|p|!p.active)))else{return;};self.original_rng.next_u32();self.spawn_native_owned_particles(effects::Kind::Hit,[point[0].wrapping_sub(154),point[1].wrapping_sub(80)],1,0);if let Some(p)=self.native_world.as_mut().and_then(|s|s.effects[slot].as_mut()){p.active=false;p.position[0]=-1000;}}
+    pub(crate) fn native_removal_emission(&mut self,kind:super::original_death::EmitterKind,origin:[i16;2],count:u8,sprite:i16,maximum:i8,owner:u8){
+        if self.native_world.is_none(){self.sync_native_world();}let kind=match kind{super::original_death::EmitterKind::Destroyed=>effects::Kind::Destroyed,super::original_death::EmitterKind::Fragment=>effects::Kind::Fragment{sprite,maximum},super::original_death::EmitterKind::Poof=>effects::Kind::Poof{sprite,maximum}};self.spawn_native_owned_particles(kind,origin,count,owner);
+    }
+    pub(crate) fn native_removal_sound(&mut self,point:[i16;2],id:u8){let Some(state)=&mut self.native_world else{return;};if state.crate_sound_played{return;}state.crate_sound_played=true;if id==6{self.events.push(json!({"kind":"nativeEffectSound","sound":6,"sample":"GYRO5","x":i32::from(point[0])*2,"y":i32::from(point[1])*2}));}}
+    ///58af0/58a40 convert the released hardware into the same first-free
+    ///OBJECT pool as authored hardware, flags, fires and pickups.
+    pub(crate) fn native_removed_hardware(&mut self,index:usize,before:&super::Unit,suppressed:bool,crew_only:bool){
+        self.native_removed_hardware_mode(index,before,suppressed,crew_only,self.multiplayer);
+    }
+    ///59720 sets4a6e77 before58af0: an unload preserves recoverable hardware
+    ///in multiplayer too. It does not call a contact-death emitter/removal.
+    pub(crate) fn park_native_hardware_for_unload(&mut self,index:usize,before:&super::Unit){
+        self.sync_native_world();self.native_removed_hardware_mode(index,before,false,true,false);
+    }
+    fn native_removed_hardware_mode(&mut self,index:usize,before:&super::Unit,suppressed:bool,crew_only:bool,forced_wreck:bool){
+        use super::original_death as death;
+        if stats(&before.kind).cls==0{return;}
+        if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,native_point(before.x,before.y),before.native_class7c);}
+        let family=original_combat::animation_family(&before.kind);let class=before.native_class7c;let point=native_point(before.x,before.y);let owner=before.native_flags64;
+        let mut hull=self.units[index].hp as i16;
+        if class==2&&self.native_fort_bases().is_some_and(|bases|bases.into_iter().any(|p|point[0]>=p[0]&&point[0]<=p[0].wrapping_add(160)&&point[1]>=p[1].wrapping_sub(16)&&point[1]<=p[1].wrapping_add(184))){hull=-1;self.units[index].hp=-1.;}
+        let converted=death::conversion(death::ConversionInput{family,class,hull,position:point,owner,suppressed,crew_only,removing:suppressed,forced_wreck});
+        let Some(wreck)=converted.object else{return;};
+        let cell=Self::world_cell([wreck.position[0].wrapping_add(7),wreck.position[1].wrapping_add(7)]);let terrain=[0,1,128,129].map(|o|self.world_code(cell.wrapping_add(o)));
+        if !death::insertion_allowed(wreck.kind,terrain){
+            let aligned=wreck.position.map(|v|v.wrapping_add(7)&!15);self.native_removal_emission(death::EmitterKind::Destroyed,[aligned[0].wrapping_sub(154),aligned[1].wrapping_sub(80)],64,557,5,owner);self.units[index].hp=-1.;return;
+        }
+        let Some(mut state)=self.native_world.take()else{return;};let Some(slot)=state.free()else{self.native_world=Some(state);self.units[index].hp=-1.;return;};
+        if let Some(render)=state.objects[slot].as_ref().and_then(|o|o.render).and_then(|i|self.objects.get_mut(i)){render["nativeActive"]=json!(false);}
+        let old=state.objects[slot].as_ref();let old_flags26=old.map_or(0,|o|o.flags26);let old_saved=old.map_or([0;4],|o|o.saved);
+        let hp=death::object_hull(hull);let Some(mut object)=self.make_object(wreck.kind,wreck.position,hp)else{self.native_world=Some(state);return;};object.maximum=(before.max_hp as i16/25)as u8;object.record.flags13=wreck.flags13;object.flags19=if wreck.wreck{0}else{15};object.flags26=if wreck.wreck{(self.original_rng.next_u32()&3)as u8}else{old_flags26};object.lifetime24=if wreck.wreck{288}else{0};object.saved=old_saved;object.unit=(!wreck.wreck).then_some(before.id);object.bucket12=native_bucket(wreck.position);
+        let equipment=(0..19u8).find(|&eq|equipment_kind(u16::from(eq))==Some(before.kind.as_str()));object.hardware=equipment.and_then(super::original_entry::equipment_attributes);
+        if let Some(h)=self.units[index].native_hardware_slot.and_then(|s|self.native_hardware_pool.get(usize::from(s))).map(|s|s.attributes){let mut payload=super::original_entry::ObjectHardware::default();for(to,from)in[(14,5),(17,6),(16,7),(24,32),(25,33),(27,35),(28,36),(29,37),(30,38)]{payload.set_byte(to,h.byte(from));}if wreck.kind==31{payload.set_byte(17,0);}object.maximum=(h.word(10)/25)as u8;object.hardware=Some(payload);}
+        else if let Some(payload)=&mut object.hardware{if let Some(c)=&self.units[index].original_combat{payload.set_byte(16,c.movement_control);payload.set_byte(24,c.fire_rate);if let Some(speed)=c.projectile_speed{payload.set_byte(25,speed);}}}
+        let mut contacts=Vec::new();
+        if wreck.align{
+            let aligned=wreck.position.map(|v|v.wrapping_add(7)&!15);let overlap=death::road_waypoint_overlap(aligned,self.map.native_road_graph.as_ref().map(|g|g.regions.iter().map(|r|r.waypoint).collect::<Vec<_>>()).unwrap_or_else(||vec![0;96]));
+            let units=self.units.iter().enumerate().map(|(i,u)|{let mut position=native_point(u.x,u.y);if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){position[0]=10000;}let flags31=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).map_or_else(||if u.team>=0&&original_combat::alive(true,u.hp){4}else{0},|m|m.flags31);death::PlacementUnit{position,family:original_combat::animation_family(&u.kind),flags31,phase35:u.native_phase35,self_unit:i==index}}).collect::<Vec<_>>();
+            let plan=death::place_wreck(wreck.position,terrain,None,&units,overlap);object.record.position=plan.position;if let Some(saved)=plan.saved{object.saved=saved;for(i,delta)in[0,1,128,129].into_iter().enumerate(){self.set_world_code(cell.wrapping_add(delta),plan.terrain[i]);}}contacts=plan.contacts;
+        }
+        let render=self.objects.len();let eq=if wreck.wreck{None}else{(0..19u16).find(|&eq|equipment_kind(eq)==Some(before.kind.as_str()))};let p=object.record.position;
+        self.objects.push(json!({"type":wreck.kind,"equipmentId":eq,"x":i32::from(p[0])*2,"y":i32::from(p[1])*2,"nativeSlot":slot,"nativeActive":true,"nativeHp":hp,"nativeFlags13":object.record.flags13,"nativeFlags19":object.flags19,"nativeFlags26":object.flags26,"nativeTeam":owner&3,"templateSprite":object.sprite}));object.render=Some(render);state.objects[slot]=Some(object);self.native_world=Some(state);
+        //58af0 clears UNIT+8 after successful OBJECT allocation and frees the
+        //saved hardware record itself.58660 therefore sees no hardware pointer.
+        self.release_native_hardware_record(index);self.units[index].native_hardware_slot=None;
+        if wreck.wreck{self.units[index].hp=-1.;}else{self.units[index].x=f64::from(p[0])*2.;self.units[index].y=f64::from(p[1])*2.;self.units[index].hp=f64::from(hp)*25.;}
+        self.map.revision=self.map.revision.wrapping_add(1);
+        for(origin,strength)in contacts{let selected=self.native_world.as_ref().and_then(|s|{let objects=s.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::blast_object(&objects,origin,true,false)});if let Some((slot,sample))=selected{let d=[[4,16],[20,16],[20,32],[4,32]][sample];self.damage_native_world_object(slot,strength,[origin[0].wrapping_add(d[0]),origin[1].wrapping_add(d[1])]);}}
+    }
+    ///The source graphics setting selects500,1000,1500 or2000 slots. Quality0
+    ///is the default here; the menu may set another original quality explicitly.
+    pub(crate) fn set_native_world_effect_quality(&mut self,quality:u8){if let Some(state)=&mut self.native_world{state.effects.resize_with((usize::from(quality.min(3))+1)*500,||None);}}
+    ///Optional original viewport adapter, in raw native pixels. Without a local
+    ///viewport the simulation advances visible phases across the revealed map.
+    pub(crate) fn set_native_world_effect_view(&mut self,camera:[i16;2],clip:[i16;4]){if let Some(state)=&mut self.native_world{state.effect_view=Some((camera,clip));}}
+    pub(crate) fn update_native_world_effects(&mut self){
+        let Some(state)=&mut self.native_world else{return;};let(camera,clip)=state.effect_view.unwrap_or(([0,0],[-32768,-32768,32767,32767]));let view=effects::View{camera,clip,world:[(self.map.width*16)as i16,(self.map.height*16)as i16],sine:super::native_math::sine(425),cosine:super::native_math::sine(553)};
+        state.effect_draws.clear();state.crate_sound_played=false;let length=state.effects.len();
+        for slot in 0..length{let mut resume=false;loop{
+            let Some(state)=&mut self.native_world else{return;};let Some(p)=state.effects[slot].as_mut().filter(|p|p.active)else{break;};
+            let step=if resume{p.resume_native(view,&mut state.last_projection)}else{p.advance_native(view,&mut state.last_projection)};
+            if let Some(draw)=step.draw{state.effect_draws.push((slot,draw));}let Some(mode)=step.expiry else{break;};let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];let actions=effects::expiry_prefix_with_sprite(mode,point,p.sprite,view,state.crate_sound_played);
+            self.execute_native_effect_actions(slot,actions,view);
+            resume=self.native_world.as_ref().and_then(|s|s.effects[slot].as_ref()).is_some_and(|p|p.active&&p.position[2]>=0);if !resume{break;}
+        }}
+    }
+    fn execute_native_effect_actions(&mut self,slot:usize,actions:Vec<effects::Action>,view:effects::View){
+        let mut pending=VecDeque::from(actions);while let Some(action)=pending.pop_front(){match action{
+            effects::Action::Blast{point,strength,suppress_visual}=>{if suppress_visual{self.native_blast_environment(i32::from(point[0]),i32::from(point[1]),strength,255,false);}else{let before=self.events.len();let quiet=self.native_world.as_ref().is_some_and(|s|s.quiet_blasts);self.spawn_native_blast(i32::from(point[0]),i32::from(point[1]),Attack{target:0,damage:strength,aim:0,facing:0,bullet:false},255,None);if quiet{for event in self.events.iter_mut().skip(before).filter(|e|e["kind"]=="explosion"){event["silent"]=json!(true);}}}}
+            effects::Action::DirectUnits{rect,strength}=>self.native_direct_environment_contact(rect,strength),
+            effects::Action::Spawn{kind,origin,count}=>self.spawn_native_world_particles(kind,origin,count),
+            effects::Action::RandomDestroyedBurst{origin}=>{let count=(self.original_rng.next_u32()as u8&3)+5;self.spawn_native_world_particles(effects::Kind::Destroyed,origin,count);}
+            effects::Action::RandomHitBurst{origin}=>{let count=(self.original_rng.next_u32()as u8&3)+4;self.spawn_native_world_particles(effects::Kind::Hit,origin,count);}
+            effects::Action::Sound{point,id}=>{let sample=match id{30=>"GRENADE",11=>"METGRND",8=>match self.map.world{1=>"VOLCGLG2",3=>"MUDPLOP1",_=>"SPLASH1"},_=>continue};self.events.push(json!({"kind":"nativeEffectSound","sound":id,"sample":sample,"x":i32::from(point[0])*2,"y":i32::from(point[1])*2}));}
+            effects::Action::SetCrateSoundGate=>{if let Some(state)=&mut self.native_world{state.crate_sound_played=true;}}
+            effects::Action::QuietBlasts=>{if let Some(state)=&mut self.native_world{state.quiet_blasts=true;}}
+            effects::Action::ClearQuietBlasts=>{if let Some(state)=&mut self.native_world{state.quiet_blasts=false;}}
+            effects::Action::ProbeFalling{point}|effects::Action::ProbeCrate{point}=>{let mode=if matches!(action,effects::Action::ProbeFalling{..}){7}else{6};let terrain=self.world_code(Self::world_cell(point));let suffix=effects::expiry_suffix(mode,point,terrain,view);for a in suffix.into_iter().rev(){pending.push_front(a);}}
+            effects::Action::ProbeAmbient{point}=>{let terrain=self.world_code(Self::world_cell(point));for a in effects::ambient_suffix(point,terrain).into_iter().rev(){pending.push_front(a);}}
+            effects::Action::ProbeFragment{point,sprite}=>{let terrain=self.world_code(Self::world_cell(point));let gate=self.native_world.as_ref().is_some_and(|s|s.crate_sound_played);for a in effects::fragment_suffix(point,terrain,sprite,view,gate).into_iter().rev(){pending.push_front(a);}}
+            effects::Action::Retire{..}|effects::Action::InvalidCrate|effects::Action::ResidualCrate=>{if let Some(p)=self.native_world.as_mut().and_then(|s|s.effects[slot].as_mut()){effects::apply_particle_action(p,&action);}}
+        }}
+    }
+    fn native_direct_environment_contact(&mut self,rect:[i16;4],strength:u8){
+        self.native_direct_environment_contact_mode(rect,strength,false);
+    }
+    fn native_direct_environment_contact_mode(&mut self,rect:[i16;4],strength:u8,suppress_hardware_particles:bool){
+        self.native_ambient_area_contact([rect[0],rect[1]]);
+        let coarse=(rect[1]>>3&!15).wrapping_add(rect[0]>>7);
+        //456640 preserves this nine-bucket order; each bucket was populated in
+        //native UNIT slot order and capped at32 before rectangle filtering.
+        for offset in[-17i16,-16,-15,-1,0,1,15,16,17]{let bucket=coarse.wrapping_add(offset);if !(0..256).contains(&bucket){continue;}
+            let mut ids=self.units.iter().filter(|u|u.team>=0&&original_combat::alive(true,u.hp)).filter(|u|{let p=native_point(u.x,u.y);(p[1]>>3&!15).wrapping_add(p[0]>>7)==bucket}).map(|u|(u.native_slot.unwrap_or(u.id),u.id)).collect::<Vec<_>>();ids.sort_unstable();
+            for(_,id)in ids.into_iter().take(32){let Some(u)=self.units.iter().find(|u|u.id==id)else{continue;};let class=u.native_class7c;let point=native_point(u.x,u.y);let member=u.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref);let flags=member.map(|m|m.flags31).unwrap_or(4);let phase=u.native_phase35;
+                if flags&4==0||class!=1&&phase==18||!effects::direct_unit_contains(point,class,rect){continue;}
+                if class!=1||!suppress_hardware_particles{self.spawn_native_world_particles(if class==1{effects::Kind::Hit}else{effects::Kind::DirectHit},[point[0].wrapping_sub(146),point[1].wrapping_sub(82)],2);}
+                self.apply_native_contact_from(Attack{target:id,damage:strength,aim:0,facing:0,bullet:false},super::original_death::RemovalSource::Direct);
+            }
+        }
+    }
+    pub(crate) fn native_world_effects(&self)->Vec<Value>{
+        self.native_world.as_ref().map(|s|s.effect_draws.iter().map(|&(id,d)|json!({"id":id,"sprite":d.sprite,"team":d.owner&3,"x":i32::from(d.point[0])*2,"y":i32::from(d.point[1])*2,"nativeDrawX":d.screen[0],"nativeDrawY":d.screen[1],"scale":if d.transformed{f64::from((f32::from(d.height)+16.)*0.03125)}else{1.},"rotation":if d.transformed{f64::from((f32::from(d.angle)*2.*3.1415925f32)*0.00390625)}else{0.}})).collect()).unwrap_or_default()
+    }
+    pub(crate) fn native_blast_quiet(&self)->bool{self.native_world.as_ref().is_some_and(|s|s.quiet_blasts)}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::{Sector,Crate,original_group_game,original_route};
+    fn field()->Game{
+        let mut g=Game::new(0,1,5271);let(w,h)=(64,64);g.map.width=w;g.map.height=h;g.map.original=true;
+        g.map.tiles=vec![0;w*h];g.map.original_tiles=vec![0;w*h];g.map.terrain_codes=vec![0;w*h];g.map.native_terrain_plane=vec![0;16384];g.map.territory=vec![0;w*h];g.map.bridge_base=vec![-1;w*h];g.map.bridge_hp.clear();g.map.bridge_max_hp.clear();g.map.native_road_graph=None;g.map.native_level_record=0;
+        g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.fires.clear();g.blasts.clear();g.events.clear();g.native_strategy=None;g.native_world=None;g.native_group_rosters=original_group_game::State::default();g.winner=None;g.next_id=1;
+        g.sectors=vec![Sector{id:0,x:32.,y:32.,owner:0,home:true,counts_for_production:true}];g
+    }
+    fn building(id:usize,kind:&str,x:f64,y:f64,hp:f64)->Building{
+        Building{id,x,y,w:128.,h:160.,kind:kind.into(),team:0,sector:0,stars:0,hp,max_hp:hp,product:None,progress:0.,ready_guns:vec![],gate:None,orientation:String::new(),remaining_work:None,completion_ticks:0,raw_base:None}
+    }
+    fn neutral(g:&mut Game,kind:&str,x:f64,y:f64,hp:f64)->usize{g.spawn(kind,-1,x,y,0,None);let u=g.units.last_mut().unwrap();u.hp=hp;u.crew=None;u.id}
+    fn raw(kind:u16,eq:u16,slot:usize,x:i32,y:i32,hp:u8)->Value{json!({"type":kind,"equipmentId":eq,"nativeSlot":slot,"x":x,"y":y,"nativeHp":hp})}
+    #[test]fn authored_apc_render_offset_and_portal_writer_are_separate_from_animation(){let mut g=field();g.objects=vec![raw(31,255,0,400,400,0)];g.import_native_world(&Value::Null);assert_eq!(g.native_object_sprite_offset(0),Some(30));assert_eq!(g.objects[0]["nativeSpriteOffset21"],30);g.set_native_object_animation(0,3,1);g.set_native_object_sprite_offset(0,10);g.motion_tick=1;g.update_native_world_objects();assert_eq!(g.objects[0]["nativeSpriteOffset21"],10);assert_eq!(g.objects[0]["nativeAnimation18"],3);assert_eq!(g.native_object_sprite_offset(0),Some(10));}
+    #[test]fn lava_burst_consumes_seven_words_and_immediately_releases_its_shared_particle_slot(){let mut g=field();g.import_native_world(&Value::Null);g.native_world.as_mut().unwrap().effect_maximum=3;let mut expected=g.original_rng.clone();for _ in 0..7{expected.next_u32();}g.native_lava_burst([320,320]);assert_eq!(g.original_rng.words,expected.words);let p=g.native_world.as_ref().unwrap().effects[0].as_ref().unwrap();assert!(!p.active);assert_eq!((p.position[0],p.origin,p.owner,p.maximum_phase),(-1000,[166,240],0,3));assert!(g.native_world.as_ref().unwrap().effect_draws.is_empty());g.spawn_native_object_particles(effects::Kind::Hit,[320,320]);g.native_world.as_mut().unwrap().effects.truncate(1);let before=g.original_rng.words;g.native_lava_burst([320,320]);assert_eq!(g.original_rng.words,before);}
+    #[test]fn one_object_fire_pulse_can_retire_a_later_slot_before_its_delay_and_expiry_callbacks(){let mut g=field();g.motion_tick=0;g.native_fire_base_strength=20;let mut wreck=raw(6,255,1,408,432,1);wreck["nativeFlags13"]=json!(0x70);g.objects=vec![raw(73,255,0,400,400,0),wreck];g.import_native_world(&Value::Null);{let state=g.native_world.as_mut().unwrap();let fire=state.objects[0].as_mut().unwrap();fire.animation18=3;fire.motion22=127;let wreck=state.objects[1].as_mut().unwrap();wreck.flag_delay1f=1;wreck.lifetime24=1;}g.update_native_world_objects();let state=g.native_world.as_ref().unwrap();assert_eq!(state.objects[0].as_ref().unwrap().animation18,0);let wreck=state.objects[1].as_ref().unwrap();assert!(!wreck.active);assert_eq!(wreck.hp,237,"slot0 fire damage precedes slot1 forced expiry");assert_eq!((wreck.flag_delay1f,wreck.lifetime24),(1,1),"inactive later slots do not receive their callbacks");}
+    #[test]fn ordinary_object_door_animation_stops_at_four_and_runs_only_on_the_shared_pulse(){let mut g=field();g.objects=vec![raw(31,255,0,400,400,0)];g.import_native_world(&Value::Null);g.set_native_object_animation(0,0,1);for tick in 0..8{g.motion_tick=tick;g.update_native_world_objects();assert_eq!(g.native_object_animation(0),Some((((tick/2)+1).min(4)as u8,if tick<6{1}else{0})));}assert!(g.clear_native_apc_object_contact(0));g.motion_tick=8;g.update_native_world_objects();assert_eq!(g.native_object_animation(0),Some((3,-1)));}
+    #[test]fn native_bullet_and_blast_robot_deaths_use_distinct_real_pools(){
+        let mut g=field();g.spawn("grunt",1,640.,640.,1,None);g.units[0].hp=0.;let id=g.units[0].id;let mut expected=g.original_rng.clone();expected.next_u32();
+        g.apply_native_contact(Attack{target:id,damage:1,aim:0,facing:0,bullet:true});assert_eq!(g.units[0].hp,-1.);assert_eq!(g.units[0].native_slot,None);assert_eq!(g.native_deaths.records.iter().filter(|r|r.sprite!=-1).count(),1);assert!(g.native_world.as_ref().unwrap().effects.iter().all(Option::is_none));assert_eq!(g.original_rng.words,expected.words);assert!(g.effects.is_empty());
+        let mut g=field();g.spawn("grunt",1,640.,640.,1,None);g.units[0].hp=0.;let id=g.units[0].id;let mut expected=g.original_rng.clone();for _ in 0..6{expected.next_u32();}g.apply_native_contact(Attack{target:id,damage:1,aim:0,facing:0,bullet:false});assert!(g.native_deaths.records.iter().all(|r|r.sprite==-1));let p=g.native_world.as_ref().unwrap().effects.iter().flatten().next().unwrap();assert_eq!((p.sprite,p.expiry,p.owner),(1903,0,1));assert_eq!(g.original_rng.words,expected.words);assert!(g.effects.is_empty());
+    }
+    #[test]fn destroyed_tank_allocates_native_wreck_terrain_and_removal_after_its_fragments(){
+        let mut g=field();g.multiplayer=true;g.spawn("medium",1,640.,640.,1,None);g.units[0].hp=0.;let id=g.units[0].id;let mut expected=g.original_rng.clone();expected.multiplayer=true;for _ in 0..18{expected.next_u32();}
+        g.apply_native_contact(Attack{target:id,damage:1,aim:0,facing:0,bullet:false});let state=g.native_world.as_ref().unwrap();let object=state.objects[0].as_ref().unwrap();assert_eq!((object.kind,object.hp,object.flags19,object.record.position),(6,1,0,[304,320]));assert_eq!(object.record.flags13,114);assert_eq!(object.unit,None);assert_eq!(g.objects[0]["type"],6);assert_eq!(g.objects[0]["nativeTeam"],1);assert_eq!(g.native_deaths.records.iter().filter(|r|r.sprite!=-1).count(),1);assert_eq!(g.original_rng.words,expected.words);for d in[0,1,128,129]{assert_eq!(g.world_code(20*128+19+d)&127,28);}assert_eq!(g.native_world.as_ref().unwrap().effects.iter().flatten().count(),5);
+    }
+    #[test]fn crew_killed_jeep_stays_usable_at_the_exact_58af0_origin_with_scan_mask_fifteen(){
+        let mut g=field();g.spawn("jeep",1,640.,640.,1,None);g.units[0].hp=176.;g.import_native_world(&Value::Null);let before=g.units[0].clone();g.units[0].team=-1;g.units[0].crew=None;let mut expected=g.original_rng.clone();for _ in 0..6{expected.next_u32();}
+        g.native_contact_removal(0,&before,super::super::original_death::RemovalSource::Bullet,true);g.sync_native_world();let object=g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap();assert_eq!((object.kind,object.hp,object.flags19,object.record.position),(33,7,15,[316,313]));assert_eq!(object.unit,Some(before.id));assert_eq!((g.units[0].x,g.units[0].y,g.units[0].hp),(632.,626.,175.));assert_eq!(g.units[0].native_slot,None);assert!(g.native_deaths.records.iter().all(|r|r.sprite==-1));assert_eq!(g.original_rng.words,expected.words);
+    }
+    #[test]fn destroyed_hardware_expires_after_288_callbacks_and_restores_its_footprint(){
+        let mut g=field();g.multiplayer=true;g.spawn("medium",1,640.,640.,1,None);g.units[0].hp=0.;let id=g.units[0].id;g.apply_native_contact(Attack{target:id,damage:1,aim:0,facing:0,bullet:false});for _ in 0..287{g.update_native_world_object_delays();}assert!(g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap().active);g.update_native_world_object_delays();assert!(!g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap().active);assert_eq!(g.objects[0]["nativeActive"],false);for d in[0,1,128,129]{assert_eq!(g.world_code(20*128+19+d)&127,0);}
+    }
+
+    #[test]
+    fn object_contact_delay_matches_all_256_native_signed_byte_values(){
+        let mut g=field();g.native_world=Some(State::empty());let object=g.make_object(28,[200,200],50).unwrap();g.native_world.as_mut().unwrap().objects[0]=Some(object);let mut hash=2166136261u32;
+        for value in 0..256{g.set_native_flag_delay(0,value as u8);g.update_native_world_object_delays();let next=g.native_world_scan_objects()[0].flag_delay1f;for n in[value,u32::from(next)]{hash=(hash^n).wrapping_mul(16777619);}}
+        assert_eq!(hash,2097262112,"ZNativeObjectDelayOracle");
+        g.native_world.as_mut().unwrap().objects[0].as_mut().unwrap().record.position[0]=0;g.set_native_flag_delay(0,85);g.update_native_world_object_delays();assert_eq!(g.native_world_scan_objects()[0].flag_delay1f,85,"435d90 calls43f260 only for signedX>0");
+    }
+
+    #[test]
+    fn neutral_object_binding_retires_before_its_pool_slot_is_reused(){
+        let mut g=field();let id=neutral(&mut g,"medium",400.,400.,500.);g.objects=vec![raw(8,1,0,400,400,20)];g.import_native_world(&Value::Null);
+        assert_eq!(g.native_object_slot(id),Some(0));assert_eq!(g.native_object_unit(0),Some(id));
+        g.units.iter_mut().find(|u|u.id==id).unwrap().team=0;g.sync_native_world();assert_eq!(g.native_object_slot(id),None);assert_eq!(g.objects[0]["nativeActive"],false);
+        assert_eq!(g.reserve_native_world_fire_slot(),Some(0));g.sync_native_world();assert_eq!(g.objects[0]["nativeActive"],false);assert_eq!(g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap().fire,Some(0));
+        g.release_native_world_fire_slot(0);assert_eq!(g.reserve_native_world_fire_slot(),Some(0));
+    }
+    #[test]
+    fn one_object_hit_updates_its_neutral_unit_and_renderer_without_hitting_the_second(){
+        let mut g=field();let a=neutral(&mut g,"medium",400.,400.,500.);let b=neutral(&mut g,"medium",400.,400.,500.);
+        g.objects=vec![raw(8,1,0,400,400,20),raw(8,1,1,400,400,20)];g.import_native_world(&Value::Null);
+        g.native_blast_environment(196,184,1,0,false);assert_eq!(g.units.iter().find(|u|u.id==a).unwrap().hp,475.);assert_eq!(g.units.iter().find(|u|u.id==b).unwrap().hp,500.);
+        g.native_blast_environment(196,184,127,0,false);assert_eq!(g.units.iter().find(|u|u.id==a).unwrap().hp,-1.);assert_eq!(g.objects[0]["nativeActive"],false);assert_eq!(g.objects[1]["nativeActive"],true);
+    }
+    #[test]
+    fn grenade_crate_secondary_blast_hits_buildings_and_suppresses_other_object_contacts(){
+        let mut g=field();g.crates=vec![Crate{x:400.,y:400.,taken:false},Crate{x:420.,y:400.,taken:false}];g.objects=vec![raw(10,255,0,400,400,0),raw(10,255,1,420,400,0)];g.buildings.push(building(7,"robot",400.,400.,500.));g.import_native_world(&Value::Null);
+        g.native_blast_environment(196,184,1,0,false);assert!(g.crates[0].taken);assert!(!g.crates[1].taken);assert_eq!(g.objects[0]["nativeActive"],false);assert_eq!(g.objects[1]["nativeActive"],true);assert_eq!(g.buildings[0].hp,372.);assert_eq!(g.blasts.len(),1);assert_eq!(g.blasts[0].strength,127);
+    }
+    #[test]
+    fn native_build_pool_order_includes_friendly_factories(){
+        let mut g=field();g.buildings.push(building(7,"robot",400.,400.,100.));g.buildings.push(building(8,"robot",400.,400.,100.));g.import_native_world(&Value::Null);
+        g.native_blast_environment(200,200,10,0,false);assert_eq!(g.buildings[0].hp,90.);assert_eq!(g.buildings[1].hp,100.);
+        g.native_blast_environment(184,184,10,0,true);assert_eq!(g.buildings[0].hp,90.);g.native_blast_environment(184,184,10,0,false);assert_eq!(g.buildings[0].hp,80.);
+    }
+    #[test]
+    fn fort_work_proxy_and_global_health_are_independent_and_zero_does_not_win(){
+        let mut g=field();let mut fort=building(7,"fort",800.,800.,1.);fort.team=1;fort.raw_base=Some((400.,400.));g.buildings.push(fort);
+        g.import_native_world(&json!({"nativeWorldBuildings":[{"nativeSlot":4,"kind":2,"x":400,"y":416,"hp":1,"maxHp":1500,"buildingId":7,"fortProxy":true}]}));assert_eq!(g.native_world.as_ref().unwrap().buildings[4].record.hp,1);assert_eq!(g.native_work_health(&g.buildings[0]),(1.,1.));g.native_world.as_mut().unwrap().buildings[4].record.hp=1500;g.native_world.as_mut().unwrap().buildings[4].maximum=1500;
+        g.native_blast_environment(400,400,1,0,false);assert_eq!(g.buildings[0].hp,0.);assert_eq!(g.winner,None);assert_eq!(g.native_work_health(&g.buildings[0]),(1499.,1500.));g.sync_native_fort_producer_health(7);assert_eq!(g.native_work_health(&g.buildings[0]),(0.,1.));
+        g.native_blast_environment(400,400,1,0,false);assert_eq!(g.buildings[0].hp,-1.);assert_eq!(g.winner,Some(0));
+    }
+    #[test]
+    fn fire_slots_share_the_real_two_hundred_object_capacity(){
+        let mut g=field();g.objects=(0..200).map(|i|raw(4,255,i,64+(i%25)as i32*32,64+(i/25)as i32*32,0)).collect();g.import_native_world(&Value::Null);assert_eq!(g.reserve_native_world_fire_slot(),None);
+        g.native_world.as_mut().unwrap().objects[77].as_mut().unwrap().active=false;assert_eq!(g.reserve_native_world_fire_slot(),Some(77));assert_eq!(g.objects[77]["nativeActive"],false);assert_eq!(g.reserve_native_world_fire_slot(),None);
+    }
+    #[test]
+    fn bridge_collapse_uses_native_unit_classes_object_types_and_road_retirement(){
+        let mut g=field();g.map.bridge_hp=vec![1.];g.map.bridge_max_hp=vec![600.];
+        for y in 20..23{for x in 20..23{let j=y*g.map.width+x;g.map.bridge_base[j]=0;g.map.terrain_codes[j]=23;}}
+        let bounds=[320,320,368,368];g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds,waypoint:0,next:vec![255]}]});
+        g.spawn("grunt",0,660.,660.,1,None);let robot=g.units.last().unwrap().id;g.spawn("gatling",0,660.,660.,2,None);let gun=g.units.last().unwrap().id;let jeep=neutral(&mut g,"jeep",660.,660.,1000.);g.objects=vec![raw(33,13,0,660,660,40)];
+        g.import_native_world(&json!({"bridges":[{"id":0,"nativeSlot":2,"nativeOrientation":0,"x":640,"y":640,"w":96,"h":96,"hp":1,"maxHp":600}]}));g.native_blast_environment(308,288,1,0,false);
+        assert_eq!(g.map.bridge_hp[0],0.);assert_eq!(g.units.iter().find(|u|u.id==robot).unwrap().hp,-1.);assert!(g.units.iter().find(|u|u.id==gun).unwrap().hp>=0.);assert_eq!(g.units.iter().find(|u|u.id==jeep).unwrap().hp,-1.);assert_eq!(g.objects[0]["nativeActive"],false);assert_eq!(g.map.native_road_graph.as_ref().unwrap().regions[0].bounds,[0;4]);
+        assert_eq!(g.world_code(21*128+21)&127,47);g.map.bridge_hp[0]=520.;g.sync_native_world();assert_eq!(g.native_world.as_ref().unwrap().bridges[0].record.flags15&2,2);
+        g.map.bridge_hp[0]=600.;g.sync_native_world();assert_eq!(g.native_world.as_ref().unwrap().bridges[0].record.flags15&2,0);assert_eq!(g.map.native_road_graph.as_ref().unwrap().regions[0].bounds,bounds);
+    }
+    #[test]
+    fn hardware_capture_clears_real_pool_restrictions_and_respects_level_eighteen(){
+        let mut g=field();g.objects=vec![raw(8,1,0,400,400,20),raw(1,255,1,500,500,0)];g.import_native_world(&Value::Null);
+        for o in g.native_world.as_mut().unwrap().objects.iter_mut().flatten(){o.flags26=1;}
+        g.map.native_level_record=0x12;g.clear_native_hardware_restrictions(0);assert_eq!(g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap().flags26,1);
+        g.map.native_level_record=0;g.clear_native_hardware_restrictions(0);assert_eq!(g.native_world.as_ref().unwrap().objects[0].as_ref().unwrap().flags26,0);assert_eq!(g.native_world.as_ref().unwrap().objects[1].as_ref().unwrap().flags26,1);
+    }
+    #[test]
+    fn original_object_particles_use_six_and_three_rng_words_and_the_separate_pool(){
+        let mut g=field();g.objects=vec![raw(8,1,0,400,400,20)];g.import_native_world(&Value::Null);let mut expected=g.original_rng.clone();for _ in 0..16*6{expected.next_u32();}
+        g.native_blast_environment(196,184,1,0,false);assert_eq!(g.original_rng.words,expected.words);assert_eq!(g.native_world.as_ref().unwrap().effects.iter().flatten().filter(|p|p.active).count(),16);
+        g.update_native_world_effects();let draws=g.native_world_effects();assert_eq!(draws.len(),16);assert!(draws.iter().all(|d|d["x"]==412&&d["y"]==440));assert!(draws.iter().all(|d|(250..254).contains(&d["sprite"].as_i64().unwrap())));
+        for _ in 0..16*6+16*3{expected.next_u32();}g.native_blast_environment(196,184,127,0,false);assert_eq!(g.original_rng.words,expected.words);assert_eq!(g.native_world.as_ref().unwrap().effects.iter().flatten().filter(|p|p.active).count(),48);
+        g.native_world.as_mut().unwrap().effects.resize(1,None);let before=g.original_rng.words;g.spawn_native_object_particles(effects::Kind::Hit,[200,200]);assert_eq!(g.original_rng.words,before,"full particle pool does not consume RNG");
+        g.native_world.as_mut().unwrap().effects[0].as_mut().unwrap().active=false;for _ in 0..6{expected.next_u32();}g.spawn_native_object_particles(effects::Kind::Hit,[200,200]);assert_eq!(g.original_rng.words,expected.words);
+    }
+    #[test]
+    fn native_wall_wrapper_keeps_signed_byte_wrap_zero_hp_and_fire_suppression(){
+        for(hp,strength,expected)in[(0,0,0.),(100,255,101.),(100,50,50.)]{let mut g=field();g.import_walls(&json!({"walls":[{"id":7,"x":640,"y":320,"w":32,"h":32,"hp":hp.max(1),"maxHp":hp.max(1),"nativeHp":hp}]})).unwrap();g.import_native_world(&Value::Null);
+            g.native_blast_environment(308,128,strength,0,true);assert_eq!(g.walls[0].native_hp,Some(hp));
+            g.native_blast_environment(308,128,strength,0,false);assert_eq!(g.walls[0].hp,expected);if expected==0.{assert!(!g.walls[0].alive());assert_eq!(g.map.terrain_codes[10*64+20],0);}
+        }
+    }
+    fn expiring(g:&mut Game,kind:effects::Kind,point:[i16;2]){g.import_native_world(&Value::Null);let mut p=effects::initialize(kind,point,0,||0);p.lifetime=0;p.position[2]=-1;let s=g.native_world.as_mut().unwrap();s.last_projection=[0,0];s.effects[0]=Some(p);}
+    #[test]
+    fn crate_landing_has_one_forty_strength_contact_and_retains_its_residual_slot(){
+        let mut g=field();g.buildings.push(building(7,"robot",480.,480.,500.));expiring(&mut g,effects::Kind::CrateBurst,[240,240]);g.update_native_world_effects();
+        assert_eq!(g.buildings[0].hp,460.);assert_eq!(g.blasts.len(),1);assert_eq!(g.blasts[0].strength,40);let p=g.native_world.as_ref().unwrap().effects[0].as_ref().unwrap();assert_eq!((p.active,p.sprite,p.lifetime,p.expiry,p.position[2],p.maximum_phase),(true,473,21,0,-1,7));
+        let before=g.events.len();g.update_native_world_effects();assert!(!g.events.iter().skip(before).any(|e|e["kind"]=="explosion"));assert_eq!(g.buildings[0].hp,460.);
+    }
+    #[test]
+    fn falling_object_orders_zero_strength_direct_contact_before_one_delayed_blast(){
+        let mut g=field();g.difficulty=0;g.spawn("grunt",0,472.,504.,1,None);let human=g.units.last().unwrap().id;let hp=g.units.last().unwrap().hp;g.spawn("grunt",1,472.,504.,2,None);let enemy=g.units.last().unwrap().id;g.buildings.push(building(7,"robot",480.,480.,500.));expiring(&mut g,effects::Kind::FallingObject(5960),[240,240]);g.update_native_world_effects();
+        assert_eq!(g.units.iter().find(|u|u.id==human).unwrap().hp,hp-1.);assert_eq!(g.units.iter().find(|u|u.id==enemy).unwrap().hp,hp);assert_eq!(g.buildings[0].hp,500.);assert_eq!(g.blasts.len(),1);assert_eq!(g.blasts[0].strength,0);assert!(g.events.iter().any(|e|e["kind"]=="explosion"&&e["silent"]==true));assert!(!g.native_world.as_ref().unwrap().effects[0].as_ref().unwrap().active);
+        for _ in 0..3{g.update_native_blasts();}assert_eq!(g.units.iter().find(|u|u.id==human).unwrap().hp,hp-2.);assert_eq!(g.units.iter().find(|u|u.id==enemy).unwrap().hp,hp);
+    }
+    #[test]fn ambient_fragment_uses_expiry_one_strength_ten_and_shared_owner_palette(){
+        let mut g=field();g.multiplayer=true;g.spawn("grunt",0,472.,504.,1,None);g.spawn("grunt",1,472.,504.,2,None);let hp=g.units.iter().map(|u|u.hp).collect::<Vec<_>>();g.buildings.push(building(7,"robot",480.,480.,500.));expiring(&mut g,effects::Kind::AmbientFragment(1234),[240,240]);g.update_native_world_effects();assert_eq!(g.buildings[0].hp,490.);for(i,u)in g.units.iter().enumerate(){assert_eq!(u.hp,hp[i]-10.);}assert!(g.blasts.is_empty());
+        let mut g=field();g.import_native_world(&Value::Null);g.native_world.as_mut().unwrap().effect_owner=3;g.spawn_native_ambient_fragment([240,240],1234);let p=g.native_world.as_ref().unwrap().effects[0].as_ref().unwrap();assert_eq!((p.origin,p.sprite,p.expiry,p.owner),([80,148],1234,1,3));
+    }
+    #[test]fn hardware_fragment_land_contact_retains_residual_and_emits_two_eight_particle_bursts(){
+        let mut g=field();g.buildings.push(building(7,"robot",480.,480.,500.));expiring(&mut g,effects::Kind::Fragment{sprite:1558,maximum:7},[240,240]);g.update_native_world_effects();assert_eq!(g.buildings[0].hp,373.);let state=g.native_world.as_ref().unwrap();assert_eq!(state.effects[0].as_ref().unwrap().sprite,473);assert_eq!(state.effects.iter().flatten().filter(|p|p.active).count(),17);assert_eq!(g.blasts.len(),1);assert_eq!(g.blasts[0].strength,127);
+    }
+    #[test]
+    fn wet_falling_object_can_reuse_its_own_effect_slot_during_the_landing_callback(){
+        let mut g=field();let id=neutral(&mut g,"medium",488.,512.,500.);g.objects=vec![raw(8,1,0,488,512,20)];g.map.terrain_codes[15*64+15]=9;expiring(&mut g,effects::Kind::FallingObject(5960),[240,240]);g.update_native_world_effects();
+        let state=g.native_world.as_ref().unwrap();let p=state.effects[0].as_ref().unwrap();assert!(p.active);assert_eq!(p.sprite,250);assert_eq!(p.lifetime,200,"the native caller resumes the reused record without another lifetime decrement");assert_eq!(state.effects[1].as_ref().unwrap().lifetime,199);assert_eq!(g.units.iter().find(|u|u.id==id).unwrap().hp,500.);assert_eq!(g.blasts.len(),1);
+    }
+    #[test]
+    fn full_effect_pool_consumes_only_the_explicit_burst_count_rng_word(){
+        let mut g=field();expiring(&mut g,effects::Kind::CrateBurst,[240,240]);g.native_world.as_mut().unwrap().effects.truncate(1);let mut expected=g.original_rng.clone();expected.next_u32();g.update_native_world_effects();assert_eq!(g.original_rng.words,expected.words);assert_eq!(g.native_world.as_ref().unwrap().effects.len(),1);assert_eq!(g.native_world.as_ref().unwrap().effects[0].as_ref().unwrap().sprite,473);
+    }
+    #[test]
+    fn destructible_object_and_grenade_crates_create_their_native_falling_profiles(){
+        let mut g=field();let mut object=raw(0,255,0,480,480,0);object["templateFlags"]=json!(12);object["templateSprite"]=json!(5960);g.objects=vec![object];g.import_native_world(&Value::Null);g.native_blast_environment(236,224,1,0,false);let state=g.native_world.as_ref().unwrap();assert_eq!(state.effects.iter().flatten().filter(|p|p.active&&p.expiry==7).count(),1);let p=state.effects.iter().flatten().find(|p|p.expiry==7).unwrap();assert_eq!((p.sprite,p.origin,p.lifetime),(5960,[80,148],400));
+        let mut g=field();g.crates=vec![Crate{x:400.,y:400.,taken:false}];g.objects=vec![raw(10,255,0,400,400,0)];g.import_native_world(&Value::Null);g.native_blast_environment(196,184,1,0,false);assert_eq!(g.native_world.as_ref().unwrap().effects.iter().flatten().filter(|p|p.expiry==6).count(),20);
+    }
+    #[test]
+    fn native_flags_allocate_before_authored_objects_using_runtime_fort_membership(){
+        let mut g=field();g.objects=vec![raw(10,255,0,400,400,0)];let mut fort=building(7,"fort",640.,640.,9999.);fort.raw_base=Some((320.,320.));fort.sector=1;g.buildings.push(fort);g.map.territory[20*64+20]=1;g.sectors.push(Sector{id:1,x:672.,y:672.,owner:1,home:true,counts_for_production:true});
+        g.import_native_world(&json!({"sectors":[{"id":1,"nativeSlot":7,"nativeFlags":0,"rawFlagTile":[20,20]},{"id":0,"nativeSlot":2,"nativeFlags":131,"rawFlagTile":[10,10]}]}));
+        let objects=g.native_world_scan_objects();assert_eq!(objects.len(),2);assert_eq!((objects[0].slot,objects[0].definition,objects[0].flags13,objects[0].flags19,objects[0].bucket12),(0,28,0,1,17));assert_eq!((objects[1].slot,objects[1].definition),(1,10));assert_eq!(g.objects[0]["nativeSlot"],1);assert_eq!(g.world_code(10*128+10)&127,35);
+        g.set_native_object_scan_mask(0,!2);assert_eq!(g.native_world_scan_objects()[0].flags19,253);
+    }
+}
+
+#[cfg(test)]mod terrain_presentation_tests{
+ use super::*;
+ #[test]fn object_occupancy_changes_native_collision_without_erasing_road_art(){let mut g=Game::new(0,1,19);g.map.original=true;let cell=2*128+2;let j=2*g.map.width+2;g.map.tiles[j]=1;g.map.terrain_codes.resize(g.map.tiles.len(),0);g.map.original_tiles.resize(g.map.tiles.len(),0);g.map.original_tiles[j]=77;g.set_world_code(cell,36);assert_eq!(g.world_code(cell),36);assert_eq!(g.map.tiles[j],1);assert_eq!(g.map.original_tiles[j]&255,77);g.set_world_code(cell,46);assert_eq!(g.world_code(cell),46);assert_eq!(g.map.tiles[j],1);g.set_world_code(cell,7);assert_eq!(g.map.tiles[j],1);g.set_world_code(cell,9);assert_eq!(g.map.tiles[j],3);}
+}

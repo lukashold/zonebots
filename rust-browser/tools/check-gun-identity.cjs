@@ -22,6 +22,9 @@ const expected={gatling:{hp:50,damage:6,range:240},cannon:{hp:100,damage:75,rang
 
 function fixture(type,crew,{fort=false,nearEnemy=false,corner=false}={}){
  const m=clone(campaign.missions[0]),size=64,count=size*size;
+ //The arena replaces source geometry; no original linked rows/buckets survive.
+ for(const key of ["nativeAi","nativeWorldBuildings","nativeWorldObjects","startingGroups","bridges"])delete m[key];
+ for(const key of ["nativeRoadGraph","nativeTerrainPlane","nativeLevelRecord"])delete m.map[key];
  const anchor=corner?320:330;
  m.number=1;m.name='Synthetic gun identity';
  Object.assign(m.map,{width:size,height:size,tileSize:32,world:0,seed:912,revision:0,
@@ -120,7 +123,8 @@ function fixture(type,crew,{fort=false,nearEnemy=false,corner=false}={}){
   const gun=state.units[0].id,robot=state.units[1].id;
   state=crew(state,robot,gun,type);
   let shot=null;
-  for(let i=0;i<20&&!shot;i++){
+  // Native turret windup starts at15 and turns only on odd callbacks.
+  for(let i=0;i<80&&!shot;i++){
    state=tick();shot=state.events.find(v=>v.kind==='shot'&&v.team===0);
   }
   assert(shot,`Crewed ${type} must retain a firing weapon`);

@@ -9,17 +9,17 @@ window.AttackCommand=(()=>{
  function fighterIds(state,selected){
   if(!state)return [];
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));
-  return iterableIds(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&u.workshop?.phase!=='repairing'&&Number.isFinite(d?.damage)&&d.damage>0&&Number.isFinite(d?.range)&&d.range>0;});
+  return iterableIds(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&u.workshop?.phase!=='repairing'&&u.nativeTransport?.visible!==false&&Number.isFinite(d?.damage)&&(d.damage>0||state.map?.original&&u.type==='apc'&&['tough','pyro'].includes(u.crew?.kind))&&Number.isFinite(d?.range)&&d.range>0;});
  }
- const enemyUnit=(state,u)=>live(state,u)&&u.workshop?.phase!=='repairing'&&finitePoint(u)&&Number.isFinite(u.team)&&u.team>=0&&u.team!==0;
- const enemyBuilding=b=>finitePoint(b)&&Number.isFinite(b.w)&&b.w>0&&Number.isFinite(b.h)&&b.h>0&&Number.isFinite(b.hp)&&b.hp>0&&Number.isFinite(b.team)&&b.team!==0;
+ const enemyUnit=(state,u)=>live(state,u)&&u.workshop?.phase!=='repairing'&&u.nativeTransport?.visible!==false&&finitePoint(u)&&Number.isFinite(u.team)&&u.team>=0&&u.team!==0;
+ const enemyBuilding=b=>finitePoint(b)&&Number.isFinite(b.w)&&b.w>0&&Number.isFinite(b.h)&&b.h>0&&Number.isFinite(b.hp)&&(b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?!b.nativeFortDestroyed:b.hp>0)&&Number.isFinite(b.team)&&b.team!==0;
  function inMap(state,p){const m=state.map,t=m?.tileSize||32;return finitePoint(p)&&Number.isFinite(m?.width)&&m.width>0&&Number.isFinite(m?.height)&&m.height>0&&p.x>=0&&p.y>=0&&p.x<m.width*t&&p.y<m.height*t;}
  function bridgeAt(state,p){
   if(!inMap(state,p))return null;
   const m=state.map,t=m.tileSize||32,col=Math.floor(p.x/t),row=Math.floor(p.y/t),cell=row*m.width+col,id=m.bridgeBase?.[cell];
   return Number.isInteger(id)&&id>=0&&Number.isFinite(m.bridgeHp?.[id])&&m.bridgeHp[id]>0?{id,cell,x:(col+.5)*t,y:(row+.5)*t}:null;
  }
- function wallFighterIds(state,selected){const units=new Map((state?.units||[]).map(u=>[u.id,u])),catalog=new Map((state?.catalog||[]).map(d=>[d.type,d]));return fighterIds(state,selected).filter(id=>{const u=units.get(id),d=catalog.get(u.type);return d?.canDestroyWalls===true||d?.wallGrenades===true&&u.grenades>0;});}
+ function wallFighterIds(state,selected){const units=new Map((state?.units||[]).map(u=>[u.id,u])),catalog=new Map((state?.catalog||[]).map(d=>[d.type,d]));return fighterIds(state,selected).filter(id=>{const u=units.get(id),d=catalog.get(u.type);return state.map?.original&&u.type==='apc'&&u.crew?.kind==='tough'||d?.canDestroyWalls===true||d?.wallGrenades===true&&u.grenades>0;});}
  function wallAt(state,p){
   if(!inMap(state,p))return null;
   for(let i=(state.walls||[]).length-1;i>=0;i--){const wall=state.walls[i];if(!Number.isFinite(wall.hp)||wall.hp<=0||!Number.isFinite(wall.x)||!Number.isFinite(wall.y))continue;const b=wall.hitBounds||wall,w=Number.isFinite(b.w)?b.w:32,h=Number.isFinite(b.h)?b.h:32;if(p.x>=b.x&&p.x<b.x+w&&p.y>=b.y&&p.y<b.y+h)return wall;}
@@ -33,10 +33,10 @@ window.AttackCommand=(()=>{
  function intent(state,selected,p,options={},unitBoundsFn){
   if(!state||options.paused||options.menu||options.placement||options.commandMode==='placement'||state.winner!==null&&state.winner!==undefined||!finitePoint(p))return null;
   const ids=fighterIds(state,selected);if(!ids.length)return null;
-  for(const unit of state.units||[])if(enemyUnit(state,unit)&&hitUnit(unit,p,unitBoundsFn))return {kind:'attack',targetType:'unit',entity:unit,target:unit.id,ids,x:unit.x,y:unit.y};
+  for(const unit of state.units||[])if(enemyUnit(state,unit)&&hitUnit(unit,p,unitBoundsFn)){const allowed=ids.filter(id=>{const u=state.units.find(u=>u.id===id);return !state.map?.original||u.type!=='apc'||u.crew?.kind==='tough';});return allowed.length?{kind:'attack',targetType:'unit',entity:unit,target:unit.id,ids:allowed,x:unit.x,y:unit.y}:null;}
   for(const b of state.buildings||[])if(enemyBuilding(b)&&p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h){
    const gate=Array.isArray(b.gate)&&b.gate.length>=2&&b.gate.every(Number.isFinite)?b.gate:null;
-   return {kind:'attackBuilding',targetType:'building',entity:b,target:b.id,ids,x:gate?.[0]??b.x+b.w/2,y:gate?.[1]??b.y+b.h+24};
+   return {kind:'attackBuilding',targetType:'building',entity:b,target:b.id,ids,impactX:p.x,impactY:p.y,x:gate?.[0]??b.x+b.w/2,y:gate?.[1]??b.y+b.h+24};
   }
   const wall=wallAt(state,p);if(wall){const wallIds=wallFighterIds(state,ids);return wallIds.length?{kind:'attackWall',targetType:'wall',entity:wall,target:wall.id,ids:wallIds,x:wall.x+(wall.w||32)/2,y:wall.y+(wall.h||32)/2}:null;}
   if(options.commandMode!=='attack'||!inMap(state,p))return null;

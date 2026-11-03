@@ -18,8 +18,8 @@ pub struct CombatState {
     base_aim_skill: Option<u8>,
     pub movement_control: u8,
     pub fire_rate: u8,
-    /// Original hardware+0x19. The engine leaves the hatch closed until its
-    /// secondary weapon animation is implemented; external saves can retain it.
+    #[serde(default,skip_serializing_if="Option::is_none")] pub projectile_speed:Option<u8>,
+    /// Original hardware+0x19, synchronized from the native hatch state machine.
     pub secondary_state: i8,
     pub immune: bool,
 }
@@ -74,6 +74,7 @@ impl CombatState {
             base_aim_skill: Some(p.aim),
             movement_control: p.movement,
             fire_rate: p.fire,
+            projectile_speed:None,
             secondary_state: -1,
             immune: false,
         }
@@ -95,13 +96,17 @@ impl CombatState {
         self.aim_skill = profile(kind).aim;
         self.base_aim_skill = Some(self.aim_skill);
     }
+    pub(crate) fn base_aim(&self,kind:&str)->u8{self.base_aim_skill.unwrap_or(profile(kind).aim)}
 }
 pub fn initial_crew_hp(kind: &str) -> f64 {
     f64::from(profile(kind).crew_hp)
 }
 pub fn runtime_class(kind: &str) -> u8 {
-    profile(kind).class
+    //004582c0 normalizes every occupied fixed gun to live class2. The
+    //different2/4/5/6 weapon profiles survive separately at native+a1.
+    if super::stats(kind).cls==2{2}else{profile(kind).class}
 }
+pub(crate) fn animation_family(kind:&str)->u8{profile(kind).family}
 /// Mean axial speed at the GOG executable's normal 59ms movement interval.
 /// Actual displacement uses the shared discrete patterns in original_motion.
 pub fn movement_speed(kind: &str) -> f64 {
@@ -167,12 +172,12 @@ pub fn apply_attack_with_mode(
         .original_combat
         .get_or_insert_with(|| CombatState::new(&unit.kind));
     let mut target = Target {
-        runtime_class: p.class,
+        runtime_class: unit.native_class7c,
         animation_family: p.family,
         facing: facing(unit.angle),
         secondary_state: state.secondary_state,
         human_team_zero: unit.team == 0,
-        immune: state.immune,
+        immune: state.immune||unit.native_flags9c&0x14!=0,
         crew_hp: if mechanical {
             unit.crew.as_ref().map(|c| c.hp as i8).unwrap_or(0)
         } else {
@@ -199,7 +204,7 @@ pub fn apply_attack_with_mode(
     } else {
         apply_body_damage(&mut target, attack.damage, difficulty, multiplayer)
     };
-    if result.route == DamageRoute::Body && !state.immune {
+    if result.route == DamageRoute::Body && !target.immune {
         if let Some(mut hull) = old_hull {
             for _ in 0..result.calls {
                 if let Some(factor) =

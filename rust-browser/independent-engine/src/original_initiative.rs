@@ -1,11 +1,32 @@
 //! Local object initiative, based on GOG Z.exe 0044d920/0044d290/004578b0.
-//! The original rotates directional scans through an animation/state machine.
-//! Here idle and marching units scan all directions every0.35 simulation seconds;
-//! this cadence, march continuation and Stop hold are browser adaptations.
-//! Native range quantization, nearest-object choice, infantry-only crewing and
-//! exclusive object reservation follow the verified code. This is not full AI.
+//! Authored native maps rotate directed queries at idle/marching handler events,
+//! retaining original pool order, quantization, LOS and578b0 reservations. Maps
+//! without the native graph retain the older0.35-second compatibility scanner.
+//! March continuation uses the Game route adapter. The separate100-record
+//! physical-target query and remaining world reaction states are explicit work.
 use super::{original_combat, stats, Game};
 use serde::{Deserialize, Serialize};
+#[path="original_initiative_scan.rs"]pub mod native;
+#[path="original_initiative_game.rs"]mod game;
+
+///Persistent scanner fields Unit+71 and+A4. Runtime writers may provide the
+///raw flags; a scan itself advances A4 only in the native rotating-scan mode.
+#[derive(Clone,Copy,Debug,Serialize,Deserialize)]
+#[serde(rename_all="camelCase")]
+pub struct ScanState{pub flags71:u8,pub a4:u8,#[serde(default="unassigned_object")]pub excluded9d:u8}
+fn unassigned_object()->u8{255}
+impl Default for ScanState{fn default()->Self{Self{flags71:0,a4:0,excluded9d:255}}}
+
+///CP record+16 is a callback counter, separate from OBJECT flag+1f.
+#[derive(Default)]
+pub struct FlagState{counters:std::collections::BTreeMap<usize,i16>}
+impl FlagState{
+ pub fn counter(&self,sector:usize)->i16{self.counters.get(&sector).copied().unwrap_or(0)}
+ pub fn ready(&self,sector:usize)->bool{self.counter(sector)<468}
+ pub fn captured(&mut self,sector:usize){self.counters.insert(sector,510);}
+ ///417c40 decrements every nonzero signed word once, including negative words.
+ pub fn advance(&mut self){for counter in self.counters.values_mut(){if *counter!=0{*counter=counter.wrapping_sub(1);}}}
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "id", rename_all = "camelCase")]
@@ -155,7 +176,8 @@ mod tests {
     #[test]
     fn chooses_nearest_object_and_releases_lost_vehicle_claim() {
         let mut g = game();
-        g.spawn("jeep", -1, 360., 320., 3, None);
+        //Keep this claim fixture outside50db0's40-browser-pixel entry radius.
+        g.spawn("jeep", -1, 384., 320., 3, None);
         let car = g.units.last().unwrap().id;
         g.step(0.1);
         assert_eq!(g.units[0].initiative, Some(Initiative::Vehicle(car)));
@@ -166,6 +188,7 @@ mod tests {
             kind: "grunt".into(),
             hp: 30.,
         });
+        v.x=700.; // The lost claim is tested outside vehicle evasion contact.
         g.step(0.1);
         assert_eq!(g.units[0].initiative, None);
         assert!(g.units[0].path.is_empty());
@@ -236,8 +259,9 @@ impl Game {
         // Another unit may capture the object while its previous claimant is walking.
         // Release it immediately, rather than endlessly chasing an occupied vehicle.
         for i in 0..self.units.len() {
+            if self.units[i].native_transport.is_some()||self.units[i].transport_carrier.is_some(){continue;}
             if let Some(goal) = self.units[i].initiative {
-                let stopped_short = match goal {
+                let stopped_short = if self.map.native_road_graph.is_some(){false}else{match goal {
                     Initiative::Flag(id) => self
                         .sectors
                         .get(id)
@@ -247,7 +271,7 @@ impl Game {
                         })
                         .unwrap_or(false),
                     Initiative::Vehicle(_) => false,
-                };
+                }};
                 if !original_combat::alive(true, self.units[i].hp)
                     || !self.initiative_valid(self.units[i].team, goal)
                     || stopped_short
@@ -256,6 +280,10 @@ impl Game {
                 }
             }
         }
+        //An imported native world is queried by44d920/52200 at their actual
+        //animation and shared-turn callbacks. The compatibility scanner below
+        //exists only for synthetic original-mode maps without an OBJECT pool.
+        if self.native_world.is_some()&&self.map.native_road_graph.is_some(){return;}
         self.initiative_clock -= dt;
         if self.initiative_clock > 0. {
             return;
@@ -279,6 +307,8 @@ impl Game {
                 || u.initiative.is_some()
                 || d.speed <= 0.
                 || u.workshop.is_some()
+                || u.native_transport.is_some()
+                || u.transport_carrier.is_some()
             {
                 continue;
             }
@@ -338,6 +368,7 @@ impl Game {
                 if distance>=arrival && route.back().is_none_or(|(px,py)|(px-x).hypot(py-y)>=arrival) {
                     continue;
                 }
+                self.remember_native_primary_order(i);
                 let unit = &mut self.units[i];
                 unit.march_resume=if u.order=="move" { u.dest.filter(|(x,y)|(x-u.x).hypot(y-u.y)>1e-6) }else{None};
                 unit.initiative = Some(goal);

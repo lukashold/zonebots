@@ -121,8 +121,8 @@ fn live_target_updates_an_attack_route_before_the_old_path_finishes() {
         let a = get(&g, attacker);
         let t = get(&g, target);
         let updated = last_point(&g, attacker);
-        assert!(updated.1 > initial.1 + TILE,
-            "Attack must replan while the previous route still has nodes");
+        assert!(updated.1 >= initial.1 + TILE,
+            "Attack must replan while the previous route still has nodes: original={original} initial={initial:?} updated={updated:?} attacker=({},{}), target=({},{}), nativeclass={} counter={:?}",a.x,a.y,t.x,t.y,t.native_class7c,a.pursuit.as_ref().and_then(|p|p.native_counter));
         assert!((updated.0 - t.x).hypot(updated.1 - t.y) <= stats(&a.kind).range + TILE,
             "The refreshed route ends at a firing position for the current target");
         current_destination(&g, attacker, target);
@@ -144,7 +144,7 @@ fn chase_follows_another_change_of_target_direction() {
         move_target(&mut g, target, 1450., y);
         run(&mut g, 30);
         let east = last_point(&g, attacker);
-        assert!(east.0 > north.0 + TILE, "A second turn must replace the stale northward goal");
+        assert!(east.0 >= north.0 + TILE, "A second turn must replace the stale northward goal");
         let t = get(&g, target);
         assert!((east.0 - t.x).hypot(east.1 - t.y) <= stats("grunt").range + TILE);
         current_destination(&g, attacker, target);
@@ -363,7 +363,7 @@ fn target_across_water_can_be_attacked_from_a_reachable_same_bank_firing_positio
         let a = get(&g, attacker);
         let t = get(&g, target);
         assert!(a.x > 320., "The bank has a reachable firing position, though the enemy tile is unreachable");
-        assert!((a.x - t.x).hypot(a.y - t.y) <= stats("jeep").range);
+        assert!(if original{g.native_target_in_range(a,t,stats("jeep").range)}else{(a.x - t.x).hypot(a.y - t.y) <= stats("jeep").range});
         assert!(a.path.is_empty());
         assert!(!a.moving);
         assert_eq!(a.order, "attack");

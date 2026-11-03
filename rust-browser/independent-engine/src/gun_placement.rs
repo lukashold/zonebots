@@ -66,7 +66,7 @@ impl Game {
             width: SIZE as u32, height: SIZE as u32, fort_id: None,
         };
         let Some(factory) = self.buildings.iter().find(|b| b.id == id) else { return result.reject("Fabrik nicht vorhanden"); };
-        if factory.team != team || team < 0 || factory.hp <= 0. { return result.reject("Keine eigene einsatzbereite Fabrik"); }
+        if factory.team != team || team < 0 || !factory.alive(self.map.original) { return result.reject("Keine eigene einsatzbereite Fabrik"); }
         let Some(kind) = factory.ready_guns.get(slot).filter(|k| is_gun(k)) else { return result.reject("Kein Geschütz bereit"); };
         result.kind = Some(kind.clone());
         if self.winner.is_some() { return result.reject("Schlacht beendet"); }
@@ -80,7 +80,7 @@ impl Game {
 
         // A fort click chooses a roof socket, not a ground gun beside the fort.
         if self.map.original {
-            if let Some((fort, socket)) = self.buildings.iter().filter(|b| b.kind == "fort" && b.hp > 0. && b.team == team && b.sector == factory.sector)
+            if let Some((fort, socket)) = self.buildings.iter().filter(|b| b.kind == "fort" && b.alive(self.map.original) && b.team == team && b.sector == factory.sector)
                 .find_map(|b| selected_socket(b, x, y).map(|socket| (b, socket))) {
                 if let Some(&(sx, sy)) = gun_sockets(fort, kind).get(socket) {
                     result.x = sx; result.y = sy; result.fort_id = Some(fort.id);
@@ -116,7 +116,7 @@ impl Game {
                 }
             }
         }
-        if self.buildings.iter().any(|b| b.hp > 0. && overlap(px, py, SIZE, SIZE, b.x, b.y, b.w, b.h)) {
+        if self.buildings.iter().any(|b| b.alive(self.map.original) && overlap(px, py, SIZE, SIZE, b.x, b.y, b.w, b.h)) {
             return result.reject("Gebäude blockiert den Platz");
         }
         if self.units.iter().any(|u| original_combat::alive(self.map.original, u.hp) && if is_gun(&u.kind) {
@@ -159,7 +159,7 @@ impl Game {
     }
 
     pub(crate) fn place_ai_guns(&mut self, team: i32) {
-        let factories: Vec<usize> = self.buildings.iter().filter(|b| b.team == team && b.hp > 0. && !b.ready_guns.is_empty()).map(|b| b.id).collect();
+        let factories: Vec<usize> = self.buildings.iter().filter(|b| b.team == team && b.alive(self.map.original) && !b.ready_guns.is_empty()).map(|b| b.id).collect();
         for id in factories {
             for _ in 0..READY_GUN_CAPACITY {
                 let Some(factory) = self.buildings.iter().find(|b| b.id == id) else { break; };
@@ -167,7 +167,7 @@ impl Game {
                 let (sector, cx, cy) = (factory.sector, factory.x+factory.w/2., factory.y+factory.h/2.);
                 let mut candidates = Vec::new();
                 if self.map.original {
-                    for fort in self.buildings.iter().filter(|b| b.kind == "fort" && b.team == team && b.sector == sector && b.hp > 0.) {
+                    for fort in self.buildings.iter().filter(|b| b.kind == "fort" && b.team == team && b.sector == sector && b.alive(self.map.original)) {
                         for (sx, sy) in gun_sockets(fort, kind) {
                             candidates.push((sx.clamp(fort.x+1., fort.x+fort.w-1.), sy.clamp(fort.y+1., fort.y+fort.h-1.)));
                         }

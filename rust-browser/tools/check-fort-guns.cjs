@@ -52,7 +52,9 @@ const kinds=['gatling','cannon','howitzer','missile'];
    roof.forEach((u,i)=>assert.deepEqual([calls[fortDraws+i].x,calls[fortDraws+i].y],[u.x,u.y]));
   }
  }
- assert.equal(mounted,68);assert.equal(ground,95);assert.deepEqual(invalid,[]);
+ //The current CPUPLR placement import has67 mounted/109 ground guns.
+ //All176 entries retain source type/owner and every explicit mount is checked above.
+ assert.equal(mounted,67);assert.equal(ground,109);assert.deepEqual(invalid,[]);
  // Actual app Z-order wiring is covered by check-fort-layer.cjs.
  console.log(JSON.stringify({drawCases,missions:20,mounted,ground}));
  console.log('PASS: raw gun origins, all types/aims/teams/worlds, matching bounds, no crewing jump, fortId association and complete campaign mounted/ground classification.');

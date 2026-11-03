@@ -163,7 +163,10 @@
         oval(c,tx-3,ty-3,r*.5,r*.22,'#d7ddba66');
         barrel(c,tx+Math.cos(aim)*5,ty+Math.sin(aim)*3,aim,heavy?30:u.type==='medium'?26:22,heavy?5.6:u.type==='medium'?4.6:3.8);
         if(heavy)barrel(c,tx-Math.sin(aim)*5,ty+Math.cos(aim)*3-2,aim,18,2.3,body);
-        oval(c,tx-3,ty-4,4,2.4,steel.dark,steel.ink);oval(c,tx-3.5,ty-5,3.2,1.7,bodyLight,steel.dark);bolt(c,tx-3,ty-5,.6);
+        oval(c,tx-3,ty-4,4,2.4,steel.dark,steel.ink);
+        const hatch=occupied?(u.nativeHardware?.hatchFrame??-1):-1,opening=occupied?(u.nativeHardware?.hatchBody??0):0;
+        oval(c,tx-3.5,ty-5-opening*2,3.2,1.7,bodyLight,steel.dark);bolt(c,tx-3,ty-5-opening*2,.6);
+        if(hatch>=0)crew(c,tx-3,ty-4,p,.25+Math.min(hatch,3)*.16,aim);
         const q=point(cx,cy,a,-11,-7,12);line(c,...q,q[0]-1,q[1]-15,steel.dark,.7);oval(c,q[0]-1,q[1]-15,.6,.8,steel.light);
         deck(c,tx,ty,aim,[[-4,-r+1],[5,-r+1],[5,-r+3],[-4,-r+3]],.2,p.main);
       }
@@ -209,8 +212,8 @@
     // Empty tanks use one parked west-facing pose, just like the original
     // neutral object template; stale headings from unloading must not turn it.
     const parked=tanks.has(u.type)&&u.team<0,moving=Boolean(u.moving),rawAim=parked?8:direction(u.aim==null?u.angle:u.aim),aim=robots.has(u.type)||guns.has(u.type)?Math.round(rawAim/2)*2%16:rawAim,body=parked?8:guns.has(u.type)?0:robots.has(u.type)?moving?(Math.round(direction(u.angle)/2)*2)%16:0:direction(u.angle);
-    const phase=robots.has(u.type)&&moving?(Math.floor(time*7+Number(u.id||0)*.5)%2?1:3):0;
-    return{body,aim,phase,occupied:u.team>=0,key:[u.type,u.team,body,aim,phase].join(':')};
+    const phase=robots.has(u.type)?moving?(u.nativeWalk?.frame??(Math.floor(time*7+Number(u.id||0)*.5)%2?1:3)):(u.nativeIdle?.frame??0):moving?(u.nativeMoveFrame??0):0;
+    return{body,aim,phase,occupied:u.team>=0,key:[u.type,u.team,body,aim,phase,tanks.has(u.type)&&u.team>=0?(u.nativeHardware?.hatchFrame??-1):-1,tanks.has(u.type)&&u.team>=0?(u.nativeHardware?.hatchBody??0):0,u.nativeContact?.phase??-1,u.nativeContact?.frame??0,u.nativeTransport?.phase??'',u.nativeTransport?.direction??0,u.nativeTransport?.frame??0,u.nativeCover?.frame32??-1,u.nativeIdle?.direction??-1].join(':')};
   }
   function weather(c){
     if(!wear){wear=document.createElement('canvas');wear.width=wear.height=96;const q=wear.getContext('2d'),data=q.createImageData(96,96);let seed=90173;
@@ -238,7 +241,9 @@
     const started=clock(),image=document.createElement('canvas');image.width=image.height=96*DENSITY;
     const ctx=image.getContext('2d');ctx.scale(DENSITY,DENSITY);ctx.lineJoin='round';ctx.lineCap='round';
     const p=palette(u.team),a=body*Math.PI/8,b=aim*Math.PI/8;
-    if(robots.has(u.type))robot(ctx,u,p,a,b,phase);else if(guns.has(u.type))gun(ctx,u,p,b,occupied);else vehicle(ctx,u,p,a,b,phase,occupied);
+    if(robots.has(u.type)){
+      const contact=u.nativeContact,tr=u.nativeTransport;if(u.nativeCover){ctx.save();ctx.translate(48,70);ctx.scale(1.1,.65-.1*(u.nativeCover.frame32%3));ctx.translate(-48,-70);robot(ctx,u,p,a,b,phase);ctx.restore();}else if(tr&&['entering','exiting'].includes(tr.phase)){const limit=(tr.phase==='entering'?[5,3,1,1,1,1,1,3]:[2,2,2,4,6,4,2,2])[tr.direction&7],progress=Math.min(1,tr.frame/limit),scale=tr.phase==='entering'?1-progress*.65:.35+progress*.65;ctx.save();ctx.translate(48,70);ctx.scale(scale,scale);ctx.translate(-48,-70);robot(ctx,u,p,a,b,phase);ctx.restore();}else if(contact?.phase<2){const height=contact.phase===0?.28:.28+.72*Math.min(10,contact.frame)/10;ctx.save();ctx.translate(48,70);ctx.scale(1.2,height);ctx.translate(-48,-70);robot(ctx,u,p,a,b,phase);ctx.restore();}else robot(ctx,u,p,a,b,phase);
+    }else if(guns.has(u.type))gun(ctx,u,p,b,occupied);else vehicle(ctx,u,p,a,b,phase,occupied);
     weather(ctx);
     const value={image,crop:tanks.has(u.type)?tankCrop(ctx,image):robots.has(u.type)?[17,28,65,51]:u.type==='crane'?[6,8,84,81]:[3,17,90,72]};
     cache.set(key,value);cacheBytes+=image.width*image.height*4;fallbacks.set(u.type+':'+u.team,value);
@@ -255,7 +260,7 @@
     if(budget>0&&(budget===Infinity||clock()-frameStart<3.5)){if(budget!==Infinity)budget--;pending.delete(info.key);return raster(u,time,info);}
     // Moving entities keep their last complete pose while new raster work is
     // shared across frames, rather than blocking the next animation frame.
-    pending.set(info.key,{u:{type:u.type,team:u.team,angle:u.angle,aim:u.aim,moving:u.moving,id:u.id},time,info,lastFrame:frameSequence});while(pending.size>256)pending.delete(pending.keys().next().value);
+    pending.set(info.key,{u:{type:u.type,team:u.team,angle:u.angle,aim:u.aim,moving:u.moving,id:u.id,nativeHardware:u.nativeHardware,nativeContact:u.nativeContact,nativeTransport:u.nativeTransport,nativeIdle:u.nativeIdle,nativeCover:u.nativeCover,nativeMoveFrame:u.nativeMoveFrame,nativeWalk:u.nativeWalk},time,info,lastFrame:frameSequence});while(pending.size>256)pending.delete(pending.keys().next().value);
     metrics.fallbacks++;return fallbacks.get(u.type+':'+u.team)||null;
   }
   function quick(c,u,b){
@@ -271,6 +276,7 @@
   }
   function unit(ctx,u,time=0,map,bounds) {
     if(!u||!types.includes(u.type)||![u.x,u.y].every(Number.isFinite))return false;
+    if(u.nativeTransport?.visible===false)return true;
     const b=bounds&&[bounds.x,bounds.y,bounds.w,bounds.h].every(Number.isFinite)&&bounds.w>0&&bounds.h>0?bounds:fallbackBounds(u),sprite=requested(u,Number(time)||0);if(!sprite){quick(ctx,u,b);return true;}const s=sprite.crop;
     ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';ctx.drawImage(sprite.image,s[0]*DENSITY,s[1]*DENSITY,s[2]*DENSITY,s[3]*DENSITY,b.x,b.y,b.w,b.h);ctx.restore();
     if(u.maxHp>0&&u.hp/u.maxHp<.3){const x=b.x+b.w*.45,y=b.y+b.h*.35;for(let n=0;n<3;n++){const phase=((Number(time)||0)*.55+n*.31+u.id*.13)%1;ctx.save();ctx.globalAlpha=(1-phase)*.22;oval(ctx,x+phase*9,y-phase*23,2.3+phase*4,2.6+phase*5,'#293639');ctx.restore();}}

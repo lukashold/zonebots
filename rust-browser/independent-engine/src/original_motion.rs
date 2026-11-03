@@ -22,10 +22,13 @@ pub fn speed(control:u8)->f64 {
 fn coordinate(v:f64)->i32 {(v/WORLD_SCALE).floor()as i32}
 const WALK_COUNTER:[i8;13]=[10,8,6,5,5,4,3,2,2,2,1,1,1];
 #[derive(Clone,Serialize,Deserialize)]
-pub struct Walk{pub frame:u8,timer:i8}
+pub struct Walk{pub frame:i16,timer:i8}
 impl Walk{
     fn new(index:usize)->Self{Self{frame:0,timer:WALK_COUNTER[index]}}
-    fn advance(&mut self,index:usize){self.timer=self.timer.wrapping_sub(1);if self.timer<0{self.timer=WALK_COUNTER[index];self.frame=(self.frame+1)&3;}}
+    ///525a0 tests only the LOW frame byte. Unusual high-byte values survive
+    ///until the walking handler's next increment masks the word to0..3.
+    pub(crate) fn replacement(index:usize,frame:i16,timer:i8)->Self{Self{frame:if frame as u8&252!=0{0}else{frame},timer:if timer<1||WALK_COUNTER[index]<=timer{WALK_COUNTER[index]}else{timer}}}
+    fn advance(&mut self,index:usize){self.timer=self.timer.wrapping_sub(1);if self.timer<0{self.timer=WALK_COUNTER[index];self.frame=self.frame.wrapping_add(1)&3;}}
 }
 
 #[derive(Clone,Default)]
@@ -34,12 +37,17 @@ pub(crate) struct Segment {
     error:i32, sx:i32, sy:i32, x_major:bool, heading:f64,
 }
 impl Segment {
-    fn new(x:f64,y:f64,goal:(f64,f64))->Self {
+    pub(crate) fn new(x:f64,y:f64,goal:(f64,f64))->Self {
         let position=(coordinate(x),coordinate(y));let goal=(coordinate(goal.0),coordinate(goal.1));
         let dx=goal.0-position.0;let dy=goal.1-position.1;
         let x_major=dx.abs()>=dy.abs();let major=dx.abs().max(dy.abs());
         Self{goal,position,major,minor:dx.abs().min(dy.abs()),remaining:major,error:major/2,sx:dx.signum(),sy:dy.signum(),x_major,heading:super::native_math::angle(super::native_math::direction(dx,dy))}
     }
+    pub(crate) fn heading(&self)->f64 {self.heading}
+    pub(crate) fn remaining(&self)->i16 {self.remaining as i16}
+    ///4490b0's direct525a0 attack approach shortens only48, preserving4a's
+    ///original dominant-axis length and line error for subsequent stepping.
+    pub(crate) fn shorten_for_attack(&mut self){let left=(self.remaining as i16)>>4;self.remaining=i32::from(if left==0{1}else{left});}
     fn advance(&mut self,step:u8) {
         for _ in 0..i32::from(step).min(self.remaining) {
             self.error-=self.minor;let diagonal=self.error<0;
@@ -51,9 +59,73 @@ impl Segment {
     }
 }
 
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) enum LocalResult{Moving,Arrived,Blocked}
+
 impl Game {
+    ///4f572 copies the selected global movement pattern's current step to62.
+    ///Call at the existing4f1e0 constructor/5a080 position-context boundary.
+    pub(crate) fn refresh_native_pattern_step(&mut self,i:usize,tick:u64){
+        let Some(u)=self.units.get(i)else{return;};if !self.map.original||u.native_slot.is_none()||coordinate(u.x)==10000{return;}
+        let control=u.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||original_combat::CombatState::new(&u.kind).movement_control);
+        let code=self.native_terrain(coordinate(u.x)+8,coordinate(u.y)+8);
+        let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;
+        let pattern=STEPS[motion_index];self.units[i].native_field62=pattern[tick as usize%pattern.len()];
+    }
+    ///The infantry branch of525a0. Call only for a nonzero accepted local
+    ///line, before its caller optionally overrides phase2 with phase7.
+    pub(crate) fn prepare_native_walk(&mut self,i:usize){
+        let u=&self.units[i];if super::stats(&u.kind).cls!=0{return;}
+        let control=u.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||original_combat::CombatState::new(&u.kind).movement_control);
+        let code=self.native_terrain(coordinate(u.x)+8,coordinate(u.y)+8);
+        let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;
+        let walk=if u.native_phase35==2{Walk{frame:u.native_frame32,timer:u.native_timer3c}}else{Walk::replacement(motion_index,u.native_frame32,u.native_timer3c)};
+        let u=&mut self.units[i];u.native_frame32=walk.frame;u.native_timer3c=walk.timer;u.native_walk=Some(walk);u.native_phase35=2;
+    }
+    ///525a0 can replace the current line without touching either path list.
+    ///462fd0 uses that operation for an incoming projectile. This callback
+    ///deliberately neither consumes nor replaces the primary route's front.
+    pub(crate) fn move_native_local(&mut self,i:usize,segment:&mut Segment,first_tick:u64,ticks:u64,aim_follows:bool)->LocalResult{
+        self.units[i].native_remaining48=segment.remaining();
+        for tick in first_tick..first_tick+ticks{
+            let u=&self.units[i];
+            let control=u.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||original_combat::CombatState::new(&u.kind).movement_control);
+            let code=self.native_terrain(coordinate(u.x)+8,coordinate(u.y)+8);
+            let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;
+            let pattern=STEPS[motion_index];let step=pattern[tick as usize%pattern.len()];
+            if super::stats(&u.kind).cls==0{let mut walk=u.native_walk.clone().unwrap_or(Walk{frame:u.native_frame32,timer:u.native_timer3c});walk.advance(motion_index);self.units[i].native_frame32=walk.frame;self.units[i].native_timer3c=walk.timer;self.units[i].native_walk=Some(walk);}
+            if step==0{continue;}
+            let old=segment.position;let mut next=segment.clone();next.advance(step);
+            let point=(f64::from(next.position.0)*WORLD_SCALE,f64::from(next.position.1)*WORLD_SCALE);
+            if !self.movement_segment_clear_unit(&self.units[i],point){
+                self.native_attack_walk_marked=true; //518e0 physical-contact event
+                //518e0 advances the robot counter before51170.52200 then
+                //performs its own normal counter update in the same callback.
+                if super::stats(&self.units[i].kind).cls==0{let fields=self.units[i].native_walk.as_mut().map(|walk|{walk.advance(motion_index);(walk.frame,walk.timer)});if let Some((frame,timer))=fields{self.units[i].native_frame32=frame;self.units[i].native_timer3c=timer;}}
+                return LocalResult::Blocked;
+            }
+            *segment=next;let u=&mut self.units[i];u.native_remaining48=segment.remaining();u.x=point.0;u.y=point.1;
+            if segment.position!=old{u.angle=segment.heading;u.native_idle=None;u.moving=true;if aim_follows{u.aim=u.angle;}}
+            let slot=u.native_slot;let position=segment.position;
+            if let Some(m)=slot.and_then(|s|self.native_group_rosters.members.get_mut(s)).and_then(Option::as_mut){m.flags69|=4;}
+            if let Some(slot)=slot{let code=self.native_terrain(position.0+8,position.1+8);self.native_group_rosters.record_terrain_formation(slot,code);}
+            self.native_grenade_contact(i);
+            if super::stats(&self.units[i].kind).cls>0{self.advance_native_hardware_movement(i);}
+            //51170 clears64:40 at the end of the line. The caller may load
+            //the old route again, but never spends excess pixels this tick.
+            if segment.remaining==0{self.native_attack_walk_marked=true;return LocalResult::Arrived;}
+        }
+        LocalResult::Moving
+    }
     pub(crate) fn move_original(&mut self,i:usize,first_tick:u64,ticks:u64,aim_follows:bool) {
+        //43e190 leaves a local contour pending. Resume the original destination
+        //on the next callback, after the last local waypoint has been consumed.
+        if self.units[i].path.is_empty(){if let Some(goal)=self.units[i].native_route_pending.get(){
+            let unit=self.units[i].clone();self.units[i].path=self.route_unit(&unit,goal.0,goal.1);
+        }}
         self.units[i].moving=!self.units[i].path.is_empty();
+        if self.units[i].moving&&super::stats(&self.units[i].kind).cls==0&&self.units[i].native_phase35!=7&&self.units[i].native_phase35!=2{self.prepare_native_walk(i);}
+        if !self.units[i].path.is_empty(){self.native_move_order_started(i);}
         for tick in first_tick..first_tick+ticks {
             let Some(goal)=self.units[i].path.front().copied()else{self.units[i].original_motion=None;break;};
             let u=&self.units[i];
@@ -64,31 +136,41 @@ impl Game {
             let code=if col<self.map.width&&row<self.map.height {
                 self.map.terrain_codes.get(row*self.map.width+col).copied().unwrap_or(0)
             }else{0};
-            let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)).clamp(0,12)as usize;
+            let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;
             let pattern=STEPS[motion_index];let step=pattern[tick as usize%pattern.len()];
             if super::stats(&u.kind).cls==0{
-                let mut walk=u.native_walk.clone().unwrap_or_else(||Walk::new(motion_index));walk.advance(motion_index);self.units[i].native_walk=Some(walk);
+                let mut walk=u.native_walk.clone().unwrap_or(Walk{frame:u.native_frame32,timer:u.native_timer3c});walk.advance(motion_index);self.units[i].native_frame32=walk.frame;self.units[i].native_timer3c=walk.timer;self.units[i].native_walk=Some(walk);
             }
             let u=&self.units[i];
             if step==0{continue;}
-            let mut segment=u.original_motion.clone().filter(|s|s.goal==(coordinate(goal.0),coordinate(goal.1))
-                &&s.position==(coordinate(u.x),coordinate(u.y)))
-                .unwrap_or_else(||Segment::new(u.x,u.y,goal));
+            let existing=u.original_motion.clone().filter(|s|s.goal==(coordinate(goal.0),coordinate(goal.1))
+                &&s.position==(coordinate(u.x),coordinate(u.y)));
+            let new_segment=existing.is_none();let mut segment=existing.unwrap_or_else(||Segment::new(u.x,u.y,goal));
+            if new_segment{if let Some(slot)=u.native_slot{self.native_group_rosters.record_segment_direction(slot,original_combat::facing(segment.heading),u.native_flags64);}}
+            self.units[i].native_remaining48=segment.remaining();let u=&self.units[i];
             let old=segment.position;segment.advance(step);
             let (x,y)=(f64::from(segment.position.0)*WORLD_SCALE,f64::from(segment.position.1)*WORLD_SCALE);
-            // Keep the existing live collision adapter; a rounded native step
-            // must never sneak across forbidden water or building boundaries.
-            if !self.movement_segment_clear_for(u.x,u.y,x,y,&u.kind){self.units[i].original_motion=None;break;}
-            let u=&mut self.units[i];u.x=x;u.y=y;
+            if !self.movement_segment_clear_unit(u,(x,y)){self.native_attack_walk_marked=true;self.units[i].original_motion=None;break;}
+            let u=&mut self.units[i];u.x=x;u.y=y;u.native_remaining48=segment.remaining();
             if segment.position!=old {
                 u.angle=segment.heading;
+                u.native_idle=None;
+
                 u.moving=true;if aim_follows{u.aim=u.angle;}
             }
             if segment.remaining==0 {
+                self.native_attack_walk_marked=true; //51170, before replacing the path head
                 // Native movement truncates this tick's step at the waypoint.
                 // It starts the next segment without spending the excess.
                 u.path.pop_front();u.original_motion=None;
+                if u.path.is_empty()&&u.native_secondary_route.get(){u.native_secondary_route.set(false);if let Some(slot)=u.native_slot{self.native_group_rosters.record_secondary_path(slot,false);}}
+                if super::stats(&u.kind).cls==0&&u.path.is_empty(){u.native_phase35=if u.native_route_pending.get().is_some(){2}else{0};}
             }else{u.original_motion=Some(segment);}
+            let slot=u.native_slot;let position=(coordinate(u.x),coordinate(u.y));
+            if let Some(m)=slot.and_then(|s|self.native_group_rosters.members.get_mut(s)).and_then(Option::as_mut){m.flags69|=4;}
+            if let Some(slot)=slot{let code=self.native_terrain(position.0+8,position.1+8);self.native_group_rosters.record_terrain_formation(slot,code);}
+            self.native_grenade_contact(i);
+            if super::stats(&self.units[i].kind).cls>0{self.advance_native_hardware_movement(i);}
         }
     }
 }
@@ -101,6 +183,36 @@ mod tests {
         let mut hash=2166136261u32;
         for speed in 0..13{let mut walk=Walk::new(speed);for tick in 1..=48{walk.advance(speed);for n in [speed as i32,tick,i32::from(walk.frame),i32::from(walk.timer)]{hash=(hash^n as u32).wrapping_mul(16777619);}}}
         assert_eq!(hash,4264211241,"ZNativeAnimationOracle");
+    }
+    #[test]
+    fn all_832_replacement_frame_and_counter_seeds_match_native_525a0(){
+        let mut hash=2166136261u32;let mut scenario=0;
+        for index in 0..13{for frame in[0i16,1,2,3,4,255,256,-256]{for timer in[-128i8,-1,0,1,2,7,10,127]{let walk=Walk::replacement(index,frame,timer);for n in[scenario,i32::from(walk.frame),i32::from(walk.timer),2]{hash=(hash^n as u32).wrapping_mul(16777619);}scenario+=1;}}}
+        assert_eq!(scenario,832);assert_eq!(hash,4122382637,"ZNativeWalkReplacementOracle");
+    }
+    #[test]
+    fn replacement_lines_and_primary_path_return_match_1152_executed_native_records(){
+        let mut hash=2166136261u32;let mut rows=0;let mut scenario=0;
+        let mut record=|values:&[i32]|{for &n in values{hash=(hash^n as u32).wrapping_mul(16777619);}rows+=1;};
+        for class in [0,1]{for path in 0..2{for blocked in 0..2{for speed in 1..=4{for delta in [(9,3),(3,9),(-9,3),(-3,9),(9,-3),(3,-9),(-9,-3),(-3,-9)]{
+            let mut segment=Segment::new(1000.,1000.,(1000.+f64::from(delta.0)*2.,1000.+f64::from(delta.1)*2.));
+            let mut state=if class==1{9}else{2};let mut flags=64;let mut hardware=class;
+            record(&[scenario,state,flags,path,segment.remaining,i32::from(super::super::original_combat::facing(segment.heading)),hardware]);
+            for tick in 1..=16{
+                let collision=blocked!=0&&tick==2;
+                if !collision{segment.advance(speed);}
+                if collision||segment.remaining==0{
+                    flags=0;
+                    if class==0{state=if path==0{0}else{2};}
+                    else if path==0{hardware=0;}
+                    if path!=0{segment=Segment::new(f64::from(segment.position.0)*2.,f64::from(segment.position.1)*2.,(1504.,1288.));}
+                }
+                record(&[scenario,tick,segment.position.0,segment.position.1,state,flags,path,segment.remaining,hardware]);
+                if flags==0{break;}
+            }
+            scenario+=1;
+        }}}}}
+        assert_eq!(rows,1152);assert_eq!(hash,2851233581,"ZNativeDodgeReturnOracle:256 end/block/route fixtures");
     }
     #[test]
     fn integer_segments_match_an_independent_major_axis_reference_in_every_octant() {

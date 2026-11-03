@@ -195,7 +195,7 @@ window.HDStructures = (() => {
   }
   function building(c,b,time=0,map) {
     if(!b||!['fort','robot','vehicle','repair','radar'].includes(b.kind))return false;
-    const w=b.kind==='fort'?320:b.w||128,h=b.kind==='fort'?384:b.h||160,dead=b.hp<=0;
+    const w=b.kind==='fort'?320:b.w||128,h=b.kind==='fort'?384:b.h||160,dead=b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?b.nativeFortDestroyed:b.hp<=0;
     const x=b.kind==='fort'&&b.rawBase?b.rawBase[0]*2:b.x,y=b.kind==='fort'&&b.rawBase?b.rawBase[1]*2:b.y;
     const key=['b',b.kind,b.team,w,h,b.stars,b.orientation,dead].join(':');const image=cached(key,w,h,q=>dead?ruin(q,b):b.kind==='fort'?fort(q,b):['robot','vehicle'].includes(b.kind)?factory(q,b):utility(q,b));
     c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='medium';c.drawImage(image,x-16,y-16,w+32,h+32);
@@ -239,6 +239,7 @@ window.HDStructures = (() => {
     else{for(let i=0;i<7;i++){const a=i*Math.PI*2/7,xx=x+Math.cos(a)*23,yy=20+Math.sin(a)*11;c.beginPath();c.moveTo(x-2,19);c.quadraticCurveTo(xx,yy-19,xx+Math.cos(a)*4,yy+9);c.quadraticCurveTo(xx-7,yy-1,x-2,19);c.fillStyle=grad(c,x,0,xx-x||1,32,['#a6bb68','#548655','#2c5b46']);c.fill();line(c,x-2,19,xx,yy+1,'#bdc88766',.7);}ellipse(c,x-2,19,4,4,'#6c7748');}
   }
   function object(c,o,map) {
+    if(o.nativeActive===false)return true;
     if(!o||[0x31,0x32].includes(o.templateFlags)||[5,8,9,10,21,22,23,24,26,29,31,33,35].includes(Number(o.type)))return false;
     const type=Number(o.type),size=type===43||type===61?32:type>=39?64:32;
     const key='o:'+type,im=cached(key,size,size,q=>{

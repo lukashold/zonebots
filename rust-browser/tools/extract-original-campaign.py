@@ -22,11 +22,15 @@ class Exe:
  def __init__(self,path):
   self.d=path.read_bytes();pe=u32(self.d,60);n=u16(self.d,pe+6);op=u16(self.d,pe+20);self.sections=[]
   for i in range(n):
-   o=pe+24+op+i*40;vs,va,rs,raw=struct.unpack_from('<IIII',self.d,o+8);self.sections.append((va,max(vs,rs),raw))
+   o=pe+24+op+i*40;vs,va,rs,raw=struct.unpack_from('<IIII',self.d,o+8);self.sections.append((va,max(vs,rs),raw,rs))
  def read(self,a,n):
   r=a-0x400000
-  for va,size,raw in self.sections:
-   if va<=r<va+size:return self.d[raw+r-va:raw+r-va+n]
+  for va,size,raw,stored in self.sections:
+   if va<=r and r+n<=va+size:
+    offset=r-va;count=max(0,min(n,stored-offset))
+    # The PE loader zero-fills virtual tails/BSS. They are not the unrelated
+    # bytes following this section on disk and cannot supply static constants.
+    return self.d[raw+offset:raw+offset+count]+bytes(n-count)
   raise ValueError(hex(a))
  def pair(self,a):return struct.unpack('<hh',self.read(a,4))
  def ptr(self,a):return u32(self.read(a,4),0)
@@ -108,7 +112,7 @@ def extract_bridges(data,w,h,tiles):
   if not cells:continue
   destroyed=initialhp==0;hp=0 if destroyed else initialhp;capacity=initialhp or 600
   bid=len(bridges)
-  bridges.append({'id':bid,'x':x*2,'y':y*2,'w':bw*2,'h':bh*2,'hp':hp,'maxHp':capacity,'initiallyDestroyed':destroyed,'rawSavedHp':savedhp,'tiles':cells,'sourceOffset':o,'confidence':'0045fef0_disk_to_runtime_and_004097b0_mission_initialization'})
+  bridges.append({'id':bid,'x':x*2,'y':y*2,'w':bw*2,'h':bh*2,'hp':hp,'maxHp':capacity,'initiallyDestroyed':destroyed,'rawSavedHp':savedhp,'nativeSlot':o//26,'nativeOrientation':u16(r,12),'nativeFlags15':2 if destroyed else r[15],'tiles':cells,'sourceOffset':o,'confidence':'0045fef0_disk_to_runtime_and_004097b0_mission_initialization'})
   bridgehp.append(hp);bridgecaps.append(capacity)
   for j in cells:
    bridgebase[j]=bid
@@ -124,7 +128,7 @@ def extract(root,out):
    raw=i16(robot,o+28+k*2)
    if raw<0:break
    members.append(raw)
-  groups.append({'id':gid,'type':GROUP[gid],'name':text(robot,o+2,25),'members':members,'buildLevels':{'vehicle':robot[o+73],'robot':robot[o+74],'fort':robot[o+75]}})
+  groups.append({'id':gid,'formation':robot[o+1],'type':GROUP[gid],'name':text(robot,o+2,25),'members':members,'buildLevels':{'vehicle':robot[o+73],'robot':robot[o+74],'fort':robot[o+75]}})
  missions=[]
  for number in range(1,21):
   nn=f'{number:02}';d=(root/f'LEVEL{nn}.MAP').read_bytes();w,h=u16(d,0x278d),u16(d,0x278f);n=w*h;world=text(d,0x2771,13).split('.')[0].upper()
@@ -140,7 +144,7 @@ def extract(root,out):
   for o in range(0,min(len(cp),64*30),30):
    if i16(cp,o)<0:continue
    x1,y1,x2,y2=struct.unpack_from('<HHHH',cp,o);owner=cp[o+8];sid=len(sectors)
-   sectors.append({'id':sid,'x':(cp[o+18]+.5)*32,'y':(cp[o+19]+.5)*32,'owner':owner if owner<4 else -1,'home':False,'rect':[x1,y1,x2,y2],'rawOwner':owner,'rawFlagTile':[cp[o+18],cp[o+19]],'sourceOffset':o})
+   sectors.append({'id':sid,'x':(cp[o+18]+.5)*32,'y':(cp[o+19]+.5)*32,'owner':owner if owner<4 else -1,'home':False,'rect':[x1,y1,x2,y2],'rawOwner':owner,'rawFlagTile':[cp[o+18],cp[o+19]],'nativeSlot':o//30,'nativeFlags':cp[o+24],'nativePopulation':struct.unpack_from('<b',cp,o+9)[0],'nativeScoringFlags':cp[o+29],'nativePrioritySeed':struct.unpack_from('<i',cp,o+25)[0],'sourceOffset':o})
    for y in range(max(0,y1),min(h,y2)):
     for x in range(max(0,x1),min(w,x2)):
      if territory[y*w+x]<0:territory[y*w+x]=sid
@@ -180,22 +184,32 @@ def extract(root,out):
    if typ not in (0,1,4,8):raise ValueError((number,typ))
    tx,ty=u16(r,0)//16,u16(r,2)//16;kind={0:'repair',1:'vehicle',4:'robot',8:'radar'}[typ];wh=tuple(exe.read(0x498c78+typ*0x4c+0x30,2))
    sid=sec_at(tx+wh[0]//2,ty+wh[1]//2);owner=sectors[sid]['owner'] if sid>=0 else -1;prod=GROUP.get(r[7]);stars=u32(r,12)//1000
-   buildings.append({'id':len(buildings),'kind':kind,'team':owner,'sector':sid,'x':u16(r,0)*2,'y':u16(r,2)*2,'w':wh[0]*32,'h':wh[1]*32,'hp':u16(r,0x1c),'maxHp':u16(r,0x1a),'stars':stars,'product':prod,'progress':0,'rawType':typ,'rawProductId':r[7],'rawTechnology':u32(r,12),'sourceOffset':o,'gate':[(tx+wh[0]/2)*32,(ty+wh[1])*32],'confidence':{'position':'exact_BUILD_native_xy','size':'exact_exe_descriptor_00498c78_plus30','owner':'territory_lookup','gate':'provisional_bottom_center_exit','progress':'not_recovered_initial_zero'}})
+   buildings.append({'id':len(buildings),'kind':kind,'team':owner,'sector':sid,'x':u16(r,0)*2,'y':u16(r,2)*2,'w':wh[0]*32,'h':wh[1]*32,'hp':u16(r,0x1c),'maxHp':u16(r,0x1a),'stars':stars,'product':prod,'progress':0,'rawType':typ,'rawAttackOffset':list(struct.unpack('<bb',exe.read(0x498c78+typ*0x4c+0x32,2))),'rawProductId':r[7],'nativeFlags6':r[6],'rawTechnology':u32(r,12),'sourceOffset':o,'gate':[(tx+wh[0]/2)*32,(ty+wh[1])*32],'confidence':{'position':'exact_BUILD_native_xy','size':'exact_exe_descriptor_00498c78_plus30','owner':'territory_lookup','gate':'provisional_bottom_center_exit','progress':'not_recovered_initial_zero'}})
   bridgebase,bridgehp,bridgecaps,bridges=extract_bridges((root/f'BRIDGE{nn}.DAT').read_bytes(),w,h,tiles)
   # Object byte5 points into the hardware table, not the product/group table.
+  initial_flag_count=sum(not sector["home"]for sector in sectors)
   objects=[];spawns=[];crates=[]
   for o,r in records((root/f'OBJECT{nn}.DAT').read_bytes(),10):
-   x,y,typ,eq=struct.unpack_from('<HHBB',r);template=exe.read(0x498f38+typ*26,26);flags=template[18]
+   x,y,typ,eq=struct.unpack_from('<HHBB',r)
+   if typ==37:continue #00433700 skips authored Fire Truck objects
+   template=exe.read(0x498f38+typ*26,26);flags=template[18]
    ob={'x':x*2,'y':y*2,'type':typ,'equipmentId':eq,'templateName':text(template,2,16),'templateFlags':flags,'templateSprite':u16(template,0),'sourceOffset':o};objects.append(ob)
+   native_flags=0x70 if typ in (5,21,22,23,35,26,29,8,31,24,33,37) else 0 if typ in (11,12,17) else 0x80
+   if flags&0x14:native_flags|=0x40
+   ob.update({'nativeSlot':initial_flag_count+len(objects)-1,'nativeHp':0 if eq==255 else robot[0x55f0+eq*42+5],'nativeFlags13':native_flags,'templateExtent':struct.unpack_from('<b',template,20)[0],'templateHeight':template[21]})
    if flags==0x32 and eq!=255 and eq in EQUIPMENT:
     spawns.append({'type':EQUIPMENT[eq],'t':EQUIPMENT[eq],'team':-1,'x':x*2,'y':y*2,'squad':0,'source':'OBJECT_equipment','equipmentId':eq,'objectType':typ,'sourceOffset':o,'confidence':'equipment_and_hardware_flag_exact;anchor_needs_review'})
    if typ==10:
     crates.append({'id':len(crates),'x':x*2,'y':y*2,'taken':False,'type':'grenades','sourceOffset':o,'confidence':'exact_OBJECT_grenade_template'})
-  starts=list(lv[0x55:0x61]);anchors=[]
+  #00424dc0 initializes the human half from levels.dat.00417040 independently
+  # initializes all26 CPU slots from CPUPLR. Inactive gaps retain their slot IDs.
+  human_starts=[(slot,gid)for slot,gid in enumerate(lv[0x55:0x61])if gid!=255]
+  cpu_starts=[(slot,cp[0x792+slot*10])for slot in range(26)if cp[0x793+slot*10]&1]
+  anchors=[]
   for team in (0,1):
    ft=next(f for f in forts if f['team']==team);fort_id=next(b['id'] for b in buildings if b['kind']=='fort' and b['team']==team);gx,gy=ft['rawBase'];table=exe.ptr((0x47aec0 if team==0 else 0x47aa98)+li*4);point_index=0;gun_index=0 if team==0 else 4
-   for slot,gid in enumerate(starts):
-    if gid==255:continue
+   for slot,gid in (human_starts if team==0 else cpu_starts):
+    if gid>=len(groups):raise ValueError(f'Unknown active CPU group {gid} in mission {number},slot{slot}')
     group=groups[gid];typ=group['type'];squad=team*100+slot+1
     hardware=robot[group['members'][0]*44+34];placementclass=robot[0x55f0+hardware*42+1]
     if placementclass in (10,14) and len(group['members'])>1:
@@ -211,25 +225,57 @@ def extract(root,out):
      point_index+=1
      rx,ry=exe.pair(table+point_index*4);base=(gx+rx,gy+ry);anchorconfidence='exe_static_group_anchor'
     mount={'fortId':fort_id} if typ in GUNS else {}
-    anchors.append({'team':team,'slot':slot,'groupId':gid,'type':typ,'x':base[0]*2,'y':base[1]*2,'rawMembers':group['members'],'confidence':anchorconfidence,**mount})
+    if team==1 and typ in GUNS:
+     # Native gun construction overruns its six-letter socket row for some
+     # supplied CPU rosters (M5 yields nativeY16928). Authored CPUPLR positions
+     # are an explicit compatibility correction, not a native-parity claim.
+     base=(u16(cp,0x794+slot*10),u16(cp,0x796+slot*10));mount={}
+     dx,dy=(0,0)if typ=='cannon'else(-2,-8)
+     sockets=[(gx+sx+dx,gy+sy+dy)for sx,sy in [(17,170),(113,1),(113,170),(17,1),(113,49),(17,49)]]
+     roof=min(sockets,key=lambda p:(p[0]-base[0])**2+(p[1]-base[1])**2)
+     if (roof[0]-base[0])**2+(roof[1]-base[1])**2<=12**2:base=roof;mount={'fortId':fort_id}
+     anchorconfidence='native_CPUPLR_gun_anchor_compatibility'
+    anchors.append({'team':team,'slot':slot,'groupId':gid,'type':typ,'x':base[0]*2,'y':base[1]*2,'rawMembers':group['members'],'confidence':anchorconfidence,**({'nativeAiTaskSector':cp[0x799+slot*10]-1 if cp[0x799+slot*10] else None}if team==1 else {}),**mount})
     for member,raw in enumerate(group['members']):
      # FUN_0041aec0 ASM 0041af08..0041af22: the decompiler drops X +=
      # (member & 3) << 4, but retains only Y += member & 0xfc.
      dx,dy=(member&3)*16,member&0xfc
-     spawns.append({'type':RAW[raw],'t':RAW[raw],'team':team,'x':(base[0]+dx)*2,'y':(base[1]+dy)*2,'squad':squad,'rawRobotId':raw,'groupId':gid,'source':'levels.dat_group','member':member,'memberOffsetNative':[dx,dy],'confidence':anchorconfidence+';member_offsets_exact_0041af08_0041af22',**mount})
+     spawns.append({'type':RAW[raw],'t':RAW[raw],'team':team,'x':(base[0]+dx)*2,'y':(base[1]+dy)*2,'squad':squad,'rawRobotId':raw,'groupId':gid,'formation':group['formation'],'source':'levels.dat_group','member':member,'memberOffsetNative':[dx,dy],'confidence':anchorconfidence+';member_offsets_exact_0041af08_0041af22',**mount})
   outside=len(sectors);sectors.append({'id':outside,'x':-1024,'y':-1024,'owner':-1,'home':True,'outside':True,'countsForProduction':False})
   compatible=[outside if sid<0 else sid for sid in lookup]
   wall_lookup=wall_tile_lookup(exe,lv[0x6e])
   walls,wall_ground_tiles,wall_ground_codes,wall_ground_classes=extract_walls(d,w,h,rawtiles,codes,tiles,wall_lookup)
   data={'number':number,'name':text(lv,0,20),'map':{'width':w,'height':h,'tileSize':32,'world':WORLDS[world],'worldName':world,'tiles':tiles,'territory':compatible,'originalTerritory':territory,'lookupTerritory':lookup,'originalTiles':rawtiles,'terrainCodes':codes,'bridgeBase':bridgebase,'bridgeHp':bridgehp,'seed':number,'revision':0,'original':True},'sectors':sectors,'buildings':buildings,'spawns':spawns,'startingGroups':anchors,'originalObjects':objects,'bridges':bridges,'crates':crates,'sourceFiles':{'map':f'LEVEL{nn}.MAP','build':f'BUILD{nn}.DAT','objects':f'OBJECT{nn}.DAT','cpu':f'CPUPLR{nn}.DAT','bridge':f'BRIDGE{nn}.DAT'},'diagnostics':{'inactiveBuildRecordsSkipped':skipped,'outsideTiles':territory.count(-1),'outsideLookupTiles':lookup.count(-1),'terrainCodes':dict(Counter(codes)),'unsupportedUnitTypes':sorted({s['type']for s in spawns} - set(RAW.values()))}}
-  data['nativeAi']={'decisionControl':cp[0x780],'source':'CPUPLR+0x780 ->00417b30/00419fb0','strategy':'native_clock_with_browser_sector_adapter'}
+  #004170a0 floods the entire native128x128 plane, including the border beyond
+  #the displayed dimensions. Cropping it changes enclosed-sector eligibility.
+  terrain_plane=list(d[0x6791:0x6791+128*128])
+  for y in range(h):terrain_plane[y*128:y*128+w]=[((rawtiles[y*w+x]&256)>>1)|codes[y*w+x] for x in range(w)]
+  data['map']['nativeTerrainPlane']=terrain_plane
+  data['map']['nativeLevelRecord']=li
+  data['nativeAi']={'levelRecordIndex':li,'decisionControl':cp[0x780],'reservePercent':25,'rawReservePercent':cp[0x781],'populationWeight':cp[0x89f],'terrainPlane':terrain_plane,'initialSectorTasks':[{'slot':slot,'groupId':gid,'sector':cp[0x799+slot*10]-1 if cp[0x799+slot*10] else None}for slot,gid in cpu_starts],'source':'CPUPLR ->00417040/00416b70/00417b30/00419fb0','strategy':'native_clock_with_browser_sector_adapter'}
   data['walls']=walls
   data['map']['bridgeMaxHp']=bridgecaps
+  # Version-9 MAPs already contain the96-record authored native road graph.
+  # Keep bounds/packed waypoints and the96-byte next-hop rows verbatim.
+  road_records=d[0xa971:0xdc71]
+  assert len(road_records)==96*0x88
+  data['map']['nativeRoadGraph']={'regions':[{'bounds':list(struct.unpack_from('<4h',road_records,i*0x88)),'waypoint':u16(road_records,i*0x88+8),'next':list(road_records[i*0x88+0x28:(i+1)*0x88])}for i in range(96)]}
+  native_buildings=[]
+  for slot in range(35):
+   r=buildingdata[slot*80:(slot+1)*80];assert len(r)==80
+   bid=next((b['id']for b in buildings if b.get('sourceOffset')==slot*80),None)
+   native_buildings.append({'nativeSlot':slot,'flags6':r[6],'kind':-1 if r[4]==255 else r[4],'x':i16(r,0),'y':i16(r,2),'hp':i16(r,28),'maxHp':i16(r,26),'buildingId':bid,'fortProxy':False})
+  #0045fa10 fills the first two unused BUILD slots with fort proxies. These
+  #hold the pre-constructor HP;40b250 subsequently copies the global fort HP.
+  for ft in forts:
+   record=next(b for b in native_buildings if b['kind']==-1)
+   record.update({'kind':2,'x':ft['rawBase'][0],'y':ft['rawBase'][1]+16,'buildingId':next(b['id']for b in buildings if b['kind']=='fort'and b['team']==ft['team']),'fortProxy':True})
+  data['nativeWorldBuildings']=native_buildings
   data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes})
   data['diagnostics']['wallRecords']=len({wall['wallRecord']for wall in walls})
   data['diagnostics']['wallPieces']=len(walls)
   missions.append(data)
- result={'version':4,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['Initial normal squad member offsets verified in ASM; default V follower formation and native rotated offsets now implemented in Rust; other native formation layouts remain unimplemented.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral hardware availability and equipment exact; sprite anchor needs review.','Factory gates provisionally placed at bottom center; exact exits not recovered.','Wall positions, height, hit points, exposed-side shapes and world graphics recovered from MAP/EXE. Interior texture variants use a stable adapter instead of unrecovered shared RNG state. Native auxiliary right-edge shadow adjustments are not yet reconstructed.','Terrain visual tile indices exact apart from documented wall variants; compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
+ result={'version':8,'sourceExeSha256':hashlib.sha256(exe.d).hexdigest(),'coordinateScale':2,'groups':groups,'missions':missions,'limitations':['CPU fixed-gun coordinates use authored CPUPLR positions with explicit roof alignment compatibility; native construction overruns its six-letter socket table for several supplied rosters.','Initial member positions, five formation masks, automatic formation writers and hierarchical/local road kernels are recovered; the native route scheduler and linked-pool capacities are represented by browser paths.','Transport passenger hidden-state branch is not emitted; no current campaign starting group has transport passengers.','Neutral and occupied hardware constructors, equipment and origin offsets are recovered and tested; browser entity IDs are retained for selection/network compatibility.','Native factory door, exit/protection callbacks and completion stock are recovered; rendering and browser interaction use doubled native coordinates.','Wall positions, height, hit points, exposed-side shapes and world graphics recovered from MAP/EXE. Interior texture variants use a stable adapter instead of unrecovered shared RNG state. Native auxiliary right-edge shadow adjustments are not yet reconstructed.','Terrain visual tile indices exact apart from documented wall variants; compatibility classes serve rendering/minimap and native collision reads terrainCodes.','Outside filler sector must be excluded from production territorial totals.']}
  out.mkdir(parents=True,exist_ok=True);(out/'campaign.json').write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
  (out/'summary.json').write_text(json.dumps([{'level':m['number'],'name':m['name'],'width':m['map']['width'],'height':m['map']['height'],'sectors':len(m['sectors'])-1,'buildings':len(m['buildings']),'spawns':len(m['spawns']),'walls':len(m['walls']),'unsupported':m['diagnostics']['unsupportedUnitTypes']}for m in missions],indent=2),encoding='utf-8')
  print(f'Extracted {len(missions)} missions to {out / "campaign.json"}')

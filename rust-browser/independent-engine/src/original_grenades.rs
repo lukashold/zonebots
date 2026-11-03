@@ -39,7 +39,7 @@ mod tests {
         for shooter in TYPES {
             for target in TYPES {
                 let expected=matches!(shooter,"grunt"|"psycho"|"sniper")
-                    && matches!(target,"cannon"|"medium"|"heavy"|"light"|"launcher"|"jeep"|"apc"|"crane"|"truck"|"firetruck");
+                    && matches!(target,"cannon"|"missile"|"gatling"|"howitzer"|"medium"|"heavy"|"light"|"launcher"|"jeep"|"apc"|"crane"|"truck"|"firetruck");
                 assert_eq!(eligible(shooter,1,target),expected,"{shooter} -> {target}");
                 assert!(!eligible(shooter,0,target));
             }
@@ -48,7 +48,10 @@ mod tests {
 
     #[test]
     fn actual_original_shot_spends_one_grenade_for_fifty_hull_damage() {
-        let mut game=engagement("grunt","medium");game.units[0].grenades=1;
+        //A fixed gun isolates flight/contact from the separate native
+        //vehicle dodge. Manual attack isolates fire timing from idle search.
+        let mut game=engagement("grunt","cannon");game.units[0].grenades=1;game.units[1].hp=200.;game.units[1].max_hp=200.;
+        game.command(&crate::json!({"kind":"attack","ids":[game.units[0].id],"target":game.units[1].id}));
         for _ in 0..11{game.step(0.059);assert_eq!(game.units[0].grenades,1);}
         game.step(0.059);
         assert_eq!(game.units[0].grenades,0);
@@ -67,7 +70,7 @@ mod tests {
     fn empty_inventory_and_other_weapons_keep_their_native_attack() {
         for (shooter,target) in [("grunt","medium"),("tough","medium"),("pyro","medium"),("laser","medium"),("grunt","howitzer"),("grunt","gatling"),("grunt","missile")] {
             let mut game=engagement(shooter,target);
-            if shooter=="grunt"&&target=="medium" {game.units[0].grenades=0;}
+            if shooter=="grunt" {game.units[0].grenades=0;}
             let old=game.units[0].grenades;
             for _ in 0..40{game.step(0.059);if game.events.iter().any(|e|e["kind"]=="shot"){break;}}
             assert_eq!(game.units[0].grenades,old,"{shooter} -> {target}");
@@ -106,7 +109,7 @@ mod tests {
     #[test]
     fn howitzer_profile_is_stationary_artillery_instead_of_fallback_robot() {
         let state=original_combat::CombatState::new("howitzer");
-        assert_eq!(original_combat::runtime_class("howitzer"),6);
+        assert_eq!(original_combat::runtime_class("howitzer"),2);
         assert_eq!(state.aim_skill,60);
         assert_eq!(state.movement_control,0);
         assert_eq!(state.fire_rate,10);

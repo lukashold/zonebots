@@ -6,7 +6,7 @@ window.WorkshopCommand=(()=>{
  function vehicleIds(state,selected){
   if(!state)return [];
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));
-  return idsOf(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&d?.class===1&&u.crew!=null&&u.workshop?.phase!=='repairing'&&Number.isFinite(u.maxHp)&&u.hp<u.maxHp;});
+  return idsOf(selected).filter(id=>{const u=units.get(id),d=u&&catalog.get(u.type);return u?.team===0&&live(state,u)&&d?.class===1&&u.crew!=null&&u.workshop?.phase!=='repairing'&&u.nativeTransport?.visible!==false&&Number.isFinite(u.maxHp)&&u.hp<u.maxHp;});
  }
  function usable(b){return b?.kind==='repair'&&b.team===0&&Number.isFinite(b.hp)&&b.hp>0;}
  //0041c3f0 addresses the inner repair anchor: native half-size minus8.

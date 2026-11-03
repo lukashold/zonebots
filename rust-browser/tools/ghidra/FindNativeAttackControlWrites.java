@@ -1,0 +1,3 @@
+// Bounded writer inventory for UNIT28/8e/A8 and constructor reuse audit.
+import ghidra.app.script.GhidraScript;import ghidra.program.model.listing.*;import java.io.*;
+public class FindNativeAttackControlWrites extends GhidraScript{public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){InstructionIterator it=currentProgram.getListing().getInstructions(true);while(it.hasNext()){Instruction i=it.next();if(!i.getMnemonicString().equals("MOV"))continue;String op=i.getDefaultOperandRepresentation(0);if(op.contains(" + 0x62]")||op.contains("58687e")){Function f=currentProgram.getFunctionManager().getFunctionContaining(i.getAddress());out.println(i.getAddress()+" "+i+" FUNCTION "+(f==null?"null":f.getEntryPoint()+" "+f.getName()));}}}}}

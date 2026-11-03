@@ -53,7 +53,13 @@ function inBounds(r){
     const first=init(m);
     assert.equal(first.map.original,true);
     for(const field of ['width','height','tileSize','world'])assert.equal(first.map[field],m.map[field]);
-    for(const field of ['tiles','territory','originalTiles','terrainCodes','bridgeBase','bridgeHp'])assert.deepEqual(first.map[field],m.map[field],`Mission ${m.number} map ${field}`);
+    for(const field of ['territory','bridgeBase','bridgeHp'])assert.deepEqual(first.map[field],m.map[field],`Mission ${m.number} map ${field}`);
+    //Native startup stamps OBJECT/flag/ambient collision codes and retires
+    //destroyed bridge roads. Those runtime planes cannot equal raw MAP input.
+    //Tile artwork IDs and ownership/bridge indexing remain exact input data.
+    assert.deepEqual(first.map.originalTiles.map(n=>n&255),m.map.originalTiles.map(n=>n&255),`Mission ${m.number} source tile artwork`);
+    assert.equal(first.map.tiles.length,m.map.width*m.map.height);assert(first.map.tiles.every(n=>Number.isInteger(n)&&n>=0&&n<=6));
+    assert.equal(first.map.terrainCodes.length,m.map.width*m.map.height);assert(first.map.terrainCodes.every(n=>Number.isInteger(n)&&n>=0&&n<128));
     assert.equal(first.catalog.length,19);
     const catalog=new Map(first.catalog.map(d=>[d.type,d]));
     assert.equal(first.units.length,m.spawns.length,`Mission ${m.number}: initial unit count`);
@@ -92,7 +98,8 @@ function inBounds(r){
     const m=clone(campaign.missions[0]);
     if(ownAll)for(const sector of m.sectors)if(sector.countsForProduction!==false)sector.owner=0;
     const b=m.buildings.find(b=>b.kind==='fort'&&b.team===0);
-    b.hp=b.maxHp*fraction;b.product='grunt';b.progress=0;b.remainingWork=null;
+    // BUILD/global fort health is a native signed integer, never a fraction.
+    b.hp=Math.trunc(b.maxHp*fraction);b.product='grunt';b.progress=0;b.remainingWork=null;
     const first=init(m),index=first.buildings.findIndex(x=>x.id===b.id);
     const workload=first.catalog.find(d=>d.type==='grunt').workload;
     assert(Number.isInteger(workload)&&workload>0,'Rebuild Wasm: catalog.workload is absent');

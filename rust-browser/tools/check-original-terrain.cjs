@@ -46,7 +46,7 @@ const wet=new Set([9,38,39,40,42]),vehicles=new Set(['jeep','light','medium','he
  // Plan across a live bridge, destroy it while the vehicle is still on shore,
  // then ensure movement cannot consume the now-invalid path into the water.
  const bridge=fixture(9);const bj=10*bridge.map.width+10;
- bridge.map.terrainCodes[bj]=23;bridge.map.tiles[bj]=5;bridge.map.bridgeBase[bj]=0;bridge.map.bridgeHp=[1];
+ bridge.bridges=[{id:0,nativeSlot:0,x:320,y:320,w:32,h:32,hp:1,maxHp:400,nativeOrientation:0,nativeFlags15:0,tiles:[bj]}];bridge.map.terrainCodes[bj]=23;bridge.map.tiles[bj]=5;bridge.map.bridgeBase[bj]=0;bridge.map.bridgeHp=[1];
  bridge.spawns.push({type:'heavy',team:0,x:272,y:336,squad:3});s=order(init(bridge));
  const car=player(s).id,attacker=s.units.find(u=>u.type==='heavy').id;
  assert(routeCells(s.units.find(u=>u.id===car)).some(([x,y])=>x===10&&y===10),'Vehicle should initially use the intact bridge');

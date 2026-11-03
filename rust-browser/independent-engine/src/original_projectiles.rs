@@ -28,6 +28,16 @@ mod tests {
         g.effects.clear();g.events.clear();g.ai_teams.clear();g.ai_clock=10000.;g.next_id=1;g.winner=None;g
     }
     #[test]
+    fn phase65_build_release_keeps_the_original_zero_length_rejection(){
+        let mut g=field();g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);
+        let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().flags69|=32;
+        assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));
+        for _ in 0..8{g.fire_native_ground(0,(1000.,1200.),900,false);}
+        assert_eq!(g.units[0].native_phase35,65);assert!(g.units[0].native_fire.is_some());
+        assert!(g.units[0].cooldown>0.,"the real windup reached a release attempt");
+        assert!(g.projectiles.is_empty(),"56840 uses the same raw54/56 origin and selected target, so464a20 rejects the shot");
+    }
+    #[test]
     fn all_193_steps_match_executed_x86_flight_in_eight_octants_and_long_axis(){
         let mut hash=2166136261u32;let mut count=0;
         for rocket in [0,1]{for (dx,dy) in [(60,22),(22,60),(-60,22),(-22,60),(60,-22),(22,-60),(-60,-22),(-22,-60),(160,0)]{
@@ -143,12 +153,13 @@ pub struct Fire {
     #[serde(skip)] base:usize,
     #[serde(skip)] lifetime:i32,
 }
+impl Fire{pub(crate) fn sync_native_object(&mut self,frame:u8,lifetime:i8){self.frame=frame;self.sprite=self.base+usize::from(frame);self.lifetime=i32::from(lifetime);}}
 impl Game {
     fn native_height(&self,x:i32,y:i32)->i32 {
         let code=self.native_terrain(x,y);
         i32::from(data::TERRAIN_HEIGHT.get(code as usize).copied().unwrap_or(0))
     }
-    fn native_terrain(&self,x:i32,y:i32)->u8 {
+    pub(crate) fn native_terrain(&self,x:i32,y:i32)->u8 {
         if x<0||y<0{return 0;}
         let (c,r)=((x/16)as usize,(y/16)as usize);
         if c>=self.map.width||r>=self.map.height{return 0;}
@@ -198,9 +209,10 @@ impl Game {
             "firetruck"=>(Kind::Flame,8,[16,8]),
             _=>return false,
         }};
+        let speed=if grenade{speed}else{u.original_combat.as_ref().and_then(|c|c.projectile_speed).map(i32::from).unwrap_or(speed)};
         let origin=(x+offset[0],y+offset[1]);
         let elevation=self.native_height(x,y)+1+if stats(&u.kind).cls>0{1}else{0};
-        let range=((stats(&u.kind).range/2.)as i32>>3)*8;
+        let range=((self.native_unit_stats(&u).range/2.)as i32>>3)*8;
         let mut launches=vec![(origin,point)];
         if !grenade&&u.kind=="missile"{
             launches[0].1=(point.0+data::MISSILE_TARGET_A[aim][0],point.1+data::MISSILE_TARGET_A[aim][1]);
@@ -227,36 +239,57 @@ impl Game {
         if launched&&grenade{self.units[index].grenades=self.units[index].grenades.saturating_sub(1);}
         launched
     }
+    pub(crate) fn emit_native_projectile(&mut self,u:&Unit,origin:(i32,i32),target:(i32,i32),kind:Kind,speed:i32,range:i32,attack:Attack)->bool{
+        if origin==target{return false;}
+        let Some(id)=(0..50).find(|id|!self.projectiles.iter().any(|p|p.id==*id))else{return false;};
+        let elevation=self.native_height((u.x/2.).floor()as i32,(u.y/2.).floor()as i32)+1;
+        self.projectiles.push(Projectile{id,x:f64::from(origin.0)*2.,y:f64::from(origin.1)*2.,team:u.team,kind,
+            sprite:if kind==Kind::Flame{6046}else{1622},angle:native_math::projectile_angle(target.0-origin.0,target.1-origin.1),size:1,
+            flight:Flight::new(origin,target,range,speed,elevation,kind),attack,shooter:u.native_slot});true
+    }
     /// Point orders share the unit weapon's windup and allocator. No damage is
     /// committed here; the world geometry at the eventual impact decides it.
     pub(crate) fn fire_native_ground(&mut self,index:usize,point:(f64,f64),target:usize,grenade:bool)->bool {
+        if !grenade&&self.units[index].kind=="apc"{return self.fire_native_apc_point(index,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32),target);}
         if grenade&&self.units[index].grenades==0{return false;}
         let mut dummy=self.units[index].clone();dummy.id=target;
         dummy.x=point.0-16.;dummy.y=point.1-16.;dummy.kind=if grenade{"medium"}else{"grunt"}.into();
         if !self.advance_native_fire_choice(index,&dummy,grenade){return false;}
-        let u=self.units[index].clone();let mut attack=Attack::from_unit(&u,target,if grenade{50.}else{stats(&u.kind).damage},u.aim);attack.bullet=false;
+        //56840 chooses its BUILD branch from the retained raw50 sentinel.
+        //The phase65 release must use raw54/56, including the source's
+        //zero-length rejection, rather than the generic target surrogate.
+        if !grenade&&self.units[index].native_phase35==65{
+            if let Some(point)=self.native_ground_attack_point(index){
+                let made=self.emit_native_ground_flame(index,point);
+                self.units[index].cooldown=self.units[index].original_combat.as_ref().map(|s|s.reload_seconds()).unwrap_or(stats(&self.units[index].kind).reload);
+                return made;
+            }
+        }
+        let u=self.units[index].clone();let mut attack=Attack::from_unit(&u,target,if grenade{50.}else{self.native_unit_stats(&u).damage},u.aim);attack.bullet=false;
         let point=self.native_hardware_aim(&u,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32));
         let launched=self.launch_native_heavy_at(index,point,attack,grenade);
         self.units[index].cooldown=self.units[index].original_combat.as_ref().map(|s|s.reload_seconds()).unwrap_or(stats(&u.kind).reload);
         if launched{self.events.push(serde_json::json!({"kind":"shot","type":u.kind,"weapon":if grenade{"grenade"}else{"primary"},"x":u.x,"y":u.y,"team":u.team}));}
         launched
     }
-    fn spawn_native_blast(&mut self,x:i32,y:i32,attack:Attack,team:i32,shooter:Option<usize>){
+    pub(crate) fn spawn_native_blast(&mut self,x:i32,y:i32,attack:Attack,team:i32,shooter:Option<usize>){
         // Scenery contacts are synchronous even if the visual/delayed pool is full.
-        self.native_blast_environment(x+12,y+24,attack.damage,team);
+        self.native_blast_environment(x,y,attack.damage,team,false);
         let Some(id)=(0..50).find(|id|!self.blasts.iter().any(|b|b.id==*id))else{return;};
         let water=matches!(self.native_terrain(x+12,y+32),9|29|38|39|40|42);
         let special=data::TERRAIN_BLAST[self.map.world.min(4)];
         let (sprite,lifetime)=if water{if attack.damage<25{(special[2]as usize,special[3]as u8)}else{(special[0]as usize,special[1]as u8)}}else{(395,12)};
         self.blasts.push(Blast{id,x:f64::from(x)*2.,y:f64::from(y)*2.,team,frame:0,strength:attack.damage,water,sprite,lifetime,attack,_shooter:shooter});
-        self.events.push(serde_json::json!({"kind":"explosion","x":(x+12)*2,"y":(y+24)*2,"radius":32}));
+        self.events.push(serde_json::json!({"kind":"explosion","x":(x+12)*2,"y":(y+24)*2,"radius":32,"silent":self.native_blast_quiet()}));
     }
     pub(crate) fn update_native_projectiles(&mut self){
         let mut pending=std::mem::take(&mut self.projectiles);pending.sort_by_key(|p|p.id);
         for mut p in pending {
+            self.react_native_projectile([p.flight.line.x as i16,p.flight.line.y as i16]);
             let impact=p.flight.advance(p.kind,|x,y|self.native_height(x,y));
             let(x,y)=(p.flight.line.x,p.flight.line.y);p.x=f64::from(x)*2.;p.y=f64::from(y)*2.;
             if !impact {
+                self.react_native_dodge(p.shooter,p.team,[p.flight.line.x as i16,p.flight.line.y as i16],[p.flight.target.0 as i16,p.flight.target.1 as i16]);
                 p.size=p.flight.size(p.kind);p.sprite=match p.kind{Kind::Grenade=>1336+((self.motion_tick+1)/2)as usize%4,
                     Kind::Rocket=>1622+p.flight.phase,Kind::Flame=>6046+p.flight.phase,_=>1634};
                 self.projectiles.push(p);continue;
@@ -285,6 +318,7 @@ impl Game {
     }
     fn native_blast_contact(&mut self,b:&Blast){
         let(left,top)=((b.x/2.)as i32-6,(b.y/2.)as i32+10);
+        self.native_ambient_area_contact([left as i16,top as i16]);
         self.native_rectangle_contact(left,top,left+44,top+32,b.team,b.attack);
     }
     fn native_rectangle_contact(&mut self,left:i32,top:i32,right:i32,bottom:i32,team:i32,attack:Attack){
@@ -307,57 +341,14 @@ impl Game {
         }
     }
     fn spawn_native_fire(&mut self,x:i32,y:i32,team:i32,_shooter:Option<usize>){
+        if self.map.original&&self.native_world.is_none(){self.sync_native_world();}
         let variant=(self.native_random()&7).max(1)as usize;
-        let Some(id)=(0..200).find(|id|!self.fires.iter().any(|f|f.id==*id))else{return;};
-        if self.fires.len()+self.objects.len()>=200{return;}
+        let id=if self.native_world.is_some(){self.reserve_native_world_fire_slot()}else{(0..200).find(|id|!self.fires.iter().any(|f|f.id==*id))};let Some(id)=id else{return;};
         let lifetime=i32::from(data::FIRE_LIFETIME[self.native_terrain(x-3,y-3)as usize]);
         let base=[0,5836,557,469,5840,5844,5848,5854][variant];
         self.fires.push(Fire{id,x:f64::from(x-3)*2.,y:f64::from(y-3)*2.,team,frame:0,sprite:base,base,lifetime});
+        self.configure_native_world_fire_slot(id,[(x-3)as i16,(y-3)as i16],base as u16,0,lifetime as i8);
     }
-    pub(crate) fn update_native_fires(&mut self){
-        if self.motion_tick&1!=0{return;}
-        let mut pending=std::mem::take(&mut self.fires);pending.sort_by_key(|f|f.id);
-        for mut f in pending{
-            f.frame=(f.frame+1)%if matches!(f.base,557|5848|5854){6}else{4};f.sprite=f.base+usize::from(f.frame);
-            if f.frame==0{
-                let _smoke=self.native_random()&7==7;
-                let(x,y)=((f.x/2.)as i32,(f.y/2.)as i32);
-                let inside=self.buildings.iter().any(|b|f.x>=b.x&&f.x<=b.x+b.w&&f.y>=b.y&&f.y<=b.y+b.h);
-                let damage=if inside{10}else{20};
-                self.native_blast_environment(x+12,y+24,damage,255);
-                self.native_rectangle_contact(x,y,x+24,y+24,255,Attack{target:0,damage,aim:0,facing:0,bullet:false});
-                if f.lifetime!=127{f.lifetime-=8;if f.lifetime<0{continue;}}
-            }
-            self.fires.push(f);
-        }
-    }
-    fn native_blast_environment(&mut self,x:i32,y:i32,strength:u8,team:i32){
-        let (col,row)=(x>>4,(y+8)>>4);
-        for (c,r) in [(col,row),(col-1,row),(col+1,row),(col,row-1),(col,row+1)]{
-            if c<0||r<0||c>=self.map.width as i32||r>=self.map.height as i32{continue;}
-            let j=r as usize*self.map.width+c as usize;
-            if let Some(&owner)=self.wall_owners.get(j){if self.walls.iter().any(|w|w.id==owner&&w.hp>0.){self.damage_wall(owner,f64::from(strength),team);break;}}
-        }
-        // Building contacts use the impact position, never a saved target ID.
-        for b in self.buildings.iter_mut().filter(|b|b.hp>0.&&b.team!=team){
-            if f64::from(x)*2.>=b.x&&f64::from(x)*2.<=b.x+b.w&&f64::from(y)*2.>=b.y&&f64::from(y)*2.<=b.y+b.h{
-                b.hp=(b.hp-f64::from(strength)).max(0.);
-                if b.hp==0.{self.events.push(serde_json::json!({"kind":"buildingLost","team":b.team}));if b.kind=="fort"{self.winner=Some(team);}}
-            }
-        }
-        let bridge=[(col,row),(col-1,row),(col+1,row),(col,row-1),(col,row+1)].into_iter().find_map(|(c,r)|{
-            if c<0||r<0||c>=self.map.width as i32||r>=self.map.height as i32{return None;}
-            self.bridge_at_point(f64::from(c*32+16),f64::from(r*32+16))
-        });
-        if let Some(id)=bridge{
-            if self.map.bridge_hp[id]>0.{
-                self.map.bridge_hp[id]=(self.map.bridge_hp[id]-f64::from(strength)).max(0.);
-                if self.map.bridge_hp[id]==0.{
-                    for j in 0..self.map.tiles.len(){if self.map.bridge_base[j]==id as i32{self.map.tiles[j]=3;}}
-                    for u in &mut self.units{let(c,r)=((u.x/32.).floor()as usize,(u.y/32.).floor()as usize);if c<self.map.width&&r<self.map.height&&self.map.bridge_base[r*self.map.width+c]==id as i32{u.hp=-1.;}}
-                    self.map.revision=self.map.revision.wrapping_add(1);self.events.push(serde_json::json!({"kind":"bridgeDestroyed","team":team}));
-                }
-            }
-        }
-    }
+    pub(crate) fn update_native_fires(&mut self){self.update_native_world_objects();}
+
 }

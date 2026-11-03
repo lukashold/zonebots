@@ -1,6 +1,6 @@
 //! Native bullet pool00464af0 and tick004634a0. Positions and step lengths are
 //! original integer pixels; snapshots expose the doubled browser coordinates.
-use super::{Game,Unit,Fx,stats,workshops,original_tank_origin_offset,
+use super::{Game,Unit,workshops,
     original_combat::{self,Attack},original_fire::Mode,native_math::{self,Line},native_weapon_data as data};
 use serde::Serialize;
 
@@ -21,15 +21,17 @@ impl Game {
     pub(crate) fn native_scatter(&mut self,shooter:&Unit,target:&Unit,mode:Mode)->(i32,i32) {
         let (sx,sy)=((shooter.x/2.).floor()as i32,(shooter.y/2.).floor()as i32);
         let mut tx=(target.x/2.).floor()as i32;let mut ty=(target.y/2.).floor()as i32;
-        if original_combat::runtime_class(&target.kind)==2{tx+=8;}
+        if target.native_class7c==2{tx+=8;}
         let aim=i32::from(shooter.original_combat.as_ref().map(|s|s.aim_skill).unwrap_or(60));
-        let effective=(aim+(aim>>2)).min(127);
+        let flags69=shooter.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref).map_or(0,|m|m.flags69);
+        let effective=if flags69&128!=0{aim}else{(aim+(aim>>2)).min(127)};
         let distance_squared=i64::from(sx-tx).pow(2)+i64::from(sy-ty).pow(2);
         let mut amplitude=if matches!(mode,Mode::Rifle|Mode::Rapid) {
             let d=native_math::isqrt((distance_squared as u64)>>8);
-            let range_control=((stats(&shooter.kind).range/2.)as i32>>3)*2;
+            let range_control=((self.native_unit_stats(&shooter).range/2.)as i32>>3)*2;
             if range_control<(d>>1)+d*2 {(127-effective)>>3}else{0}
         }else{(128-effective)>>2};
+        if shooter.native_counter97!=0{amplitude*=2;}
         if native_math::isqrt((distance_squared as u64)>>6)>6 {
             amplitude=amplitude.max(1);let divisor=(65535/amplitude).max(1);
             let radius=(self.native_random()&65535)as i32/divisor;
@@ -39,12 +41,14 @@ impl Game {
         }
         (tx,ty)
     }
-    pub(crate) fn refresh_native_aim(&mut self,index:usize,target:&Unit) {
+    pub(crate) fn refresh_native_aim(&mut self,index:usize,target:&Unit)->bool {
         let shooter=self.units[index].clone();let mode=shooter.native_fire.as_ref().unwrap().mode;
-        let mut frozen=None;
+        let mut frozen=None;let mut missed=false;
         if mode!=Mode::Hardware {
             let aim=shooter.original_combat.as_ref().map(|s|s.aim_skill).unwrap_or(60);
-            if !original_combat::aim_roll_hits(aim as i8,false,self.native_random()) {
+            let flags69=shooter.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref).map_or(0,|m|m.flags69);
+            if !original_combat::aim_roll_hits(aim as i8,flags69&128!=0,self.native_random()) {
+                missed=true;
                 let point=self.native_scatter(&shooter,target,mode);
                 // Native negation of target slot0 remains nonnegative, so its
                 // release does the second current-position scatter as well.
@@ -52,9 +56,10 @@ impl Game {
             }
         }
         self.units[index].native_fire.as_mut().unwrap().frozen_aim=frozen;
+        missed
     }
     pub(crate) fn launch_native_bullet(&mut self,index:usize,target:&Unit,attack:Attack)->bool {
-        let Some(id)=(0..200).find(|id|!self.bullets.iter().any(|b|b.id==*id))else{return false;};
+        if self.bullets.len()>=200{return false;}
         let u=self.units[index].clone();
         let mode=u.native_fire.as_ref().map(|s|s.mode).unwrap_or(Mode::Hardware);
         let point=u.native_fire.as_ref().and_then(|s|s.frozen_aim).unwrap_or_else(||self.native_scatter(&u,target,mode));
@@ -67,31 +72,37 @@ impl Game {
             _=>(x+8,y+8),
         };
         let(tx,ty)=(point.0+8,point.1+8);
+        let range=((self.native_unit_stats(&u).range/2.)as i32>>3)+1;
+        self.emit_native_bullet(&u,(sx,sy),(tx,ty),range*8,u.kind=="laser",attack)
+    }
+    pub(crate) fn emit_native_bullet(&mut self,u:&Unit,(sx,sy):(i32,i32),(tx,ty):(i32,i32),range:i32,laser:bool,attack:Attack)->bool {
         if(sx,sy)==(tx,ty){return false;}
-        let range=((stats(&u.kind).range/2.)as i32>>3)+1;
-        self.bullets.push(Bullet{id,x:f64::from(sx)*2.,y:f64::from(sy)*2.,team:u.team,laser:u.kind=="laser",phase:0,angle:native_math::projectile_angle(tx-sx,ty-sy),
-            line:Line::new(sx,sy,tx,ty),origin:(sx,sy),maximum_range:range*8,speed:15,attack});true
+        let Some(id)=(0..200).find(|id|!self.bullets.iter().any(|b|b.id==*id))else{return false;};
+        self.bullets.push(Bullet{id,x:f64::from(sx)*2.,y:f64::from(sy)*2.,team:u.team,laser,phase:0,angle:native_math::projectile_angle(tx-sx,ty-sy),
+            line:Line::new(sx,sy,tx,ty),origin:(sx,sy),maximum_range:range,speed:15,attack});true
     }
     fn bullet_contact(&mut self,b:&Bullet)->bool {
         let (x,y)=(b.line.x,b.line.y);
         if x<0||y<0||x>=self.map.width as i32*16||y>=self.map.height as i32*16{return true;}
         let j=(y/16)as usize*self.map.width+(x/16)as usize;
         let code=self.map.terrain_codes.get(j).copied().unwrap_or(0)&127;
-        if data::BULLET_BLOCK.get(usize::from(code))==Some(&255){return true;}
+        if data::BULLET_BLOCK.get(usize::from(code))==Some(&255){self.spawn_native_bullet_ground_impact([(x as i16).wrapping_sub(4),(y as i16).wrapping_sub(4)]);return true;}
         // Destructible object footprints are an additional native contact pass,
         // separate from the terrain flags. Bullets stop without demolishing stone.
-        if self.walls.iter().any(|w|w.hp>0.&&b.x>=w.x&&b.x<=w.x+w.w&&b.y>=w.y&&b.y<=w.y+w.h){return true;}
+        if self.walls.iter().any(|w|w.hp>0.&&b.x>=w.x&&b.x<=w.x+w.w&&b.y>=w.y&&b.y<=w.y+w.h){self.spawn_native_bullet_ground_impact([(x as i16).wrapping_sub(4),(y as i16).wrapping_sub(4)]);return true;}
+        //463595 calls404f80 at the bullet coordinate minus one on both axes.
+        if self.native_ambient_bullet_contact([(x as i16).wrapping_sub(1),(y as i16).wrapping_sub(1)]){return true;}
         let coarse=((y-8)>>7)*16+((x-8)>>7);
         // 00499f5c: the original nine coarse spatial buckets, in scan order.
         for offset in COARSE_OFFSETS {
             let cell=coarse+i32::from(offset);if !(0..256).contains(&cell){continue;}
-            let mut candidates=self.units.iter().enumerate().filter(|(_,u)|u.team>=0&&u.team!=b.team
+            let mut candidates=self.units.iter().enumerate().filter(|(_,u)|u.team>=0
                 &&original_combat::alive(true,u.hp)&&!workshops::hidden(u)
                 &&(((u.y/2.).floor()as i32>>7)*16+((u.x/2.).floor()as i32>>7))==cell)
                 .map(|(i,u)|(u.native_slot.unwrap_or(u.id),i)).collect::<Vec<_>>();
             candidates.sort_unstable();
-            for (_,i) in candidates {
-                let u=&self.units[i];let extent=if original_combat::runtime_class(&u.kind)==1{16}else{8};
+            for (_,i) in candidates.into_iter().take(32) {
+                let u=&self.units[i];if u.team==b.team{continue;}let extent=if u.native_class7c==1{16}else{8};
                 if ((u.x/2.).floor()as i32-x+8).abs()<=extent&&((u.y/2.).floor()as i32-y+8).abs()<=extent {
                     let mut attack=b.attack;attack.target=u.id;self.apply_native_contact(attack);return true;
                 }
@@ -110,25 +121,24 @@ impl Game {
                 b.x=f64::from(b.line.x)*2.;b.y=f64::from(b.line.y)*2.;self.bullet_contact(&b);continue;
             }
             let d=i64::from(b.line.x-b.origin.0).pow(2)+i64::from(b.line.y-b.origin.1).pow(2);
-            if d>i64::from(b.maximum_range).pow(2)||self.bullet_contact(&b){continue;}
+            if d>i64::from(b.maximum_range).pow(2){self.spawn_native_bullet_ground_impact([(b.line.x as i16).wrapping_sub(4),(b.line.y as i16).wrapping_sub(4)]);continue;}if self.bullet_contact(&b){continue;}
             b.phase^=1;self.bullets.push(b);
         }
     }
     pub(crate) fn apply_native_contact(&mut self,attack:Attack) {
+        let source=if attack.bullet{super::original_death::RemovalSource::Bullet}else{super::original_death::RemovalSource::Blast};self.apply_native_contact_from(attack,source);
+    }
+    pub(crate) fn apply_native_contact_from(&mut self,attack:Attack,source:super::original_death::RemovalSource) {
+        if self.map.original&&self.native_world.is_none(){self.sync_native_world();}
         if let Some(i)=self.units.iter().position(|u|u.id==attack.target&&original_combat::alive(true,u.hp)&&!workshops::hidden(u)) {
             let mut rng=self.original_rng.clone();rng.multiplayer=self.multiplayer;
             let occupied=self.units[i].team>=0&&self.units[i].crew.is_some();
+            let before=self.units[i].clone();self.remember_original_group_order(i,&before);
             let crew_killed=original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||rng.next_u32());
-            if crew_killed&&occupied {
-                let(dx,dy)=original_tank_origin_offset(&self.units[i].kind,false);
-                self.units[i].x+=dx;self.units[i].y+=dy;self.units[i].native_slot=None;
-            }
+            self.sync_native_hardware_combat(i);
+            //Promotion can consume native randomness. Commit contact RNG first.
             self.original_rng=rng;
-            if self.units[i].hp<0. {
-                let u=&self.units[i];let radius=if stats(&u.kind).cls==0{12.}else{30.};
-                self.effects.push(Fx{x:u.x,y:u.y,age:0.,life:0.8,kind:"explosion".into(),radius,x2:0.,y2:0.});
-                self.events.push(serde_json::json!({"kind":"explosion","x":u.x,"y":u.y,"radius":radius}));
-            }
+            if self.units[i].hp<0.||crew_killed&&occupied{self.native_contact_removal(i,&before,source,crew_killed&&occupied);}
         }
     }
 }

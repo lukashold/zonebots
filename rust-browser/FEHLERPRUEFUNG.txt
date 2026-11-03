@@ -1,3 +1,7 @@
+Historischer Prüfbericht vom 31.10.2026. Aktueller Gesamtprüfstand:
+TESTERGEBNIS.txt; bekannte verbleibende Abweichungen: ORIGINAL-ABGLEICH.txt.
+Die damaligen Testzahlen und Aussagen gelten nur für den damaligen Build.
+
 Systematische Fehlerprüfung vom 31.10.2026
 
 Alle konkret reproduzierten Befunde dieser Prüfrunde sind behoben. Der letzte

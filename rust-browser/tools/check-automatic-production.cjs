@@ -59,7 +59,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
     corners.sort((a, b) => Math.hypot(b[0]-flag.x, b[1]-flag.y) - Math.hypot(a[0]-flag.x, a[1]-flag.y));
     const [x, y] = corners[0];
     assert(Math.hypot(x-flag.x, y-flag.y) > 600, 'Fixture combatants must be separated');
-    m.spawns = [{type:'grunt', team:0, x:flag.x, y:flag.y, squad:1},
+    m.spawns = [{type:'grunt', team:0, x:flag.rawFlagTile[0]*size, y:flag.rawFlagTile[1]*size, squad:1},
       {type:'gatling', team:1, x, y, squad:2}];
     m.crates = []; m.originalObjects = [];
     return m;
@@ -119,13 +119,15 @@ const clone = value => JSON.parse(JSON.stringify(value));
   manualInput.progress = 1 - manualInput.remainingWork / workload;
   state = init(manual);
   assert.equal(byId(state, id).product, alternative);
+  const constructedWork=byId(state,id).remainingWork;
+  assert.equal(constructedWork,null,'The fresh native BUILD constructor discards saved work; a neutral factory initializes it when captured');
   state = request({op:'tick', dt:.059});
   let building = byId(state, id);
   assert.equal(building.team, 0);
   assert.equal(building.product, alternative);
   const own=state.sectors.filter(s=>s.owner===0&&s.countsForProduction!==false).length,captureTotal=state.sectors.filter(s=>s.countsForProduction!==false).length;
   const captureRate=Math.trunc(Math.trunc(building.hp*100/building.maxHp)*(1+(Math.trunc(own*100/captureTotal)>>2))/100);
-  assert.equal(building.remainingWork, manualInput.remainingWork-captureRate,'Capture preserves the unfinished order and spends exactly one native tick');
+  assert.equal(building.remainingWork, workload-captureRate,'Capture initializes the full native workload and spends exactly one native tick');
   assert.equal(building.progress,1-building.remainingWork/workload);
 
   // The old stop command now selects the robot default. Repeating it must not
@@ -134,7 +136,8 @@ const clone = value => JSON.parse(JSON.stringify(value));
   building = byId(state, id);
   assert.equal(building.product, 'grunt');
   assert.equal(building.progress, 0);
-  assert.equal(building.remainingWork, null);
+  assert.equal(building.remainingWork, state.catalog.find(c => c.type === 'grunt').workload,
+    'The native product-selection callback initializes the complete workload immediately');
   state = request({op:'advance', steps:10});
   const beforeReset = byId(state, id);
   assert(beforeReset.progress > 0);
@@ -153,7 +156,14 @@ const clone = value => JSON.parse(JSON.stringify(value));
   state = init(repeated);
   const members = state.catalog.find(c => c.type === 'grunt').members;
   const firstCount = state.units.filter(u => u.team === 0 && u.type === 'grunt').length;
-  state = request({op:'tick', dt:0.1});
+  //The real constructor resets the supplied remainingWork=1. Complete the
+  //actual native work instead of treating campaign init as a save restore.
+  const initialBuilding=byId(state,id),initialTotal=state.sectors.filter(s=>s.countsForProduction!==false).length;
+  const initialOwned=state.sectors.filter(s=>s.owner===0&&s.countsForProduction!==false).length;
+  const initialRate=Math.trunc(Math.trunc(initialBuilding.hp*100/initialBuilding.maxHp)*(1+(Math.trunc(initialOwned*100/initialTotal)>>2))/100);
+  const nativeTicks=Math.floor((initialBuilding.remainingWork??state.catalog.find(c=>c.type==='grunt').workload)/initialRate)+1;
+  state=request({op:'advance',steps:Math.max(1,Math.floor(nativeTicks*.059/.1))});
+  for(let i=0;i<8&&state.units.filter(u=>u.team===0&&u.type==='grunt').length<firstCount+members;i++)state=request({op:'tick',dt:.059});
   assert.equal(state.units.filter(u => u.team === 0 && u.type === 'grunt').length, firstCount + members);
   assert(state.events.some(event => event.kind === 'ready' && event.type === 'grunt' && event.team === 0));
   building = byId(state, id);
@@ -164,6 +174,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
   assert(building.completionTicks>0, 'Completed group enters the original completion hold');
   assert.equal(state.productionSeconds[state.buildings.indexOf(building)],0);
   state = request({op:'advance', steps:Math.ceil((building.remainingWork + 1) / (rate * 17) * 10) + Math.ceil(building.completionTicks / 17 * 10) + 1});
+  for(let i=0;i<8&&state.units.filter(u=>u.team===0&&u.type==='grunt').length<firstCount+2*members;i++)state=request({op:'tick',dt:.059});
   assert.equal(state.winner, null);
   assert.equal(state.units.filter(u => u.team === 0 && u.type === 'grunt').length, firstCount + 2 * members);
   building = byId(state, id);

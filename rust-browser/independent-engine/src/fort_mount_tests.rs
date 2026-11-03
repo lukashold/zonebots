@@ -31,6 +31,26 @@ fn original_fort_socket_import_accepts_each_gun_class() {
 }
 
 #[test]
+fn zero_health_original_fort_remains_usable_and_targetable_until_negative_health() {
+    let mut game=original_game(json!([{"type":"light","x":200,"y":200,"team":1}]));
+    game.buildings[0].hp=0.;
+    assert!(!game.products(&game.buildings[0]).is_empty());
+    assert!(game.produce_for_team(0,Some("grunt"),0));
+    let actor=game.units[0].id;
+    game.command(&json!({"team":1,"kind":"attackBuilding","ids":[actor],"target":0}));
+    assert_eq!(game.units[0].order,"attackBuilding");
+    assert_eq!(game_snapshot(&game,&json!({}))["buildings"][0]["nativeFortDestroyed"],false);
+    game.buildings[0].hp=-1.;
+    game.command(&json!({"team":1,"kind":"stop","ids":[actor]}));
+    game.command(&json!({"team":1,"kind":"attackBuilding","ids":[actor],"target":0}));
+    assert_ne!(game.units[0].order,"attackBuilding");
+    assert!(game.products(&game.buildings[0]).is_empty());
+    let snapshot=game_snapshot(&game,&json!({}));
+    assert_eq!(snapshot["buildings"][0]["nativeFortDestroyed"],true);
+    assert_eq!(snapshot["buildings"][0]["hp"],0);
+}
+
+#[test]
 fn ground_and_new_guns_do_not_attach_by_owner_or_proximity() {
     let mut game = original_game(json!([
         {"type":"gatling","x":200,"y":200,"team":-1},

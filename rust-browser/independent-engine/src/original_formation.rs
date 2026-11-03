@@ -15,10 +15,14 @@ pub struct Follow {
  #[serde(skip)] next_plan:f64,
  #[serde(skip)] revision:u32,
 }
+impl Follow{
+ pub(crate) fn new(leader:usize,slot:usize,layout:u8,command_goal:(f64,f64),direction:u8,revision:u32)->Self{Self{leader,slot,layout,command_goal,direction,last_goal:None,next_plan:0.,revision}}
+}
+pub(crate) fn raw_offset(slot:usize,layout:u8)->[i8;2]{let role=slot.clamp(1,20);if layout==255{return[0,(role*10)as i8];}let p=LAYOUTS[usize::from(layout.min(4))][role-1];[p[0]as i8,p[1]as i8]}
 #[cfg(test)]
 pub fn offset(slot:usize,direction:u8)->(f64,f64) {offset_layout(slot,direction,0)}
 pub fn offset_layout(slot:usize,direction:u8,layout:u8)->(f64,f64) {
- let p=LAYOUTS[usize::from(layout.min(4))][slot.saturating_sub(1).min(19)];let a=-(i32::from(direction))*64;
+ let raw=raw_offset(slot,layout);let p=[i32::from(raw[0]),i32::from(raw[1])];let a=-(i32::from(direction))*64;
  let s=native_math::sine(a);let c=native_math::sine(a+128);
  (f64::from((p[1]*s>>10)+(p[0]*c>>10))*2.,f64::from((p[1]*c>>10)-(s*p[0]>>10))*2.)
 }
@@ -28,7 +32,7 @@ impl Game {
   for(i,u)in self.units.iter().enumerate(){if u.team==team&&original_combat::alive(true,u.hp)&&stats(&u.kind).cls==0&&chosen.contains(&u.id){squads.entry(u.squad).or_default().push(i);}}
   let mut fresh=self.units.iter().map(|u|u.squad).max().unwrap_or(0)+1;
   for(squad,mut members)in squads {
-   members.sort_by_key(|&i|self.units[i].native_slot.unwrap_or(self.units[i].id));
+   members.sort_by_key(|&i|{let u=&self.units[i];let role=u.native_slot.and_then(|slot|self.native_group_rosters.role(slot));(match role{Some(-1)=>0,Some(r)if r>0=>r as usize,_=>usize::MAX},u.native_slot.unwrap_or(u.id))});
    let all=self.units.iter().filter(|u|u.squad==squad&&u.team==team&&stats(&u.kind).cls==0&&original_combat::alive(true,u.hp)).count();
    if members.len()<all {for &i in &members{self.units[i].squad=fresh;}fresh+=1;}
    let lead=members[0];let leader=self.units[lead].id;
@@ -45,6 +49,7 @@ impl Game {
  }
  pub(crate) fn update_native_follower(&mut self,index:usize) {
   let u=self.units[index].clone();let Some(mut f)=u.formation.clone()else{return;};
+  if let Some(layout)=self.native_group_rosters.formation_layout(u.team,u.squad){f.layout=layout;}
   if u.order!="move"||u.initiative.is_some()||u.hold_position||u.workshop.is_some(){self.units[index].motion_bonus=if u.initiative.is_some(){3}else{0};return;}
   let leader=self.units.iter().find(|p|p.id==f.leader&&p.squad==u.squad&&p.team==u.team&&original_combat::alive(true,p.hp)).cloned();
   let leader=if let Some(leader)=leader{leader}else{
@@ -62,7 +67,7 @@ impl Game {
   if (u.x-goal.0).abs()+(u.y-goal.1).abs()<1. {
    let p=&mut self.units[index];p.path.clear();p.original_motion=None;p.motion_bonus=0;p.dest=Some(endpoint);p.formation=Some(f);return;
   }
-  let direct=self.movement_segment_clear_for(u.x,u.y,goal.0,goal.1,&u.kind);
+  let direct=self.movement_segment_clear_unit(&u,goal);
   let changed=f.last_goal.is_none_or(|old|(old.0-goal.0).abs()+(old.1-goal.1).abs()>=if direct{2.}else{32.});
   // Native followers update their local segment continuously. The browser's
   // global route adapter must not run a whole-map search for every leader pixel.
@@ -97,7 +102,7 @@ mod tests {
   let mut g=Game::new(0,1,891);g.map.original=true;g.map.tiles.fill(0);g.map.terrain_codes=vec![0;g.map.tiles.len()];g.map.bridge_base.fill(-1);
   g.units.clear();g.buildings.clear();g.crates.clear();g.sectors.clear();g.walls.clear();g.objects.clear();g.effects.clear();g.events.clear();g.ai_teams.clear();g.ai_clock=10000.;g.next_id=1;g.winner=None;
   for x in [320.,352.,384.]{g.spawn("grunt",0,x,600.,1,None);}
-  g.spawn("gatling",1,1500.,1000.,2,None);for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;}g
+  g.spawn("gatling",1,1500.,1000.,2,None);for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;}g.maintain_native_group_rosters();g
  }
  fn march(g:&mut Game,ids:&[usize]) {g.command(&json!({"kind":"move","ids":ids,"x":800.,"y":600.}));}
  #[test]
@@ -125,7 +130,10 @@ mod tests {
  }
  #[test]
  fn loss_of_the_leader_promotes_a_survivor_and_preserves_the_original_goal() {
-  let mut g=field();let ids=g.units[..3].iter().map(|u|u.id).collect::<Vec<_>>();march(&mut g,&ids);g.units[0].hp=-1.;
+  let mut g=field();let ids=g.units[..3].iter().map(|u|u.id).collect::<Vec<_>>();march(&mut g,&ids);g.maintain_native_group_rosters();let follower_slot=g.units[2].native_slot.unwrap();g.units[0].hp=-1.;g.remove_original_group_member(0);
+  //4b990 promotes the first occupied role without compacting the other roles.
+  //4bba0 marks40 only when a follower was removed; combat TTL is zero here.
+  let group=g.native_group_rosters.group_slot(0,1).unwrap();assert_eq!(g.native_group_rosters.pool[group].member(1),None);assert_eq!(g.native_group_rosters.role(follower_slot),Some(2));
   for _ in 0..700{g.step(0.059);}
   let leader=g.units.iter().find(|u|u.id==ids[1]).unwrap();assert!(leader.formation.is_none());assert_eq!((leader.x,leader.y),(800.,600.));
   let follower=g.units.iter().find(|u|u.id==ids[2]).unwrap();assert_eq!(follower.formation.as_ref().unwrap().leader,ids[1]);

@@ -7,7 +7,7 @@ window.PickupCommand=(()=>{
  const destination=unit=>Array.isArray(unit?.dest)&&unit.dest.length===2&&unit.dest.every(Number.isFinite)?unit.dest:null;
  function infantryIds(state,ids){
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));
-  return iterableIds(ids).filter(id=>{const u=units.get(id);return u?.team===0&&Number.isFinite(u.hp)&&(state.map?.original?u.hp>=0:u.hp>0)&&catalog.get(u.type)?.class===0;});
+  return iterableIds(ids).filter(id=>{const u=units.get(id);return u?.team===0&&u.nativeTransport?.visible!==false&&u.workshop?.phase!=='repairing'&&Number.isFinite(u.hp)&&(state.map?.original?u.hp>=0:u.hp>0)&&catalog.get(u.type)?.class===0;});
  }
  function intent(state,selected,point,options={},boundsFn){
   if(!state||options.paused||options.menu||options.placement||['attack','placement'].includes(options.commandMode)||state.winner!==null&&state.winner!==undefined)return null;

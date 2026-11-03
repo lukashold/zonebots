@@ -1,0 +1,6 @@
+//43f200 decrements OBJECT.word24 and forces one local object contact on zero.
+import ghidra.app.emulator.EmulatorHelper;
+import java.io.PrintWriter;
+public class ZNativeWreckLifetimeOracle extends ZNativeWorldEffectOracle{
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){EmulatorHelper e=new EmulatorHelper(currentProgram);try{e.setBreakpoint(toAddr(0x41eb90));e.setBreakpoint(toAddr(RET));for(int s=0;s<1024;s++){e.writeMemory(toAddr(O),new byte[44]);put(e,O,2,346);put(e,O+2,2,420);put(e,O+36,2,s<512?s-256:s*83);put(e,0x4a6e72,1,0);put(e,0x4a6f47,1,0);e.writeRegister("ESP",S);put(e,S,4,RET);e.writeRegister("ECX",O);int count=0,h=0x811c9dc5;if(!e.run(toAddr(0x43f200),null,monitor))throw new Exception(e.getLastError());while(e.readRegister("EIP").longValue()!=RET){long sp=e.readRegister("ESP").longValue();for(int n:new int[]{(short)e.readRegister("ECX").intValue(),(short)e.readRegister("EDX").intValue(),(int)read(e,sp+4,4),(int)read(e,0x4a6e72,1),(int)read(e,0x4a6f47,1)})h=(h^n)*16777619;count++;e.writeRegister("ESP",sp+4);if(!e.run(toAddr(read(e,sp,4)),null,monitor))throw new Exception(e.getLastError());}out.println("{\"scenario\":"+s+",\"lifetime\":"+(short)read(e,O+36,2)+",\"x\":"+(short)read(e,O,2)+",\"events\":"+count+",\"eventHash\":"+(h&0xffffffffL)+"}");}}finally{e.dispose();}}}
+}

@@ -9,7 +9,7 @@
  .original-hud-ready #statusPanel{width:var(--sidebar-width);padding:0;border:0;background:#252421;box-shadow:-2px 0 #141414;overflow:hidden}
  .original-hud-ready #nativeHud{position:absolute;right:0;top:0;display:block;width:96px;height:480px;transform:scale(var(--hud-scale));transform-origin:top right;background-repeat:no-repeat;background-size:96px 480px;image-rendering:pixelated}
  .original-hud-ready #nativeHud .panelTitle{display:none}
- .original-hud-ready #portrait{position:absolute;left:4px;top:39px;width:88px;height:78px;margin:0;border:0;background:#080808;box-shadow:none}
+ .original-hud-ready #portrait{position:absolute;left:4px;top:39px;width:88px;height:78px;margin:0;border:0;object-fit:contain;background:#080808;box-shadow:none}
  .original-hud-ready #hudCaption{display:block;position:absolute;left:0;top:119px;width:96px;height:14px;pointer-events:none}
  .original-hud-ready #unitName{position:absolute;left:4px;top:121px;width:88px;font:7px Arial,sans-serif;color:transparent;pointer-events:none}
  .original-hud-ready #hudUnitArt{display:block;position:absolute;left:0;top:142px;width:96px;height:78px;pointer-events:none}

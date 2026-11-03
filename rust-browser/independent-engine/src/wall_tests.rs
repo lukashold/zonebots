@@ -107,8 +107,27 @@ fn optional_owned_campaign_wall_composition_matches_the_extractor_for_all_twenty
         let mut g=Game::new(0,1,17);g.apply_original(mission).unwrap();
         let expected:Map=serde_json::from_value(mission["map"].clone()).unwrap();
         assert_eq!(g.map.original_tiles,expected.original_tiles,"Mission{}: visual forms",mission["number"]);
-        assert_eq!(g.map.terrain_codes,expected.terrain_codes,"Mission{}: native collision codes",mission["number"]);
-        assert_eq!(g.map.tiles,expected.tiles,"Mission{}: compatibility classes",mission["number"]);
+        //MAP loading is followed by OBJECT constructor overlays36/46 and
+        //initial bridge collapse. Wall composition must survive those writes;
+        //all other changed cells must belong to one of those authored records.
+        let mut overlays=std::collections::BTreeSet::new();
+        for o in mission["originalObjects"].as_array().unwrap(){
+            if o["type"]==37{continue;}let flags=o["templateFlags"].as_u64().unwrap_or(0)as u8;
+            if flags&4==0&&flags&3>1{continue;}
+            let mut x=(o["x"].as_f64().unwrap()/2.)as i32;let mut y=(o["y"].as_f64().unwrap()/2.)as i32;
+            if o["type"]==7{x&=!15;y=(y&!15)-14;}
+            if flags&6==6{y+=16;}
+            if x>=0&&y>=0{overlays.insert((y as usize/16)*expected.width+x as usize/16);}
+        }
+        for sector in mission["sectors"].as_array().unwrap().iter().filter(|s|s["home"]==false){let x=sector["rawFlagTile"][0].as_u64().unwrap()as usize;let y=sector["rawFlagTile"][1].as_u64().unwrap()as usize;if x<expected.width&&y<expected.height{overlays.insert(y*expected.width+x);}}
+        for b in mission["bridges"].as_array().unwrap(){if b["initiallyDestroyed"]==true{for cell in b["tiles"].as_array().into_iter().flatten(){if let Some(cell)=cell.as_u64(){overlays.insert(cell as usize);}}}}
+        //409690 also retires the bridge's authored road rectangle, including
+        //its north/west fringe. That source region can exceed deck tiles.
+        if let Some(graph)=&expected.native_road_graph{for b in mission["bridges"].as_array().unwrap().iter().filter(|b|b["initiallyDestroyed"]==true){let point=((b["x"].as_f64().unwrap()/2.)as i16,(b["y"].as_f64().unwrap()/2.)as i16);if let Some(slot)=graph.region_at(point){let r=graph.regions[slot as usize].bounds;for y in ((r[1]-16).max(0)as usize/16)..=(r[3].max(0)as usize/16){for x in ((r[0]-16).max(0)as usize/16)..=(r[2].max(0)as usize/16){if x<expected.width&&y<expected.height{overlays.insert(y*expected.width+x);}}}}}}
+        for cell in 0..expected.tiles.len(){
+            if !overlays.contains(&cell){assert_eq!(g.map.terrain_codes[cell],expected.terrain_codes[cell],"Mission{} cell{cell}: unchanged MAP collision",mission["number"]);assert_eq!(g.map.tiles[cell],expected.tiles[cell],"Mission{} cell{cell}: unchanged MAP class",mission["number"]);}
+        }
+        for wall in &g.walls{for &cell in &wall.cells{assert_eq!(g.map.terrain_codes[cell],expected.terrain_codes[cell],"Mission{} wall{cell}",mission["number"]);}}
         assert_eq!(g.walls.len(),mission["walls"].as_array().unwrap().len());
     }
 }

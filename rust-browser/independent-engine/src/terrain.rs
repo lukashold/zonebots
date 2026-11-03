@@ -26,7 +26,7 @@ impl Game {
     fn passable_profile(&self,x:i32,y:i32,profile:Profile)->bool {
         if !self.terrain_open(x,y,profile){return false;}
         let(px,py)=((x as f64+0.5)*TILE,(y as f64+0.5)*TILE);
-        !self.buildings.iter().any(|b|b.hp>0.&&px>b.x&&px<b.x+b.w&&py>b.y&&py<b.y+b.h
+        !self.buildings.iter().any(|b|b.alive(self.map.original)&&px>b.x&&px<b.x+b.w&&py>b.y&&py<b.y+b.h
             &&!b.gate.map(|(gx,gy)|(px-gx).abs()<24.&&(if b.orientation=="north"{py<=gy+24.}else{py>=gy-24.})).unwrap_or(false))
     }
     #[cfg(test)]
@@ -66,6 +66,11 @@ impl Game {
         self.route_profile(x,y,dx,dy,original_terrain::profile(kind),super::original_combat::CombatState::new(kind).movement_control,None,None)
     }
     pub(crate) fn route_unit(&self,unit:&super::Unit,dx:f64,dy:f64)->VecDeque<(f64,f64)>{
+        match self.route_native_unit(unit,dx,dy){
+            super::original_route_game::RouteResult::Path(path)|super::original_route_game::RouteResult::Partial(path)=>return path,
+            super::original_route_game::RouteResult::Blocked=>return VecDeque::new(),
+            super::original_route_game::RouteResult::Unavailable=>{},
+        }
         let control=unit.original_combat.as_ref().map(|s|s.movement_control)
             .unwrap_or_else(||super::original_combat::CombatState::new(&unit.kind).movement_control);
         self.route_profile(unit.x,unit.y,dx,dy,original_terrain::profile(&unit.kind),control,None,None)
@@ -212,6 +217,10 @@ impl Game {
     pub(crate) fn movement_segment_clear_for(&self,x:f64,y:f64,dx:f64,dy:f64,kind:&str)->bool{
         self.segment_profile(x,y,dx,dy,original_terrain::profile(kind))
     }
+    pub(crate) fn movement_segment_clear_unit(&self,unit:&super::Unit,end:(f64,f64))->bool{
+        self.native_segment_clear(unit,(unit.x,unit.y),end)
+            .unwrap_or_else(||self.movement_segment_clear_for(unit.x,unit.y,end.0,end.1,&unit.kind))
+    }
     /// Cells touched by a continuous segment, with its exact length in each.
     /// Simultaneous boundary crossings emit both side cells at zero length:
     /// unlike fixed-distance sampling, even a subpixel water corner is tested.
@@ -248,7 +257,7 @@ impl Game {
     }
     fn point_profile(&self,x:f64,y:f64,profile:Profile)->bool{
         self.terrain_open((x/TILE).floor()as i32,(y/TILE).floor()as i32,profile)
-            &&!self.buildings.iter().any(|b|b.hp>0.&&x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h
+            &&!self.buildings.iter().any(|b|b.alive(self.map.original)&&x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h
                 &&!b.gate.map(|(gx,gy)|(x-gx).abs()<24.&&(if b.orientation=="north"{y<=gy+24.}else{y>=gy-24.})).unwrap_or(false))
     }
     fn building_segment_clear(&self,x:f64,y:f64,dx:f64,dy:f64)->bool{
@@ -266,7 +275,7 @@ impl Game {
             leave-enter>1e-10&&!inside
         }
         let(min_x,min_y,max_x,max_y)=(x.min(dx),y.min(dy),x.max(dx),y.max(dy));
-        for b in self.buildings.iter().filter(|b|b.hp>0.) {
+        for b in self.buildings.iter().filter(|b|b.alive(self.map.original)) {
             let(l,t,r,bottom)=(b.x,b.y,b.x+b.w,b.y+b.h);
             // Most search edges are nowhere near a building. Reject disjoint
             // bounds before clipping and avoid allocating rectangles per edge.

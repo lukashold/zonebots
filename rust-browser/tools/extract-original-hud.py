@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import struct
+import importlib.util
 from PIL import Image
 
 
@@ -31,9 +32,12 @@ def extract(game,output):
     source=game/'de.lproj'/'NSNEWPAN.DAT'
     frames,sha=decode(source)
     backgrounds,bg_sha=decode(game/'SHEADBAK.DAT')
-    heads,head_sha=decode(game/'SHEADBI0.DAT')
-    # Keep source group indices:0..130 panel,131..136 backgrounds,137..176 head parts.
-    images=frames+backgrounds+heads
+    head_sets=[decode(game/f'SHEADBI{i}.DAT') for i in range(5)]
+    #004620b0 loads all five distinct head sets after the panel/backgrounds.
+    images=frames+backgrounds
+    head_starts=[]
+    for heads,_ in head_sets:
+        head_starts.append(len(images));images+=heads
     atlas=Image.new('LA',(1024,2048),(0,0));metadata=[];x=y=row=0
     for image in images:
         width,height=image.size
@@ -46,11 +50,35 @@ def extract(game,output):
         data=(game/(world+'.PAL')).read_bytes()
         palettes.append([min(255,value*4+(value>>4)) for value in data[:768]])
         palette_sources.append(dict(path=world+'.PAL',sha256=hashlib.sha256(data).hexdigest()))
-    manifest=dict(version=1,atlas='hud/atlas.png',frames=metadata,palettes=palettes,
+    spec=importlib.util.spec_from_file_location('z_campaign_reader',Path(__file__).with_name('extract-original-campaign.py'))
+    reader=importlib.util.module_from_spec(spec);spec.loader.exec_module(reader)
+    exe=reader.Exe(game/'Z.exe')
+    pairs=lambda a,n:[list(struct.unpack('<hh',exe.read(a+i*4,4))) for i in range(n)]
+    phrase_bytes=(game/'PHRASES.BIN').read_bytes()
+    if len(phrase_bytes)!=64*0x228:raise ValueError('Unexpected PHRASES.BIN record layout')
+    phrases=[]
+    for i in range(64):
+        length=struct.unpack_from('<I',phrase_bytes,i*0x228+4)[0]
+        if length>256:raise ValueError('Invalid phrase face-frame count')
+        phrases.append(list(struct.unpack_from('<'+'H'*length,phrase_bytes,i*0x228+0x28)))
+    #46a610 adds127 to the voice-table ID before playing the sound descriptor.
+    voice_phrases={}
+    for i in range(74):
+        phrase,sound,_,reserved=exe.read(0x4988f0+i*4,4)
+        if reserved or phrase>=64:raise ValueError('Unexpected original voice-face table')
+        if not 1<=sound<=95:continue
+        for path in (game/'de.lproj').glob('ROB*.RAW'):
+            at=exe.d.find(path.stem.encode('ascii')+b'\0')
+            if at>=2 and struct.unpack_from('<H',exe.d,at-2)[0]==sound+127:voice_phrases[path.stem.upper()]=phrase
+    face=dict(headStarts=head_starts,headKinds={'tough':0,'pyro':1,'laser':1,'grunt':2,'psycho':3,'sniper':4},
+        eyes=pairs(0x49c6ac,5),mouth=pairs(0x49c620,5),collar=pairs(0x49cc2c,5),overlay=pairs(0x49cc18,5),special=pairs(0x49ccf8,16),
+        specialFrames=list(struct.unpack('<16H',exe.read(0x49ccd4,32))),phrases=phrases,voicePhrases=voice_phrases,
+        defaultWord=15,clip=[46,32],source='00468c80/00468d30/0046a650/0046ad10/0046ad70')
+    manifest=dict(version=2,atlas='hud/atlas.png',frames=metadata,palettes=palettes,face=face,
         panelCount=len(frames),backgroundStart=len(frames),headStart=len(frames)+len(backgrounds),
-        sources=[dict(path='de.lproj/NSNEWPAN.DAT',sha256=sha),dict(path='SHEADBAK.DAT',sha256=bg_sha),dict(path='SHEADBI0.DAT',sha256=head_sha),*palette_sources],
+        sources=[dict(path='de.lproj/NSNEWPAN.DAT',sha256=sha),dict(path='SHEADBAK.DAT',sha256=bg_sha),*[dict(path=f'SHEADBI{i}.DAT',sha256=value[1]) for i,value in enumerate(head_sets)],dict(path='PHRASES.BIN',sha256=hashlib.sha256(phrase_bytes).hexdigest()),*palette_sources],
         evidence=dict(loader='004620b0',decoder='00461ff0/00461f00/00461e00',palette='00465620',robotCaption='00468fc0'),
-        notes=['Original indexed bitmap pixels, dimensions and world palettes; responsive DOM placement is a web adaptation.', 'Static Grunt communicator portrait; original speech-driven facial state machine is not reconstructed.'])
+        notes=['Original indexed bitmap pixels, all five head sets, native face composition coordinates and PHRASES sequences. Responsive DOM placement and the browser voice queue are adapters.'])
     (output/'hud').mkdir(parents=True,exist_ok=True)
     atlas.save(output/'hud'/'atlas.png',optimize=True)
     (output/'hud.json').write_text(json.dumps(manifest,separators=(',',':'))+'\n',encoding='utf-8')

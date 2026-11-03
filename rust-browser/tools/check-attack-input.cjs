@@ -42,14 +42,18 @@ async function check(mode){
  // Mixed selection must send only the soldier and hit the visible sprite edge.
  click(320,512,0,true);hover(542,527);assert.equal(element('attack').disabled,false);assert.equal(canvas.style.cursor,'aim');
  click(542,527,button);let order=commands().at(-1);assert.equal(order.kind,'attack');assert.equal(order.target,enemy().id);assert.equal(order.ids.length,1);
+ assert.deepEqual(order.nativeClick,[271,263],'Native classification needs the actual sprite-edge click, not the target anchor');
+ assert(Object.hasOwn(order,'nativeSelected'),'An actual selection event updates the native selected actor');
  assert.equal(response.units.find(u=>u.id===order.ids[0]).type,'grunt');render();assert.equal(markers.length,1);
  assert.deepEqual([markers[0].x,markers[0].y],[enemy().x+12+translation[0],enemy().y+4+translation[1]],'Marker anchors at actual attack bounds center');
  // Advance a real enemy movement order, then refresh from that shared Wasm state.
- const oldX=enemy().x;direct({op:'command',kind:'move',team:1,ids:[enemy().id],x:720,y:512});direct({op:'advance',steps:4});render(50);
+ const oldX=enemy().x;direct({op:'command',kind:'move',team:1,ids:[enemy().id],x:720,y:512});direct({op:'advance',steps:4});const beforeTick=calls.length;render(50);
+ const browserTick=calls.slice(beforeTick).find(v=>v.op==='tick');assert(browserTick&&!Object.hasOwn(browserTick,'nativeSelected'),'A later tick must preserve native selected-actor resets instead of reselecting it');
  assert(enemy().x>oldX);assert.equal(markers.length,1);assert.equal(markers[0].x,enemy().x+12+translation[0]);
  element('stop').onclick();render();assert.equal(markers.length,0,'Stop clears the persistent target marker');
  hover(740,420);assert.equal(canvas.style.cursor,'aim');click(740,420,button);order=commands().at(-1);
  assert.equal(order.kind,'attackBuilding');assert.equal(order.target,1);assert.deepEqual([order.x,order.y],[752,512]);
+ assert.deepEqual(order.nativeClick,[370,210],'The native BUILD query receives the click before the browser gate destination');
  render();assert.equal(markers.length,1);assert.deepEqual([markers[0].x,markers[0].y],[752+translation[0],432+translation[1]],'Building marker stays at center, independently of its route gate');
  element('stop').onclick();render();assert.equal(markers.length,0);
  hover(850,650);assert.notEqual(canvas.style.cursor,'aim');element('attack').onclick();hover(850,650);assert.equal(canvas.style.cursor,'aim');

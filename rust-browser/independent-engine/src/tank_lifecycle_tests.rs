@@ -74,9 +74,12 @@ fn killing_a_tank_crew_releases_its_parked_object_without_hull_damage_or_a_new_r
             // state. This exercises the actual damage adapter and Game caller.
             if original {g.units[0].original_combat.as_mut().unwrap().secondary_state=3;}
             g.units[0].hold_position=true;g.units[0].cooldown=10000.;
-            g.spawn("sniper",1-team,700.,640.,2,None);
+            g.spawn("sniper",1-team,820.,640.,2,None);
             g.units[1].hold_position=true;g.units[1].cooldown=0.;
             let sniper=g.units[1].id;
+            // The attacker has already acquired this target when its hatch
+            // opens. New acquisition would legitimately order the crew down.
+            if original{g.units[1].native_fire=Some(original_fire::State::new(tank,"sniper",false));}
             for _ in 0..60 {g.step(0.059);if g.units[at(&g,tank)].team<0{break;}}
             let u=&g.units[at(&g,tank)];
             assert_eq!(u.team,-1,"{kind} original={original} team={team}: crew must be killed");
@@ -96,7 +99,7 @@ fn simultaneous_crew_hits_convert_each_tank_origin_only_once() {
         let tank=g.units[0].id;g.units[0].crew.as_mut().unwrap().hp=1.;
         g.units[0].original_combat.as_mut().unwrap().secondary_state=3;
         g.units[0].hold_position=true;g.units[0].cooldown=10000.;
-        for i in 0..2 {g.spawn("sniper",1,700.,640.+i as f64*8.,2+i,None);g.units.last_mut().unwrap().hold_position=true;}
+        for i in 0..2 {g.spawn("sniper",1,820.,640.+i as f64*8.,2+i,None);let u=g.units.last_mut().unwrap();u.hold_position=true;u.native_fire=Some(original_fire::State::new(tank,"sniper",false));}
         for _ in 0..60 {g.step(0.059);if g.units[at(&g,tank)].team<0{break;}}let u=&g.units[at(&g,tank)];assert_eq!(u.team,-1);assert!(u.crew.is_none());
         assert_eq!((u.x,u.y),(640.+exit.0,640.+exit.1),"{kind}: conversion applies once for the occupied-to-vacant transition");
     }

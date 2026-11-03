@@ -31,7 +31,7 @@ async function check(mode){
  canvas.onpointerdown(p);canvas.onpointerup(p);
  assert.equal(commands.length,1,`${mode}: exactly one command per click`);
  const command=commands[0];assert.equal(command.kind,'enter');assert.equal(command.target,target.id);assert(command.ids.length>0);
- for(const id of command.ids){const u=response.units.find(u=>u.id===id);assert.equal(response.catalog.find(d=>d.type===u.type).class,0);assert.equal(u.order,'enter');assert.equal(u.target,target.id);assert.equal(u.path.length,0,'The first tick has not built the path yet');}
+ const actors=command.ids.map(id=>response.units.find(u=>u.id===id));for(const u of actors)assert.equal(response.catalog.find(d=>d.type===u.type).class,0);const claimants=actors.filter(u=>u.order==='enter'&&u.target===target.id);assert.equal(claimants.length,1,'Exactly one robot reserves this empty vehicle');assert.equal(claimants[0].path.length,0,'Route planning waits for the next native simulation callback');for(const u of actors.filter(u=>u.id!==claimants[0].id))assert.notEqual(u.target,target.id,'Other squad members keep their own orders');
  assert.match(element('unitOrderInfo').textContent,/Bemannen/);
  arrows=[];frame(3);assert.equal(arrows.length,1,`${mode}: shared target produces one marker even before the first tick`);assert.equal(arrows[0].x,world.x+translation[0]);assert.equal(arrows[0].y,world.y+translation[1]);
  element('stop').onclick();arrows=[];frame(4);assert.equal(arrows.length,0,`${mode}: new command removes the old entry marker`);

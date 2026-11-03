@@ -2,7 +2,7 @@
 window.OriginalHud=(()=>{
  'use strict';
  const base=new URL('../original/',document.currentScript.src),cache=new Map(),urls=new Map();
- let manifest,atlas,pixels,ready=false,lastState,lastUnit,lastPainter,skinWorld=-1;
+ let manifest,atlas,pixels,ready=false,lastState,lastUnit,lastPainter,skinWorld=-1,portraitSignature='';
  const captions={grunt:81,pyro:82,laser:83,tough:84,psycho:85,sniper:86};
  //00469478 indexes0049c6c0 by the selected animation family.00469190 draws
  // descriptor[0] as the caption, descriptor[1] as the hardware image, and
@@ -47,8 +47,19 @@ window.OriginalHud=(()=>{
    mini.style.width=width+'px';mini.style.height=height+'px';mini.style.left='';mini.style.top='';
   }
  }
+ function communicator(state,unit){
+  const face=manifest?.face,api=window.OriginalFace;if(!face||!api)return false;
+  const world=state.map.world,kind=unit?.crew?.kind||unit?.type,head=face.headKinds[kind]??2,voice=window.RadioAudio?.voicePose?.();
+  const phrase=voice&&face.voicePhrases[voice.clip],words=Number.isInteger(phrase)?face.phrases[phrase]:null;
+  const word=api.phraseWord(words,voice?Math.floor(voice.seconds/.059):0),vehicle=Boolean(unit&&hardware[unit.type]&&!['cannon','missile','gatling','howitzer'].includes(unit.type));
+  const signature=[world,unit?.team??0,Boolean(unit),head,word,vehicle].join(':');if(signature===portraitSignature)return true;portraitSignature=signature;
+  const portrait=$('portrait');if(portrait.width!==92||portrait.height!==64){portrait.width=92;portrait.height=64;}const pc=portrait.getContext('2d');pc.clearRect(0,0,92,64);pc.imageSmoothingEnabled=false;
+  const draws=api.layers(word,head,[0,3,1,4,2][world],vehicle,{...face,backgroundStart:manifest.backgroundStart});
+  for(const [index,draw] of draws.entries()){if(index&&!unit)break;const image=frame(draw.sprite,world,unit?.team??0);if(image)pc.drawImage(image,draw.x*2,draw.y*2,image.width,image.height);}
+  return true;
+ }
  function update(state,unit,renderUnit){
-  lastState=state;lastUnit=unit;lastPainter=renderUnit;if(!ready||!state)return;
+  lastState=state;lastUnit=unit;lastPainter=renderUnit;if(!ready||!state)return;portraitSignature='';
   const world=state.map.world,portrait=$('portrait'),art=$('hudUnitArt'),hd=Boolean(window.GameGraphics?.isHD()),density=hd?Math.max(2,Math.min(4,Math.ceil(window.innerHeight/480*(window.devicePixelRatio||1)))):1;
   if(art.width!==96*density||art.height!==78*density){art.width=96*density;art.height=78*density;}
   const ctx=art.getContext('2d');if(hd)ctx.setTransform(density,0,0,density,0,0);else ctx.setTransform?.(1,0,0,1,0,0);
@@ -64,11 +75,11 @@ window.OriginalHud=(()=>{
   if(caption!==undefined)paint($('hudCaption'),caption,world,unit?.team||0);
   $('hudCaption').hidden=!unit||caption===undefined;
   $('unitName').style.color=unit&&caption===undefined?'#f2e9d5':'';
-  // Static original communication portrait; do not invent speech/facial timing.
-  const pc=portrait.getContext('2d');pc.clearRect(0,0,96,96);pc.imageSmoothingEnabled=false;
-  const bg=frame(manifest.backgroundStart+[0,1,3,5,4][world],world);
-  if(bg)pc.drawImage(bg,8,0,80,96);
-  if(unit){const head=frame(manifest.headStart+2,world,unit.team);if(head)pc.drawImage(head,8,32,80,64);}
+  if(!communicator(state,unit)){
+   const pc=portrait.getContext('2d');pc.clearRect(0,0,96,96);pc.imageSmoothingEnabled=false;
+   const bg=frame(manifest.backgroundStart+[0,1,3,5,4][world],world);if(bg)pc.drawImage(bg,8,0,80,96);
+   if(unit){const head=frame(manifest.headStart+2,world,unit.team);if(head)pc.drawImage(head,8,32,80,64);}
+  }
   const health=$('hudHealth'),hc=health.getContext('2d');hc.clearRect(0,0,80,6);
   const back=frame(64,world),bar=frame(62,world);if(back)hc.drawImage(back,0,0,80,6);
   if(unit&&bar){const fraction=Math.max(0,Math.min(1,unit.hp/Math.max(1,unit.maxHp)));hc.drawImage(bar,0,0,bar.width*fraction,bar.height,0,0,80*fraction,6);}
@@ -91,5 +102,5 @@ window.OriginalHud=(()=>{
  }
  $('hudMenu')?.addEventListener('click',()=>$('pauseButton').click());
  window.addEventListener('resize',resize);load();
- return Object.freeze({load,update,resize,sidebarWidth,isReady:()=>ready});
+ return Object.freeze({load,update,resize,sidebarWidth,animate(){if(ready&&lastState)communicator(lastState,lastUnit);},isReady:()=>ready});
 })();

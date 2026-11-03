@@ -8,7 +8,11 @@ function field(){const width=64,height=48,n=width*height;return{map:{width,heigh
  function req(v){const b=enc.encode(JSON.stringify(v)),p=e.alloc(b.length);new Uint8Array(e.memory.buffer,p,b.length).set(b);let n;try{n=e.run(p,b.length);}finally{e.free(p,b.length);}const next=JSON.parse(dec.decode(new Uint8Array(e.memory.buffer,e.output(),n)));assert(!next.error,next.error);state={...state,...next};return state;}
  req({op:'init',mission:0,difficulty:1,seed:7291,aiTeams:[],originalMission:field()});const shooter=state.units[0].id,target=state.units[1].id;
  const tick=dt=>req({op:'tick',dt,compact:true,knownMapSeed:7291,knownMapRevision:0});
- tick(.058);near(state.time,0);assert.equal(state.units[0].nativeFire,undefined);tick(.001);near(state.time,1/17);assert.equal(state.units[0].nativeFire.frame,0);
+ tick(.058);near(state.time,0);assert.equal(state.units[0].nativeFire,undefined);tick(.001);near(state.time,1/17);
+ //44d920 scans only at its native idle search actions. Measure the firing
+ //windup from actual acquisition, independently of the idle RNG sequence.
+ for(let i=0;i<160&&!state.units[0].nativeFire;i++)tick(.059);
+ assert(state.units[0].nativeFire,'Native idle search must eventually acquire this visible enemy');assert.equal(state.units[0].nativeFire.frame,0);
  for(let t=2;t<=12;t++){tick(.059);assert.equal(state.bullets.length,0);assert.equal(state.units.find(u=>u.id===target).hp,30);}
  tick(.059);const bullet=state.bullets.find(b=>b.team===0);assert(bullet,'Native release must serialize the traveling bullet');assert.equal(bullet.x,366);assert.equal(bullet.y,616);assert.equal(state.units.find(u=>u.id===target).hp,30,'Release is not contact');
  assert(state.events.some(e=>e.kind==='shot'&&e.team===0));

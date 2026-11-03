@@ -24,7 +24,7 @@ pub(crate) fn capable(unit: &Unit, original: bool) -> bool {
 }
 
 pub(crate) fn hidden(unit: &Unit) -> bool {
-    unit.workshop.as_ref().is_some_and(|s| s.phase == "repairing")
+    unit.workshop.as_ref().is_some_and(|s| s.phase == "repairing")||unit.native_transport.as_ref().is_some_and(|s|s.hidden())
 }
 
 fn bay(b: &Building, original: bool) -> (f64, f64) {
@@ -148,7 +148,7 @@ impl Game {
                 }
             }
             if state.phase=="repairing" {state.seconds=(rate>0.).then(||(state.remaining/(rate*17.)).trunc()as u32);state.progress=if state.total>0.{(1.-state.remaining/state.total).clamp(0.,1.)}else{0.};}
-            self.units[index].workshop=Some(state);return true;
+            self.units[index].workshop=Some(state);self.sync_native_hardware_combat(index);return true;
         }
         if state.admitting {
             if self.workshop_motion(index,&b,bay(&b,self.map.original),dt) {
@@ -157,7 +157,7 @@ impl Game {
                 let rate=self.workshop_rate(&b,u.team).max(0)as f64;state.seconds=(rate>0.).then(||(state.remaining/(rate*17.)).trunc()as u32);
                 self.units[index].path.clear();self.units[index].dest=None;self.units[index].moving=false;
             }
-            self.units[index].workshop=Some(state);return true;
+            self.units[index].workshop=Some(state);self.sync_native_hardware_combat(index);return true;
         }
         let front=stage(&b,self.map.original);
         if (u.x-front.0).hypot(u.y-front.1)>1e-6 {
@@ -172,7 +172,7 @@ impl Game {
         self.units[index].x=front.0;self.units[index].y=front.1;
         let u=self.units[index].clone();
         let occupied=self.units.iter().any(|other|other.id!=u.id&&other.workshop.as_ref().is_some_and(|s|s.building_id==b.id&&(s.phase=="repairing"||s.phase=="exiting"||s.admitting)));
-        if occupied {state.phase="waiting".into();self.units[index].path.clear();self.units[index].dest=None;self.units[index].workshop=Some(state);return true;}
+        if occupied {state.phase="waiting".into();self.units[index].path.clear();self.units[index].dest=None;self.units[index].workshop=Some(state);self.sync_native_hardware_combat(index);return true;}
         if !self.workshop_portal_clear(&u,&b,bay(&b,self.map.original)){self.cancel_workshop(index);return false;}
         state.phase="approach".into();state.admitting=true;self.units[index].path.clear();self.units[index].dest=None;self.units[index].workshop=Some(state);true
     }

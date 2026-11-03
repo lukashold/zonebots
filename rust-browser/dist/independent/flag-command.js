@@ -2,7 +2,7 @@
 // This only acknowledges an order; ownership changes come from the simulation.
 window.FlagCommand=(()=>{
  'use strict';
- function alive(state,u){return u?.team===0&&Number.isFinite(u.hp)&&(state.map?.original?u.hp>=0:u.hp>0);}
+ function alive(state,u){return u?.team===0&&u.nativeTransport?.visible!==false&&u.workshop?.phase!=='repairing'&&Number.isFinite(u.hp)&&(state.map?.original?u.hp>=0:u.hp>0);}
  function iterableIds(ids){return ids&&typeof ids[Symbol.iterator]==='function'?[...new Set(ids)]:[];}
  function mobileIds(state,selectedIds){
   const units=new Map((state.units||[]).map(u=>[u.id,u])),catalog=new Map((state.catalog||[]).map(d=>[d.type,d]));

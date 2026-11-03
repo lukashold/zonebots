@@ -12,7 +12,7 @@ function fixture(){
   buildings:[{id:0,kind:'fort',team:0,sector:0,x:64,y:64,w:128,h:160,hp:2000,maxHp:2000,stars:1,product:'grunt',progress:0,remainingWork:1},
    {id:1,kind:'fort',team:1,sector:1,x:800,y:800,w:128,h:160,hp:2000,maxHp:2000,stars:1,product:'grunt',progress:0,remainingWork:1},
    {id:2,kind:'robot',team:1,sector:1,x:704,y:64,w:96,h:128,hp:2000,maxHp:2000,stars:5,product:'grunt',progress:0,remainingWork:1,readyGuns:['cannon']}],
-  spawns:[{type:'grunt',team:0,x:224,y:256,squad:1},{type:'grunt',team:1,x:736,y:512,squad:2},{type:'heavy',team:1,x:656,y:544,squad:5},{type:'apc',team:1,x:800,y:512,squad:3},{type:'gatling',team:-1,x:680,y:320,squad:4}],crates:[],originalObjects:[]};
+  spawns:[{type:'grunt',team:0,x:224,y:256,squad:1},{type:'grunt',team:1,x:736,y:512,squad:2},{type:'heavy',team:1,x:656,y:544,squad:5},{type:'apc',team:1,x:800,y:512,squad:3},{type:'gatling',team:-1,x:680,y:320,squad:4}],crates:[],originalObjects:[],bridges:[{id:0,nativeSlot:0,x:736,y:544,w:32,h:32,hp:1,maxHp:400,nativeOrientation:0,nativeFlags15:0,tiles:[bridge]}]};
 }
 async function rawEngine(){
  const {instance}=await WebAssembly.instantiate(fs.readFileSync(path.join(root,'dist/independent/engine.wasm')),{}),e=instance.exports,encoder=new TextEncoder(),decoder=new TextDecoder(),calls=[];
@@ -56,6 +56,10 @@ async function run(){
  for(let i=0;i<3;i++)host.tick(.05);pump();assert.equal(guest.state.map,revisedMap,'Unchanged geometry must preserve cache identity');
  const frame=outbound.filter(m=>m.type==='game:frame').at(-1);for(const field of ['map','catalog','objects'])assert(!Object.hasOwn(frame.payload.state,field),`Warm network frame must omit ${field}`);
  const beforeForged=engine.calls.length;
+ const attackClick={op:'command',kind:'attack',ids:[blue],target:red,nativeClick:[112,128]};
+ assert.deepEqual(clone(hostApi.validateAction(attackClick,1,host.state).nativeClick),[112,128]);
+ for(const bad of [[-1,128],[1024,128],[112.5,128],[112],[112,128,0]])assert.equal(hostApi.validateAction({...attackClick,nativeClick:bad},1,host.state),null);
+ assert.equal(hostApi.validateAction({...attackClick,nativeFlagMode:true},1,host.state),null);
  for(const request of [{op:'tick',dt:10},{op:'init'},{op:'produce',id:0,product:'psycho'},{op:'command',kind:'move',ids:[red],x:600,y:600,team:0},{op:'command',kind:'move',ids:[blue],x:NaN,y:600},{op:'command',kind:'anything',ids:[blue],x:600,y:600}])host.handle({type:'game:action',payload:{epoch:1,requestId:'forged',request}});
  assert.equal(engine.calls.length,beforeForged,'Peer cannot tick/init, change the opponent factory, command the opponent or pass invalid commands');pump();
  guest.action({op:'produce',id:2,product:'psycho'},'production');pump();assert.equal(host.state.buildings[2].product,'psycho');assert.equal(guest.viewState.buildings[2].team,0);

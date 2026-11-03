@@ -71,8 +71,10 @@ fn capturing_an_idle_robot_factory_starts_production_in_the_same_tick() {
     capture_with_player(&mut game);
     let factory = &game.buildings[0];
     assert_eq!(factory.product.as_deref(), Some("grunt"));
-    assert!(factory.progress > 0.);
-    assert!(factory.remaining_work.unwrap() < original_stats::workload("grunt") as f64);
+    assert_eq!(factory.progress,0.,"Capture follows the producer phase; the new order starts without spending work");
+    assert_eq!(factory.remaining_work,Some(original_stats::workload("grunt")as f64));
+    game.step(0.059);assert!(game.buildings[0].progress>0.);
+    let factory=&game.buildings[0];
     assert!(game.remaining_seconds(factory).unwrap() > 0);
     assert!(game.events.iter().any(|e| e["kind"] == "capture"));
 }
@@ -117,7 +119,7 @@ fn clearing_production_returns_to_robots_without_restarting_an_existing_default(
     game.produce(0, None);
     assert_eq!(game.buildings[0].product.as_deref(), Some("grunt"));
     assert_eq!(game.buildings[0].progress, 0.);
-    assert_eq!(game.buildings[0].remaining_work, None);
+    assert_eq!(game.buildings[0].remaining_work, Some(original_stats::workload("grunt")as f64));
     game.buildings[0].progress = 0.55;
     game.buildings[0].remaining_work = Some(4321.);
     game.produce(0, None);
@@ -231,12 +233,12 @@ fn capture_and_valid_product_change_preserve_the_running_completion_hold() {
     assert_eq!(game.buildings[0].remaining_work,Some(777.));
     game.produce(0,Some("grunt"));
     assert_eq!(game.buildings[0].completion_ticks,29);
-    assert_eq!(game.buildings[0].remaining_work,None);
+    assert_eq!(game.buildings[0].remaining_work,Some(original_stats::workload("grunt")as f64));
     assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
     game.buildings[0].completion_ticks=2;
     game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,1);
-    assert_eq!(game.buildings[0].remaining_work,None);
+    assert_eq!(game.buildings[0].remaining_work,Some(original_stats::workload("grunt")as f64));
     game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,0);
     assert!(game.buildings[0].progress>0.);

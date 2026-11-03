@@ -13,6 +13,15 @@
  function perspective(state,role){
   if(!state||role!=='guest')return state;
   return {...state,units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
+   objects:(state.objects||[]).map(o=>Number.isInteger(o.nativeTeam)?{...o,nativeTeam:flip(o.nativeTeam)}:o),
+   nativeEffects:(state.nativeEffects||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
+   nativeAmbientVisuals:(state.nativeAmbientVisuals||[]).map(f=>({...f,team:flip(f.team),palette:flip(f.palette)})),
+   nativeAmbientAnimations:(state.nativeAmbientAnimations||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
+   nativeCosmetic20Visuals:(state.nativeCosmetic20Visuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
+   nativeLavaVisuals:(state.nativeLavaVisuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
+   nativeObjectVisuals:state.nativeObjectVisuals,
+   nativeTrackVisuals:(state.nativeTrackVisuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
+   nativeDeathVisuals:(state.nativeDeathVisuals||[]).map(f=>({...f,team:flip(f.team)})),
    buildings:state.buildings.map(b=>({...b,team:flip(b.team)})),sectors:state.sectors.map(s=>({...s,owner:flip(s.owner)})),
    bullets:(state.bullets||[]).map(b=>({...b,team:flip(b.team)})),projectiles:(state.projectiles||[]).map(p=>({...p,team:flip(p.team)})),blasts:(state.blasts||[]).map(b=>({...b,team:flip(b.team)})),fires:(state.fires||[]).map(f=>({...f,team:flip(f.team)})),events:(state.events||[]).map(remapEvent),winner:flip(state.winner)};
  }
@@ -23,9 +32,22 @@
   if(state.projectiles!==undefined&&(!Array.isArray(state.projectiles)||state.projectiles.length>50||!state.projectiles.every(p=>object(p)&&integer(p.id,49)&&[p.x,p.y,p.angle,p.size].every(Number.isFinite)&&[0,1].includes(p.team)&&['shell','grenade','rocket','flame','howitzer'].includes(p.kind)&&integer(p.sprite,7210)&&p.size>=0&&p.size<=256)))return false;
   if(state.blasts!==undefined&&(!Array.isArray(state.blasts)||state.blasts.length>50||!state.blasts.every(b=>object(b)&&integer(b.id,49)&&[b.x,b.y].every(Number.isFinite)&&[0,1,255].includes(b.team)&&integer(b.frame,31)&&integer(b.strength,255)&&integer(b.sprite,7210)&&typeof b.water==='boolean')))return false;
   if(state.fires!==undefined&&(!Array.isArray(state.fires)||state.fires.length>200||!state.fires.every(f=>object(f)&&integer(f.id,199)&&[f.x,f.y].every(Number.isFinite)&&[0,1].includes(f.team)&&integer(f.frame,5)&&integer(f.sprite,7210))))return false;
+  if(state.nativeEffects!==undefined&&(!Array.isArray(state.nativeEffects)||state.nativeEffects.length>2000||!state.nativeEffects.every(f=>object(f)&&integer(f.id,1999)&&integer(f.sprite,7210)&&[f.x,f.y,f.scale,f.rotation].every(Number.isFinite)&&Math.abs(f.scale)<=1025)))return false;
+  if(state.nativeDeathVisuals!==undefined&&(!Array.isArray(state.nativeDeathVisuals)||state.nativeDeathVisuals.length>15||!state.nativeDeathVisuals.every(f=>object(f)&&integer(f.id,14)&&integer(f.sprite,7210)&&[f.x,f.y,f.scale,f.rotation].every(Number.isFinite)&&[0,1,2,3].includes(f.team))))return false;
+  if(state.nativeAmbientVisuals!==undefined&&(!Array.isArray(state.nativeAmbientVisuals)||state.nativeAmbientVisuals.length>100||!state.nativeAmbientVisuals.every(f=>object(f)&&integer(f.id,99)&&integer(f.sprite,7210)&&[f.x,f.y,f.queueY,f.scale,f.rotation].every(Number.isFinite)&&integer(f.team,3)&&integer(f.palette,3)&&integer(f.flags52,255)&&integer(f.flags53,255)&&Math.abs(f.scale)<=1025)))return false;
+  for(const [key,limit]of [['nativeAmbientAnimations',150],['nativeCosmetic20Visuals',40],['nativeLavaVisuals',32],['nativeTrackVisuals',500]])if(state[key]!==undefined&&(!Array.isArray(state[key])||state[key].length>limit||!state[key].every(f=>object(f)&&integer(f.id,limit-1)&&integer(f.sprite,7210)&&[f.x,f.y,f.scale,f.rotation].every(Number.isFinite)&&Math.abs(f.scale)<=1025&&(f.team==null||integer(f.team,3))&&(f.nativeInheritedPalette===undefined||typeof f.nativeInheritedPalette==='boolean')&&(f.nativeWhitePalette===undefined||typeof f.nativeWhitePalette==='boolean')&&(f.queueY===undefined||Number.isFinite(f.queueY)))))return false;
+  if(state.nativeObjectVisuals!==undefined&&(!Array.isArray(state.nativeObjectVisuals)||state.nativeObjectVisuals.length>200||!state.nativeObjectVisuals.every(o=>object(o)&&integer(o.id,4095)&&typeof o.nativeActive==='boolean'&&[o.x,o.y].every(Number.isFinite)&&integer(o.nativeAnimation18,255)&&Number.isInteger(o.nativeSpriteOffset21)&&o.nativeSpriteOffset21>=-128&&o.nativeSpriteOffset21<=127)))return false;
+  if(state.objects!==undefined&&(!Array.isArray(state.objects)||state.objects.length>4096))return false;
   if(state.walls!==undefined&&(!Array.isArray(state.walls)||state.walls.length>16384||!state.walls.every(w=>object(w)&&integer(w.id)&&[w.x,w.y,w.hp,w.maxHp].every(Number.isFinite))))return false;
   if(!state.units.every(u=>object(u)&&integer(u.id)&&[u.x,u.y,u.hp,u.maxHp,u.angle,u.aim].every(Number.isFinite)&&[-1,0,1].includes(u.team)))return false;
-  if(!state.buildings.every(b=>object(b)&&integer(b.id)&&[b.x,b.y,b.w,b.h,b.hp,b.maxHp].every(Number.isFinite)&&[-1,0,1].includes(b.team)))return false;
+  if(!state.units.every(u=>(u.nativeObjectSprite===undefined||integer(u.nativeObjectSprite,7210))&&(u.nativeTarget46===undefined||Number.isInteger(u.nativeTarget46)&&u.nativeTarget46>=-32768&&u.nativeTarget46<=32767)&&(u.nativeCounter68===undefined||Number.isInteger(u.nativeCounter68)&&u.nativeCounter68>=-128&&u.nativeCounter68<=127)&&(u.nativeCounter97===undefined||Number.isInteger(u.nativeCounter97)&&u.nativeCounter97>=-128&&u.nativeCounter97<=127)&&(u.nativeRange4==null||Number.isInteger(u.nativeRange4)&&u.nativeRange4>=-128&&u.nativeRange4<=127)&&(u.nativeField62===undefined||integer(u.nativeField62,255))&&(u.nativeTrait7a===undefined||Number.isInteger(u.nativeTrait7a)&&u.nativeTrait7a>=-128&&u.nativeTrait7a<=127)&&(u.nativeControl06===undefined||Number.isInteger(u.nativeControl06)&&u.nativeControl06>=-128&&u.nativeControl06<=127)&&(u.nativeProtectionaa===undefined||integer(u.nativeProtectionaa,255))&&(u.nativeOrder5c===undefined||Number.isInteger(u.nativeOrder5c)&&u.nativeOrder5c>=-128&&u.nativeOrder5c<=127)&&(u.nativeFlags9c===undefined||integer(u.nativeFlags9c,255))&&(u.nativeClass7c===undefined||integer(u.nativeClass7c,255))&&(u.nativeFrame32===undefined||Number.isInteger(u.nativeFrame32)&&u.nativeFrame32>=-32768&&u.nativeFrame32<=32767)&&(u.nativeTimer3c===undefined||Number.isInteger(u.nativeTimer3c)&&u.nativeTimer3c>=-128&&u.nativeTimer3c<=127)&&(u.nativePhase35===undefined||integer(u.nativePhase35,255))&&(u.nativeFlags64===undefined||integer(u.nativeFlags64,255))&&(u.nativeInitiativeScan===undefined||object(u.nativeInitiativeScan)&&integer(u.nativeInitiativeScan.flags71,255)&&integer(u.nativeInitiativeScan.a4,255))))return false;
+  if(!state.units.every(u=>u.nativeHardware==null||object(u.nativeHardware)&&integer(u.nativeHardware.turret,7)&&Number.isInteger(u.nativeHardware.hatchFrame)&&u.nativeHardware.hatchFrame>=-1&&u.nativeHardware.hatchFrame<=4&&integer(u.nativeHardware.hatchBody,2)&&[-1,0,1].includes(u.nativeHardware.hatchMotion)))return false;
+  if(!state.units.every(u=>u.nativeContact==null||object(u.nativeContact)&&integer(u.nativeContact.phase,2)&&integer(u.nativeContact.frame,10)&&typeof u.nativeContact.side==='boolean'))return false;
+  if(!state.units.every(u=>u.nativeTransport==null||object(u.nativeTransport)&&['approach','entering','inside','exiting','released'].includes(u.nativeTransport.phase)&&integer(u.nativeTransport.direction,7)&&integer(u.nativeTransport.frame,6)&&typeof u.nativeTransport.visible==='boolean'&&Number.isInteger(u.nativeTransport.timer)&&u.nativeTransport.timer>=-128&&u.nativeTransport.timer<=127))return false;
+  if(!state.units.every(u=>u.nativeMoveFrame===undefined||integer(u.nativeMoveFrame,3)))return false;
+  if(!state.units.every(u=>u.nativeIdle==null||object(u.nativeIdle)&&integer(u.nativeIdle.frame,2)&&integer(u.nativeIdle.direction,7)&&integer(u.nativeIdle.desiredDirection,7)&&[-1,1,0].includes(u.nativeIdle.turnStep)&&['timer','lookCounter','lookChance'].every(k=>Number.isInteger(u.nativeIdle[k])&&u.nativeIdle[k]>=-128&&u.nativeIdle[k]<=127)&&integer(u.nativeIdle.searchTimer,64)))return false;
+  if(!state.units.every(u=>u.nativeCover==null||object(u.nativeCover)&&u.nativeCover.state35===43&&integer(u.nativeCover.frame32,23)&&u.nativeCover.timer82===-1&&u.nativeCover.animation89===4&&u.nativeCover.counter7e===3&&integer(u.nativeCover.remaining80,4)))return false;
+  if(!state.buildings.every(b=>object(b)&&integer(b.id)&&[b.x,b.y,b.w,b.h,b.hp,b.maxHp].every(Number.isFinite)&&(b.nativeFortDestroyed===undefined||typeof b.nativeFortDestroyed==='boolean')&&[-1,0,1].includes(b.team)))return false;
   if(!state.sectors.every(s=>object(s)&&integer(s.id)&&[s.x,s.y].every(Number.isFinite)&&[-1,0,1].includes(s.owner)))return false;
   if(!state.effects.every(f=>object(f)&&[f.x,f.y,f.age,f.life].every(Number.isFinite)))return false;
   if(full||state.map){const m=state.map;if(!object(m)||!integer(m.width,128)||!integer(m.height,128)||m.width<1||m.height<1||!integer(m.seed)||!integer(m.revision))return false;const count=m.width*m.height;if(!Array.isArray(m.tiles)||m.tiles.length!==count||!Array.isArray(m.territory)||m.territory.length!==count)return false;}
@@ -42,19 +64,22 @@
   if(op==='command'){
    if(!ORDERS.has(request.kind)||!Array.isArray(request.ids)||!request.ids.length||request.ids.length>120||!request.ids.every(id=>integer(id)))return null;
    const units=new Map(state.units.map(u=>[u.id,u]));
-   result.ids=[...new Set(request.ids)].filter(id=>{const u=units.get(id);return u&&u.team===team&&(state.map.original?u.hp>=0:u.hp>0);});
+   result.ids=[...new Set(request.ids)].filter(id=>{const u=units.get(id);return u&&u.team===team&&u.nativeTransport?.visible!==false&&(state.map.original?u.hp>=0:u.hp>0);});
    if(!result.ids.length)return null;result.kind=request.kind;
    if(request.kind==='move'&&own(request,'formation')){if(!integer(request.formation,4))return null;result.formation=request.formation;}
    if(own(request,'target')){if(!integer(request.target))return null;result.target=request.target;}
    if(['enter','board','repair','repairVehicle','attackBuilding'].includes(result.kind)&&!own(result,'target'))return null;
-   if(result.kind==='repairVehicle'){const b=state.buildings.find(b=>b.id===result.target&&b.kind==='repair'&&b.team===team&&b.hp>0);if(!b)return null;result.ids=result.ids.filter(id=>{const u=units.get(id),d=state.catalog.find(d=>d.type===u.type);return d?.class===1&&u.crew!=null&&u.hp<u.maxHp;});if(!result.ids.length)return null;}
+   if(result.kind==='repairVehicle'){const b=state.buildings.find(b=>b.id===result.target&&b.kind==='repair'&&b.team===team&&(b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?!b.nativeFortDestroyed:b.hp>0));if(!b)return null;result.ids=result.ids.filter(id=>{const u=units.get(id),d=state.catalog.find(d=>d.type===u.type);return d?.class===1&&u.crew!=null&&u.hp<u.maxHp;});if(!result.ids.length)return null;}
    if(result.kind==='attackWall'&&(!own(result,'target')||!(state.walls||[]).some(w=>w.id===result.target&&w.hp>0)))return null;
    if(own(request,'x')||own(request,'y')){if(!position())return null;}
+   if(own(request,'nativeClick')){const p=request.nativeClick,m=state.map;if(!['move','attack','attackBuilding','attackWall','attackBridge'].includes(result.kind)||!Array.isArray(p)||p.length!==2||!p.every(n=>integer(n,32767))||p[0]>=m.width*16||p[1]>=m.height*16)return null;result.nativeClick=[...p];if(own(request,'nativeFlagMode')){if(result.kind!=='move'||typeof request.nativeFlagMode!=='boolean')return null;result.nativeFlagMode=request.nativeFlagMode;}}
+   if(own(request,'nativePrimary')){if(!integer(request.nativePrimary)||!result.ids.includes(request.nativePrimary))return null;result.nativePrimary=request.nativePrimary;}
+   if(own(request,'impactX')||own(request,'impactY')){const x=request.impactX,y=request.impactY,m=state.map;if(result.kind!=='attackBuilding'||![x,y].every(Number.isFinite)||x<0||y<0||x>m.width*32||y>m.height*32)return null;result.impactX=x;result.impactY=y;}
    if(['move','attackBridge','repairBridge'].includes(result.kind)&&!own(result,'x'))return null;
    if(result.kind==='attack'&&!own(result,'target')&&!own(result,'x'))return null;
   }else{
    if(!integer(request.id))return null;
-   const b=state.buildings.find(b=>b.id===request.id&&b.team===team&&b.hp>0);if(!b)return null;result.id=request.id;
+   const b=state.buildings.find(b=>b.id===request.id&&b.team===team&&(b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?!b.nativeFortDestroyed:b.hp>0));if(!b)return null;result.id=request.id;
    if(op==='produce'){
     const product=request.product??null;
     if(product!==null&&(typeof product!=='string'||product.length>24||!state.catalog.some(d=>d.type===product)||(state.buildMenus?.[b.id]&&!state.buildMenus[b.id].includes(product))))return null;
@@ -90,7 +115,7 @@
   }
   function mapStamp(){return canonical?canonical.map.seed+':'+canonical.map.revision:'';}
   function wallStamp(){return (canonical?.walls||[]).map(w=>`${w.id}:${w.hp}:${w.neighborMask??0}:${w.wallTileIndex??0}`).join('|');}
-  function dynamic(events){const result={...canonical,events};delete result.catalog;delete result.objects;if(mapStamp()===lastMap)delete result.map;if(wallStamp()===lastWalls)delete result.walls;return result;}
+  function dynamic(events){const result={...canonical,events};delete result.catalog;if(mapStamp()===lastMap){delete result.objects;delete result.map;}if(wallStamp()===lastWalls)delete result.walls;return result;}
   function transmitState(type,extra={},events=[]){
    const seq=sequence+1,result=send(type,{epoch,seq,state:dynamic(events),...extra});
    if(result){sequence=seq;lastMap=mapStamp();lastWalls=wallStamp();}return result;

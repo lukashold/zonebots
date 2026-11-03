@@ -66,13 +66,14 @@ fn completed_guns_wait_in_four_slots_instead_of_appearing_at_the_factory_exit() 
         assert_eq!(gun_count(&game), 0);
         assert_eq!(game.events.iter().filter(|e| e["kind"] == "ready" && e["type"] == "gatling").count(), 1);
     }
-    game.buildings[0].remaining_work = Some(999.);
-    game.buildings[0].progress = 0.5;
+    let halfway=(original_stats::workload("gatling")/2)as f64;
+    game.buildings[0].remaining_work = Some(halfway);
+    game.buildings[0].progress = 1.-halfway/original_stats::workload("gatling")as f64;
     game.events.clear();
     game.step(0.1);
     assert_eq!(game.buildings[0].ready_guns.len(), 4);
-    assert_eq!(game.buildings[0].remaining_work, Some(999.));
-    assert_eq!(game.buildings[0].progress, 0.5);
+    assert_eq!(game.buildings[0].remaining_work, Some(halfway));
+    assert_eq!(game.buildings[0].progress,1.-halfway/original_stats::workload("gatling")as f64);
     assert!(!game.events.iter().any(|e| e["kind"] == "ready"));
 
     // A full gun rack does not block a newly selected robot order or discard it.

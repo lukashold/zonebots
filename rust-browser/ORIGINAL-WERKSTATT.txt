@@ -1,3 +1,7 @@
+Historische Detailbefunde: Der aktuelle Implementierungsstand und die noch
+offenen Punkte stehen in ORIGINAL-ABGLEICH.txt (03.11.2026). Ältere Angaben zu
+fehlenden Funktionen oder Testzahlen in diesem Dokument sind kein aktueller Status.
+
 Z – Werkstätten: Originalbefunde, 31.10.2026
 
 GRUNDLAGE UND BESTAND

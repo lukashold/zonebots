@@ -50,7 +50,9 @@ pub fn primary_capable(kind: &str) -> bool {
 // state49. Pyro's terrain-table2 likewise prefers its grenade inventory. The
 // common engine contact/cooldown adapter does not model squad donor selection.
 pub fn grenade_capable(kind: &str) -> bool { matches!(kind, "grunt" | "psycho" | "sniper" | "laser" | "pyro") }
-pub fn capable(unit: &Unit) -> bool { primary_capable(&unit.kind) || grenade_capable(&unit.kind) && unit.grenades > 0 }
+pub fn apc_point_capable(unit:&Unit)->bool{unit.kind=="apc"&&unit.crew.as_ref().is_some_and(|c|matches!(c.kind.as_str(),"tough"|"pyro"))}
+pub fn primary_capable_unit(unit:&Unit)->bool{primary_capable(&unit.kind)||unit.kind=="apc"&&unit.crew.as_ref().is_some_and(|c|c.kind=="tough")}
+pub fn capable(unit: &Unit) -> bool { primary_capable_unit(unit) || grenade_capable(&unit.kind) && unit.grenades > 0 }
 
 impl Game {
     pub(crate) fn import_walls(&mut self, mission: &Value) -> Result<(), String> {
@@ -215,7 +217,7 @@ impl Game {
         let unit = self.units[index].clone();
         if unit.order != "attackWall" { return false; }
         let target = unit.target.and_then(|id| self.wall(id)).cloned();
-        let Some(wall) = target.filter(|_| capable(&unit) && damage > 0. && range > 0.) else {
+        let Some(wall) = target.filter(|_| capable(&unit) && (damage > 0.||self.map.original&&apc_point_capable(&unit)) && range > 0.) else {
             self.clear_wall_order(index); return false;
         };
         let point = wall.point_from(unit.x, unit.y);
@@ -224,7 +226,7 @@ impl Game {
             self.units[index].path.clear(); self.units[index].pursuit = None;
             self.units[index].aim = (point.1 - unit.y).atan2(point.0 - unit.x);
             if self.map.original {
-                self.fire_native_ground(index,point,wall.id,!primary_capable(&unit.kind));
+                self.fire_native_ground(index,point,wall.id,!primary_capable_unit(&unit));
             }else if self.units[index].cooldown <= 0. {
                 let grenade = !primary_capable(&unit.kind);
                 let amount = if grenade { f64::from(super::original_grenades::CONTACT_DAMAGE) } else { damage };
@@ -244,7 +246,7 @@ impl Game {
             let path = self.route_to_wall_attack(&unit, &wall, range);
             let delay = if path.is_empty() { 0.75 } else { 0.25 };
             self.units[index].path = path;
-            self.units[index].pursuit = Some(pursuit::State { target: wall.id, planned_goal: wall.center(), next_plan: self.time + delay, revision: self.map.revision });
+            self.units[index].pursuit = Some(pursuit::State { target: wall.id, planned_goal: wall.center(), next_plan: self.time + delay, revision: self.map.revision,native_counter:None });
         }
         false
     }

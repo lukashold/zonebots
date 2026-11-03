@@ -78,7 +78,7 @@ fn marching_squad_reserves_one_driver_and_other_members_keep_their_own_destinati
     assert_eq!(unit(&g,hardware).team,0);
     for id in &ids {if let Some(u)=g.units.iter().find(|u|u.id==*id) {
         let delta=u.formation.as_ref().map(|f|original_formation::offset(f.slot,f.direction)).unwrap_or((0.,0.));
-        assert!((u.x-(1400.+delta.0)).hypot(u.y-(320.+delta.1))<0.01);
+        assert!((u.x-(1400.+delta.0)).hypot(u.y-(320.+delta.1))<0.01,"id{} at{:?},goal{:?},delta{:?},follow{:?},squad{},order{}",u.id,(u.x,u.y),u.dest,delta,u.formation.as_ref().map(|f|(f.leader,f.slot,f.command_goal)),u.squad,u.order);
         assert!(u.initiative.is_none());assert!(u.march_resume.is_none());
     }}
 }

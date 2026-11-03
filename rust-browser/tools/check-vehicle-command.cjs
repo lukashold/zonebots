@@ -15,7 +15,7 @@ function fixture(){return {map:{original:true},winner:null,time:12.5,
   {id:13,type:'apc',team:1,hp:200,x:900,y:200,crew:null,cargo:[]},
   {id:14,type:'jeep',team:0,hp:50,x:1000,y:200,crew:{kind:'grunt',hp:30},cargo:[]},
   {id:15,type:'apc',team:-1,hp:200,x:1100,y:200,crew:null,cargo:Array(6).fill({})},
-  {id:16,type:'apc',team:0,hp:200,x:1300,y:200,crew:{kind:'grunt',hp:30},cargo:Array(6).fill({})},
+  {id:16,type:'apc',team:0,hp:200,x:1300,y:200,crew:{kind:'grunt',hp:30},cargo:Array(20).fill({})},
   {id:17,type:'jeep',team:-1,hp:0,x:1500,y:200,crew:null,cargo:[]},
   {id:18,type:'jeep',team:-1,hp:-1,x:1700,y:200,crew:null,cargo:[]},
   {id:19,type:'jeep',team:-1,hp:50,x:1900,y:200,crew:{kind:'grunt',hp:30},cargo:[]},
@@ -69,7 +69,7 @@ for(const mutate of [
 }
 tracked=assigned([1],22);const carrier=unit(tracked.s,22);carrier.x+=80;carrier.y+=40;
 markers=tracked.tracker.targets(tracked.s,[1]);assert.equal(markers[0].x,2380);assert.equal(markers[0].y,240,'Boarding arrow follows live carrier position.');
-carrier.cargo=Array(6).fill({});assert.equal(tracked.tracker.targets(tracked.s,[1]).length,0,'A full carrier cancels pending arrow feedback.');
+carrier.cargo=Array(20).fill({});assert.equal(tracked.tracker.targets(tracked.s,[1]).length,0,'A full carrier cancels pending arrow feedback.');
 tracked=assigned([1],12);unit(tracked.s,12).team=1;assert.equal(tracked.tracker.targets(tracked.s,[1]).length,0);
 tracked=assigned([6],17);assert.equal(tracked.tracker.targets(tracked.s,[6]).length,1);tracked.s.map.original=false;assert.equal(tracked.tracker.targets(tracked.s,[6]).length,0);
 

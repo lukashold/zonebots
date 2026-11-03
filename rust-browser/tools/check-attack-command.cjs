@@ -19,6 +19,7 @@ assert.equal(r.kind,'attack');assert.equal(r.targetType,'unit');assert.equal(r.t
 assert.deepEqual(Array.from(r.ids),[2,1]);assert.deepEqual([r.x,r.y],[300,200]);assert.equal(JSON.stringify(s),before);
 assert.deepEqual(Array.from(fighterIds(s,[1,1,2,3,4,5,6,7,8,10,12,999])),[1,2,5]);
 assert.deepEqual([...selection],[3,2,4,1]);assert.deepEqual(Array.from(fighterIds(null,[1])),[]);
+for(const kind of ['tough','pyro']){const crewed=fixture();unit(crewed,4).crew={kind,hp:100};assert.deepEqual(Array.from(fighterIds(crewed,[4])),[4]);assert.equal(intent(crewed,[4],{x:110,y:410}).kind,'attackBuilding');assert.equal(intent(crewed,[4],point,{},box)?.kind,kind==='tough'?'attack':undefined,'Only Tough APC crews accept native direct unit targets.');unit(crewed,4).nativeTransport={visible:false};assert.equal(intent(crewed,[4],{x:110,y:410}),null);}
 for(const selected of [[],null,[3],[4],[6],[7],[8],[10],[12],[999]])assert.equal(intent(s,selected,point,{},box),null);
 assert(intent(s,[5],{x:500,y:200}), 'Original HP0 actors and enemy units are alive');
 s.map.original=false;assert.equal(intent(s,[5],point,{},box),null);assert.equal(intent(s,[1],{x:500,y:200}),null);s.map.original=true;
@@ -33,6 +34,9 @@ assert.equal(intent(s,[1],{x:280,y:200},{},box),null,'A valid sprite rectangle r
 r=intent(s,[1],{x:120,y:420});assert.equal(r.kind,'attackBuilding');assert.equal(r.target,0);assert.deepEqual([r.x,r.y],[140,570]);
 r=intent(s,[1],{x:320,y:420});assert.equal(r.target,1);assert.deepEqual([r.x,r.y],[364,584],'Neutral buildings keep legacy attack behavior and exit route');
 for(const x of [520,720])assert.equal(intent(s,[1],{x,y:420}),null,'Own and destroyed buildings are not normal targets');
+const zeroFort=s.buildings[3];zeroFort.kind='fort';zeroFort.nativeFortDestroyed=false;
+assert.equal(intent(s,[1],{x:720,y:420}).target,3,'The explicit native fort state preserves a zero-HP attack target');
+zeroFort.nativeFortDestroyed=true;assert.equal(intent(s,[1],{x:720,y:420}),null,'Clamped HP must not revive a destroyed native fort');
 assert.equal(intent(s,[1],{x:650,y:650}),null,'Normal ground/bridge hover has no attack intent');
 r=intent(s,[1],{x:650,y:650},{commandMode:'attack'});assert.equal(r.kind,'attackBridge');assert.equal(r.targetType,'bridge');assert.equal(r.target,0);
 r=intent(s,[1],{x:800,y:800},{commandMode:'attack'});assert.equal(r.kind,'attack');assert.equal(r.targetType,'point');assert.equal(r.target,undefined);

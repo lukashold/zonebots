@@ -1,0 +1,6 @@
+// Final4549f0/54630 submissions for150-pool's ordinary,21 and31 descriptors.
+import ghidra.app.emulator.EmulatorHelper;
+import java.io.PrintWriter;
+public class ZNativeAnimationDrawOracle extends ZNativeAmbientDrawOracle{
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){int scenario=0;for(int mode:new int[]{0,33,49})for(int palette:new int[]{-128,-30,-1,0,1,3,4,7,8,127})for(int offset:new int[]{0,30,-30,-1})for(int parameter:new int[]{0,127,128,255}){if(mode==0&&palette<0)continue;EmulatorHelper e=new EmulatorHelper(currentProgram);try{e.writeMemory(toAddr(D),new byte[16]);e.writeMemory(toAddr(0x628e18),new byte[16]);put(e,D,2,500);put(e,D+2,2,600);put(e,D+4,2,1000);put(e,D+6,1,palette);put(e,D+7,1,offset);if(mode!=0){put(e,D+4,2,0);put(e,D+6,2,-1);put(e,0x628e18,2,500);put(e,0x628e1a,2,600);put(e,0x628e1c,2,1000);put(e,0x628e1e,1,palette);put(e,0x628e1f,1,mode);put(e,0x628e21,1,parameter);put(e,0x628e26,1,offset);}put(e,0x62b3a4,4,D+8);put(e,0x62d5d8,4,0x628e28);put(e,0x622cb8,4,0);put(e,0x498c24,2,1024);put(e,0x498c20,2,1024);put(e,0x680cfc,4,0);put(e,0x4d02df,1,0);put(e,0x477063,1,2);put(e,0x47717f,1,0);draw="NONE";call(e,0x4549f0,0,0);out.println(scenario+++","+mode+","+palette+","+offset+","+parameter+","+draw);}finally{e.dispose();}}}}
+}
