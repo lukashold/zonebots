@@ -20,6 +20,10 @@ impl Game {
     pub(crate) fn advance_native_fire(&mut self,index:usize,target:&Unit)->bool {
         let u=&self.units[index];
         let grenade=original_grenades::eligible(&u.kind,u.grenades,&target.kind);
+        self.advance_native_fire_choice(index,target,grenade)
+    }
+    pub(crate) fn advance_native_fire_choice(&mut self,index:usize,target:&Unit,grenade:bool)->bool {
+        let u=&self.units[index];
         if u.native_fire.as_ref().is_none_or(|s|s.target!=target.id&&!s.reacquire) {
             let state=State::new(target.id,&u.kind,grenade);
             self.units[index].native_fire=Some(state);self.refresh_native_aim(index,target);return false;

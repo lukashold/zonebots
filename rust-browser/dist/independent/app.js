@@ -128,6 +128,9 @@
   for(const box of state.crates)if(!state.map.original&&!box.taken){c.fillStyle='#293a28';c.fillRect(box.x-7,box.y-5,14,10);c.fillStyle='#b0b66e';c.fillRect(box.x-5,box.y-4,10,2);c.fillStyle='#cbb563';c.fillRect(box.x-1,box.y-3,2,7);}
   for(const b of state.buildings){if(state.map.original)SceneArt.production?.(c,b,state.productionSeconds[b.id],state.map,state.time);readyGunBadge(b);}
   SceneArt.bullets?.(c,(state.bullets||[]).filter(b=>visible(b.x,b.y,32)),state.map);
+  SceneArt.fires?.(c,(state.fires||[]).filter(p=>visible(p.x,p.y,64)),state.map);
+  SceneArt.projectiles?.(c,(state.projectiles||[]).filter(p=>visible(p.x,p.y,64)),state.map);
+  SceneArt.blasts?.(c,(state.blasts||[]).filter(b=>visible(b.x,b.y,128)),state.map);
   if(window.GameGraphics?.isHD())SceneArt.effects(c,state.effects,state.time,state.map);else if(state.map.original&&OriginalArt.ready){IndependentArt.effects(c,state.effects.filter(f=>f.kind!=='explosion'),state.time);SceneArt.effects(c,state.effects,state.time,state.map);}else IndependentArt.effects(c,state.effects,state.time);
   // Terrain and units on the main battlefield are always visible. Radar only affects the minimap.
 

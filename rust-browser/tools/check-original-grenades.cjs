@@ -79,13 +79,18 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
  assert.equal(playerShots(state).length,1);
  assert.equal(playerShots(state)[0].weapon,'grenade','Serialized event must distinguish grenade audio');
  assert.equal(playerShots(state)[0].type,'grunt');
- assert.equal(unit(state,shooter).grenades,7,'Exactly one grenade per committed contact');
- assert.equal(unit(state,target).hp,150,'APC hull200 receives verified body contact50');
+ assert.equal(unit(state,shooter).grenades,7,'Exactly one grenade per successful release');
+ assert.equal(unit(state,target).hp,200,'Release precedes impact and blast pulse');
+ assert(state.projectiles.some(p=>p.kind==='grenade'&&p.team===0));
+ request({op:'command',ids:[shooter],kind:'move',x:64,y:320});
  assert.equal(unit(state,target).crew.hp,30,'Grenade bypasses bullet crew rolls');
  state=tick();
  assert.equal(unit(state,shooter).grenades,7);
- assert.equal(unit(state,target).hp,150);
- assert.equal(playerShots(state).length,0,'Cooldown cannot launch another grenade');
+ assert.equal(unit(state,target).hp,200);
+ assert.equal(playerShots(state).length,0,'A march must not release another grenade');
+ for(let i=0;i<100&&unit(state,target).hp===200;i++)state=tick();
+ assert.equal(unit(state,target).hp,150,'Impact plus three blast phases cause50 hull damage');
+ assert.equal(unit(state,shooter).grenades,7);
 
  state=init(fixture({pickup:false,x:420}));shooter=state.units[0].id;target=state.units[1].id;
  state=firstAttack(shooter,target);

@@ -90,7 +90,7 @@ native Aufgabenfolge ab00415d60 und ihre Sektor-/Gruppenzustände sind NICHT vol
 übertragen. Gleiche Uhr bedeutet keine identischen Gegnerentscheidungen.
 
 Prüfung
-205 Rust-Tests bestehen.59 Node-Prüfprogramme einschließlich realem Wasm,
+214 Rust-Tests bestehen.60 Node-Prüfprogramme einschließlich realem Wasm,
 Mehrspieler, Eingaben, Grafiken, Produktion und allen20 Originalmissionen bestehen.
 Der Kampagnentest lässt beide KI-Parteien je Mission bis zu300 Spielsekunden laufen
 und prüft endliche Koordinaten, Besitz, Gesundheit, Routen und eindeutige IDs.
@@ -100,17 +100,69 @@ startet; der sichtbare Wasm-Vergleich bestätigt Formation, Freigabe und später
 Kontakt ohne Konsolenfehler. Bildnachweis: outputs/Z-Original-Kampf-Formationen.png.
 Die temporäre Prüfseite ist kein Bestandteil der Veröffentlichung.
 
+Schwere Projektile und Einschläge – weiterer Abgleich03.11.2026
+Der getrennte50er-Flugpool und50er-Explosionspool sind jetzt integriert.
+Granaten und Geschützgranaten verwenden ganzzahlige Flugsegmente und die fünf
+Höhenkurven. Raketen und Flammen beschleunigen von1 bis höchstens15 nativen
+Pixeln pro Schritt, begrenzt durch ihren Waffenwert. Terrainhöhe und inklusive
+Maximalreichweite können die Flugbahn vor dem angepeilten Punkt abbrechen.
+Ein Ziel bewegt sich nach dem Abschuss unabhängig vom festen Geschossziel.
+Die ursprünglichen Mündungsversätze sind für Granaten, Tough/Pyro, Geschütze,
+leichte/mittlere/schwere Panzer und beide Raketenwerfertypen übernommen.
+Das feste Raketengeschütz feuert zwei, der mobile Werfer drei getrennte Raketen.
+Die zweite/dritte mobile Rakete übernimmt auch den ursprünglichen X/X-Versatz
+beider Zielachsen. Dieser Befund wurde gegen0045a770 einschließlich ASM geprüft.
+
+Schaden am Einschlag ist kein Soforttreffer auf eine gespeicherte Einheiten-ID.
+Ein normaler Einschlag erzeugt zunächst einen Explosionsdatensatz mit echter
+Stärke. Dessen dritter Schritt im langsameren, alternierenden Takt löst einmal
+Einheitenschaden aus: fünf oder sechs Aufrufe nach Erzeugung, abhängig von der
+Startphase. Die inklusive native Fläche liegt relativ zum Einschlag bei
+X[-18,+26],Y[-14,+18]. Fahrzeugzentren liegen bei Anker+(16,16), andere bei+(8,8).
+Die neun Raumzellen werden in der originalen Reihenfolge durchsucht, mit höchstens
+32 Kandidaten pro Zelle. Eigene aktive Einheiten werden ausgeschlossen.
+120er-Beschuss erzeugt zusätzlich zwei zufällig versetzte Explosionen mit35 und10
+Stärke. Andere starke Waffen verwenden dieselbe gestufte Regel; bestimmte native
+Geländecodes unterdrücken die Zusatzeinschläge. Multiplayer verwendet wie das
+Original einen Null-Zufallswert und kann daher andere Teilflächen treffen als
+Einzelspieler. Die Schwierigkeitsmodifikatoren bleiben getrennt davon.
+
+Mauern und Brücken erhalten Beschuss erst durch die Einschlagposition und ihre
+Nachbarzellen; der frühere direkte Abzug beim Abschuss ist dort entfernt.
+Gebäudeangriffe schwerer Waffen nutzen denselben Flugpool, die genaue native
+Gebäude-/Objektklassifikation bleibt jedoch ein Adapter (siehe offen).
+Flammen hinterlassen native Feuerbilder mit eigenem Phasentakt, Gelände-Lebensdauer
+und wiederholten Flächenkontakten. Rauch, Ausweichreaktionen, Objektübergreifen und
+alle Nebeneffekte sind damit noch nicht vollständig rekonstruiert.
+Originalsprites, Phasen und Größenänderung werden aus dem Rust-Zustand gezeichnet;
+Original- und HD-Modus teilen diesen Zustand. Neue Pools werden auch in der
+Gastansicht mit korrekter Partei übertragen und beim Empfang begrenzt geprüft.
+
+ZNativeProjectileOracle.java führt00464000 und00420be0 im Original-x86-Emulator aus.
+Grafik-/Ton-/Kontaktaufrufe sind dabei abgefangen; der Lauf vergleicht Flugzustände
+und beobachtet den Schadensaufruf, nicht komplette Partien.193 Flugschritte in
+allen acht Oktanten plus langer Achse stimmen mit Rust überein; Hash3593183724.
+Die beiden Startphasen des Explosionszählers bestätigen Schadensaufruf6 bzw.5.
+
+Weitere Formations- und Bewegungsbefunde
+Alle fünf Masken liefern jetzt die emulierten100 Folgepositionen, einschließlich
+des unbeschriebenen19. Platzes von Maske2 (anfänglich0,0). Der Engine-Marschauftrag
+kann0..4 wählen; die automatische native KI-Maskenwahl ist weiterhin offen.
+Der persönliche Bewegungsbonus+3 beim Fahnen-/Hardwareabstecher ist eingebunden
+und wird nach dem Abstecher zurückgenommen. Er ersetzt nicht den separaten
+Gruppenbonus+3 mit eigenem30/120-Takt-Zähler; dieser bleibt offen.
+Die Infanterie-Laufanimation verwendet nun den nativen13-stufigen Zähler und
+läuft auch in Bewegungsschritten mit Null-Pixel-Muster weiter.624 Original-
+Handleraufrufe stimmen mit Rust überein (Hash4264211241). Die100 Maskenpositionen
+stimmen ebenfalls überein (Hash2104783681). Oracle: ZNativeAnimationOracle.java.
+Leerlauf-, Such- und hardwareeigene Animationsautomaten bleiben unvollständig.
+
 Noch offen
-Schwere Granaten-/Raketen-/Flammen-/Artillerieflugbahnen, Beschleunigung, Salven,
-Höhenkollision und vollständige Explosionen sind noch nicht integriert. Deren
-Treffer laufen weiterhin über den bisherigen direkten Kontaktadapter. Native
-Projektile nutzen einen eigenen50er-Pool; diese Untersuchung ist lokal gesichert.
-Die ursprünglichen Explosionen können mehrere versetzte Teilereignisse auslösen;
-ein einfacher flacher Flächenschaden wäre ebenfalls keine1:1-Rekonstruktion.
-Die komplette KI-Aufgabenfolge, vier weitere Formationsmasken, Gruppenbonus+3,
-weitere Beschleunigungszustände, räumliche Belegung und genaue Wiederzielsuche
-bleiben unvollständig. Hardware-Dreh-/Lukenautomaten, APC-Insassenfeuer,
-Dekorationskontakte, volle Objekt-/Gebäudekollision und die komplette Zufalls-
-Aufrufreihenfolge ganzer Partien sind ebenfalls offen. Lauf-/Leerlaufanimationen
-verwenden weiterhin teilweise Webzeit. Daher ist vollständige1:1-Gleichheit
-weiterhin nicht erreicht.
+Die vollständige native KI-Aufgabenfolge einschließlich Sektor-/Gruppenzuständen,
+automatische Maskenwahl, Gruppenbonus, räumliche Belegung und genaue Wiederzielsuche
+sind nicht fertig. Hardware-Dreh-/Lukenautomaten, APC-Insassenfeuer, Projektil-
+Ausweichreaktionen, Rauch und vollständige Objekt-/Gebäudekontakte bleiben offen.
+Auch alle Feuer-Nebeneffekte, volle Zufalls-Aufrufreihenfolge ganzer Partien und
+Leerlaufanimationen sind noch nicht vollständig übertragen. Die Implementierung
+enthält weiter ausdrücklich benannte Webadapter. Vollständige1:1-Gleichheit ist
+deshalb weiterhin nicht erreicht; dieser Bericht ist nicht vollständig abgearbeitet.

@@ -48,11 +48,11 @@ fn structure_attacks_cannot_shoot_through_a_sealed_cliff(){
 }
 #[test]
 fn reachable_structure_attack_uses_id_and_stops_to_fire_at_the_surface(){
- for original in [false,true]{let(mut g,id)=field(original,"heavy");let bi=building(&mut g,17,1,100.);unit_mut(&mut g,id).cooldown=0.;g.command(&json!({"ids":[id],"kind":"attackBuilding","target":17,"x":512,"y":376}));let before=(unit(&g,id).x,unit(&g,id).y);g.step(0.1);assert_eq!(g.buildings[bi].hp,0.);assert_eq!((unit(&g,id).x,unit(&g,id).y),before);g.step(0.1);assert_eq!(unit(&g,id).order,"guard");}
+ for original in [false,true]{let(mut g,id)=field(original,"heavy");let bi=building(&mut g,17,1,100.);unit_mut(&mut g,id).cooldown=0.;g.command(&json!({"ids":[id],"kind":"attackBuilding","target":17,"x":512,"y":376}));let before=(unit(&g,id).x,unit(&g,id).y);g.step(0.1);if original{assert_eq!(g.buildings[bi].hp,100.,"Acquisition is not impact");for _ in 0..100{g.step(0.059);if g.buildings[bi].hp==0.{break;}}}assert_eq!(g.buildings[bi].hp,0.);assert_eq!((unit(&g,id).x,unit(&g,id).y),before);g.step(0.1);assert_eq!(unit(&g,id).order,"guard");}
 }
 #[test]
 fn mounted_guns_do_not_treat_their_own_fort_roof_as_an_external_cliff(){
- let(mut g,id)=field(true,"cannon");let bi=building(&mut g,8,0,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].x=288.;g.buildings[bi].y=288.;g.buildings[bi].w=128.;g.buildings[bi].h=128.;let ui=at(&g,id);g.units[ui].fort_id=Some(8);g.units[ui].cooldown=0.;for y in 9..13{for x in 9..13{g.map.tiles[y*g.map.width+x]=2;}}g.spawn("apc",1,480.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().cooldown=10000.;let hp=unit(&g,target).hp;for _ in 0..4{g.step(0.059);}assert!(unit(&g,target).hp<hp);g.map.tiles[10*g.map.width+14]=2;g.units[ui].cooldown=0.;let hp=unit(&g,target).hp;g.step(0.1);assert_eq!(unit(&g,target).hp,hp,"an external cliff must still stop roof fire");
+ let(mut g,id)=field(true,"cannon");let bi=building(&mut g,8,0,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].x=288.;g.buildings[bi].y=288.;g.buildings[bi].w=128.;g.buildings[bi].h=128.;let ui=at(&g,id);g.units[ui].fort_id=Some(8);g.units[ui].cooldown=0.;for y in 9..13{for x in 9..13{g.map.tiles[y*g.map.width+x]=2;}}g.spawn("apc",1,480.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().cooldown=10000.;let hp=unit(&g,target).hp;for _ in 0..60{g.step(0.059);}assert!(unit(&g,target).hp<hp);g.projectiles.clear();g.blasts.clear();g.map.tiles[10*g.map.width+14]=2;g.units[ui].cooldown=0.;let hp=unit(&g,target).hp;g.step(0.1);assert_eq!(unit(&g,target).hp,hp,"an external cliff must still stop roof fire");
 }
 #[test]
 fn bridge_attacks_require_sight_and_completed_repairs_clear_the_target(){

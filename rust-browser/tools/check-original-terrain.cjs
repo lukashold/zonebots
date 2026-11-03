@@ -51,7 +51,8 @@ const wet=new Set([9,38,39,40,42]),vehicles=new Set(['jeep','light','medium','he
  const car=player(s).id,attacker=s.units.find(u=>u.type==='heavy').id;
  assert(routeCells(s.units.find(u=>u.id===car)).some(([x,y])=>x===10&&y===10),'Vehicle should initially use the intact bridge');
  s=request({op:'command',team:0,kind:'attackBridge',ids:[attacker],x:336,y:336});
- s=request({op:'tick',dt:0.1});assert(s.map.bridgeHp[0]<=0,'Fixture shot must destroy bridge');assert.equal(s.map.tiles[bj],3);
+ s=request({op:'tick',dt:0.1});assert.equal(s.map.bridgeHp[0],1,'Acquisition does not damage the bridge');
+ for(let i=0;i<60&&s.map.bridgeHp[0]>0;i++)s=request({op:'tick',dt:.059});assert(s.map.bridgeHp[0]<=0,'Impact must destroy bridge');assert.equal(s.map.tiles[bj],3);
  for(let i=0;i<160;i++){
   s=request({op:'tick',dt:0.1});const u=s.units.find(u=>u.id===car);assert(u,'Vehicle on shore must survive');assert(u.x<320,`Stale bridge path drove vehicle into water at${u.x},${u.y}`);
  }

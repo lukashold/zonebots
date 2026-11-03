@@ -69,7 +69,7 @@ impl Game {
         let(tx,ty)=(point.0+8,point.1+8);
         if(sx,sy)==(tx,ty){return false;}
         let range=((stats(&u.kind).range/2.)as i32>>3)+1;
-        self.bullets.push(Bullet{id,x:f64::from(sx)*2.,y:f64::from(sy)*2.,team:u.team,laser:u.kind=="laser",phase:0,angle:f64::from(ty-sy).atan2(f64::from(tx-sx)),
+        self.bullets.push(Bullet{id,x:f64::from(sx)*2.,y:f64::from(sy)*2.,team:u.team,laser:u.kind=="laser",phase:0,angle:native_math::projectile_angle(tx-sx,ty-sy),
             line:Line::new(sx,sy,tx,ty),origin:(sx,sy),maximum_range:range*8,speed:15,attack});true
     }
     fn bullet_contact(&mut self,b:&Bullet)->bool {

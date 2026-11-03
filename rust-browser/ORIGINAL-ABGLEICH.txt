@@ -55,8 +55,11 @@ NOCH OFFEN
 Kugelflug, Infanterie-Feuerphasen, Standard-V-Formation und der native KI-Takt sind
 inzwischen teilweise übernommen und mit ausgeführten Originalfunktionen verglichen.
 Die KI-Gebietsstrategie enthält weiterhin Ersatzlogik. Schwere Projektile, Salven,
-Höhenkollision, vollständige Explosionswirkung und Kontaktabfolge sind nicht fertig.
-Weitere Formationsmasken und Sonderzustände, Hardware-Dreh-/Lukenautomaten,
+Höhenkollision und die verzögerten Explosionsflächen sind inzwischen eingebunden und
+teilweise gegen emulierte Originalfunktionen geprüft. Die fünf Formationsmasken und
+Infanterie-Laufzähler sind übernommen. Vollständige Explosions-Nebeneffekte, genaue
+Kontaktabfolge und automatische Formationswahl bleiben offen. Weitere Sonderzustände,
+Hardware-Dreh-/Lukenautomaten,
 APC-Insassenfeuer, Sonderfahrzeuge, Tor-/Ausfahranimationen und die ursprüngliche
 Gesichtszustandsmaschine fehlen bzw. sind unvollständig. Genaue Abgrenzung und
 reproduzierbare Oracle-Werkzeuge: ORIGINAL-KAMPF-FORMATIONEN.txt.

@@ -3,8 +3,8 @@
 //! This module does not replace trajectory collision: a successful aim roll
 //! changes target coordinates; the travelling projectile must still collide.
 //! Bullet contacts now use the native pool, ray stepping and scatter.
-//! Shell blast geometry, hatch animation and full original RNG ordering remain
-//! separate work; no acquisition roll is converted into a guaranteed miss.
+//! Heavy flight and delayed blast geometry are in original_projectiles. Full
+//!world contacts, hatch states and whole-game RNG ordering remain separate work.
 
 use super::Unit;
 use serde::{Deserialize, Serialize};

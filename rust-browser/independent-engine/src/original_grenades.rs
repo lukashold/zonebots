@@ -1,11 +1,9 @@
-//! Confirmed grenade weapon choice and contact adapter, not a full projectile model.
-//! GOG Z.exe 0044aa3a..0044aa7e gives Tough/Pyro/Laser their primary weapon first;
-//! otherwise inventory+0x99 and target runtime class 1 or 2 select grenade state49.
-//! 00464779 copies global0049ba74 (50) into projectile damage+0x1d. The blast
-//! eventually uses body damage (0041f2d0 ->0041f260), without the bullet crew roll.
-//! Throw animation now uses its verified11-update windup. Lob/scatter, allocation
-//! pool, collision and splash geometry remain separate work.
-use super::{original_combat, Unit};
+//! Native grenade selection and50-strength explosive damage. The independent
+//!50-slot allocator spends inventory only on a successful release. Flight,
+//!scatter, terrain height and delayed blast contact live in original_projectiles.
+//!Unit targets use inventory only for Grunt/Psycho/Sniper against classes1/2;
+//!terrain orders additionally allow Laser and Pyro, through their native state49.
+use super::original_combat;
 
 pub const CONTACT_DAMAGE: u8 = 50;
 
@@ -13,22 +11,6 @@ pub fn eligible(shooter: &str, inventory: usize, target: &str) -> bool {
     inventory > 0
         && matches!(shooter, "grunt" | "psycho" | "sniper")
         && matches!(original_combat::runtime_class(target), 1 | 2)
-}
-
-/// Call only after target acquisition, range, sight line and cooldown checks.
-/// The current engine has no failing projectile allocator: committing this
-/// contact is its successful-launch boundary. Failed/idle commands never call it.
-pub fn try_throw(shooter: &mut Unit, target: &Unit) -> Option<original_combat::Attack> {
-    if !eligible(&shooter.kind, shooter.grenades, &target.kind)
-        || shooter.team < 0 || target.team < 0 || shooter.team == target.team
-        || !original_combat::alive(true,shooter.hp) || !original_combat::alive(true,target.hp)
-    {
-        return None;
-    }
-    let mut attack=original_combat::Attack::from_unit(shooter,target.id,f64::from(CONTACT_DAMAGE),shooter.aim);
-    attack.bullet=false;
-    shooter.grenades-=1;
-    Some(attack)
 }
 
 #[cfg(test)]
@@ -66,15 +48,18 @@ mod tests {
 
     #[test]
     fn actual_original_shot_spends_one_grenade_for_fifty_hull_damage() {
-        let mut game=engagement("grunt","medium");
-        for _ in 0..11{game.step(0.059);assert_eq!(game.units[0].grenades,2);}
+        let mut game=engagement("grunt","medium");game.units[0].grenades=1;
+        for _ in 0..11{game.step(0.059);assert_eq!(game.units[0].grenades,1);}
         game.step(0.059);
-        assert_eq!(game.units[0].grenades,1);
+        assert_eq!(game.units[0].grenades,0);
+        assert_eq!(game.units[1].hp,200.,"Release does not cause contact");
+        assert!(!game.projectiles.is_empty());
+        for _ in 0..100{game.step(0.059);if game.units[1].hp<200.{break;}}
         assert_eq!(game.units[1].hp,150.);
         assert_eq!(game.units[1].crew.as_ref().unwrap().hp,30.);
         assert!(game.events.iter().any(|e|e["kind"]=="shot"&&e["weapon"]=="grenade"));
         game.step(0.05);
-        assert_eq!(game.units[0].grenades,1,"Cooldown must not spend another grenade");
+        assert_eq!(game.units[0].grenades,0,"Exhausted inventory must not launch another grenade");
         assert_eq!(game.units[1].hp,150.);
     }
 

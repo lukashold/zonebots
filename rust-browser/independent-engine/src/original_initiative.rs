@@ -206,7 +206,7 @@ impl Game {
     pub(super) fn resume_march(&mut self, index:usize, destination:Option<(f64,f64)>) {
         let u=&mut self.units[index];
         u.initiative=None;u.march_resume=None;u.order="guard".into();u.target=None;
-        u.dest=None;u.path.clear();u.pursuit=None;u.moving=false;u.hold_position=false;
+        u.dest=None;u.path.clear();u.pursuit=None;u.motion_bonus=0;u.moving=false;u.hold_position=false;
         if u.team<0||!original_combat::alive(self.map.original,u.hp)||stats(&u.kind).speed<=0. { return; }
         if let Some((x,y))=destination {
             let route=self.route_unit(&self.units[index],x,y);
@@ -341,6 +341,7 @@ impl Game {
                 let unit = &mut self.units[i];
                 unit.march_resume=if u.order=="move" { u.dest.filter(|(x,y)|(x-u.x).hypot(y-u.y)>1e-6) }else{None};
                 unit.initiative = Some(goal);
+                unit.motion_bonus=3;
                 unit.dest = Some((x, y));
                 unit.path = route;
                 match goal {

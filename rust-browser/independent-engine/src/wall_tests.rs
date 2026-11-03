@@ -49,8 +49,10 @@ fn native_zero_hp_is_intact_until_first_positive_contact() {
 fn wall_attack_fires_at_selected_wall_and_stops_on_collapse() {
     let mut g=field(); g.import_walls(&json!({"walls":[wall(7,640.,320.,10.)]})).unwrap();
     let id=shooter(&mut g,"light",480.,336.); g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
-    g.step(0.059); assert!(!g.walls[0].alive()); assert_eq!(unit(&g,id).order,"guard");
-    assert!(unit(&g,id).path.is_empty()); assert!(g.effects.iter().any(|fx|fx.kind=="shot"&&fx.x2==640.));
+    g.step(0.059);assert!(g.walls[0].alive(),"Acquisition is not impact");
+    for _ in 0..100{g.step(0.059);if !g.walls[0].alive(){break;}}
+    assert!(!g.walls[0].alive());g.step(0.059);assert_eq!(unit(&g,id).order,"guard");
+    assert!(unit(&g,id).path.is_empty());assert!(g.events.iter().any(|e|e["kind"]=="shot"));
 }
 
 #[test]
@@ -162,6 +164,7 @@ fn an_overlapping_southern_head_blocks_fire_at_the_upper_wall_but_can_itself_be_
     g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
     assert_eq!(g.walls[0].hp,5.);assert_eq!(g.walls[1].hp,5.);assert!(!g.events.iter().any(|e|e["kind"]=="shot"));
     g.command(&json!({"ids":[id],"kind":"attackWall","target":9}));g.step(0.059);
+    for _ in 0..100{g.step(0.059);if !g.walls[1].alive(){break;}}
     assert_eq!(g.walls[0].hp,5.);assert_eq!(g.walls[1].hp,0.);
 }
 
@@ -176,12 +179,14 @@ fn machine_gun_hardware_and_empty_infantry_cannot_damage_stone() {
 }
 
 #[test]
-fn all_five_native_terrain_grenade_robot_classes_spend_one_only_on_contact() {
+fn all_five_native_terrain_grenade_robot_classes_spend_on_release_and_damage_on_impact() {
     for kind in ["grunt","psycho","sniper","laser","pyro"] {
         let mut g=field();g.import_walls(&json!({"walls":[wall(7,512.,320.,80.)]})).unwrap();
         let id=shooter(&mut g,kind,480.,336.);g.units.last_mut().unwrap().grenades=1;
         g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
-        assert_eq!(g.walls[0].hp,30.,"{kind}: verified50-damage grenade contact");
+        assert_eq!(g.walls[0].hp,80.,"Acquisition is not impact");
+        for _ in 0..100{g.step(0.059);if g.walls[0].hp<80.{break;}}
+        assert_eq!(g.walls[0].hp,30.,"{kind}: verified50-damage grenade impact");
         assert_eq!(unit(&g,id).grenades,0);assert!(g.events.iter().any(|e|e["weapon"]=="grenade"));
         for _ in 0..50 {g.step(0.059);}
         assert_eq!(g.walls[0].hp,30.,"No ammunition means no additional wall hits");
@@ -198,6 +203,8 @@ fn explosive_families_and_both_human_teams_break_stone_with_primary_contact() {
             g.units.last_mut().unwrap().hold_position=true;
             let id=shooter(&mut g,kind,480.,336.);g.units.last_mut().unwrap().team=team;
             g.command(&json!({"team":team,"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
+            assert!(g.walls[0].alive(),"Acquisition is not impact");
+            for _ in 0..100{g.step(0.059);if !g.walls[0].alive(){break;}}
             assert!(!g.walls[0].alive(),"{kind}/team{team}");
             assert!(g.events.iter().any(|e|e["kind"]=="shot"&&e["weapon"]=="primary"));
             assert_eq!(unit(&g,id).grenades,0);

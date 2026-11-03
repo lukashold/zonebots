@@ -33,6 +33,18 @@ pub fn isqrt(n:u64)->i32 {
     while (x+1).saturating_mul(x+1)<=n{x+=1;}
     x as i32
 }
+/// 004643b0 truncates the float arctangent within each quadrant, then the
+/// allocator quantizes its degree bearing to an unsigned 256-step rotation.
+pub fn projectile_angle(dx:i32,dy:i32)->f64 {
+    let bearing=if dx==0{if dy>0{180}else{0}}
+        else if dy==0{if dx>0{90}else{270}}
+        else{
+            let degree=|ratio:f32|f64::from(ratio.atan())*57.296;
+            if dx<0{if dy<0{270+degree(dy as f32/dx as f32)as i32}else{180+degree(-dx as f32/dy as f32)as i32}}
+            else if dy<0{degree(-dx as f32/dy as f32)as i32}else{90+degree(dy as f32/dx as f32)as i32}
+        };
+    f64::from(255-(bearing*256/360))*std::f64::consts::TAU/256.
+}
 
 #[derive(Clone)]
 pub struct Line {
@@ -56,6 +68,7 @@ impl Line {
         self.remaining-=n;n
     }
     pub fn extend(&mut self,pixels:i32){self.remaining+=pixels;}
+    pub fn major_length(&self)->i32{self.major}
 }
 
 #[cfg(test)]

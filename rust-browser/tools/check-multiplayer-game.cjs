@@ -12,7 +12,7 @@ function fixture(){
   buildings:[{id:0,kind:'fort',team:0,sector:0,x:64,y:64,w:128,h:160,hp:2000,maxHp:2000,stars:1,product:'grunt',progress:0,remainingWork:1},
    {id:1,kind:'fort',team:1,sector:1,x:800,y:800,w:128,h:160,hp:2000,maxHp:2000,stars:1,product:'grunt',progress:0,remainingWork:1},
    {id:2,kind:'robot',team:1,sector:1,x:704,y:64,w:96,h:128,hp:2000,maxHp:2000,stars:5,product:'grunt',progress:0,remainingWork:1,readyGuns:['cannon']}],
-  spawns:[{type:'grunt',team:0,x:224,y:256,squad:1},{type:'grunt',team:1,x:736,y:512,squad:2},{type:'apc',team:1,x:800,y:512,squad:3},{type:'gatling',team:-1,x:680,y:320,squad:4}],crates:[],originalObjects:[]};
+  spawns:[{type:'grunt',team:0,x:224,y:256,squad:1},{type:'grunt',team:1,x:736,y:512,squad:2},{type:'heavy',team:1,x:656,y:544,squad:5},{type:'apc',team:1,x:800,y:512,squad:3},{type:'gatling',team:-1,x:680,y:320,squad:4}],crates:[],originalObjects:[]};
 }
 async function rawEngine(){
  const {instance}=await WebAssembly.instantiate(fs.readFileSync(path.join(root,'dist/independent/engine.wasm')),{}),e=instance.exports,encoder=new TextEncoder(),decoder=new TextDecoder(),calls=[];
@@ -38,10 +38,16 @@ async function run(){
  assert.equal(unit(guest.viewState,blue).team,0);assert.equal(unit(guest.viewState,red).team,1);assert.equal(unit(guest.viewState,neutral).team,-1);
  assert.equal(guest.viewState.sectors[0].owner,1);assert.equal(guest.viewState.sectors[1].owner,0);assert.equal(guest.viewState.buildings[2].team,0);
  const firstMap=guest.state.map;assert.equal(guest.viewState.map,firstMap);
- assert.equal(guest.action({op:'command',team:0,kind:'attackBridge',ids:[blue],x:736,y:544},'bridge'),null);pump();
- assert.equal(unit(host.state,blue).order,'attackBridge');assert.equal(results.at(-1)[1],'bridge');assert.equal(unit(guest.viewState,blue).order,'attackBridge');
+ const bridgeShooter=host.state.units.find(u=>u.team===1&&u.type==='heavy').id;
+ assert.equal(guest.action({op:'command',team:0,kind:'attackBridge',ids:[bridgeShooter],x:736,y:544},'bridge'),null);pump();
+ assert.equal(unit(host.state,bridgeShooter).order,'attackBridge');assert.equal(results.at(-1)[1],'bridge');assert.equal(unit(guest.viewState,bridgeShooter).order,'attackBridge');
  for(let i=0;i<3;i++)host.tick(.05);pump();
- assert(Math.abs(host.state.time-2/17)<1e-12);assert.equal(guest.state.time,host.state.time);assert.equal(host.state.map.revision,1);assert.equal(guest.state.map.revision,1);assert.equal(guest.state.map.tiles[17*32+23],3);assert.notEqual(guest.state.map,firstMap,'A bridge revision must refresh geometry');
+ assert(Math.abs(host.state.time-2/17)<1e-12);assert.equal(host.state.map.revision,0,'Acquisition is not impact');
+ for(let i=0;i<100&&host.state.map.revision===0;i++){host.tick(.059);pump();}
+ // Deliver the authoritative revision through the regular throttled frame.
+ for(let i=0;i<3;i++)host.tick(.05);pump();
+ host.setPaused(true);pump();host.setPaused(false);pump();
+ assert.equal(guest.state.time,host.state.time);assert.equal(host.state.map.revision,1);assert.equal(guest.state.map.revision,1);assert.equal(guest.state.map.tiles[17*32+23],3);assert.notEqual(guest.state.map,firstMap,'A bridge revision must refresh geometry');
  for(const key of ['units','buildings','sectors','map'])assert.deepEqual(clone(guest.state[key]),clone(host.state[key]),`Both peers must share canonical ${key}`);
  const deliveredEvents=guestViews.flatMap(s=>s.events);
  assert.equal(deliveredEvents.filter(e=>e.kind==='bridgeDestroyed').length,1,'Events from intervening20Hz ticks must be aggregated into one8Hz frame');

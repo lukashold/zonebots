@@ -14,12 +14,15 @@
   if(!state||role!=='guest')return state;
   return {...state,units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
    buildings:state.buildings.map(b=>({...b,team:flip(b.team)})),sectors:state.sectors.map(s=>({...s,owner:flip(s.owner)})),
-   bullets:(state.bullets||[]).map(b=>({...b,team:flip(b.team)})),events:(state.events||[]).map(remapEvent),winner:flip(state.winner)};
+   bullets:(state.bullets||[]).map(b=>({...b,team:flip(b.team)})),projectiles:(state.projectiles||[]).map(p=>({...p,team:flip(p.team)})),blasts:(state.blasts||[]).map(b=>({...b,team:flip(b.team)})),fires:(state.fires||[]).map(f=>({...f,team:flip(f.team)})),events:(state.events||[]).map(remapEvent),winner:flip(state.winner)};
  }
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
   if(state.bullets!==undefined&&(!Array.isArray(state.bullets)||state.bullets.length>200||!state.bullets.every(b=>object(b)&&integer(b.id,199)&&[b.x,b.y,b.angle].every(Number.isFinite)&&[0,1].includes(b.team)&&typeof b.laser==='boolean'&&integer(b.phase,1))))return false;
+  if(state.projectiles!==undefined&&(!Array.isArray(state.projectiles)||state.projectiles.length>50||!state.projectiles.every(p=>object(p)&&integer(p.id,49)&&[p.x,p.y,p.angle,p.size].every(Number.isFinite)&&[0,1].includes(p.team)&&['shell','grenade','rocket','flame','howitzer'].includes(p.kind)&&integer(p.sprite,7210)&&p.size>=0&&p.size<=256)))return false;
+  if(state.blasts!==undefined&&(!Array.isArray(state.blasts)||state.blasts.length>50||!state.blasts.every(b=>object(b)&&integer(b.id,49)&&[b.x,b.y].every(Number.isFinite)&&[0,1,255].includes(b.team)&&integer(b.frame,31)&&integer(b.strength,255)&&integer(b.sprite,7210)&&typeof b.water==='boolean')))return false;
+  if(state.fires!==undefined&&(!Array.isArray(state.fires)||state.fires.length>200||!state.fires.every(f=>object(f)&&integer(f.id,199)&&[f.x,f.y].every(Number.isFinite)&&[0,1].includes(f.team)&&integer(f.frame,5)&&integer(f.sprite,7210))))return false;
   if(state.walls!==undefined&&(!Array.isArray(state.walls)||state.walls.length>16384||!state.walls.every(w=>object(w)&&integer(w.id)&&[w.x,w.y,w.hp,w.maxHp].every(Number.isFinite))))return false;
   if(!state.units.every(u=>object(u)&&integer(u.id)&&[u.x,u.y,u.hp,u.maxHp,u.angle,u.aim].every(Number.isFinite)&&[-1,0,1].includes(u.team)))return false;
   if(!state.buildings.every(b=>object(b)&&integer(b.id)&&[b.x,b.y,b.w,b.h,b.hp,b.maxHp].every(Number.isFinite)&&[-1,0,1].includes(b.team)))return false;
@@ -41,6 +44,7 @@
    const units=new Map(state.units.map(u=>[u.id,u]));
    result.ids=[...new Set(request.ids)].filter(id=>{const u=units.get(id);return u&&u.team===team&&(state.map.original?u.hp>=0:u.hp>0);});
    if(!result.ids.length)return null;result.kind=request.kind;
+   if(request.kind==='move'&&own(request,'formation')){if(!integer(request.formation,4))return null;result.formation=request.formation;}
    if(own(request,'target')){if(!integer(request.target))return null;result.target=request.target;}
    if(['enter','board','repair','repairVehicle','attackBuilding'].includes(result.kind)&&!own(result,'target'))return null;
    if(result.kind==='repairVehicle'){const b=state.buildings.find(b=>b.id===result.target&&b.kind==='repair'&&b.team===team&&b.hp>0);if(!b)return null;result.ids=result.ids.filter(id=>{const u=units.get(id),d=state.catalog.find(d=>d.type===u.type);return d?.class===1&&u.crew!=null&&u.hp<u.maxHp;});if(!result.ids.length)return null;}

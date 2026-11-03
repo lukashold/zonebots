@@ -3,6 +3,7 @@
 //! shared pattern cursors before unit updates. 004525a0 and 00451da0..004520a0
 //! use integer, major-axis stepping, not normalized vector interpolation.
 use super::{Game, original_combat, original_terrain};
+use serde::{Serialize,Deserialize};
 
 pub const TICK_SECONDS:f64=0.059;
 const WORLD_SCALE:f64=2.;
@@ -19,6 +20,13 @@ pub fn speed(control:u8)->f64 {
     pattern.iter().map(|&v|f64::from(v)).sum::<f64>()/pattern.len()as f64*WORLD_SCALE/TICK_SECONDS
 }
 fn coordinate(v:f64)->i32 {(v/WORLD_SCALE).floor()as i32}
+const WALK_COUNTER:[i8;13]=[10,8,6,5,5,4,3,2,2,2,1,1,1];
+#[derive(Clone,Serialize,Deserialize)]
+pub struct Walk{pub frame:u8,timer:i8}
+impl Walk{
+    fn new(index:usize)->Self{Self{frame:0,timer:WALK_COUNTER[index]}}
+    fn advance(&mut self,index:usize){self.timer=self.timer.wrapping_sub(1);if self.timer<0{self.timer=WALK_COUNTER[index];self.frame=(self.frame+1)&3;}}
+}
 
 #[derive(Clone,Default)]
 pub(crate) struct Segment {
@@ -56,7 +64,12 @@ impl Game {
             let code=if col<self.map.width&&row<self.map.height {
                 self.map.terrain_codes.get(row*self.map.width+col).copied().unwrap_or(0)
             }else{0};
-            let pattern=STEPS[(index(control,code)as i32+i32::from(u.motion_bonus)).clamp(0,12)as usize];let step=pattern[tick as usize%pattern.len()];
+            let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)).clamp(0,12)as usize;
+            let pattern=STEPS[motion_index];let step=pattern[tick as usize%pattern.len()];
+            if super::stats(&u.kind).cls==0{
+                let mut walk=u.native_walk.clone().unwrap_or_else(||Walk::new(motion_index));walk.advance(motion_index);self.units[i].native_walk=Some(walk);
+            }
+            let u=&self.units[i];
             if step==0{continue;}
             let mut segment=u.original_motion.clone().filter(|s|s.goal==(coordinate(goal.0),coordinate(goal.1))
                 &&s.position==(coordinate(u.x),coordinate(u.y)))
@@ -83,6 +96,12 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn all_624_walking_counter_steps_match_the_executed_native_handler(){
+        let mut hash=2166136261u32;
+        for speed in 0..13{let mut walk=Walk::new(speed);for tick in 1..=48{walk.advance(speed);for n in [speed as i32,tick,i32::from(walk.frame),i32::from(walk.timer)]{hash=(hash^n as u32).wrapping_mul(16777619);}}}
+        assert_eq!(hash,4264211241,"ZNativeAnimationOracle");
+    }
     #[test]
     fn integer_segments_match_an_independent_major_axis_reference_in_every_octant() {
         for dx in -13_i32..=13 {for dy in -13_i32..=13 {

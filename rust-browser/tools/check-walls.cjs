@@ -21,20 +21,20 @@ if(process.argv[2]){assert.equal(process.argv[2],'--wasm');assert(process.argv[3
  assert.equal(s.map.tiles[j],6);assert.equal(s.map.terrainCodes[j],2);assert.equal(s.map.terrainCodes[j+s.map.width],18);assert.equal(s.map.originalTiles[j+s.map.width],320);
  assert.equal(s.catalog.find(d=>d.type==='light').canDestroyWalls,true);assert.equal(s.catalog.find(d=>d.type==='jeep').canDestroyWalls,false);assert.equal(s.catalog.find(d=>d.type==='laser').wallGrenades,true);
  const known={compact:true,knownMapSeed:s.mapSeed,knownMapRevision:s.mapRevision};
- s=command(s,'attackWall',{target:7});s=tick(1,known);assert(wall(s).hp<80&&wall(s).hp>0);assert(!s.map,'HP-only change should retain compact map omission');
+ s=command(s,'attackWall',{target:7});s=tick(1,known);assert.equal(wall(s).hp,80);for(let i=0;i<100&&wall(s).hp===80;i++)s=tick(1,known);assert(wall(s).hp<80&&wall(s).hp>0);assert(!s.map,'HP-only change should retain compact map omission');
  for(let i=0;i<160&&wall(s).hp>0;i++)s=tick(1,known);
- assert.equal(wall(s).hp,0);assert(s.map,'Collapse must transmit revised collision/artwork map');assert.equal(s.mapRevision,1);assert.equal(unit(s).order,'guard');
+ assert.equal(wall(s).hp,0);assert(s.map,'Collapse must transmit revised collision/artwork map');assert.equal(s.mapRevision,1);assert.equal(unit(tick()).order,'guard');
  for(let dy=0;dy<3;dy++){assert.equal(s.map.tiles[j+dy*s.map.width],0);assert.equal(s.map.terrainCodes[j+dy*s.map.width],22);assert.equal(s.map.originalTiles[j+dy*s.map.width],400+((7+dy)&7));}
  s=command(s,'move',{x:656,y:336});s=tick(80);assert(Math.hypot(unit(s).x-656,unit(s).y-336)<20,'Tank must be able to enter its opened breach');
  // HP=0 in the original header is still intact, then falls on its first hit.
- s=init(fixture({hp:0}));assert.equal(wall(s).hp,1);assert.equal(s.map.tiles[j],6);s=command(s,'attackWall',{target:7});s=tick();assert.equal(wall(s).hp,0);
+ s=init(fixture({hp:0}));assert.equal(wall(s).hp,1);assert.equal(s.map.tiles[j],6);s=command(s,'attackWall',{target:7});for(let i=0;i<100&&wall(s).hp>0;i++)s=tick();assert.equal(wall(s).hp,0);
  for(const type of ['grunt','psycho','sniper','pyro','laser','jeep','gatling','apc','crane']){s=init(fixture({type}));s=command(s,'attackWall',{target:7});s=tick(5);assert.equal(wall(s).hp,5,`${type} without explosives must not damage stone`);}
  // Acquire real grenade inventory through the existing pickup path.
- for(const type of ['grunt','psycho','sniper','pyro','laser']){const m=fixture({type,x:608,hp:80});m.crates=[{id:21,x:608,y:336,taken:false}];s=init(m);s=tick();assert.equal(unit(s).grenades,8);s=command(s,'attackWall',{target:7});s=tick();assert.equal(wall(s).hp,30);assert.equal(unit(s).grenades,7);assert(s.events.some(e=>e.weapon==='grenade'));}
+ for(const type of ['grunt','psycho','sniper','pyro','laser']){const m=fixture({type,x:608,hp:80});m.crates=[{id:21,x:608,y:336,taken:false}];s=init(m);s=tick();assert.equal(unit(s).grenades,8);s=command(s,'attackWall',{target:7});let released=false;for(let i=0;i<100&&wall(s).hp===80;i++){s=tick();released ||=s.events.some(e=>e.weapon==='grenade');}assert.equal(wall(s).hp,30);assert.equal(unit(s).grenades,7);assert(released);}
  // Lower composed heads block fire at upper fragments, despite shared fronts.
  s=init(fixture({type:'cannon',x:656,y:464,walls:[fragment(7,640,320),fragment(9,640,352,5,32)]}));
  s=command(s,'attackWall',{target:7});s=tick();assert.equal(wall(s).hp,5);assert.equal(wall(s,9).hp,5);assert(!s.events.some(e=>e.kind==='shot'));
- s=command(s,'attackWall',{target:9});s=tick();assert.equal(wall(s).hp,5);assert.equal(wall(s,9).hp,0);
+ s=command(s,'attackWall',{target:9});for(let i=0;i<100&&wall(s,9).hp>0;i++)s=tick();assert.equal(wall(s).hp,5);assert.equal(wall(s,9).hp,0);
  // Distant orders find a reachable firing cell and stop outside wall geometry.
  s=init(fixture({x:96,walls:[fragment(7,1152,320)]}));s=command(s,'attackWall',{target:7});assert(unit(s).path.length>0);
  for(let i=0;i<700&&wall(s).hp>0;i++)s=tick();assert.equal(wall(s).hp,0);assert(unit(s).x<1152);

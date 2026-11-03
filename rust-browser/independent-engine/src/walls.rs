@@ -1,5 +1,5 @@
 //! Destructible scenery imported separately from the immutable cliff mask.
-//! A* routing and immediate shot contact are browser-engine adapters. Original
+//! A* routing remains an adapter; native heavy fire now contacts on impact. Original
 //! placement, artwork and durability metadata come from the local extractor.
 use super::{original_combat, original_terrain, pursuit, Fx, Game, Unit, TILE};
 use serde::{Deserialize, Serialize};
@@ -223,7 +223,9 @@ impl Game {
         if (unit.x - point.0).hypot(unit.y - point.1) <= range && self.wall_los(unit.x, unit.y, point.0, point.1, wall.id) {
             self.units[index].path.clear(); self.units[index].pursuit = None;
             self.units[index].aim = (point.1 - unit.y).atan2(point.0 - unit.x);
-            if self.units[index].cooldown <= 0. {
+            if self.map.original {
+                self.fire_native_ground(index,point,wall.id,!primary_capable(&unit.kind));
+            }else if self.units[index].cooldown <= 0. {
                 let grenade = !primary_capable(&unit.kind);
                 let amount = if grenade { f64::from(super::original_grenades::CONTACT_DAMAGE) } else { damage };
                 if grenade { self.units[index].grenades -= 1; }

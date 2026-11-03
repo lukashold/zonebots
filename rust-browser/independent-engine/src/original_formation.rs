@@ -1,21 +1,24 @@
-//! Native follower geometry0044b6d0/0044d430, using the default V layout.
+//! Native follower geometry0044b6d0/0044d430, with all five native masks.
 //! Followers target the leader's current position plus a rotated native offset;
 //! they do not receive arbitrary12x14 browser grid destinations.
 use super::{Game,stats,original_combat,native_math};
 use serde::{Serialize,Deserialize};
 use std::collections::{BTreeMap,HashSet,VecDeque};
 
-const V:[[i32;2];20]=[[-16,16],[16,16],[-32,32],[0,32],[32,32],[-48,48],[-16,48],[16,48],[48,48],[-16,32],[16,32],[-32,48],[32,48],[-48,64],[-32,64],[-16,64],[0,64],[16,64],[32,64],[48,64]];
+const LAYOUTS:[[[i32;2];20];5]=[[[-16,16],[16,16],[-32,32],[0,32],[32,32],[-48,48],[-16,48],[16,48],[48,48],[-16,32],[16,32],[-32,48],[32,48],[-48,64],[-32,64],[-16,64],[0,64],[16,64],[32,64],[48,64]],[[-16,16],[0,16],[16,16],[-16,32],[0,32],[16,32],[-16,48],[0,48],[16,48],[-16,64],[0,64],[16,64],[-16,80],[0,80],[16,80],[-16,96],[0,96],[16,96],[-16,112],[16,112]],[[-32,48],[32,48],[-32,-48],[32,-48],[0,48],[0,-48],[-32,0],[32,0],[-16,48],[16,48],[-16,-48],[16,-48],[-32,32],[32,32],[-32,-32],[32,-32],[-32,16],[32,16],[0,0],[32,-16]],[[-16,0],[16,0],[-32,0],[32,0],[-48,0],[48,0],[-64,0],[64,0],[-80,0],[80,0],[-96,0],[96,0],[-112,0],[112,0],[-96,-64],[96,-64],[-96,64],[96,64],[0,-112],[0,112]],[[-32,48],[32,48],[-32,-48],[32,-48],[0,48],[0,-48],[-32,0],[32,0],[-16,48],[16,48],[-16,-48],[16,-48],[-32,32],[32,32],[-32,-32],[32,-32],[-32,16],[32,16],[-32,-16],[32,-16]]];
 #[derive(Clone,Serialize,Deserialize)]
 #[serde(rename_all="camelCase")]
 pub struct Follow {
+ #[serde(default)] pub layout:u8,
  pub leader:usize,pub slot:usize,pub command_goal:(f64,f64),pub direction:u8,
  #[serde(skip)] last_goal:Option<(f64,f64)>,
  #[serde(skip)] next_plan:f64,
  #[serde(skip)] revision:u32,
 }
-pub fn offset(slot:usize,direction:u8)->(f64,f64) {
- let p=V[slot.saturating_sub(1).min(19)];let a=-(i32::from(direction))*64;
+#[cfg(test)]
+pub fn offset(slot:usize,direction:u8)->(f64,f64) {offset_layout(slot,direction,0)}
+pub fn offset_layout(slot:usize,direction:u8,layout:u8)->(f64,f64) {
+ let p=LAYOUTS[usize::from(layout.min(4))][slot.saturating_sub(1).min(19)];let a=-(i32::from(direction))*64;
  let s=native_math::sine(a);let c=native_math::sine(a+128);
  (f64::from((p[1]*s>>10)+(p[0]*c>>10))*2.,f64::from((p[1]*c>>10)-(s*p[0]>>10))*2.)
 }
@@ -32,17 +35,17 @@ impl Game {
    let direction=if (goal.0-self.units[lead].x).abs()+(goal.1-self.units[lead].y).abs()<1.{original_combat::facing(self.units[lead].angle)}
        else{native_math::direction(((goal.0-self.units[lead].x)/2.)as i32,((goal.1-self.units[lead].y)/2.)as i32)};
    for(rank,&i)in members.iter().enumerate(){
-    self.units[i].formation=if rank==0||rank>20{None}else{Some(Follow{leader,slot:rank,command_goal:goal,direction,last_goal:None,next_plan:0.,revision:self.map.revision})};
+    self.units[i].formation=if rank==0||rank>20{None}else{Some(Follow{leader,slot:rank,layout:self.units[i].formation_layout,command_goal:goal,direction,last_goal:None,next_plan:0.,revision:self.map.revision})};
     self.units[i].motion_bonus=0;
    }
   }
  }
  pub(crate) fn native_formation_destination(&self,index:usize,goal:(f64,f64))->(f64,f64) {
-  self.units[index].formation.as_ref().map(|f|{let d=offset(f.slot,f.direction);(goal.0+d.0,goal.1+d.1)}).unwrap_or(goal)
+  self.units[index].formation.as_ref().map(|f|{let d=offset_layout(f.slot,f.direction,f.layout);(goal.0+d.0,goal.1+d.1)}).unwrap_or(goal)
  }
  pub(crate) fn update_native_follower(&mut self,index:usize) {
-  let u=self.units[index].clone();let Some(mut f)=u.formation.clone()else{self.units[index].motion_bonus=0;return;};
-  if u.order!="move"||u.initiative.is_some()||u.hold_position||u.workshop.is_some(){self.units[index].motion_bonus=0;return;}
+  let u=self.units[index].clone();let Some(mut f)=u.formation.clone()else{return;};
+  if u.order!="move"||u.initiative.is_some()||u.hold_position||u.workshop.is_some(){self.units[index].motion_bonus=if u.initiative.is_some(){3}else{0};return;}
   let leader=self.units.iter().find(|p|p.id==f.leader&&p.squad==u.squad&&p.team==u.team&&original_combat::alive(true,p.hp)).cloned();
   let leader=if let Some(leader)=leader{leader}else{
    let promoted=self.units.iter().filter(|p|p.squad==u.squad&&p.team==u.team&&original_combat::alive(true,p.hp)&&stats(&p.kind).cls==0).min_by_key(|p|p.native_slot.unwrap_or(p.id)).cloned();
@@ -54,7 +57,7 @@ impl Game {
    f.leader=promoted.id;promoted
   };
   if leader.moving{f.direction=original_combat::facing(leader.angle);}
-  let delta=offset(f.slot,f.direction);let goal=(leader.x+delta.0,leader.y+delta.1);
+  let delta=offset_layout(f.slot,f.direction,f.layout);let goal=(leader.x+delta.0,leader.y+delta.1);
   let endpoint=(f.command_goal.0+delta.0,f.command_goal.1+delta.1);
   if (u.x-goal.0).abs()+(u.y-goal.1).abs()<1. {
    let p=&mut self.units[index];p.path.clear();p.original_motion=None;p.motion_bonus=0;p.dest=Some(endpoint);p.formation=Some(f);return;
@@ -76,6 +79,20 @@ impl Game {
 mod tests {
  use super::*;
  use crate::json;
+ #[test]
+ fn all_five_layouts_match_executed_native_mask_generation_including_the_empty_slot(){
+  let mut hash=2166136261u32;
+  for(layout,slots)in LAYOUTS.iter().enumerate(){for(slot,p)in slots.iter().enumerate(){for n in [layout as i32,slot as i32+1,p[0],p[1]]{hash=(hash^n as u32).wrapping_mul(16777619);}}}
+  assert_eq!(hash,2104783681,"ZNativeAnimationOracle,100 original follower positions");
+  assert_eq!(LAYOUTS[2][18],[0,0]);
+ }
+ #[test]
+ fn formation_choice_changes_followers_without_changing_the_leader_goal(){
+  let mut g=field();let ids=g.units[..3].iter().map(|u|u.id).collect::<Vec<_>>();
+  g.command(&json!({"kind":"move","ids":ids,"x":800.,"y":600.,"formation":1}));
+  assert_eq!(g.units[0].dest,Some((800.,600.)));assert_eq!(g.units[1].formation.as_ref().unwrap().layout,1);
+  assert_eq!(g.units[2].dest,Some((768.,600.)));
+ }
  fn field()->Game {
   let mut g=Game::new(0,1,891);g.map.original=true;g.map.tiles.fill(0);g.map.terrain_codes=vec![0;g.map.tiles.len()];g.map.bridge_base.fill(-1);
   g.units.clear();g.buildings.clear();g.crates.clear();g.sectors.clear();g.walls.clear();g.objects.clear();g.effects.clear();g.events.clear();g.ai_teams.clear();g.ai_clock=10000.;g.next_id=1;g.winner=None;
