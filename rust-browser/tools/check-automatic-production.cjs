@@ -85,7 +85,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
       const fixture = captureFixture(source, input.id);
       let state = init(fixture), building = byId(state, input.id);
       assert.equal(building.product, null, 'Neutral factories stay inactive until captured');
-      state = request({op:'tick', dt:0});
+      state = request({op:'tick', dt:.059});
       building = byId(state, input.id);
       assert.equal(building.team, 0);
       assert.equal(building.product, 'grunt', `Mission ${source.number}, captured robot factory ${input.id}`);
@@ -119,12 +119,14 @@ const clone = value => JSON.parse(JSON.stringify(value));
   manualInput.progress = 1 - manualInput.remainingWork / workload;
   state = init(manual);
   assert.equal(byId(state, id).product, alternative);
-  state = request({op:'tick', dt:0});
+  state = request({op:'tick', dt:.059});
   let building = byId(state, id);
   assert.equal(building.team, 0);
   assert.equal(building.product, alternative);
-  assert.equal(building.remainingWork, manualInput.remainingWork);
-  assert.equal(building.progress, manualInput.progress);
+  const own=state.sectors.filter(s=>s.owner===0&&s.countsForProduction!==false).length,captureTotal=state.sectors.filter(s=>s.countsForProduction!==false).length;
+  const captureRate=Math.trunc(Math.trunc(building.hp*100/building.maxHp)*(1+(Math.trunc(own*100/captureTotal)>>2))/100);
+  assert.equal(building.remainingWork, manualInput.remainingWork-captureRate,'Capture preserves the unfinished order and spends exactly one native tick');
+  assert.equal(building.progress,1-building.remainingWork/workload);
 
   // The old stop command now selects the robot default. Repeating it must not
   // restart work that is already being spent on that default.

@@ -30,7 +30,7 @@ impl Segment {
         let position=(coordinate(x),coordinate(y));let goal=(coordinate(goal.0),coordinate(goal.1));
         let dx=goal.0-position.0;let dy=goal.1-position.1;
         let x_major=dx.abs()>=dy.abs();let major=dx.abs().max(dy.abs());
-        Self{goal,position,major,minor:dx.abs().min(dy.abs()),remaining:major,error:major/2,sx:dx.signum(),sy:dy.signum(),x_major,heading:f64::from(dy).atan2(f64::from(dx))}
+        Self{goal,position,major,minor:dx.abs().min(dy.abs()),remaining:major,error:major/2,sx:dx.signum(),sy:dy.signum(),x_major,heading:super::native_math::angle(super::native_math::direction(dx,dy))}
     }
     fn advance(&mut self,step:u8) {
         for _ in 0..i32::from(step).min(self.remaining) {
@@ -56,7 +56,7 @@ impl Game {
             let code=if col<self.map.width&&row<self.map.height {
                 self.map.terrain_codes.get(row*self.map.width+col).copied().unwrap_or(0)
             }else{0};
-            let pattern=STEPS[index(control,code)];let step=pattern[tick as usize%pattern.len()];
+            let pattern=STEPS[(index(control,code)as i32+i32::from(u.motion_bonus)).clamp(0,12)as usize];let step=pattern[tick as usize%pattern.len()];
             if step==0{continue;}
             let mut segment=u.original_motion.clone().filter(|s|s.goal==(coordinate(goal.0),coordinate(goal.1))
                 &&s.position==(coordinate(u.x),coordinate(u.y)))

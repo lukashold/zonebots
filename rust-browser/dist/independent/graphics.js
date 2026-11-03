@@ -20,6 +20,7 @@ window.GameGraphics=(()=>{
   flag(...args){return delegate('flag','HDStructures',args);},
   flagShadows(...args){return delegate('flagShadows','HDStructures',args);},
   crate(ctx,box,map){if(!isHD())return original.crate(ctx,box,map);return window.HDStructures?.crate(ctx,box,map,original.crateBounds?.(box,map))??false;},
+  bullets(...args){return original.bullets?.(...args)??false;},
   effects(...args){return delegate('effects','HDStructures',args);},
   // The original production display is authoritative for completion holds and timing.
   production(...args){return original.production?.(...args)??false;}

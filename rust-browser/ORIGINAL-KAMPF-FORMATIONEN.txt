@@ -1,0 +1,116 @@
+Originalabgleich: Kampf, Formationen und KI-Takt – 03.11.2026
+
+Stand und Verfahren
+Neu geschriebener Rust/Wasm-Code, geprüft gegen die lokale GOG-Fassung mit
+Ghidra12.2. Keine vollständige1:1-Gleichheit und keine Clean-Room-Behauptung.
+Z.exe SHA256: ed5b16c486824c0761235dbdffcb3cda7e9f9df6188186aef7f662981a44e43e.
+Private Rohbefunde und Emulatorausgaben: work/parity-audit im Arbeitsbereich.
+Die öffentlichen Dateien enthalten eigenen Code und numerische Verhaltensbefunde,
+keine EXE, Originalressourcen oder dekompilierten Funktionen.
+
+Direkte Ausführung der Originalfunktionen
+Die Ghidra-x86-Emulation führt die ausgewählten Funktionen aus dem geladenen
+Originalprogramm aus. Die Oracle-Skripte liegen in tools/ghidra; Speicheränderungen
+bleiben in der Emulation. Ein vorhandenes Ghidra-Projekt kann mit -process Z.exe
+-readOnly -noanalysis -scriptPath tools/ghidra -postScript ZNativeMathOracle.java
+<absolute-output.jsonl> geprüft werden; entsprechend ZNativeAttackOracle.java.
+Zufallsinitialisierung00460850 und00460910: fünf Startwerte, je fünf Zustandswörter
+und zehn weitere Ausgaben stimmen exakt mit Rust überein. Richtungswahl00459af0:
+728 ganzzahlige Vektoren stimmen überein, einschließlich asymmetrischer Grenzen.
+Kugelbewegung00463200/004632b0/00463350/00463400: vier Schritte in allen acht
+Oktanten stimmen mit dem Emulator überein. Zusätzlich wurden alle640 aus SINCOS.DAT
+berechneten Laufzeitwerte verglichen; signed16 big-endian, arithmetisch>>5.
+Die strategische Zufallskorrektur0041a8b0 wurde für15 Kombinationen ausgeführt:
+Ergebnis und Wiederherstellung aller fünf RNG-Wörter sind bestätigt.
+Diese Einzelvergleiche ersetzen keinen vollständigen Vergleich ganzer Partien.
+
+Gemeinsame Zeitbasis
+Originalkarten bearbeiten nun die gesamte Simulation mit frühestens59ms pro
+Callback. Ein Callback zählt1/17 Spielsekunde. Produktion, Kampf und lokale
+Initiative werden ebenfalls auf dieser Zeitbasis fortgeschrieben.58ms alleine
+lösen nichts aus. Nachholschritte bei verzögerten Browserbildern sind weiterhin
+eine Webanpassung; die originale SDL-Schleife holt Überziehungen nicht nach.
+Die bisherigen kontinuierlichen Regeln für prozedurale Karten bleiben erhalten.
+
+Infanteriefeuer
+Die ursprünglichen Zustandszähler ersetzen den unmittelbaren ersten Treffer.
+Die folgenden ersten Freigaben nach Eintritt in den bereits initialisierten
+Feuerzustand wurden mit tatsächlich emulierten Originalhandlern verglichen:
+Grunt/Sniper12 Aufrufe (00449e70), Psycho1 (00448aa0), Laser4 (00448950),
+Pyro4 (00448e80), Tough22 (00457400), Granate11 (00457270).
+Der Erwerb des Ziels benötigt in der Webintegration einen vorherigen Callback.
+Die Zustandsmaschine unterscheidet ==0, <0 und den Wert vor dem Dekrement.
+Ein bereits erworbenes gültiges Ziel bleibt bis zur erneuten Zielsuche erhalten;
+ein näherer Gegner startet den laufenden Schuss nicht ständig neu.
+Die Darstellung liest die tatsächliche Feuerphase. Granaten nutzen Frameblock
+2522, vier Bilder je Richtung.00455f10 bestätigt für Infanterie den direkten
+Zeichenanker: die alte Browserverschiebung(-8,-15 native Pixel) ist entfernt.
+Auswahl- und Angriffsflächen folgen den sichtbaren Sprites.
+
+Fliegende Kugeln
+Grunt, Psycho, Sniper, Laser, Jeep und Gatling verwenden den gemeinsamen nativen
+Pool mit200 Plätzen, erster freier Platz zuerst. Schrittweite15 native Pixel je
+Callback, Original-Mündungsversätze, ganzzahlige Hauptachsenbewegung, Zielstreuung,
+Reichweitenvergleich und die zusätzliche Endpunktverlängerung sind integriert.
+Die Kugel behält ihren Schusspunkt, verfolgt keine Ziel-ID. Eine andere gegnerische
+Einheit auf der Bahn kann den Treffer abfangen. Kontakte werden in der nativen
+Reihenfolge der neun groben Raumzellen und der Einheitenslots ausgewertet.
+Gelände und Steinwände stoppen Kugeln. Hüllen-/Besatzungstreffer verwenden die
+zuvor geprüften Kontaktregeln und den ursprünglichen Zufallsgenerator.
+Ein abgefeuertes Geschoss bleibt auch nach dem Tod seines Schützen aktiv.
+Der Browser zeichnet aktuelle Kugel-/Laserpositionen; ein Schussereignis ist für
+Ton zuständig. Die Gastperspektive tauscht auch die Geschossfarben korrekt.
+Ein synthetischer Wasm-Fall mit Sniper(320,600) und Ziel(560,600) gibt in Takt13
+bei(366,616) eine Kugel frei und verursacht erst in Takt20 den Kontakt.
+
+Gruppenformation
+0044b6d0 erzeugt aus Masken die nativen Folgeabstände. Die Standard-V-Formation
+mit20 Folgeplätzen ist übernommen.0044d430 dreht diese Abstände mit den nativen
+SINCOS-Werten und vorzeichenbehafteten Schiebeoperationen zur Bewegungsrichtung.
+Folger orientieren sich an der aktuellen Position des Anführers. Ihre bestätigte
+individuelle Aufholbeschleunigung+4 wirkt auf den Bewegungsmusterindex. Einzelne
+Marschauswahlen lösen sich aus der alten Gruppe. Stirbt der Anführer oder steigt
+er ein, übernimmt ein Überlebender das ursprüngliche Gruppenziel. Stopp beendet
+die Verfolgung. Nach dem Marsch bleibt die Formation stehen.
+Die globale Wegsuche ist weiterhin ein Webadapter. Bei freier Strecke aktualisiert
+sich das lokale Ziel direkt. Bei Hindernissen werden Wege wiederverwendet und
+höchstens nach0,5 Spielsekunden neu gesucht; Kartenänderungen wirken sofort.
+
+Gegner-KI
+Der Extraktor übernimmt den ursprünglichen Kontrollwert CPUPLR+0x780. Die strategische
+Uhr aus00417b30/00419fb0 prüft jeden zweiten Callback und löst nach einem strikt
+negativen Countdown aus; Rücksetzung=(127-Kontrollwert)*2. Die frühere willkürliche
+KI-Uhr nach Schwierigkeitsstufe gilt für diese Kampagnenpakete nicht mehr.
+Gruppen werden gemeinsam geschickt; automatisch abgeschlossene Befehle blockieren
+eine spätere KI-Zuweisung nicht mehr. Ein expliziter Stopp bleibt geschützt.
+Kampagnenformat4 transportiert den Wert; der lokale/LAN-Launcher aktualisiert alte
+Pakete. Mehrspieler und explizit abgeschaltete KI erhalten keine Startbefehle.
+Die strategische Gebietszuweisung bleibt ein Ersatzalgorithmus. Die umfangreiche
+native Aufgabenfolge ab00415d60 und ihre Sektor-/Gruppenzustände sind NICHT vollständig
+übertragen. Gleiche Uhr bedeutet keine identischen Gegnerentscheidungen.
+
+Prüfung
+205 Rust-Tests bestehen.59 Node-Prüfprogramme einschließlich realem Wasm,
+Mehrspieler, Eingaben, Grafiken, Produktion und allen20 Originalmissionen bestehen.
+Der Kampagnentest lässt beide KI-Parteien je Mission bis zu300 Spielsekunden laufen
+und prüft endliche Koordinaten, Besitz, Gesundheit, Routen und eindeutige IDs.
+Originale Bewegungsmuster und49 Brücken wurden zusätzlich direkt gegen die lokale
+Installation geprüft. Lokaler/LAN-Server-Test besteht. Browser: echte Originalmission
+startet; der sichtbare Wasm-Vergleich bestätigt Formation, Freigabe und späteren
+Kontakt ohne Konsolenfehler. Bildnachweis: outputs/Z-Original-Kampf-Formationen.png.
+Die temporäre Prüfseite ist kein Bestandteil der Veröffentlichung.
+
+Noch offen
+Schwere Granaten-/Raketen-/Flammen-/Artillerieflugbahnen, Beschleunigung, Salven,
+Höhenkollision und vollständige Explosionen sind noch nicht integriert. Deren
+Treffer laufen weiterhin über den bisherigen direkten Kontaktadapter. Native
+Projektile nutzen einen eigenen50er-Pool; diese Untersuchung ist lokal gesichert.
+Die ursprünglichen Explosionen können mehrere versetzte Teilereignisse auslösen;
+ein einfacher flacher Flächenschaden wäre ebenfalls keine1:1-Rekonstruktion.
+Die komplette KI-Aufgabenfolge, vier weitere Formationsmasken, Gruppenbonus+3,
+weitere Beschleunigungszustände, räumliche Belegung und genaue Wiederzielsuche
+bleiben unvollständig. Hardware-Dreh-/Lukenautomaten, APC-Insassenfeuer,
+Dekorationskontakte, volle Objekt-/Gebäudekollision und die komplette Zufalls-
+Aufrufreihenfolge ganzer Partien sind ebenfalls offen. Lauf-/Leerlaufanimationen
+verwenden weiterhin teilweise Webzeit. Daher ist vollständige1:1-Gleichheit
+weiterhin nicht erreicht.

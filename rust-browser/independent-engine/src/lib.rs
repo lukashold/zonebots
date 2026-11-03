@@ -10,6 +10,12 @@ mod original_grenades;
 mod original_initiative;
 mod original_terrain;
 mod original_motion;
+mod native_math;
+mod original_fire;
+mod original_formation;
+mod original_ai;
+mod original_bullets;
+mod native_weapon_data;
 mod terrain;
 mod walls;
 mod workshops;
@@ -96,6 +102,11 @@ pub struct Unit {
     pub aim: f64,
     pub moving: bool,
     pub squad: usize,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub formation:Option<original_formation::Follow>,
+    #[serde(default)] pub motion_bonus:i8,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub native_slot: Option<usize>,
     /// Present only for a gun initialized in an original fort's gun socket.
     /// Ownership and crew changes do not detach the hardware from its fort.
     #[serde(default)]
@@ -109,6 +120,8 @@ pub struct Unit {
     pub cooldown: f64,
     #[serde(default)]
     pub original_combat: Option<original_combat::CombatState>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub native_fire: Option<original_fire::State>,
     #[serde(default)]
     pub initiative: Option<original_initiative::Initiative>,
     /// A nearby object temporarily interrupts this ordinary march.
@@ -116,6 +129,7 @@ pub struct Unit {
     pub march_resume: Option<(f64, f64)>,
     #[serde(default)]
     pub hold_position: bool,
+    #[serde(default)] pub explicit_stop:bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workshop: Option<workshops::State>,
     #[serde(skip)]
@@ -197,6 +211,7 @@ pub struct Game {
     pub buildings: Vec<Building>,
     pub units: Vec<Unit>,
     pub effects: Vec<Fx>,
+    pub bullets: Vec<original_bullets::Bullet>,
     pub crates: Vec<Crate>,
     pub events: Vec<Value>,
     #[serde(default)] pub objects:Vec<Value>,
@@ -213,8 +228,10 @@ pub struct Game {
     next_id: usize,
     #[serde(skip)]
     ai_clock: f64,
+    #[serde(skip)] original_ai:Option<original_ai::Clock>,
     #[serde(skip)]
     rng: u32,
+    #[serde(skip)] original_rng:original_combat::OriginalRng,
     #[serde(skip)]
     ai_teams: Vec<i32>,
     #[serde(skip)] production_clock:f64,
@@ -247,6 +264,7 @@ impl Game {
             buildings: vec![],
             units: vec![],
             effects: vec![],
+            bullets: vec![],
             crates: vec![],
             events: vec![], objects:vec![], walls:vec![],wall_owners:vec![],
             time: 0.,
@@ -255,8 +273,9 @@ impl Game {
             mission,
             multiplayer: false,
             next_id: 1,
-            ai_clock: 3.,
+            ai_clock: 3.,original_ai:None,
             rng: seed.max(1),
+            original_rng:original_combat::OriginalRng::seeded(seed),
             ai_teams: vec![1], production_clock:0., initiative_clock:0.,motion_clock:0.,motion_tick:0,
         };
         // Own nine-territory layout. Voronoi edges and a meandering river avoid a square sector grid.
@@ -447,6 +466,8 @@ impl Game {
         };
         let id = self.next_id;
         self.next_id += 1;
+        let native_slot=if self.map.original&&team>=0 {(0..240).find(|slot|!self.units.iter().any(|u|
+            u.team>=0&&original_combat::alive(true,u.hp)&&u.native_slot==Some(*slot)))}else{None};
         self.units.push(Unit {
             id,
             kind: k.into(),
@@ -459,6 +480,8 @@ impl Game {
             aim: 0.,
             moving: false,
             squad,
+            formation:None,motion_bonus:0,
+            native_slot,
             fort_id: None,
             grenades: 0,
             crew,
@@ -468,9 +491,10 @@ impl Game {
             dest: None,
             cooldown: 0.,
             original_combat: self.map.original.then(||original_combat::CombatState::new(k)),
+            native_fire: None,
             initiative: None,
             march_resume: None,
-            hold_position: false,
+            hold_position: false,explicit_stop:false,
             workshop: None,
             pursuit: None,
             original_motion: None,
@@ -515,7 +539,7 @@ impl Game {
       let sectors:Vec<Sector>=serde_json::from_value(v["sectors"].clone()).map_err(|e|e.to_string())?;
       let buildings:Vec<Building>=serde_json::from_value(v["buildings"].clone()).map_err(|e|e.to_string())?;
       let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
-      self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.next_id=1;
+      self.map=map;self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.bullets.clear();self.motion_clock=0.;self.motion_tick=0;self.production_clock=0.;self.initiative_clock=0.;self.next_id=1;
       if !self.map.bridge_max_hp.is_empty() && (self.map.bridge_max_hp.len()!=self.map.bridge_hp.len() || self.map.bridge_max_hp.iter().any(|hp|!hp.is_finite()||*hp<=0.)) {return Err("Invalid bridge capacities".into());}
       for j in 0..self.map.tiles.len(){if let Some(id)=self.map.bridge_base.get(j).copied().filter(|id|*id>=0){if self.map.bridge_hp.get(id as usize).is_some_and(|hp|*hp<=0.){self.map.tiles[j]=3;}}}
       self.import_walls(v)?;
@@ -526,6 +550,7 @@ impl Game {
       }
       for b in &mut self.buildings { b.ready_guns.retain(|k| gun_placement::is_gun(k)); b.ready_guns.truncate(gun_placement::READY_GUN_CAPACITY); }
       self.ensure_production();
+      self.original_ai=v["nativeAi"]["decisionControl"].as_i64().filter(|n|(0..=255).contains(n)).map(|n|original_ai::Clock::new(n as i16));
       Ok(())
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=original_stats::rate(b.hp,b.max_hp,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
@@ -555,6 +580,9 @@ impl Game {
             .unwrap_or_default();
         let kind = v["kind"].as_str().unwrap_or("move");
         let Ok(team) = request_team(v) else { return; };
+        if self.map.original&&kind=="move" {
+            if let Some((x,y))=v["x"].as_f64().zip(v["y"].as_f64()).filter(|(x,y)|x.is_finite()&&y.is_finite()) {self.prepare_native_formations(&ids,team,(x,y));}
+        }
         for (n, id) in ids.iter().enumerate() {
             let Some(i) = self
                 .units
@@ -585,7 +613,10 @@ impl Game {
             self.units[i].march_resume=None;
             self.units[i].pursuit=None;
             self.units[i].original_motion=None;
+            self.units[i].native_fire=None;
+            if kind!="move"{self.units[i].formation=None;self.units[i].motion_bonus=0;}
             self.units[i].hold_position=self.map.original&&kind=="stop";
+            self.units[i].explicit_stop=self.map.original&&kind=="stop";
             if kind == "unload" {
                 let u = self.units[i].clone();
                 if u.kind == "apc" {
@@ -610,6 +641,7 @@ impl Game {
                             self.units[i].x+=dx;self.units[i].y+=dy;
                         }
                         self.units[i].team = -1;
+                        self.units[i].native_slot=None;
                         self.finish_order(i);
                         self.spawn(&c.kind, team, u.x + 26., u.y + 24., self.next_id, None);
                         let last = self.units.len() - 1;
@@ -635,7 +667,7 @@ impl Game {
             }
             if let (Some(x), Some(y)) = (v["x"].as_f64(), v["y"].as_f64()) {
                 let formation=matches!(kind,"move"|"attack");
-                let d = (x + if formation{(n % 4)as f64*12.}else{0.}, y + if formation{(n / 4)as f64*14.}else{0.});
+                let d=if self.map.original {self.native_formation_destination(i,(x,y))}else{(x+if formation{(n%4)as f64*12.}else{0.},y+if formation{(n/4)as f64*14.}else{0.})};
                 self.units[i].dest = Some(d);
                 self.units[i].path = if stats(&self.units[i].kind).speed<=0.{VecDeque::new()}else if matches!(kind,"attackBridge"|"repairBridge"){self.route_to_attack(&self.units[i],d.0,d.1,if kind=="repairBridge"{110.}else{stats(&self.units[i].kind).range})}else{self.route_unit(&self.units[i],d.0,d.1)};
             }
@@ -672,45 +704,58 @@ impl Game {
                 .units
                 .iter()
                 .filter(|u| {
-                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && !u.hold_position && u.workshop.is_none()
+                    u.team == team && original_combat::alive(self.map.original,u.hp) && stats(&u.kind).speed > 0. && u.path.is_empty() && u.initiative.is_none() && (!u.hold_position||self.map.original&&!u.explicit_stop) && u.workshop.is_none()
                         && matches!(u.order.as_str(),"guard"|"move")
                 })
                 .map(|u| u.id)
                 .collect();
+            let mut commanded_squads=std::collections::HashSet::new();
             for id in available {
                 let u = self.units.iter().find(|u| u.id == id).unwrap().clone();
+                if self.map.original&&(u.formation.is_some()||!commanded_squads.insert(u.squad)){continue;}
                 let goal = self
                     .sectors
                     .iter()
                     .filter(|s| s.owner != team && s.counts_for_production)
                     .min_by(|a, b| {
-                        ((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y))
+                        if let Some(clock)=self.original_ai.as_ref().filter(|_|self.map.original) {
+                            let score=|s:&Sector|{let dx=((s.x-u.x)/2.)as i32;let dy=((s.y-u.y)/2.)as i32;original_ai::perturb(dx*dx+dy*dy,clock.control,&self.original_rng)};
+                            score(a).cmp(&score(b))
+                        }else{((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y))}
                     });
                 if let Some(s) = goal {
                     let(x,y)=if s.home{self.buildings.iter().find(|b|b.sector==s.id&&b.kind=="fort").and_then(|b|b.gate).unwrap_or((s.x,s.y))}else{(s.x,s.y)};
-                    self.command(&json!({"team":team,"ids":[id],"kind":"move","x":x,"y":y}));
+                    let ids=if self.map.original {self.units.iter().filter(|v|v.team==team&&v.squad==u.squad&&original_combat::alive(true,v.hp)&&stats(&v.kind).speed>0.).map(|v|v.id).collect::<Vec<_>>()}else{vec![id]};
+                    self.command(&json!({"team":team,"ids":ids,"kind":"move","x":x,"y":y}));
                 }
             }
         }
     }
     pub fn step(&mut self, dt: f64) {
+        if !self.map.original {self.step_update(dt);return;}
+        self.motion_clock+=dt.clamp(0.,0.1);
+        while self.motion_clock+1e-10>=original_motion::TICK_SECONDS {
+            self.motion_clock-=original_motion::TICK_SECONDS;
+            // The original mission clock counts17 callbacks as one second.
+            // Wall scheduling and simulation time are distinct quantities.
+            self.step_update(1./17.);
+            if self.winner.is_some(){break;}
+        }
+    }
+    fn step_update(&mut self, dt: f64) {
         if self.winner.is_some() {
             return;
         }
         let dt = dt.clamp(0., 0.1);
         self.time += dt;
         let first_motion_tick=self.motion_tick+1;
-        let motion_ticks=if self.map.original {
-            self.motion_clock+=dt;
-            let ticks=((self.motion_clock+1e-10)/original_motion::TICK_SECONDS).floor()as u64;
-            self.motion_clock-=ticks as f64*original_motion::TICK_SECONDS;
-            self.motion_tick+=ticks;ticks
-        }else{0};
+        let motion_ticks=if self.map.original {self.motion_tick+=1;1}else{0};
         self.effects.iter_mut().for_each(|e| e.age += dt);
         self.effects.retain(|e| e.age < e.life);
         self.update_initiative(dt);
         self.ai_clock -= dt;
-        if self.ai_clock <= 0. {
+        let native_due=self.original_ai.as_mut().filter(|_|self.map.original).map(|c|c.advance(self.motion_tick));
+        if native_due.unwrap_or(self.ai_clock<=0.) {
             self.ai();
             self.ai_clock = [8., 4.5, 2.5, 1.3][self.difficulty];
         }
@@ -718,7 +763,10 @@ impl Game {
         let mut damage: Vec<(usize, f64, bool)> = vec![];
         let mut original_damage:Vec<original_combat::Attack>=vec![];
         let mut bdamage: Vec<(usize, f64, i32)> = vec![];
-        for i in 0..self.units.len() {
+        let mut update_order:Vec<_>=(0..self.units.len()).collect();
+        if self.map.original{update_order.sort_by_key(|&i|self.units[i].native_slot.unwrap_or(usize::MAX));}
+        for i in update_order {
+            if self.map.original {self.update_native_follower(i);}
             if self.update_workshop(i,dt) { continue; }
             let mut u = self.units[i].clone();
             if !original_combat::alive(self.map.original,u.hp) || u.team < 0 {
@@ -733,7 +781,8 @@ impl Game {
                 }
             }
             self.units[i].moving = false;
-            self.units[i].cooldown -= dt;
+            self.units[i].cooldown = (self.units[i].cooldown-dt).max(0.);
+            if self.units[i].cooldown<1e-9 {self.units[i].cooldown=0.;}
             let pursuit_hold=self.update_pursuit(i,&snapshot,d.range,d.speed);
             let wall_hold=self.update_wall_attack(i,d.range,d.damage,d.reload,d.speed);
             let building_hold=self.update_building_attack(i,d.range,d.speed);
@@ -808,6 +857,7 @@ impl Game {
                                 }
                             }
                             self.units[vi].team=u.team;self.units[vi].crew=Some(Crew{kind:u.kind.clone(),hp:u.hp});
+                            self.units[vi].native_slot=u.native_slot;
                             if let Some(state)=&mut self.units[vi].original_combat{state.crew_boarded(&u.kind);}
                             if u.initiative==Some(original_initiative::Initiative::Vehicle(v.id)) {
                                 self.resume_march(vi,u.march_resume);
@@ -828,6 +878,10 @@ impl Game {
             // pursuit and nearby return fire continue unchanged.
             let building_target_in_range = building_hold;
             let explicit_target = if u.order == "attack" { u.target } else { None };
+            // A native attack animation owns its acquired target until its
+            // reacquisition transition. A newly reachable enemy must not reset
+            // a partly completed windup on every callback.
+            let locked=u.native_fire.as_ref().filter(|s|!s.reacquire).map(|s|s.target);
             let enemy = snapshot
                 .iter()
                 .filter(|v| {
@@ -842,16 +896,18 @@ impl Game {
                         && self.unit_target_los(&u,v)
                 })
                 .min_by(|a, b| {
-                    (Some(b.id) == explicit_target).cmp(&(Some(a.id) == explicit_target))
+                    (Some(b.id)==locked).cmp(&(Some(a.id)==locked))
+                        .then_with(||(Some(b.id) == explicit_target).cmp(&(Some(a.id) == explicit_target)))
                         .then_with(|| ((a.x - u.x).hypot(a.y - u.y)).total_cmp(&(b.x - u.x).hypot(b.y - u.y)))
                 });
             if let Some(v) =
                 enemy.filter(|_| !(d.cls == 0 && u.order == "move" && !u.path.is_empty()))
             {
                 self.units[i].aim = (v.y - u.y).atan2(v.x - u.x);
-                if d.damage > 0. && self.units[i].cooldown <= 0. {
+                let release=if self.map.original {self.advance_native_fire(i,v)}else{self.units[i].cooldown<=0.};
+                if d.damage > 0. && release {
                     self.units[i].cooldown = d.reload;
-                    let grenade = self.map.original
+                    let grenade = (self.map.original&&self.units[i].native_fire.as_ref().is_some_and(|s|s.mode==original_fire::Mode::Grenade))
                         .then(||original_grenades::try_throw(&mut self.units[i],v))
                         .flatten();
                     let sniper = u.kind == "sniper" && stats(&v.kind).cls > 0 && v.crew.is_some();
@@ -862,9 +918,10 @@ impl Game {
                         d.damage
                     };
                     if self.map.original {
-                        original_damage.push(grenade.unwrap_or_else(||original_combat::Attack::from_unit(&u,v.id,amt,self.units[i].aim)));
+                        let attack=grenade.unwrap_or_else(||original_combat::Attack::from_unit(&u,v.id,amt,self.units[i].aim));
+                        if attack.bullet {self.launch_native_bullet(i,v,attack);}else{original_damage.push(attack);}
                     } else {damage.push((v.id, amt, sniper));}
-                    self.effects.push(Fx {
+                    if !self.map.original||grenade.is_some(){self.effects.push(Fx {
                         x: u.x,
                         y: u.y,
                         age: 0.,
@@ -873,7 +930,7 @@ impl Game {
                         radius: 2.,
                         x2: v.x,
                         y2: v.y,
-                    });
+                    });}
                     self.events.push(json!({"kind":"shot","type":u.kind,"weapon":if grenade.is_some(){"grenade"}else{"primary"},"x":u.x,"y":u.y,"team":u.team}));
                 }
             } else if u.order == "attackBuilding" && building_hold {
@@ -883,6 +940,9 @@ impl Game {
                         self.events.push(json!({"kind":"shot","type":u.kind,"x":u.x,"y":u.y,"team":u.team}));
                     }
                 }
+            }
+            if self.map.original&&(enemy.is_none()||d.cls==0&&u.order=="move"&&!u.path.is_empty()) {
+                self.units[i].native_fire=None;
             }
             let base_speed=d.speed*if !self.map.original&&d.cls==0&&u.order=="move"{1.2}else{1.};
             // Revalidate the next segment: bridges and map occupancy can change
@@ -933,6 +993,8 @@ impl Game {
             }
 
         }
+        if self.map.original {self.update_native_bullets();}
+        for attack in original_damage {self.apply_native_contact(attack);}
         for b in &self.buildings {
             if b.kind == "fort" && b.hp > 0. {
                 if let Some(u) = self.units.iter().find(|u| {
@@ -950,26 +1012,6 @@ impl Game {
         if let Some(w) = self.winner {
             self.events.push(json!({"kind":"victory","team":w}));
             return;
-        }
-        for attack in original_damage {
-            if let Some(i)=self.units.iter().position(|u|u.id==attack.target && original_combat::alive(true,u.hp) && !workshops::hidden(u)) {
-                let mut rng=self.rng;
-                let occupied=self.units[i].team>=0&&self.units[i].crew.is_some();
-                let crew_killed=original_combat::apply_attack_with_mode(&mut self.units[i],attack,self.difficulty,self.multiplayer,||advance_random(&mut rng));
-                if crew_killed&&occupied {
-                    // The native crew-death path00458ec0 also calls00458af0,
-                    // producing the same parked object as a voluntary exit.
-                    let (dx,dy)=original_tank_origin_offset(&self.units[i].kind,false);
-                    self.units[i].x+=dx;self.units[i].y+=dy;
-                }
-                self.rng=rng;
-                if self.units[i].hp<0. {
-                    let u=&self.units[i];
-                    self.effects.push(Fx{x:u.x,y:u.y,age:0.,life:0.8,kind:"explosion".into(),
-                        radius:if stats(&u.kind).cls==0 {12.} else {30.},x2:0.,y2:0.});
-                    self.events.push(json!({"kind":"explosion","x":u.x,"y":u.y,"radius":if stats(&u.kind).cls==0 {12.} else {30.}}));
-                }
-            }
         }
         for (id, amount, sniper) in damage {
             if let Some(i) = self.units.iter().position(|u| u.id == id && u.hp > 0. && !workshops::hidden(u)) {
@@ -1134,7 +1176,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     let include_map = include_static || !known_revision;
     let mut value = json!({
         "sectors": &g.sectors, "buildings": &g.buildings, "units": &g.units,
-        "effects": &g.effects, "crates": &g.crates, "events": &g.events, "walls": &g.walls,
+        "bullets": &g.bullets, "effects": &g.effects, "crates": &g.crates, "events": &g.events, "walls": &g.walls,
         "time": g.time, "winner": g.winner, "difficulty": g.difficulty,
         "mission": g.mission, "multiplayer": g.multiplayer,
         "mapSeed": g.map.seed, "mapRevision": g.map.revision,
@@ -1162,6 +1204,7 @@ pub fn request(v: Value) -> Value {
             }
             if multiplayer { g.ai_teams.clear(); }
             else if let Some(a) = v["aiTeams"].as_array() { g.ai_teams = a.iter().filter_map(|x| x.as_i64().filter(|x| (0..=1).contains(x)).map(|x| x as i32)).collect(); }
+            if g.original_ai.is_some()&&!multiplayer {g.ai();}
             *state = Some(g);
         }
         let Some(g) = state.as_mut() else { return json!({"error":"Initialize first"}); };

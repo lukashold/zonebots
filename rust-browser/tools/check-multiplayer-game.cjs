@@ -41,7 +41,7 @@ async function run(){
  assert.equal(guest.action({op:'command',team:0,kind:'attackBridge',ids:[blue],x:736,y:544},'bridge'),null);pump();
  assert.equal(unit(host.state,blue).order,'attackBridge');assert.equal(results.at(-1)[1],'bridge');assert.equal(unit(guest.viewState,blue).order,'attackBridge');
  for(let i=0;i<3;i++)host.tick(.05);pump();
- assert(host.state.time>.14&&guest.state.time>.14);assert.equal(host.state.map.revision,1);assert.equal(guest.state.map.revision,1);assert.equal(guest.state.map.tiles[17*32+23],3);assert.notEqual(guest.state.map,firstMap,'A bridge revision must refresh geometry');
+ assert(Math.abs(host.state.time-2/17)<1e-12);assert.equal(guest.state.time,host.state.time);assert.equal(host.state.map.revision,1);assert.equal(guest.state.map.revision,1);assert.equal(guest.state.map.tiles[17*32+23],3);assert.notEqual(guest.state.map,firstMap,'A bridge revision must refresh geometry');
  for(const key of ['units','buildings','sectors','map'])assert.deepEqual(clone(guest.state[key]),clone(host.state[key]),`Both peers must share canonical ${key}`);
  const deliveredEvents=guestViews.flatMap(s=>s.events);
  assert.equal(deliveredEvents.filter(e=>e.kind==='bridgeDestroyed').length,1,'Events from intervening20Hz ticks must be aggregated into one8Hz frame');

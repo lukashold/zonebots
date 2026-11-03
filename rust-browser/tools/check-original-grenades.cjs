@@ -47,18 +47,18 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
   assert(!state.error,state.error);return state;
  }
  const init=mission=>request({op:'init',mission:0,difficulty:1,seed:411,aiTeams:[],originalMission:mission});
- const tick=(dt=0.05)=>request({op:'tick',dt});
+ const tick=(dt=.059)=>request({op:'tick',dt});
  const unit=(state,id)=>{const found=state.units.find(u=>u.id===id);assert(found,`Unit ${id} vanished`);return found;};
  const playerShots=state=>state.events.filter(e=>e.kind==='shot'&&e.team===0);
  function collected(mission){
   let state=init(mission);assert.equal(state.map.original,true);
   const shooter=state.units[0].id,target=state.units[1].id;
   assert.equal(unit(state,shooter).grenades,0);
-  state=tick(0);
+  state=tick(.059);
   assert.equal(unit(state,shooter).grenades,8);
   assert.equal(state.crates[0].taken,true);
   assert.equal(state.events.filter(e=>e.kind==='grenades'&&e.team===0).length,1);
-  state=tick(0);
+  state=tick(.059);
   assert.equal(unit(state,shooter).grenades,8,'Taken crate must not grant ammunition twice');
   assert.equal(state.events.filter(e=>e.kind==='grenades').length,0);
   return {state,shooter,target};
@@ -88,7 +88,7 @@ function fixture({target='apc',x=800,team=1,pickup=true,wall=false}={}){
  assert.equal(playerShots(state).length,0,'Cooldown cannot launch another grenade');
 
  state=init(fixture({pickup:false,x:420}));shooter=state.units[0].id;target=state.units[1].id;
- state=tick();
+ state=firstAttack(shooter,target);
  assert.equal(unit(state,shooter).grenades,0);
  assert.equal(unit(state,target).hp,200,'Unarmed Grunt bullet is reduced to zero by APC armor');
  assert.equal(playerShots(state)[0].weapon,'primary');

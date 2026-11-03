@@ -44,8 +44,8 @@ The active engine is `rust-browser/independent-engine/`; rendering and input are
 `rust-browser/dist/independent/`. It now reads the 20 original campaign layouts,
 building technology and start groups from the separately extracted pack. Production
 work/rates, weapon values and selected damage/crew rules are checked against the
-original. The AI, projectile trajectories, animation timing and other behaviors
-still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle and marching units seek nearby flags and vacant hardware; targeted combat, repair and Stop orders retain priority.
+original. The strategic AI, heavy projectile trajectories, explosion sequences and other
+behaviors still have documented differences. Original music, German/English voices and weapon effects now load from the separate private resource pack. On-map factory clocks use the original digit sprites. Idle and marching units seek nearby flags and vacant hardware; targeted combat, repair and Stop orders retain priority.
 
 Ordinary marches now detour to nearby eligible flags and empty hardware, then
 continue toward the ordered destination. One infantry driver reserves each vehicle;
@@ -56,7 +56,9 @@ See the [march interaction evidence and tests](rust-browser/ORIGINAL-MARSCH.txt)
 Original-map movement now follows the GOG executable's normal59ms interval,
 shared step phases and integer major-axis motion. The arbitrary32px/s browser
 factor is removed. Both factions use the same type/terrain/damage rules. The
-full original scheduler, formations and transient state modifiers remain partial.
+shared59ms callback now advances production and combat too. Standard V followers
+use native rotated offsets and the catch-up index. Other formations and transient
+state modifiers remain partial.
 See [native movement evidence and limits](rust-browser/ORIGINAL-BEWEGUNGSTAKT.txt).
 Campaign format3 also restores19 initially destroyed bridges in missions14,15,17,
 18 and20. They remain blocked until a crane completes reconstruction to their
@@ -127,7 +129,18 @@ Navigation now explicitly compares a passable direct route with the candidate an
 
 Directed attacks now track the live enemy while the old route is still active. Pursuers choose reachable firing positions with range and line of sight, stop to fire and resume when the enemy escapes. Moving target markers stay attached to the same enemy ID. Stop, replacement orders or invalid targets cancel pursuit; strategic AI does not overwrite an active attack merely because its firing path is empty.
 
-Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The existing immediate-hit model remains: the native throw wind-up, trajectory, scatter and blast area are not yet reconstructed. The howitzer also uses its proper original artillery profile.
+Bullet weapons now use the original200-slot pool,15-native-pixel steps, muzzle
+positions, acquisition scatter, integer rays and physical contacts. A fired bullet
+can miss a moving target or hit an intervening enemy. Robot firing phases use native
+counters; infantry artwork and selection now share the verified upper-left anchor,
+including the original grenade throw frames. The campaign's CPUPLR control value
+drives the native strategic decision clock; sector assignment still uses a browser
+strategy adapter. Initial RNG states,728 directions, eight bullet octants, six first
+firing transitions and15 AI score cases were checked by executing original x86
+functions in Ghidra. Reproducible read-only oracle scripts and remaining limits are
+in [the combat/formation audit](rust-browser/ORIGINAL-KAMPF-FORMATIONEN.txt).
+
+Original factories now hold production for 68 native updates after completion and flash `0:00`, then repeat automatically. Grunts, Psychos and Snipers use collected grenades against the original eligible vehicle/cannon classes, with one grenade per committed attack and the verified 50 base body-contact damage path. The original11-handler throw wind-up is now implemented; heavy trajectories and blast sequences still use the previous direct-contact adapter. The howitzer also uses its proper original artillery profile.
 
 A systematic audit also fixes stale routes after unloading, moving-APC boarding, crane-only repairs/reconstruction, structure line-of-sight and mounted-gun targeting, paused/focus-lost UI input, stale selections/factory menus, multiplayer connection/pause races, and voice mute/retry handling. Original rubble eligibility was freshly checked in Ghidra. All concrete findings from this review are closed with regression coverage; this does not establish complete native behavior parity. [Audit scope and evidence](rust-browser/FEHLERPRUEFUNG.txt).
 
@@ -172,6 +185,7 @@ From `rust-browser/`, validate with:
     node tools/check-workshop-campaign.cjs
     node tools/check-gun-identity.cjs
     node tools/check-gun-sprites.cjs
+    node tools/check-native-combat.cjs
     node tools/check-pursuit.cjs
     node tools/check-original-audio.cjs
 

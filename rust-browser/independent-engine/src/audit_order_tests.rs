@@ -16,15 +16,15 @@ fn building(g:&mut Game,id:usize,team:i32,hp:f64)->usize{
 fn barrier(g:&mut Game,x:usize){for y in 1..g.map.height-1{g.map.tiles[y*g.map.width+x]=2;g.map.terrain_codes[y*g.map.width+x]=19;}}
 #[test]
 fn unload_clears_old_orders_and_recrewing_does_not_resume_them(){
- for original in [false,true]{let(mut g,id)=field(original,"medium");let occupied=(unit(&g,id).x,unit(&g,id).y);g.command(&json!({"ids":[id],"kind":"move","x":1000,"y":600}));assert!(!unit(&g,id).path.is_empty());g.command(&json!({"ids":[id],"kind":"unload"}));let u=unit(&g,id);assert_eq!(u.team,-1);assert!(u.path.is_empty());assert_eq!(u.dest,None);assert_eq!(u.target,None);let position=(u.x,u.y);let robot=g.units.last().unwrap().id;let ri=at(&g,robot);g.units[ri].x=position.0;g.units[ri].y=position.1;g.command(&json!({"ids":[robot],"kind":"enter","target":id}));g.step(0.);assert_eq!(unit(&g,id).team,0);g.step(0.1);assert_eq!((unit(&g,id).x,unit(&g,id).y),occupied);}
+ for original in [false,true]{let(mut g,id)=field(original,"medium");let occupied=(unit(&g,id).x,unit(&g,id).y);g.command(&json!({"ids":[id],"kind":"move","x":1000,"y":600}));assert!(!unit(&g,id).path.is_empty());g.command(&json!({"ids":[id],"kind":"unload"}));let u=unit(&g,id);assert_eq!(u.team,-1);assert!(u.path.is_empty());assert_eq!(u.dest,None);assert_eq!(u.target,None);let position=(u.x,u.y);let robot=g.units.last().unwrap().id;let ri=at(&g,robot);g.units[ri].x=position.0;g.units[ri].y=position.1;g.command(&json!({"ids":[robot],"kind":"enter","target":id}));g.step(0.059);assert_eq!(unit(&g,id).team,0);g.step(0.1);assert_eq!((unit(&g,id).x,unit(&g,id).y),occupied);}
 }
 #[test]
 fn lost_boarding_targets_release_the_order_instead_of_chasing_forever(){
- for change in ["destroyed","enemy","full","removed"]{let(mut g,id)=field(true,"grunt");g.spawn("apc",0,800.,320.,3,None);let target=g.units.last().unwrap().id;g.command(&json!({"ids":[id],"kind":"board","target":target}));g.step(0.);assert!(!unit(&g,id).path.is_empty());let ti=at(&g,target);match change{"destroyed"=>g.units[ti].hp=-1.,"enemy"=>g.units[ti].team=1,"full"=>g.units[ti].cargo=vec![Crew{kind:"grunt".into(),hp:30.};6],_=>g.units.retain(|u|u.id!=target)};g.step(0.);assert_eq!(unit(&g,id).order,"guard","{change}");assert_eq!(unit(&g,id).target,None);assert!(unit(&g,id).path.is_empty());}
+ for change in ["destroyed","enemy","full","removed"]{let(mut g,id)=field(true,"grunt");g.spawn("apc",0,800.,320.,3,None);let target=g.units.last().unwrap().id;g.command(&json!({"ids":[id],"kind":"board","target":target}));g.step(0.059);assert!(!unit(&g,id).path.is_empty());let ti=at(&g,target);match change{"destroyed"=>g.units[ti].hp=-1.,"enemy"=>g.units[ti].team=1,"full"=>g.units[ti].cargo=vec![Crew{kind:"grunt".into(),hp:30.};6],_=>g.units.retain(|u|u.id!=target)};g.step(0.059);assert_eq!(unit(&g,id).order,"guard","{change}");assert_eq!(unit(&g,id).target,None);assert!(unit(&g,id).path.is_empty());}
 }
 #[test]
 fn boarding_a_moving_apc_replans_before_the_old_route_finishes(){
- let(mut g,id)=field(true,"grunt");g.spawn("apc",0,900.,320.,3,None);let carrier=g.units.last().unwrap().id;g.command(&json!({"ids":[carrier],"kind":"move","x":900,"y":1000}));g.command(&json!({"ids":[id],"kind":"board","target":carrier}));g.step(0.05);let initial=unit(&g,id).dest.unwrap();for _ in 0..40{g.step(0.1);}let u=unit(&g,id);assert_eq!(u.order,"board");assert!(!u.path.is_empty());assert!(u.dest.unwrap().1>initial.1+32.);assert!((u.dest.unwrap().1-unit(&g,carrier).y).abs()<40.);
+ let(mut g,id)=field(true,"grunt");g.spawn("apc",0,900.,320.,3,None);let carrier=g.units.last().unwrap().id;g.command(&json!({"ids":[carrier],"kind":"move","x":900,"y":1000}));g.command(&json!({"ids":[id],"kind":"board","target":carrier}));g.step(0.059);let initial=unit(&g,id).dest.unwrap();for _ in 0..40{g.step(0.1);}let u=unit(&g,id);assert_eq!(u.order,"board");assert!(!u.path.is_empty());assert!(u.dest.unwrap().1>initial.1+32.);assert!((u.dest.unwrap().1-unit(&g,carrier).y).abs()<40.);
 }
 #[test]
 fn cranes_repair_stable_building_ids_and_stop_exactly_at_completion(){
@@ -52,7 +52,7 @@ fn reachable_structure_attack_uses_id_and_stops_to_fire_at_the_surface(){
 }
 #[test]
 fn mounted_guns_do_not_treat_their_own_fort_roof_as_an_external_cliff(){
- let(mut g,id)=field(true,"cannon");let bi=building(&mut g,8,0,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].x=288.;g.buildings[bi].y=288.;g.buildings[bi].w=128.;g.buildings[bi].h=128.;let ui=at(&g,id);g.units[ui].fort_id=Some(8);g.units[ui].cooldown=0.;for y in 9..13{for x in 9..13{g.map.tiles[y*g.map.width+x]=2;}}g.spawn("apc",1,480.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().cooldown=10000.;let hp=unit(&g,target).hp;g.step(0.1);assert!(unit(&g,target).hp<hp);g.map.tiles[10*g.map.width+14]=2;g.units[ui].cooldown=0.;let hp=unit(&g,target).hp;g.step(0.1);assert_eq!(unit(&g,target).hp,hp,"an external cliff must still stop roof fire");
+ let(mut g,id)=field(true,"cannon");let bi=building(&mut g,8,0,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].x=288.;g.buildings[bi].y=288.;g.buildings[bi].w=128.;g.buildings[bi].h=128.;let ui=at(&g,id);g.units[ui].fort_id=Some(8);g.units[ui].cooldown=0.;for y in 9..13{for x in 9..13{g.map.tiles[y*g.map.width+x]=2;}}g.spawn("apc",1,480.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().cooldown=10000.;let hp=unit(&g,target).hp;for _ in 0..4{g.step(0.059);}assert!(unit(&g,target).hp<hp);g.map.tiles[10*g.map.width+14]=2;g.units[ui].cooldown=0.;let hp=unit(&g,target).hp;g.step(0.1);assert_eq!(unit(&g,target).hp,hp,"an external cliff must still stop roof fire");
 }
 #[test]
 fn bridge_attacks_require_sight_and_completed_repairs_clear_the_target(){
@@ -62,8 +62,8 @@ fn bridge_attacks_require_sight_and_completed_repairs_clear_the_target(){
 
 #[test]
 fn exposed_fort_roof_guns_remain_valid_targets_without_allowing_external_cliffs(){
- let(mut g,id)=field(true,"medium");let bi=building(&mut g,8,1,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].w=128.;g.buildings[bi].h=128.;g.spawn("cannon",1,512.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().fort_id=Some(8);g.units.last_mut().unwrap().cooldown=10000.;for y in 9..13{for x in 15..19{g.map.tiles[y*g.map.width+x]=2;}}unit_mut(&mut g,id).cooldown=0.;g.command(&json!({"ids":[id],"kind":"attack","target":target}));g.step(0.1);assert!(g.effects.iter().any(|e|e.kind=="shot"&&e.x2==512.&&e.y2==320.),"roof unit must not be hidden behind its own fort's terrain");
- g.map.tiles[10*g.map.width+14]=2;unit_mut(&mut g,id).cooldown=0.;g.effects.clear();g.step(0.1);assert!(!g.effects.iter().any(|e|e.kind=="shot"&&e.x2==512.&&e.y2==320.),"an unrelated cliff still blocks the shot");
+ let(mut g,id)=field(true,"medium");let bi=building(&mut g,8,1,100.);g.buildings[bi].kind="fort".into();g.buildings[bi].w=128.;g.buildings[bi].h=128.;g.spawn("cannon",1,512.,320.,4,None);let target=g.units.last().unwrap().id;g.units.last_mut().unwrap().fort_id=Some(8);g.units.last_mut().unwrap().cooldown=10000.;for y in 9..13{for x in 15..19{g.map.tiles[y*g.map.width+x]=2;}}unit_mut(&mut g,id).cooldown=0.;g.command(&json!({"ids":[id],"kind":"attack","target":target}));for _ in 0..4{g.step(0.059);}assert!(g.events.iter().any(|e|e["kind"]=="shot"&&e["team"]==0),"roof unit must not be hidden behind its own fort's terrain");
+ barrier(&mut g,14);unit_mut(&mut g,id).cooldown=0.;g.events.clear();for _ in 0..4{g.step(0.059);}assert!(!g.events.iter().any(|e|e["kind"]=="shot"&&e["team"]==0),"an unrelated cliff still blocks the shot");
 }
 
 #[test]

@@ -1,4 +1,7 @@
-Ghidra- und Originaldatenabgleich – 30.10.2026
+Ghidra- und Originaldatenabgleich – aktualisiert03.11.2026
+
+Aktueller Kampf-/Formationsstand und genaue Grenzen: ORIGINAL-KAMPF-FORMATIONEN.txt.
+Die datierten älteren Abschnitte unten beschreiben frühere Entwicklungsstände.
 
 ANSATZ
 Neu geschriebener Rust/Wasm-Kern. Auf ausdrücklichen Nutzerwunsch werden die lokale
@@ -34,8 +37,8 @@ Rate = floor(floor(HP * 100 / maxHP) * Gebietsfaktor / 100).
 Ein Fabrikaufruf zieht diese ganzzahlige Rate von der Restarbeit ab. Fertig bei
 Restarbeit < 0. Sekundenanzeige = floor(Restarbeit / (Rate * 17)); Rate 0 hält an.
 Die ursprüngliche Spielsekundenzählung verwendet17 Updates. Der normale SDL-
-Bewegungsintervall ist inzwischen mit59ms belegt; Produktion behält ihre separate
-nominelle17Hz-Skala. Näheres: ORIGINAL-BEWEGUNGSTAKT.txt.
+Bewegungsintervall ist mit59ms belegt; seit03.11.2026 bearbeiten auch Produktion
+und Kampf genau einen nominellen1/17-Schritt je solchem Callback. Näheres: ORIGINAL-BEWEGUNGSTAKT.txt.
 Beispiel: Grunt-Score 1062 -> 19558 Arbeit; bei 1/9 Gebieten und voller Fabrik
 Rate 3 -> Anzeige 6:23, bei 3/9 Rate 9 -> 2:07. Fort-HP 10000 werden zu 9999 gerundet.
 
@@ -49,13 +52,14 @@ Projektil und garantiert keinen Fehlschuss. Nicht jede Waffe nutzt denselben Pfa
 Die Integration bleibt deshalb eine Teilrekonstruktion; siehe Codekommentare.
 
 NOCH OFFEN
-Die KI ist ein eigener Gegner. Originale Projektilflugbahnen, Streuung, Kollisionen,
-vollständige Explosionswirkung und Kontaktabfolge sind noch nicht vollständig
-nachgebildet. Normaler Bewegungstakt und ganzzahlige Schritte sind nun belegt;
-Sonderzustände, Animationsgeschwindigkeit, Schusskadenz und Formation bleiben
-unvollständig. APC-Insassenfeuer, Sonderfahrzeuge, alle Tor-/Ausfahranimationen
-und die ursprüngliche Gesichtszustandsmaschine im Statuspanel fehlen bzw. sind unvollständig. Originale
-Grafikframes bedeuten noch keine originale Animations-Zustandsmaschine.
+Kugelflug, Infanterie-Feuerphasen, Standard-V-Formation und der native KI-Takt sind
+inzwischen teilweise übernommen und mit ausgeführten Originalfunktionen verglichen.
+Die KI-Gebietsstrategie enthält weiterhin Ersatzlogik. Schwere Projektile, Salven,
+Höhenkollision, vollständige Explosionswirkung und Kontaktabfolge sind nicht fertig.
+Weitere Formationsmasken und Sonderzustände, Hardware-Dreh-/Lukenautomaten,
+APC-Insassenfeuer, Sonderfahrzeuge, Tor-/Ausfahranimationen und die ursprüngliche
+Gesichtszustandsmaschine fehlen bzw. sind unvollständig. Genaue Abgrenzung und
+reproduzierbare Oracle-Werkzeuge: ORIGINAL-KAMPF-FORMATIONEN.txt.
 Die originale Roboterfabrik hat einen nachgewiesenen Indexierungsfehler für zerstörte
 Grafik; hier werden die semantisch passenden Wracks gezeichnet. Originalmusik und deutsche
 Sprachmeldungen werden aus dem privaten Originaltonpaket geladen. Die Webfassung hat

@@ -49,7 +49,7 @@ fn native_zero_hp_is_intact_until_first_positive_contact() {
 fn wall_attack_fires_at_selected_wall_and_stops_on_collapse() {
     let mut g=field(); g.import_walls(&json!({"walls":[wall(7,640.,320.,10.)]})).unwrap();
     let id=shooter(&mut g,"light",480.,336.); g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
-    g.step(0.05); assert!(!g.walls[0].alive()); assert_eq!(unit(&g,id).order,"guard");
+    g.step(0.059); assert!(!g.walls[0].alive()); assert_eq!(unit(&g,id).order,"guard");
     assert!(unit(&g,id).path.is_empty()); assert!(g.effects.iter().any(|fx|fx.kind=="shot"&&fx.x2==640.));
 }
 
@@ -58,7 +58,7 @@ fn distant_tank_reaches_a_valid_firing_position_without_entering_wall() {
     let mut g=field(); g.import_walls(&json!({"walls":[wall(7,1152.,320.,10.)]})).unwrap();
     let id=shooter(&mut g,"light",96.,336.); g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
     assert!(!unit(&g,id).path.is_empty());
-    for _ in 0..1000 { g.step(0.05); if !g.walls[0].alive(){break;} }
+    for _ in 0..1000 { g.step(0.059); if !g.walls[0].alive(){break;} }
     assert!(!g.walls[0].alive()); assert!(unit(&g,id).x<1152.,"Stop outside the wall, not inside its footprint");
 }
 
@@ -83,7 +83,7 @@ fn manual_stop_and_foreign_team_commands_cancel_or_cannot_replace_wall_order() {
     let mut g=field(); g.import_walls(&json!({"walls":[wall(7,1152.,320.,10.)]})).unwrap();
     let id=shooter(&mut g,"light",96.,336.); g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
     g.command(&json!({"team":1,"ids":[id],"kind":"attackWall","target":7})); assert_eq!(unit(&g,id).target,Some(7));
-    g.command(&json!({"ids":[id],"kind":"stop"})); g.step(0.05); assert_eq!(unit(&g,id).order,"guard"); assert!(g.walls[0].alive());
+    g.command(&json!({"ids":[id],"kind":"stop"})); g.step(0.059); assert_eq!(unit(&g,id).order,"guard"); assert!(g.walls[0].alive());
 }
 
 #[test]
@@ -159,9 +159,9 @@ fn an_overlapping_southern_head_blocks_fire_at_the_upper_wall_but_can_itself_be_
     assert!(g.wall_los(600.,368.,640.,368.,9),"The lower head is visible from its flank, despite the upper fragment behind it");
     assert!(!g.wall_los(600.,368.,640.,368.,7),"An explicit upper target cannot ignore the lower visible head");
     let id=shooter(&mut g,"cannon",656.,464.);
-    g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.05);
+    g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
     assert_eq!(g.walls[0].hp,5.);assert_eq!(g.walls[1].hp,5.);assert!(!g.events.iter().any(|e|e["kind"]=="shot"));
-    g.command(&json!({"ids":[id],"kind":"attackWall","target":9}));g.step(0.05);
+    g.command(&json!({"ids":[id],"kind":"attackWall","target":9}));g.step(0.059);
     assert_eq!(g.walls[0].hp,5.);assert_eq!(g.walls[1].hp,0.);
 }
 
@@ -170,7 +170,7 @@ fn machine_gun_hardware_and_empty_infantry_cannot_damage_stone() {
     for kind in ["grunt","psycho","sniper","laser","pyro","jeep","gatling","apc","crane"] {
         let mut g=field();g.import_walls(&json!({"walls":[wall(7,640.,320.,5.)]})).unwrap();
         let id=shooter(&mut g,kind,480.,336.);g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
-        g.step(0.05);assert_eq!(g.walls[0].hp,5.,"{kind} without explosives");
+        g.step(0.059);assert_eq!(g.walls[0].hp,5.,"{kind} without explosives");
         assert!(!g.events.iter().any(|event|event["kind"]=="shot"));
     }
 }
@@ -180,10 +180,10 @@ fn all_five_native_terrain_grenade_robot_classes_spend_one_only_on_contact() {
     for kind in ["grunt","psycho","sniper","laser","pyro"] {
         let mut g=field();g.import_walls(&json!({"walls":[wall(7,512.,320.,80.)]})).unwrap();
         let id=shooter(&mut g,kind,480.,336.);g.units.last_mut().unwrap().grenades=1;
-        g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.05);
+        g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
         assert_eq!(g.walls[0].hp,30.,"{kind}: verified50-damage grenade contact");
         assert_eq!(unit(&g,id).grenades,0);assert!(g.events.iter().any(|e|e["weapon"]=="grenade"));
-        for _ in 0..50 {g.step(0.05);}
+        for _ in 0..50 {g.step(0.059);}
         assert_eq!(g.walls[0].hp,30.,"No ammunition means no additional wall hits");
         assert_eq!(unit(&g,id).order,"guard");
     }
@@ -197,7 +197,7 @@ fn explosive_families_and_both_human_teams_break_stone_with_primary_contact() {
             g.spawn("grunt",0,1680.,1056.,82,None);g.units.last_mut().unwrap().cooldown=10_000.;
             g.units.last_mut().unwrap().hold_position=true;
             let id=shooter(&mut g,kind,480.,336.);g.units.last_mut().unwrap().team=team;
-            g.command(&json!({"team":team,"ids":[id],"kind":"attackWall","target":7}));g.step(0.05);
+            g.command(&json!({"team":team,"ids":[id],"kind":"attackWall","target":7}));g.step(0.059);
             assert!(!g.walls[0].alive(),"{kind}/team{team}");
             assert!(g.events.iter().any(|e|e["kind"]=="shot"&&e["weapon"]=="primary"));
             assert_eq!(unit(&g,id).grenades,0);
@@ -210,7 +210,7 @@ fn an_unreachable_cliff_blocks_actual_wall_fire_instead_of_becoming_destructible
     let mut g=field();g.import_walls(&json!({"walls":[wall(7,640.,320.,5.)]})).unwrap();
     for y in 0..g.map.height {g.map.tiles[y*g.map.width+17]=2;}
     let id=shooter(&mut g,"light",480.,336.);g.command(&json!({"ids":[id],"kind":"attackWall","target":7}));
-    for _ in 0..20 {g.step(0.05);assert!(!g.events.iter().any(|e|e["kind"]=="shot"));}
+    for _ in 0..20 {g.step(0.059);assert!(!g.events.iter().any(|e|e["kind"]=="shot"));}
     assert_eq!(g.walls[0].hp,5.);assert_eq!(unit(&g,id).x,480.);
     assert!(g.map.tiles.iter().enumerate().filter(|(i,_)|i%g.map.width==17).all(|(_,tile)|*tile==2));
 }

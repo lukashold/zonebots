@@ -127,6 +127,7 @@
   for(const s of state.sectors){if(s.home||s.countsForProduction===false)continue;if(SceneArt.flag(c,s,state.time,state.map))continue;c.fillStyle='#303a2c';c.fillRect(s.x,s.y-29,2,30);c.fillStyle=s.owner===0?'#de6141':s.owner===1?'#548cce':'#d7cfad';c.beginPath();c.moveTo(s.x+2,s.y-29);c.lineTo(s.x+20,s.y-27+Math.sin(state.time*4+s.id)*2);c.lineTo(s.x+17,s.y-17);c.lineTo(s.x+2,s.y-18);c.fill();}
   for(const box of state.crates)if(!state.map.original&&!box.taken){c.fillStyle='#293a28';c.fillRect(box.x-7,box.y-5,14,10);c.fillStyle='#b0b66e';c.fillRect(box.x-5,box.y-4,10,2);c.fillStyle='#cbb563';c.fillRect(box.x-1,box.y-3,2,7);}
   for(const b of state.buildings){if(state.map.original)SceneArt.production?.(c,b,state.productionSeconds[b.id],state.map,state.time);readyGunBadge(b);}
+  SceneArt.bullets?.(c,(state.bullets||[]).filter(b=>visible(b.x,b.y,32)),state.map);
   if(window.GameGraphics?.isHD())SceneArt.effects(c,state.effects,state.time,state.map);else if(state.map.original&&OriginalArt.ready){IndependentArt.effects(c,state.effects.filter(f=>f.kind!=='explosion'),state.time);SceneArt.effects(c,state.effects,state.time,state.map);}else IndependentArt.effects(c,state.effects,state.time);
   // Terrain and units on the main battlefield are always visible. Radar only affects the minimap.
 

@@ -112,7 +112,7 @@ fn live_target_updates_an_attack_route_before_the_old_path_finishes() {
     for original in [false, true] {
         let (mut g, attacker, target) = arena(original);
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
         let initial = last_point(&g, attacker);
         assert!((initial.0 - get(&g, attacker).x).hypot(initial.1 - get(&g, attacker).y) > 3. * TILE,
             "The initial route must still have substantial untraveled distance");
@@ -164,7 +164,7 @@ fn each_member_of_a_selected_group_keeps_tracking_the_same_live_target() {
             ids.push(u.id);
         }
         g.command(&json!({"ids":ids,"kind":"attack","target":target}));
-        g.step(0.05);
+        g.step(0.059);
         let initial: Vec<_> = ids.iter().map(|id| last_point(&g, *id)).collect();
         move_target(&mut g, target, 880., 1000.);
         // Observe a physical turn of256px, independent of the chosen world
@@ -190,7 +190,8 @@ fn reachable_target_in_weapon_range_stops_the_chase_and_receives_fire() {
         get_mut(&mut g, target).x = 540.; //220 inside the Grunt's240 range.
         get_mut(&mut g, attacker).cooldown = 0.;
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
+        if original {assert_eq!(get(&g,attacker).native_fire.as_ref().unwrap().target,target);for _ in 0..30{g.step(0.059);if g.events.iter().any(|e|e["kind"]=="shot"){break;}}}
         let a = get(&g, attacker);
         assert_eq!((a.x, a.y), (320., 320.), "A valid firing position must not keep walking");
         assert!(a.path.is_empty());
@@ -198,7 +199,7 @@ fn reachable_target_in_weapon_range_stops_the_chase_and_receives_fire() {
         assert_eq!(a.order, "attack");
         assert_eq!(a.target, Some(target));
         assert!(g.events.iter().any(|e| e["kind"] == "shot" && e["team"] == 0));
-        assert!(g.effects.iter().any(|e| e.kind == "shot" && e.x2 == 540. && e.y2 == 320.));
+        if !original {assert!(g.effects.iter().any(|e| e.kind == "shot" && e.x2 == 540. && e.y2 == 320.));}else{assert!(!g.bullets.is_empty());}
     }
 }
 
@@ -208,7 +209,7 @@ fn chase_resumes_when_a_previously_reachable_target_leaves_weapon_range() {
         let (mut g, attacker, target) = arena(original);
         get_mut(&mut g, target).x = 500.;
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
         assert!(get(&g, attacker).path.is_empty());
         move_target(&mut g, target, 1100., 320.);
         run(&mut g, 45);
@@ -232,7 +233,7 @@ fn attack_in_range_with_blocked_sight_keeps_seeking_a_valid_firing_position() {
         }
         get_mut(&mut g, attacker).cooldown = 0.;
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
         let a = get(&g, attacker);
         assert!(!a.path.is_empty(), "Distance alone must not stop a chase behind an obstacle");
         assert!(a.moving);
@@ -246,7 +247,7 @@ fn explicit_stop_and_move_override_pursuit_without_later_reactivation() {
         for stop in [false, true] {
             let (mut g, attacker, target) = arena(original);
             attack(&mut g, attacker, target);
-            g.step(0.05);
+            g.step(0.059);
             let before = (get(&g, attacker).x, get(&g, attacker).y);
             if stop {
                 g.command(&json!({"ids":[attacker],"kind":"stop"}));
@@ -276,7 +277,7 @@ fn invalid_explicit_targets_cancel_the_old_path_and_target_reference() {
         for change in ["dead", "missing", "friendly", "neutral"] {
             let (mut g, attacker, target) = arena(original);
             attack(&mut g, attacker, target);
-            g.step(0.05);
+            g.step(0.059);
             assert!(!get(&g, attacker).path.is_empty());
             let before = (get(&g, attacker).x, get(&g, attacker).y);
             match change {
@@ -308,7 +309,7 @@ fn ai_does_not_replace_an_explicit_attack_while_its_path_is_empty_to_fire() {
         g.ai_teams = vec![0];
         g.ai_clock = 0.;
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
         let a = get(&g, attacker);
         assert_eq!(a.order, "attack", "An empty firing path is not an idle unit");
         assert_eq!(a.target, Some(target));
@@ -326,7 +327,7 @@ fn vehicle_pursuit_uses_a_bridge_and_never_follows_a_stale_path_into_water() {
         g.map.tiles[bridge] = 5; g.map.terrain_codes[bridge] = 23;
         g.map.bridge_base[bridge] = 0; g.map.bridge_hp.push(400.);
         attack(&mut g, attacker, target);
-        g.step(0.05);
+        g.step(0.059);
         assert!(path_visits_cell(&g, attacker, 20, 15));
         move_target(&mut g, target, 880., 1000.);
         run(&mut g, 10);
@@ -391,7 +392,7 @@ fn fully_unreachable_live_target_stays_selected_and_retries_after_a_map_change()
         g.map.tiles[bridge] = 5; g.map.terrain_codes[bridge] = 23;
         g.map.bridge_base[bridge] = 0; g.map.bridge_hp.push(400.);
         g.map.revision += 1;
-        g.step(0.05);
+        g.step(0.059);
         let a = get(&g, attacker);
         assert_eq!(a.target, Some(target));
         assert!(!a.path.is_empty(), "A new crossing should refresh an unreachable attack without another click");

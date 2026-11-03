@@ -76,8 +76,9 @@ fn marching_squad_reserves_one_driver_and_other_members_keep_their_own_destinati
     run(&mut g,700);
     assert_eq!(g.units.iter().filter(|u|u.team==0&&stats(&u.kind).cls==0).count(),2);
     assert_eq!(unit(&g,hardware).team,0);
-    for (n,id) in ids.iter().enumerate() {if let Some(u)=g.units.iter().find(|u|u.id==*id) {
-        assert!((u.x-(1400.+n as f64*12.)).hypot(u.y-320.)<0.01);
+    for id in &ids {if let Some(u)=g.units.iter().find(|u|u.id==*id) {
+        let delta=u.formation.as_ref().map(|f|original_formation::offset(f.slot,f.direction)).unwrap_or((0.,0.));
+        assert!((u.x-(1400.+delta.0)).hypot(u.y-(320.+delta.1))<0.01);
         assert!(u.initiative.is_none());assert!(u.march_resume.is_none());
     }}
 }
@@ -151,7 +152,7 @@ fn active_march_includes_the_native_quantized_scan_boundary_but_idle_scan_does_n
         let mut g=field(true,0);let robot=g.units[0].id;flag(&mut g,560.,320.);
         assert_eq!(original_initiative::object_distance(320.,320.,560.,320.),15);
         if marching {march(&mut g,&[robot],0,1400.,320.);assert!(!unit(&g,robot).path.is_empty());}
-        g.step(0.);
+        g.step(0.059);
         assert_eq!(unit(&g,robot).initiative,if marching{Some(Initiative::Flag(0))}else{None});
         assert_eq!(unit(&g,robot).march_resume,if marching{Some((1400.,320.))}else{None});
     }
@@ -165,7 +166,7 @@ fn marching_scan_rejects_dead_or_owned_hardware_and_flags_behind_cliffs() {
         g.spawn("jeep",team,x,440.,4,None);let v=g.units.last_mut().unwrap();
         if team<0 {v.hp=-1.;}else{v.hold_position=true;v.cooldown=10000.;}
     }
-    march(&mut g,&[robot],0,1400.,320.);g.step(0.);
+    march(&mut g,&[robot],0,1400.,320.);g.step(0.059);
     let u=unit(&g,robot);assert!(u.initiative.is_none());assert!(u.march_resume.is_none());
     assert_eq!(u.dest,Some((1400.,320.)));assert!(!u.path.is_empty());assert_eq!(g.sectors[0].owner,-1);
 }

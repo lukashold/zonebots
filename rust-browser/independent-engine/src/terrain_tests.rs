@@ -344,7 +344,7 @@ fn released_robot_can_reboard_a_tile_corner_gun_without_changing_its_type() {
         g.spawn("grunt", 0, 320., 330., 72, None);
         let robot = g.units.last().unwrap().id;
         g.command(&json!({"ids":[robot],"kind":"enter","target":gun}));
-        g.step(0.05);
+        g.step(0.059);
         assert_eq!(unit(&g, gun).team, 0);
         g.command(&json!({"ids":[gun],"kind":"unload"}));
         let driver = g.units.iter().find(|u| u.team == 0 && u.kind == "grunt").unwrap();
@@ -353,7 +353,7 @@ fn released_robot_can_reboard_a_tile_corner_gun_without_changing_its_type() {
         let driver_id = driver.id;
         g.command(&json!({"ids":[driver_id],"kind":"enter","target":gun}));
         for _ in 0..30 {
-            g.step(0.05);
+            g.step(0.059);
             if unit(&g, gun).team == 0 { break; }
         }
         let hardware = unit(&g, gun);

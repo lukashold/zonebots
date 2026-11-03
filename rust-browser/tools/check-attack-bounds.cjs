@@ -24,10 +24,9 @@ function union(calls){const x=Math.min(...calls.map(p=>p.x)),y=Math.min(...calls
   for(const type of Object.keys(metadata.neutralUnits))check({...sample,type,team:-1},current,.21);
   for(const type of ['grunt','medium','crane','jeep'])check({...sample,type,x:-20.3,y:-10.4,angle:angle(5),aim:angle(2)},current,.21);
  }
- const robot={...sample,x:200,y:300},box=art.attackBounds(robot,map),head={x:box.x+box.w/2,y:box.y+2};
- assert(Math.hypot(head.x-robot.x,head.y-robot.y)>22,'Regression must include a visible robot head outside the old feet radius');
- assert(head.x>=box.x&&head.x<=box.x+box.w&&head.y>=box.y&&head.y<=box.y+box.h);
- assert.equal(art.unitBounds(robot,map),null,'Existing robot selection-bounds contract must remain unchanged');
+ const robot={...sample,x:200,y:300},box=art.attackBounds(robot,map);
+ assert.deepEqual({...art.unitBounds(robot,map)},{...box},'Robot selection and attack bounds share the verified native anchor');
+ assert.equal(box.x,robot.x);assert.equal(box.y,robot.y);
  const tank={...sample,type:'medium'};check(tank,map,0);assert.deepEqual({...art.unitBounds(tank,map)},union(calls),'Tank selection includes the hull, turret, barrel and hatch');
  for(const invalid of [null,{...sample,x:NaN},{...sample,y:Infinity},{...sample,type:'unknown'},{...sample,type:'jeep',angle:NaN},{...sample,type:'heavy',aim:undefined}])assert.equal(art.attackBounds(invalid,map),null);
  check({...sample,type:'jeep',team:-1,angle:undefined,aim:undefined},map,0);

@@ -103,8 +103,8 @@ function inBounds(r){
     assert.equal(first.productionSeconds[index],rate?Math.trunc(workload/(rate*17)):null);
     const after=request({op:'advance',steps:10});
     assert.deepEqual(after.sectors.map(s=>s.owner),first.sectors.map(s=>s.owner),'Formula fixture unexpectedly captured a sector');
-    assert.equal(after.buildings[index].remainingWork,workload-rate*17);
-    assert.equal(after.productionSeconds[index],rate?Math.trunc((workload-rate*17)/(rate*17)):null);
+    assert.equal(after.buildings[index].remainingWork,workload-rate*16);
+    assert.equal(after.productionSeconds[index],rate?Math.trunc((workload-rate*16)/(rate*17)):null);
     formulaCases.push({fraction,ownAll,total,owned,rate,workload,remainingWork:after.buildings[index].remainingWork});
   }
   const report={missions:results,productionCases:formulaCases,wasmSha256:require('node:crypto').createHash('sha256').update(fs.readFileSync(options.wasm)).digest('hex')};

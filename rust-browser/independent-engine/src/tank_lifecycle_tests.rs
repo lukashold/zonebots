@@ -28,7 +28,7 @@ fn tank_boarding_and_unloading_use_distinct_native_origins_and_preserve_identity
             let mut origin=(640.,640.);
             for _ in 0..2 {
                 let ri=at(&g,robot);g.units[ri].x=origin.0;g.units[ri].y=origin.1+10.;
-                g.command(&json!({"team":team,"ids":[robot],"kind":"enter","target":tank}));g.step(0.);
+                g.command(&json!({"team":team,"ids":[robot],"kind":"enter","target":tank}));g.step(0.059);
                 let ti=at(&g,tank);let u=&g.units[ti];
                 let occupied=if original {(origin.0+board.0,origin.1+board.1)}else{origin};
                 assert_eq!((u.x,u.y),occupied,"{kind} original={original} team={team} boarding");
@@ -57,7 +57,7 @@ fn owned_mission_tank_spawns_already_use_the_occupied_origin() {
         let id=g.units[0].id;assert_eq!((g.units[0].x,g.units[0].y),(640.,640.));
         assert!(g.units[0].crew.is_some());
         g.spawn("gatling",1-team,1900.,1400.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;
-        g.units[0].hold_position=true;g.step(0.);
+        g.units[0].hold_position=true;g.step(0.059);
         assert_eq!((g.units[at(&g,id)].x,g.units[at(&g,id)].y),(640.,640.));
     }}
 }
@@ -66,7 +66,7 @@ fn owned_mission_tank_spawns_already_use_the_occupied_origin() {
 fn killing_a_tank_crew_releases_its_parked_object_without_hull_damage_or_a_new_robot() {
     for (kind,exit) in [("medium",(-16.,-12.)),("heavy",(-12.,-8.)),("light",(-22.,-14.))] {
         for original in [false,true] {for team in [0,1] {
-            let mut g=field(original);g.rng=1;
+            let mut g=field(original);g.rng=1;g.original_rng=original_combat::OriginalRng{words:[0;5],multiplayer:false};
             g.spawn(kind,team,640.,640.,1,None);let tank=g.units[0].id;
             let hull=g.units[0].hp;
             g.units[0].crew.as_mut().unwrap().hp=1.;
@@ -77,7 +77,7 @@ fn killing_a_tank_crew_releases_its_parked_object_without_hull_damage_or_a_new_r
             g.spawn("sniper",1-team,700.,640.,2,None);
             g.units[1].hold_position=true;g.units[1].cooldown=0.;
             let sniper=g.units[1].id;
-            g.step(0.);
+            for _ in 0..60 {g.step(0.059);if g.units[at(&g,tank)].team<0{break;}}
             let u=&g.units[at(&g,tank)];
             assert_eq!(u.team,-1,"{kind} original={original} team={team}: crew must be killed");
             assert!(u.crew.is_none());assert_eq!(u.kind,kind);assert_eq!(u.hp,hull);
@@ -92,12 +92,12 @@ fn killing_a_tank_crew_releases_its_parked_object_without_hull_damage_or_a_new_r
 #[test]
 fn simultaneous_crew_hits_convert_each_tank_origin_only_once() {
     for (kind,exit) in [("medium",(-16.,-12.)),("heavy",(-12.,-8.)),("light",(-22.,-14.))] {
-        let mut g=field(true);g.rng=1;g.spawn(kind,0,640.,640.,1,None);
+        let mut g=field(true);g.rng=1;g.original_rng=original_combat::OriginalRng{words:[0;5],multiplayer:false};g.spawn(kind,0,640.,640.,1,None);
         let tank=g.units[0].id;g.units[0].crew.as_mut().unwrap().hp=1.;
         g.units[0].original_combat.as_mut().unwrap().secondary_state=3;
         g.units[0].hold_position=true;g.units[0].cooldown=10000.;
         for i in 0..2 {g.spawn("sniper",1,700.,640.+i as f64*8.,2+i,None);g.units.last_mut().unwrap().hold_position=true;}
-        g.step(0.);let u=&g.units[at(&g,tank)];assert_eq!(u.team,-1);assert!(u.crew.is_none());
+        for _ in 0..60 {g.step(0.059);if g.units[at(&g,tank)].team<0{break;}}let u=&g.units[at(&g,tank)];assert_eq!(u.team,-1);assert!(u.crew.is_none());
         assert_eq!((u.x,u.y),(640.+exit.0,640.+exit.1),"{kind}: conversion applies once for the occupied-to-vacant transition");
     }
 }

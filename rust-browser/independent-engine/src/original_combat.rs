@@ -2,8 +2,8 @@
 //! Function/address evidence is recorded in the private local Ghidra research.
 //! This module does not replace trajectory collision: a successful aim roll
 //! changes target coordinates; the travelling projectile must still collide.
-//! The engine currently resolves contacts instantly. Acquisition scattering,
-//! shell blast geometry, hatch animation and full original RNG ordering remain
+//! Bullet contacts now use the native pool, ray stepping and scatter.
+//! Shell blast geometry, hatch animation and full original RNG ordering remain
 //! separate work; no acquisition roll is converted into a guaranteed miss.
 
 use super::Unit;
@@ -279,11 +279,20 @@ pub struct DamageOutcome {
 /// Original 0x460910 multiply-with-carry RNG. Words are the original state at
 /// globals0x622cdc,+4,+8,+12,+16. Initialization/seeding is intentionally caller
 /// supplied. In the game's multiplayer mode this function returns zero.
+#[derive(Clone)]
 pub struct OriginalRng {
     pub words: [u32; 5],
     pub multiplayer: bool,
 }
 impl OriginalRng {
+    /// 00460850 expands a seed through five wrapping LCG steps, then warms
+    /// the multiply-with-carry state for nineteen calls.
+    pub fn seeded(seed:u32)->Self {
+        let mut word=seed;let mut words=[0;5];
+        for slot in &mut words {word=word.wrapping_mul(0x1c8e815).wrapping_sub(1);*slot=word;}
+        let mut rng=Self{words,multiplayer:false};
+        for _ in 0..19 {rng.next_u32();}rng
+    }
     pub fn next_u32(&mut self) -> u32 {
         if self.multiplayer {
             return 0;
@@ -630,7 +639,7 @@ mod tests {
         let id = g.units[1].id;
         g.units[1].hp = 5.;
         g.units[1].cooldown = 100.;
-        g.step(0.05);
+        for _ in 0..60 {g.step(0.059);if g.units.iter().find(|u|u.id==id).is_some_and(|u|u.hp==0.){break;}}
         assert_eq!(g.units.iter().find(|u| u.id == id).unwrap().hp, 0.);
         assert_eq!(g.winner, None);
         g.command(&serde_json::json!({"team":1,"ids":[id],"kind":"move","x":780,"y":680}));
@@ -689,4 +698,17 @@ mod tests {
             .unwrap_err()
             .contains("Invalid original crates"));
     }
+}
+
+#[cfg(test)]
+mod native_rng_execution_tests {
+ use super::*;
+ #[test]
+ fn seeding_and_ten_draws_match_the_executed_x86_for_five_seeds() {
+  {let mut rng=OriginalRng::seeded(0);assert_eq!(rng.words,[2513651531, 56422903, 4249065823, 1576818171, 860525097]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[2513658891, 1445726181, 2509516730, 1448726109, 3417174521, 488389304, 903333144, 1687362967, 3011265959, 2386887008]);}
+  {let mut rng=OriginalRng::seeded(1);assert_eq!(rng.words,[3612991399, 4169091516, 989215705, 2340863470, 1207937743]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[3612959618, 3672190977, 2131226346, 2518271816, 733148362, 3115676777, 516860737, 1890530292, 479381254, 892309459]);}
+  {let mut rng=OriginalRng::seeded(371);assert_eq!(rng.words,[3481136999, 1348018823, 3575558646, 3972126264, 1449057925]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[3481092434, 2119258337, 3538296135, 2814045973, 53420135, 425229149, 2047900710, 1683715419, 2182936132, 4009618309]);}
+  {let mut rng=OriginalRng::seeded(7291);assert_eq!(rng.words,[2684946857, 3025232107, 1079242664, 200281730, 718216423]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[2684945176, 2161871570, 3806885203, 3160801336, 3256309546, 1686517683, 3509463100, 3125028043, 1803176381, 3508599014]);}
+  {let mut rng=OriginalRng::seeded(4294967295);assert_eq!(rng.words,[4216289597, 2532505939, 2108413582, 3168246745, 755661375]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[4216279077, 2980134265, 2504058137, 2945539318, 2753506942, 3415671830, 71145861, 2741656392, 1498368075, 210946582]);}
+ }
 }

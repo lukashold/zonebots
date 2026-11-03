@@ -31,7 +31,15 @@ fn engagement(original: bool) -> Game {
     game
 }
 
-fn assert_shot_at(game: &Game, x: f64, y: f64) {
+fn assert_shot_at(game: &mut Game, x: f64, y: f64) {
+    if game.map.original {
+        let target=game.units.iter().find(|u|u.team==1&&u.x==x&&u.y==y).unwrap().id;
+        assert_eq!(game.units[0].native_fire.as_ref().unwrap().target,target);
+        assert!(!game.events.iter().any(|e|e["kind"]=="shot"),"acquisition is not a hit");
+        for _ in 0..30 {game.step(0.059);if game.events.iter().any(|e|e["kind"]=="shot"){break;}}
+        assert_eq!(game.events.iter().filter(|e|e["kind"]=="shot").count(),1);
+        assert_eq!(game.units[0].native_fire.as_ref().unwrap().target,target);return;
+    }
     let shots: Vec<_> = game.effects.iter().filter(|effect| effect.kind == "shot").collect();
     assert_eq!(shots.len(), 1, "Only the command recipient should fire");
     assert_eq!((shots[0].x2, shots[0].y2), (x, y));
@@ -45,8 +53,8 @@ fn manual_unit_target_wins_over_a_nearer_enemy_in_weapon_range() {
         let near_hp = game.units[1].hp;
         let chosen_hp = game.units[2].hp;
         game.command(&json!({"ids":[attacker],"kind":"attack","target":chosen}));
-        game.step(0.05);
-        assert_shot_at(&game, 500., 320.);
+        game.step(0.059);
+        assert_shot_at(&mut game, 500., 320.);
         assert_eq!(game.units[1].hp, near_hp, "The closer unit must not steal the aimed shot");
         if !original {
             assert_eq!(game.units[2].hp, chosen_hp - stats("grunt").damage);
@@ -70,7 +78,7 @@ fn building_target_receives_fire_even_with_an_enemy_unit_nearby() {
             let attacker = game.units[0].id;
             let near_hp = game.units[1].hp;
             game.command(&json!({"ids":[attacker],"kind":"attackBuilding","target":0}));
-            game.step(0.05);
+            game.step(0.059);
             assert_eq!(game.buildings[0].hp, 1000. - stats("grunt").damage);
             assert_eq!(game.units[1].hp, near_hp);
             assert!(game.events.iter().any(|event| event["kind"] == "shot" && event["team"] == 0));
@@ -87,7 +95,7 @@ fn out_of_range_manual_target_keeps_pursuit_and_nearby_return_fire() {
         let chosen_hp = game.units[2].hp;
         game.command(&json!({"ids":[attacker],"kind":"attack","target":chosen}));
         game.step(0.1);game.step(0.1);
-        assert_shot_at(&game, 400., 320.);
+        assert_shot_at(&mut game, 400., 320.);
         assert_eq!(game.units[2].hp, chosen_hp);
         assert!(!game.units[0].path.is_empty());
         assert!(game.units[0].moving);
@@ -105,8 +113,8 @@ fn manual_unit_priority_respects_line_of_sight() {
         let (attacker, chosen) = (game.units[0].id, game.units[2].id);
         let chosen_hp = game.units[2].hp;
         game.command(&json!({"ids":[attacker],"kind":"attack","target":chosen}));
-        game.step(0.05);
-        assert_shot_at(&game, 400., 320.);
+        game.step(0.059);
+        assert_shot_at(&mut game, 400., 320.);
         assert_eq!(game.units[2].hp, chosen_hp);
     }
 }
@@ -120,8 +128,8 @@ fn automatic_targeting_and_ground_attack_still_choose_the_nearest_enemy() {
                 let attacker = game.units[0].id;
                 game.command(&json!({"ids":[attacker],"kind":"attack","x":650,"y":500}));
             }
-            game.step(0.05);
-            assert_shot_at(&game, 400., 320.);
+            game.step(0.059);
+            assert_shot_at(&mut game, 400., 320.);
         }
     }
 }

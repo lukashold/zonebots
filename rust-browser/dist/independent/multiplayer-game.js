@@ -14,11 +14,12 @@
   if(!state||role!=='guest')return state;
   return {...state,units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
    buildings:state.buildings.map(b=>({...b,team:flip(b.team)})),sectors:state.sectors.map(s=>({...s,owner:flip(s.owner)})),
-   events:(state.events||[]).map(remapEvent),winner:flip(state.winner)};
+   bullets:(state.bullets||[]).map(b=>({...b,team:flip(b.team)})),events:(state.events||[]).map(remapEvent),winner:flip(state.winner)};
  }
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
+  if(state.bullets!==undefined&&(!Array.isArray(state.bullets)||state.bullets.length>200||!state.bullets.every(b=>object(b)&&integer(b.id,199)&&[b.x,b.y,b.angle].every(Number.isFinite)&&[0,1].includes(b.team)&&typeof b.laser==='boolean'&&integer(b.phase,1))))return false;
   if(state.walls!==undefined&&(!Array.isArray(state.walls)||state.walls.length>16384||!state.walls.every(w=>object(w)&&integer(w.id)&&[w.x,w.y,w.hp,w.maxHp].every(Number.isFinite))))return false;
   if(!state.units.every(u=>object(u)&&integer(u.id)&&[u.x,u.y,u.hp,u.maxHp,u.angle,u.aim].every(Number.isFinite)&&[-1,0,1].includes(u.team)))return false;
   if(!state.buildings.every(b=>object(b)&&integer(b.id)&&[b.x,b.y,b.w,b.h,b.hp,b.maxHp].every(Number.isFinite)&&[-1,0,1].includes(b.team)))return false;

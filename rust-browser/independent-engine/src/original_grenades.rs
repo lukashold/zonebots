@@ -3,9 +3,8 @@
 //! otherwise inventory+0x99 and target runtime class 1 or 2 select grenade state49.
 //! 00464779 copies global0049ba74 (50) into projectile damage+0x1d. The blast
 //! eventually uses body damage (0041f2d0 ->0041f260), without the bullet crew roll.
-//! This adapter deliberately retains the engine's existing immediate target
-//! contact and cooldown. Native 11-update throw windup, lob/scatter, allocation
-//! pool, collision, splash geometry and original reacquisition remain unmodeled.
+//! Throw animation now uses its verified11-update windup. Lob/scatter, allocation
+//! pool, collision and splash geometry remain separate work.
 use super::{original_combat, Unit};
 
 pub const CONTACT_DAMAGE: u8 = 50;
@@ -68,7 +67,8 @@ mod tests {
     #[test]
     fn actual_original_shot_spends_one_grenade_for_fifty_hull_damage() {
         let mut game=engagement("grunt","medium");
-        game.step(0.05);
+        for _ in 0..11{game.step(0.059);assert_eq!(game.units[0].grenades,2);}
+        game.step(0.059);
         assert_eq!(game.units[0].grenades,1);
         assert_eq!(game.units[1].hp,150.);
         assert_eq!(game.units[1].crew.as_ref().unwrap().hp,30.);
@@ -84,7 +84,7 @@ mod tests {
             let mut game=engagement(shooter,target);
             if shooter=="grunt"&&target=="medium" {game.units[0].grenades=0;}
             let old=game.units[0].grenades;
-            game.step(0.05);
+            for _ in 0..40{game.step(0.059);if game.events.iter().any(|e|e["kind"]=="shot"){break;}}
             assert_eq!(game.units[0].grenades,old,"{shooter} -> {target}");
             assert!(game.events.iter().any(|e|e["kind"]=="shot"&&e["weapon"]=="primary"));
         }

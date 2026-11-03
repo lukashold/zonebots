@@ -103,7 +103,7 @@ fn robot_production_repeats_after_each_completed_group() {
             assert_eq!(game.buildings[0].remaining_work, Some(original_stats::workload(kind) as f64));
             assert!(game.events.iter().any(|e| e["kind"] == "ready" && e["type"] == kind));
             assert!(game.buildings[0].completion_ticks>0);
-            while game.buildings[0].completion_ticks>0 { game.step(1./17.); }
+            while game.buildings[0].completion_ticks>0 { game.step(0.059); }
             assert!(game.buildings[0].progress > 0., "Next group starts automatically after the original completion hold");
         }
     }
@@ -179,17 +179,17 @@ fn original_completion_holds_all_factory_classes_until_the_exact_native_resume_t
     for (factory,product) in [("robot","grunt"),("vehicle","jeep"),("fort","grunt")] {
         let mut game=original_factory(factory,0,5,Some(product));
         game.buildings[0].remaining_work=Some(1.);
-        game.step(1./17.);
+        game.step(0.059);
         let workload=original_stats::workload(product)as f64;
         assert_eq!(game.buildings[0].completion_ticks,68,"{factory}");
         assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
         for ticks in (1..68).rev() {
-            game.step(1./17.);
+            game.step(0.059);
             assert_eq!(game.buildings[0].completion_ticks,ticks,"{factory}");
             assert_eq!(game.buildings[0].remaining_work,Some(workload));
             assert_eq!(game.buildings[0].progress,0.);
         }
-        game.step(1./17.);
+        game.step(0.059);
         assert_eq!(game.buildings[0].completion_ticks,0);
         assert!(game.buildings[0].remaining_work.unwrap()<workload);
         assert!(game.buildings[0].progress>0.);
@@ -200,20 +200,20 @@ fn original_completion_holds_all_factory_classes_until_the_exact_native_resume_t
 #[test]
 fn completion_in_the_first_tick_of_a_batch_consumes_the_later_hold_tick() {
     let mut batch=original_factory("robot",0,5,Some("grunt"));
-    batch.production_clock=0.4;
+    batch.motion_clock=0.018;
     batch.buildings[0].remaining_work=Some(1.);
     let mut split=original_factory("robot",0,5,Some("grunt"));
-    split.production_clock=0.4;
+    split.motion_clock=0.018;
     split.buildings[0].remaining_work=Some(1.);
     batch.step(0.1); // two native production ticks from the initial fractional phase
-    split.step(1./17.);
-    split.step(0.1-1./17.);
+    split.step(0.059);
+    split.step(0.1-0.059);
     assert_eq!(batch.buildings[0].completion_ticks,67);
     assert_eq!(batch.buildings[0].completion_ticks,split.buildings[0].completion_ticks);
     assert_eq!(batch.buildings[0].remaining_work,split.buildings[0].remaining_work);
     // Resume on the second tick of a batch: that final tick must subtract work.
     batch.buildings[0].completion_ticks=2;
-    batch.production_clock=0.4;
+    batch.motion_clock=0.018;
     let full=batch.buildings[0].remaining_work.unwrap();
     let rate=original_stats::rate(1000.,1000.,2,3)as f64;
     batch.step(0.1);
@@ -234,10 +234,10 @@ fn capture_and_valid_product_change_preserve_the_running_completion_hold() {
     assert_eq!(game.buildings[0].remaining_work,None);
     assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
     game.buildings[0].completion_ticks=2;
-    game.step(1./17.);
+    game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,1);
     assert_eq!(game.buildings[0].remaining_work,None);
-    game.step(1./17.);
+    game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,0);
     assert!(game.buildings[0].progress>0.);
     assert_eq!(game.buildings[0].product.as_deref(),Some("grunt"));
@@ -250,14 +250,14 @@ fn completion_hold_expires_even_when_gun_storage_is_full() {
     game.buildings[0].completion_ticks=2;
     game.buildings[0].remaining_work=Some(999.);
     assert_eq!(game.remaining_seconds(&game.buildings[0]),Some(0));
-    game.step(1./17.);
+    game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,1);
-    game.step(1./17.);
+    game.step(0.059);
     assert_eq!(game.buildings[0].completion_ticks,0);
     assert_eq!(game.buildings[0].remaining_work,Some(999.));
     assert_eq!(game.remaining_seconds(&game.buildings[0]),None);
     game.buildings[0].ready_guns.pop();
-    game.step(1./17.);
+    game.step(0.059);
     assert!(game.buildings[0].remaining_work.unwrap()<999.);
 }
 
@@ -268,9 +268,9 @@ fn neutral_and_destroyed_buildings_drain_completion_state_without_producing() {
         if destroyed {game.buildings[0].hp=0.;} else {game.buildings[0].team=-1;game.sectors[0].owner=-1;}
         game.buildings[0].completion_ticks=2;
         game.buildings[0].remaining_work=Some(999.);
-        game.step(1./17.);
+        game.step(0.059);
         assert_eq!(game.buildings[0].completion_ticks,1);
-        game.step(1./17.);
+        game.step(0.059);
         assert_eq!(game.buildings[0].completion_ticks,0);
         assert_eq!(game.buildings[0].remaining_work,Some(999.));
         assert_eq!(game.buildings[0].progress,0.);

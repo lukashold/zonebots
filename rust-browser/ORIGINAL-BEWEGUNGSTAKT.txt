@@ -1,5 +1,10 @@
 Original-Bewegungstakt – 02.11.2026
 
+Fortgeschrieben03.11.2026: Gemeinsamer Simulationstakt, Standard-V-Folger mit
+Aufholindex+4 und emulierte native Richtungs-/Geschossvergleiche sind ergänzt.
+Aktueller Stand und ersetzte frühere Grenzen: ORIGINAL-KAMPF-FORMATIONEN.txt.
+Der folgende datierte Bericht dokumentiert die vorherige Einführung des Tempos.
+
 Der vorherige gemeinsame Faktor32 Weltpixel/s war eine freie Webanpassung und
 ist entfernt. Die normale Bewegung wird nun anhand der lokalen GOG-EXE ausgeführt.
 Dies ist weiterhin eine Teilrekonstruktion, keine vollständige Originalgleichheit.
