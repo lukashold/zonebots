@@ -103,12 +103,18 @@ impl Game{
   let members=(0..21).filter_map(|role|self.native_group_rosters.pool[group].member(role)).map(usize::from).filter(|&slot|self.native_group_rosters.members[slot].as_ref().is_some_and(|m|m.flags8a&16!=0)).collect::<Vec<_>>();let mut cleared=vec![];
   for slot in members{let Some(i)=self.units.iter().position(|u|u.native_slot==Some(slot))else{continue;};let m=self.native_group_rosters.members[slot].as_ref().unwrap().clone();
    if m.role<0&&m.contact_order!=0{if let Some(target)=self.native_group_rosters.contact_target(slot){if self.native_group_apc_target(i,target)==Some(target){self.clear_native_apc_object_contact(target);}}}
-   //52500's native node-pool freeing is represented by the existing owned
-   //vectors until the finite shared path pools are integrated.
+   //The52500 call precedes clearing8a18 and releases both finite lists.
+   self.clear_native_owned_paths(i);
    self.native_group_rosters.record_secondary_path(slot,false);if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.primary_path=false;m.secondary_path=false;m.flags8a&=!0x18;}
    let u=&mut self.units[i];u.path.clear();u.native_secondary_route.set(false);u.native_route_pending.set(None);u.original_motion=None;u.native_transport=None;u.transport_carrier=None;cleared.push(u.id);
   }
   for group in &mut self.native_transports{group.members.retain(|m|!cleared.contains(&m.id));}self.native_transports.retain(|g|!g.members.is_empty());
+ }
+ ///59e60 checks the own roster's8a20, but passes the input ACTOR to58ec0.
+ ///Subsequent matches call the same retired actor, whose31:4 guard returns.
+ ///No follower removal or synthetic familyFF conversion is substituted.
+ pub(crate) fn remove_native_failed_transport_actor(&mut self,index:usize)->bool{
+  let Some(slot)=self.units.get(index).and_then(|u|u.native_slot)else{return false;};let Some(actor)=self.native_group_rosters.members.get(slot).and_then(Option::as_ref)else{return false;};let group=usize::from(actor.group);if group>=240{return false;}let inside=(0..21).filter_map(|role|self.native_group_rosters.pool[group].member(role)).any(|s|self.native_group_rosters.members[usize::from(s)].as_ref().is_some_and(|m|m.flags8a&32!=0));inside&&self.native_remove_actor(index,false,false)
  }
  fn transport_member_index(&self,id:usize)->Option<usize>{self.units.iter().position(|u|u.id==id)}
  fn clear_transport_member(&mut self,index:usize){
@@ -164,8 +170,8 @@ impl Game{
   if let Some(object)=object{if let Some(o)=self.native_world_scan_objects().into_iter().find(|o|o.slot==object){self.apply_native_ambient_object(object,[-1,o.position[1]],o.flags13);}}
   let cargo=group.members.iter().filter(|m|m.id!=actor).filter_map(|m|self.units.iter().find(|u|u.id==m.id&&original_combat::alive(true,u.hp))).map(|u|Crew{kind:u.kind.clone(),hp:u.hp}).collect::<Vec<_>>();
   self.finish_order(ci);
-  let c=&mut self.units[ci];c.x=f64::from(point.0)*2.;c.y=f64::from(point.1)*2.;c.team=driver.team;c.squad=driver.squad;c.native_slot=driver.native_slot;c.transport_actor=Some(actor);c.native_route_flip.set(driver.native_route_flip.get());c.native_route_road_replaced.set(driver.native_route_road_replaced.get());c.native_secondary_route.set(driver.native_secondary_route.get());
-  c.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});c.cargo=cargo;c.grenades=driver.grenades;c.native_hardware=None;c.angle=native_math::angle(group.direction);c.aim=native_math::angle(0);c.cooldown=0.;c.explicit_stop=false;c.native_phase35=56;c.native_class7c=1;c.native_flags64=driver.native_flags64;c.native_flags9c=driver.native_flags9c;c.native_control06=driver.native_control06;c.native_order5c=0;c.native_target46=driver.native_target46;c.native_trait7a=driver.native_trait7a;c.native_initiative_scan=driver.native_initiative_scan;
+  let c=&mut self.units[ci];c.x=f64::from(point.0)*2.;c.y=f64::from(point.1)*2.;c.native_bucket38=super::original_initiative::native::coarse_cell([point.0 as i16,point.1 as i16]);c.team=driver.team;c.squad=driver.squad;c.native_slot=driver.native_slot;c.transport_actor=Some(actor);c.native_route_flip.set(driver.native_route_flip.get());c.native_route_road_replaced.set(driver.native_route_road_replaced.get());c.native_secondary_route.set(driver.native_secondary_route.get());
+  c.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});c.cargo=cargo;c.grenades=driver.grenades;c.native_hardware=None;c.angle=native_math::angle(group.direction);c.aim=native_math::angle(0);c.cooldown=0.;c.native_reload7b=0;c.explicit_stop=false;c.native_phase35=56;c.native_class7c=1;c.native_flags64=driver.native_flags64;c.native_flags9c=driver.native_flags9c;c.native_control06=driver.native_control06;c.native_order5c=0;c.native_target46=driver.native_target46;c.native_trait7a=driver.native_trait7a;c.native_cyclea0=driver.native_cyclea0;c.native_initiative_scan=driver.native_initiative_scan;
   let mut state=driver.original_combat.clone().unwrap_or_else(||original_combat::CombatState::new(&driver.kind));
   let equipment=original_combat::CombatState::new("apc");state.fire_rate=equipment.fire_rate;state.movement_control=equipment.movement_control;state.projectile_speed=Some(15);state.secondary_state=-1;c.original_combat=Some(state);
   if let Some((slot,attrs,range4))=source_hardware{c.native_hardware_slot=Some(slot);c.native_range4=Some(range4);c.hp=f64::from(attrs.word(8));c.max_hp=f64::from(attrs.word(10));if let Some(s)=&mut c.original_combat{s.fire_rate=attrs.byte(32);s.movement_control=attrs.byte(7);s.projectile_speed=Some(attrs.byte(33));}}
@@ -271,7 +277,7 @@ impl Game{
   for m in &group.members{if let Some(i)=self.transport_member_index(m.id){
    if let Some(slot)=self.units[i].native_slot.or(self.units[i].native_transport_slot){self.native_group_rosters.record_transport_flags(slot,0,0x18);}
    self.finish_order(i);let u=&mut self.units[i];u.x=f64::from(portal.0)*2.;u.y=f64::from(portal.1)*2.;u.angle=native_math::angle(m.animation.direction);u.aim=u.angle;u.squad=carrier.squad;u.native_transport=Some(m.animation.clone());u.transport_carrier=Some(carrier.id);u.hold_position=false;u.explicit_stop=false;u.native_phase35=64;
-   if Some(m.id)==actor{u.native_slot=carrier.native_slot.or(u.native_transport_slot);u.hp=driver.hp;u.grenades=carrier.grenades;u.native_class7c=driver_class;u.native_range4=Some(restored_range4);u.native_route_flip.set(carrier.native_route_flip.get());u.native_route_road_replaced.set(carrier.native_route_road_replaced.get());u.native_secondary_route.set(carrier.native_secondary_route.get());u.native_flags64=carrier.native_flags64;u.native_flags9c=carrier.native_flags9c;u.native_order5c=carrier.native_order5c;u.native_target46=carrier.native_target46;u.native_trait7a=carrier.native_trait7a;u.native_initiative_scan=carrier.native_initiative_scan;if let Some(state)=u.original_combat.as_mut(){if let Some(current)=carrier.original_combat.as_ref(){state.aim_skill=current.aim_skill;state.fire_rate=current.fire_rate;state.projectile_speed=current.projectile_speed;}}}
+   if Some(m.id)==actor{u.native_slot=carrier.native_slot.or(u.native_transport_slot);u.hp=driver.hp;u.grenades=carrier.grenades;u.native_class7c=driver_class;u.native_range4=Some(restored_range4);u.native_route_flip.set(carrier.native_route_flip.get());u.native_route_road_replaced.set(carrier.native_route_road_replaced.get());u.native_secondary_route.set(carrier.native_secondary_route.get());u.native_flags64=carrier.native_flags64;u.native_flags9c=carrier.native_flags9c;u.native_order5c=carrier.native_order5c;u.native_target46=carrier.native_target46;u.native_trait7a=carrier.native_trait7a;u.native_cyclea0=carrier.native_cyclea0;u.native_reload7b=carrier.native_reload7b;u.native_bucket38=carrier.native_bucket38;u.native_initiative_scan=carrier.native_initiative_scan;if let Some(state)=u.original_combat.as_mut(){if let Some(current)=carrier.original_combat.as_ref(){state.aim_skill=current.aim_skill;state.fire_rate=current.fire_rate;state.projectile_speed=current.projectile_speed;}}}
    else if u.native_slot.is_none(){u.native_slot=u.native_transport_slot;}
   }}
   if let Some((slot,actor))=carrier.native_slot.zip(actor){self.native_group_rosters.remap_entity(slot,carrier.id,actor);self.remap_native_pursuit_identity(carrier.id,actor);}
@@ -331,9 +337,13 @@ impl Game{
  #[test]fn accepted_order_cleanup_uses_raw_transport_bits_without_finishing_the_new_command(){
   let mut g=field();let(_carrier,ids)=board(&mut g);let leader=g.transport_member_index(ids[0]).unwrap();assert!(g.start_native_transport(leader));let untouched=g.units[g.transport_member_index(ids[2]).unwrap()].native_slot.unwrap();g.native_group_rosters.members[untouched].as_mut().unwrap().flags8a&=!16;
   for &id in &ids{let i=g.transport_member_index(id).unwrap();g.units[i].native_order5c=4;g.units[i].order="stop".into();g.units[i].dest=Some((1000.,800.));let slot=g.units[i].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().contact_order=0;}
-  g.cleanup_native_order_transports(leader);
+  let leader_slot=g.units[leader].native_slot.unwrap();let node=g.native_routes.get_mut().pool.allocate_goal([512,512]).unwrap();g.native_routes.get_mut().managed[leader_slot]=true;g.native_routes.get_mut().pool.links[leader_slot].primary=node;
+  g.cleanup_native_order_transports(leader);assert_eq!(g.native_routes.borrow().pool.links[leader_slot].primary,0);assert_eq!(g.native_routes.borrow().pool.node(node).unwrap().next,crate::original_route_pool::FREE,"59d80's52500 frees the owned original node, not just its Web path mirror");
   for id in ids.iter().take(2){let u=&g.units[g.transport_member_index(*id).unwrap()];let m=g.native_group_rosters.members[u.native_slot.unwrap()].as_ref().unwrap();assert_eq!((u.native_order5c,u.order.as_str(),u.dest),(4,"stop",Some((1000.,800.))));assert!(u.native_transport.is_none());assert_eq!(m.flags8a&24,0);}
   let u=&g.units[g.transport_member_index(ids[2]).unwrap()];assert!(u.native_transport.is_some());assert_eq!(g.native_group_rosters.members[untouched].as_ref().unwrap().flags8a&24,8);
+ }
+ #[test]fn failed_transport_removes_the_input_actor_when_a_follower_has_inside20(){
+  let mut g=field();let(_carrier,ids)=board(&mut g);let actor=g.transport_member_index(ids[0]).unwrap();assert!(!g.remove_native_failed_transport_actor(actor));let follower=g.transport_member_index(ids[1]).unwrap();let slot=g.units[follower].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().flags8a|=32;g.native_deaths=Default::default();assert!(g.remove_native_failed_transport_actor(actor));assert!(g.units[actor].hp<0.);for id in &ids[1..]{assert!(g.units[g.transport_member_index(*id).unwrap()].hp>0.,"59e60 passes the input actor, not the roster candidate, to58ec0");}assert_eq!(g.native_deaths.records.iter().filter(|r|r.sprite!=-1).count(),1);assert!(!g.remove_native_failed_transport_actor(actor),"inactive31:4 guard prevents duplicate removals");
  }
  #[test]fn invalid_commands_cannot_cancel_or_overwrite_a_transport_order(){
   let mut g=field();let(_carrier,ids)=board(&mut g);let i=g.transport_member_index(ids[0]).unwrap();g.start_native_transport(i);
@@ -383,15 +393,15 @@ impl Game{
   assert!(g.native_transports.is_empty());assert!(ids.iter().all(|id|{let u=&g.units[g.transport_member_index(*id).unwrap()];!workshops::hidden(u)&&u.native_slot.is_some()&&u.squad==3}));
  }
  #[test]fn apc_sniper_hits_only_hull_and_unload_preserves_robot_health_grenades_and_native_profiles(){
-  let mut g=field();let(carrier,ids)=board(&mut g);let di=g.transport_member_index(ids[0]).unwrap();g.units[di].grenades=7;g.units[di].native_target46=0x5503;g.units[di].native_trait7a=-37;g.units[di].original_combat.as_mut().unwrap().aim_skill=37;
+  let mut g=field();let(carrier,ids)=board(&mut g);let di=g.transport_member_index(ids[0]).unwrap();g.units[di].grenades=7;g.units[di].native_target46=0x5503;g.units[di].native_trait7a=-37;g.units[di].native_cyclea0=3;g.units[di].native_reload7b=37;g.units[di].original_combat.as_mut().unwrap().aim_skill=37;
   let old_hp=ids.iter().map(|id|g.units[g.transport_member_index(*id).unwrap()].hp).collect::<Vec<_>>();occupied(&mut g,carrier);let ci=g.transport_member_index(carrier).unwrap();
-  assert_eq!(g.units[ci].native_target46,0x5503);assert_eq!(g.units[ci].native_trait7a,-37);assert_eq!(g.units[ci].grenades,7);assert_eq!(g.units[ci].original_combat.as_ref().unwrap().aim_skill,37);assert_eq!(g.units[ci].original_combat.as_ref().unwrap().fire_rate,80);
+  assert_eq!(g.units[ci].native_target46,0x5503);assert_eq!(g.units[ci].native_trait7a,-37);assert_eq!(g.units[ci].native_cyclea0,3);assert_eq!(g.units[ci].native_reload7b,0);assert_eq!(g.units[ci].grenades,7);assert_eq!(g.units[ci].original_combat.as_ref().unwrap().aim_skill,37);assert_eq!(g.units[ci].original_combat.as_ref().unwrap().fire_rate,80);
   let slots=g.units.iter().filter_map(|u|u.native_slot).collect::<Vec<_>>();assert_eq!(slots.len(),4);assert_eq!(slots.iter().copied().collect::<std::collections::HashSet<_>>().len(),slots.len());
   let hull=g.units[ci].hp;let driver_hp=g.units[ci].crew.as_ref().unwrap().hp;
   assert!(!original_combat::apply_attack_with_mode(&mut g.units[ci],original_combat::Attack{target:carrier,damage:10,aim:120,facing:0,bullet:true},1,false,||0));
   assert!(g.units[ci].hp<hull);assert_eq!(g.units[ci].crew.as_ref().unwrap().hp,driver_hp);assert!(ids.iter().zip(&old_hp).all(|(id,hp)|g.units[g.transport_member_index(*id).unwrap()].hp==*hp));
-  let state=g.units[ci].original_combat.as_mut().unwrap();state.aim_skill=29;state.fire_rate=63;g.units[ci].grenades=4;g.units[ci].native_target46=0x5507;g.command(&json!({"kind":"unload","ids":[carrier]}));
-  let d=&g.units[g.transport_member_index(ids[0]).unwrap()];assert_eq!(d.native_target46,0x5507);assert_eq!(d.native_trait7a,-37);assert_eq!(d.grenades,4);assert_eq!(d.original_combat.as_ref().unwrap().aim_skill,29);assert_eq!(d.original_combat.as_ref().unwrap().fire_rate,63);assert_eq!(d.original_combat.as_ref().unwrap().projectile_speed,Some(15));
+  let state=g.units[ci].original_combat.as_mut().unwrap();state.aim_skill=29;state.fire_rate=63;g.units[ci].grenades=4;g.units[ci].native_target46=0x5507;g.units[ci].native_cyclea0=2;g.command(&json!({"kind":"unload","ids":[carrier]}));
+  let d=&g.units[g.transport_member_index(ids[0]).unwrap()];assert_eq!(d.native_target46,0x5507);assert_eq!(d.native_trait7a,-37);assert_eq!(d.native_cyclea0,2);assert_eq!(d.grenades,4);assert_eq!(d.original_combat.as_ref().unwrap().aim_skill,29);assert_eq!(d.original_combat.as_ref().unwrap().fire_rate,63);assert_eq!(d.original_combat.as_ref().unwrap().projectile_speed,Some(15));
   for _ in 0..180{g.step(0.059);if g.native_transports.is_empty(){break;}}
   assert!(ids.iter().zip(&old_hp).all(|(id,hp)|g.units[g.transport_member_index(*id).unwrap()].hp==*hp));
  }

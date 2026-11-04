@@ -1,57 +1,80 @@
-Prüfstand 03.11.2026 – gebauter Rust/Wasm-Release
+Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-586/586 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-62/62 Node-Prüfprogramme bestanden; keine übersprungenen Programme in diesem Lauf.
+716/716 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
+67/67 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 2bd396e8db04076d47e35fd70511863e4bcf35400c484476dca0fa3f2bf43c2d
+Wasm SHA256: 26fb556883a0263ca9b22728a5ed09f0229e341727114917b02903aacf1bf104
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
-- Alle20 Originalmissionen: Karten-/Gebäude-/Einheitenimport, gültige Positionen,
-  795 Startspawns, Technologie-/Produktmenüs und endliche Zustände.
-- Kampagnen-Soak mit beiden KI-Parteien pro Mission bis zu300 Spielsekunden.
-  Das ist ein Laufzeit-/Zustandstest, kein identischer Originalpartievergleich.
--48 anfänglich eigene Fabriken und89 neutrale Roboterfabriken beim Erobern;
-  Originalkonstruktor, Arbeitsmengen, Zeit, Produktwechsel, Standardwahl und
-  zwei echte vollständige Produktionszyklen. Kampagneninitialisierung ist kein
-  Laden eines Spielstands: Konstruktoren verwerfen eingespeiste Restarbeit.
-- Zehn schwere Waffen-/Granaten-/Flammenfamilien mit Flug, tatsächlichem Kontakt,
-  verzögertem Flächenschaden, Salven, Feuer und Gastfarben. Ein festes Geschütz
-  dient als stationäres Ziel; ein APC kann im Original Projektilen ausweichen.
-  Die Szene verhindert Spielende vor dem Kontakt nach dem Tod des Schützen.
-- Klassische/moderne Eingaben: Fahnen, Kisten, Fahrzeuge, Werkstätten, Angriffe,
-  stationäre Bodenangriffe, tatsächliche Klickkoordinaten und Auswahlrücksetzung.
-- Host-/Gast-Wasm: Besitz-/Koordinatenprüfung, Produktion, Geschützplatzierung,
-  Bereitschaft, Pausieren, Ereignisse, Kartenrevisionen und Wiederverbindung.
-- Grafik: Originalanker, Teams/Neutralgrau, Typidentität, Fahrzeug-/Turmschichten,
-  echte Phasen/Frames, Portraits/Sprachuhr und Palettenwechsel.
-- Python-PE-Leser und unabhängiger CP-Import bestanden:20 Missionen,163 CPU-
-  Gruppen mit319 Einheiten. Lokaler/LAN-Servertest bestand in dieser Prüfrunde.
+- Alle20 Originalmissionen: Import,795 Startspawns, gültige Positionen,
+  Technologie-/Produktmenüs und endliche Zustände.
+- Kampagnen-Soak mit beiden KI-Parteien pro Mission bis zu300 Spielsekunden;
+  keine gemeldete nativeRouteBoundary in diesen Läufen. Dies ist ein Laufzeit-
+  und Zustandstest, kein identischer Originalpartievergleich.
+- Endliche4.800/9.600 Pfadpools,240 UNIT-Köpfe, Original-Warteschlange und
+  inkrementelle Konturworker. Echte vollständige Fuß-/Panzerwege über Mainloop,
+  echte Ankunft, Native-Befehlsannahme, hilfreiche Straßen und legale Abkürzungen.
+- Produktionsuhr vor Arbeitsabzug im jeweiligen BUILD-Aufruf; Fertigstellung,
+  Spawn und nächste Produktwahl danach. Fertigpause wird nur einmal gezählt.
+  Der Capturepfad initialisiert leere, unbestückte Fabriken ohne Zweittick.
+  Bestehende Produkte, Arbeitsguthaben und veränderte Restarbeit bleiben erhalten.
+- Getrennte Fahrzeug-/Geschütz-Zielhandler, alle vier festen Geschützfamilien,
+  manueller Beschuss, mitbewegte Ziele, negative Nachladebytes, Nullgeschwindigkeit,
+  volle Projektilpools und teilweise erzeugte Salven.
+- Echte Befehle zum Einsteigen starten über59c60→52810 und erhalten Claim,
+  ursprünglichen Pfadrest und Bewegungsbonus. Sichtbare Annäherung und Übernahme
+  sind im Browser-Eingabetest mit dem tatsächlichen Wasm geprüft.
+- Angegriffener Multiplayer-APC fährt trotz früherem Zielauftrag zur Werkstatt,
+  repariert tatsächlich und meldet genau eine Fertigstellung. Host/Gast-Zustände,
+  Besitzprüfung, Pause, Produktion, Platzierung und Wiederverbindung sind geprüft.
+- KI-Isolation: frische Wasm-Instanzen mit/ohne Original-KI-Uhr bei aiTeams:[]
+  verhalten sich gleich; eine positive KI-Kontrolle erzeugt Strategieaufträge.
+  Autonome Zielerfassung einzelner Einheiten wird dadurch nicht abgeschaltet.
+- Globale normale Zeichenqueue, Originalsortierung/Paletten, zeitlich erhaltene
+  BUILD-/UNIT-Bilder, Fahnenfarbe nach gleicher Callback-Übernahme, Radar und
+  Portrait-/Soundzustände. Lokaler und gehosteter HTML-Einstieg laden denselben
+  Queuebaustein vor der Anwendung.
+- Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
+  Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
 
-ORIGINALORACLES
-Die Rust-Suite enthält ausgeführte Originalvergleichsfälle für numerische Kernel.
-Zusätzliche enge Blöcke dieser Runde:16.096 Reset-/Erwerbs-/Reaktionsfälle,
-26.624 Exitfälle,896 BUILD-Pyro-Fälle,2.560 Raw46-Flammenketten,2.304 Angriffs-
-annahme-/Sicht-/Bewegungsnachlauffälle,12.800 Portrait-Layerfolgen und16.384
-Sprachuhr-Aufrufe. Isolierte Abhängigkeiten sind in den jeweiligen Werkzeugen
-und Tests ausdrücklich benannt. Diese Blöcke sind keine vollständigen Partien.
+ZUSÄTZLICHE ORIGINALVERGLEICHE
+Werkzeuge in tools/ghidra führen die unveränderte lokale GOG-EXE im x86-Emulator
+unter Ghidra12.2 aus. Eigene Tests vergleichen die protokollierten Felder und
+numerischen Signaturen. Explizite Aufrufgrenzen stehen im jeweiligen Werkzeug.
+-1.024 vollständige Pfadpool-/Ownershipfälle über14.400 Records;512 Scheduler-
+  Fälle,2.207 Worker-Callbacks und459 tatsächliche Game-Ray/Seed/Walk-Callbacks.
+-16.384 zusätzliche Kontakt-/Ziel-Fälle,2.048 Projektilwarnungen und1.024
+  vollständige post-AI-Abstandscontroller für stehende Fahrzeuge.
+-8.192 Preamble-/Idle-/Pose-/Transportbereinigungsfälle;10.800 zusätzliche
+  Bodenfeuer-/Windup-Fälle.
+-8.192 manuelle Fahrzeugschussfälle und16.384 Fahrzeug-/Geschütz-Zielcaller.
+-14.464 normale UNIT-/OBJECT-Zeichenrecords,512 Queue-/Palettenabläufe,
+  96 echte Main-Aufrufspuren mit expliziten Callee-Grenzen,1.024 BUILD-Präfixe,
+  2.048 tatsächliche Produktions-Aufrufe und13.056 Radar-/Fahnen-/Konstruktorfälle.
+-775 Kampf-Sounddeskriptoren und12.560 vollständige46e660/46e6d0/46f650-Aufrufe
+  mit Zeitüberlauf, Master-/Fort-Gates und SDL-Rückgabegrenze.
+Diese Blöcke sind keine vollständigen Partien; ihre Zahlen werden nicht zu
+behaupteten End-to-end-Fällen zusammengerechnet. Details: ORIGINAL-PFADPOOL.txt
+und ORIGINAL-ZEICHENQUEUE.txt. Rohprotokolle und Decompilertexte bleiben privat.
 
 BROWSER
-Neuer Release in Originalgrafik(Mission1) und HD-Remake(Mission20) gestartet.
-Menü, Grafikumschaltung und Auswahl von3 Psychos/50HP samt Funkmeldung geprüft.
-Originalmodus: etwa60FPS, Bild-p95 8,9ms, Kern-p95 2,7ms.
-HD Mission20 nach Einlaufen: etwa60FPS, Bild-p95 9,4ms, Kern-p95 4,0ms.
-Keine erfassten Browserfehler/-warnungen. Das sind Momentaufnahmen auf diesem
-Rechner, kein allgemeiner Frameraten-Nachweis. Die Browser-Aufnahmefunktion
-lief wiederholt in einen Timeout; zum neuen Release liegt daher kein neuer
-Screenshot vor. Frühere erfolgreiche Sichtaufnahmen sind getrennte Belege.
-macOS-Hardware, tatsächliche Lautsprecherausgabe, zwei physische LAN-Rechner
-und vollständige Originalpartiegleichheit wurden nicht separat geprüft.
+Aktuellen Release in Edge mit Originalgrafik(Mission1) und HD-Remake(Mission20)
+gestartet. Menü/Grafikwechsel und der korrigierte einzelne Leerhinweis im HUD
+sind am tatsächlichen DOM und an Browseraufnahmen geprüft. Keine erfassten
+Browserwarnungen/-fehler. Beobachtete Bild-/Kern-p95: Original11,2/4,8ms,
+HD12,3/5,5ms. Automations-/Hintergrundtabs liefen zeitweise nur mit30–42FPS;
+dies ist kein belastbarer allgemeiner Frameratenvergleich. Browseraufnahmen
+wurden in der Sitzung angezeigt, keine separate Bilddatei wird mitveröffentlicht.
+macOS-Hardware, tatsächliche Lautsprecherausgabe und zwei physische LAN-Rechner
+wurden nicht separat geprüft.
 
-DATENBESTAND UND VERÖFFENTLICHUNG
+DATEN UND VERÖFFENTLICHUNG
 20 Missionen,218.000 Kacheln,275 Gebäude,795 Startspawns,99 Kisten,49 Brücken
 (davon19 anfangs zerstört),6.038 Wandfragmente,176 Startgeschütze(67 Fortdach,
-109 Boden). Originaldaten bleiben im genehmigten privaten Paket und LAN.
-Öffentliches Git enthält nur eigenen Code, Werkzeuge und Befunddokumentation.
+109 Boden),7.211 Sprites. Zusätzlich19 Gruppendeskriptorwerte pro Mission und
+native Radarfelder in allen700 BUILD-Diskrecords.
+Originaldaten bleiben im genehmigten privaten Paket beziehungsweise LAN.
+Öffentliches Git enthält eigenen Code, Werkzeuge und Befunddokumentation.

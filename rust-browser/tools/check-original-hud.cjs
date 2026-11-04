@@ -11,8 +11,8 @@ const nativeDescriptors=[
  ['jeep',34,[89,101,4,22]],['crane',36,[95,107,3,26]],['firetruck',38,[97,109,5,22]],
 ];
 const nativeHeights={100:44,101:46,102:42,103:54,104:42,105:60,106:30,107:52,108:60,109:44,110:50,111:60};
-function fixture({missing=false,broken=false}={}){
- const nodes={},events={},calls=[],encoded=[];
+function fixture({missing=false,broken=false,face=false}={}){
+ const nodes={},events={},calls=[],encoded=[],faceCalls=[];
  function element(id){
   const classes=new Set();const node={id,hidden:false,width:96,height:96,style:{setProperty(k,v){this[k]=v;}},textContent:'',parentElement:null,
    classList:{add(k){classes.add(k);},contains(k){return classes.has(k);}},
@@ -27,8 +27,9 @@ function fixture({missing=false,broken=false}={}){
  const document={currentScript:{src:'https://example.test/independent/original-hud.js'},documentElement:root,getElementById(id){return nodes[id];},querySelector(){return nodes.overlay;},createElement(){return element('canvas'+counter++);}};
  const manifest={atlas:'hud/atlas.png',frames:Array.from({length:177},(_,i)=>({x:i*2,y:0,w:i>=88&&i<=115?96:2,h:i>=88&&i<=99?14:nativeHeights[i]||2})),palettes:Array.from({length:5},()=>Array.from({length:768},(_,i)=>Math.floor(i/3))),backgroundStart:131,headStart:137};
  const window={innerWidth:1280,innerHeight:720,addEventListener(name,fn){events[name]=fn;},dispatchEvent(){}};
+ if(face){manifest.face={headKinds:{grunt:2,sniper:4,psycho:3},phrases:Array.from({length:64},()=>[0x1010,0x2222]),voicePhrases:{}};window.OriginalFace={phraseWord(words){return words?.[0]??15;},layers(word,head,world,vehicle){faceCalls.push({word,head,world,vehicle});return [];}};}
  const context={window,document,URL,Event:class{},Image:class{constructor(){this.width=354;this.height=2;}set src(url){this.url=url;queueMicrotask(()=>broken?this.onerror():this.onload());}},fetch:async()=>({ok:!missing,json:async()=>manifest})};
- vm.runInNewContext(source,context);return {api:window.OriginalHud,window,root,nodes,calls,encoded,events,manifest};
+ vm.runInNewContext(source,context);return {api:window.OriginalHud,window,root,nodes,calls,encoded,events,manifest,faceCalls};
 }
 async function run(){
  let f=fixture({missing:true});assert.equal(f.api.sidebarWidth(),240);await settle();
@@ -60,7 +61,21 @@ async function run(){
  assert.ok(f.calls.some(call=>call[0]==='hudUnitArt'&&call[1]==='transform'&&call[2]===2),'HD preview must use a dense backing canvas');
  f.window.GameGraphics={isHD:()=>false};f.api.update(state,{...unit,type:'cannon'},()=>hdPainted++);assert.equal(hdPainted,1);assert.equal(f.nodes.hudUnitArt.width,96);assert.equal(f.nodes.hudUnitArt.height,78);
  assert.equal(f.calls.filter(call=>call[0]==='hudUnitArt'&&call[1]==='draw').at(-1)[2].pixelId,106,'switching back restores the original hardware portrait');
+ f.nodes.unitInfo.textContent=f.nodes.unitOrderInfo.textContent='Einheit oder Fabrik auswaehlen';
  f.api.update(state,null);assert.equal(f.nodes.hudCaption.hidden,true);
+ assert.equal(f.nodes.unitInfo.hidden,true,'empty selection must not repeat the order-line instruction in the HP line');assert.equal(f.nodes.unitOrderInfo.hidden,false,'keep one selection instruction in the order line');
+ assert.equal(f.calls.filter(call=>call[0]==='hudUnitArt'&&call[1]==='draw').at(-1)[2].pixelId,115,'empty selection retains the original radio artwork');
+ assert.ok(f.nodes.nativeHud.style.backgroundImage,'native status-panel background must remain');for(const id of['cycleR','cycleG','cycleV','cycleB','overlayT','overlayD','overlayZ','hudMenu'])assert.equal(f.nodes[id].hidden,false,`${id} remains interactive`);
+ f.api.update(state,unit);assert.equal(f.nodes.unitInfo.hidden,false,'selecting a unit restores its HP/grenade details');assert.equal(f.nodes.hudCaption.hidden,false);assert.equal(f.nodes.unitOrderInfo.hidden,false);
+ const portraitFixture=fixture({face:true});await settle();
+ const speaker={id:1,type:'grunt',team:0,hp:30,maxHp:30},selectedUnit={id:2,type:'sniper',team:0,hp:30,maxHp:30};
+ const nativeState={map:{width:100,height:50,world:0,seed:777},units:[speaker,selectedUnit],nativePortrait:{mode:4,message:0x419,unitId:1,nativeSlot:3,phraseIndex:22,phraseCounter:1}};
+ portraitFixture.api.update(nativeState,selectedUnit);assert.equal(portraitFixture.faceCalls.at(-1).head,2,'admitted speaker owns communicator while selection remains sniper');
+ nativeState.nativePortrait={...nativeState.nativePortrait,mode:3,phraseIndex:-1,phraseCounter:20};nativeState.units=[selectedUnit];
+ portraitFixture.api.update(nativeState,selectedUnit);assert.equal(portraitFixture.faceCalls.at(-1).head,2,'expired speech keeps its admitted head after speaker retirement');assert.equal(portraitFixture.faceCalls.at(-1).word,15,'expired native phrase returns to the source neutral word');
+ nativeState.units=[{...speaker,type:'psycho'},selectedUnit];nativeState.nativePortrait={...nativeState.nativePortrait,mode:4,phraseIndex:22,phraseCounter:1};
+ portraitFixture.api.update(nativeState,selectedUnit);assert.equal(portraitFixture.faceCalls.at(-1).head,3,'same-message admission refreshes head when the native counter restarts');
+ nativeState.nativePortrait={...nativeState.nativePortrait,mode:2,message:0};portraitFixture.api.update(nativeState,selectedUnit);assert.equal(portraitFixture.faceCalls.at(-1).head,4,'source selection refresh restores selected head');
  f.window.innerWidth=600;f.api.resize();assert.equal(f.api.sidebarWidth(),0);assert.equal(f.nodes.mini.parentElement,f.nodes.hud);assert.equal(f.nodes.mini.style.left,'');assert.equal(f.nodes.mini.style.top,'');assert.equal(f.nodes.mini.style.width,'168px');assert.equal(f.nodes.mini.style.height,'84px');
  f.window.innerWidth=1280;f.api.resize();assert.equal(f.nodes.mini.parentElement,f.nodes.nativeHud);assert.equal(f.api.sidebarWidth(),144);
  f.nodes.hudMenu.click(); // Invoke the bound DOM listener through the event property fixture.
@@ -71,6 +86,6 @@ async function run(){
   for(const id of ['nativeHud','hudCaption','hudUnitArt','hudHealth','hudMenu'])assert.equal([...html.matchAll(new RegExp('id="'+id+'"','g'))].length,1);
   assert.ok(html.includes('original-hud.js'));assert.ok(html.includes('original-hud.css'));
  }
- console.log('Original HUD checks passed: all12 hardware portrait/caption/offset mappings against independent Ghidra table fixtures, text/image dimension separation, optional/broken-pack fallback, native sidebar width, independent rendered-unit preview, dense HD hardware preview and original restoration, health bar, cached skins, menu action, map fit and mobile minimap restoration.');
+ console.log('Original HUD checks passed: all12 hardware portrait/caption/offset mappings against independent Ghidra table fixtures, text/image dimension separation, optional/broken-pack fallback, native sidebar width, independent rendered-unit preview, dense HD hardware preview and original restoration, health bar, cached skins, admitted communicator head retained through native mode3 and speaker retirement, fresh admission/selection refresh, menu action, map fit and mobile minimap restoration.');
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});

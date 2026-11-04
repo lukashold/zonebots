@@ -1,0 +1,76 @@
+Z / endliche Wege, Kontakt und Ton – Abgleich 04.11.2026
+
+GELTUNG
+Die nachstehenden Zahlen beziehen sich auf ausgeführte Originalfunktionen aus
+der lokalen GOG-EXE und auf eigene Rust-Implementierungen. Isolierte Aufrufe
+sind ausdrücklich genannt. Dies belegt keine identische vollständige Partie.
+Rohprotokolle und Decompilationen bleiben privat; die eigenen Oracle-Werkzeuge
+und numerischen Prüfsummen dürfen öffentlich in Git stehen.
+
+WEGSPEICHER UND SCHEDULER
+Der Originalmodus verwendet jetzt240 UNIT-Köpfe und endliche verkettete Pools:
+4.800 primäre und9.600 sekundäre Records, einschließlich der nachgewiesenen
+übergreifenden sekundären Erweiterung. Freie Records, Null-Ende, erhaltene
+Koordinaten, Wiederverwendung, Teilallokation und einzelne originalgetreue
+Grenzbedingungen sind getrennt von den sichtbaren Browserpfaden gespeichert.
+52500,524b0,59c60 und44d1a0:1.024 vollständige Ausführungen; Poolzustand über
+alle14.400 Records verglichen, Prüfsumme104935595.
+43e780:512 Schedulerfälle, Prüfsumme641891560. Die gewählte Arbeiterfunktion
+ist hier eine ausdrücklich aufgezeichnete Grenze.
+43e4a0/43dad0:2.207 tatsächliche Kontroll-Callbacks mit gemeinsamem
+Kontur-/Kandidaten-/Maskenzustand, Prüfsumme1767276770.
+48 zusätzliche Suchsituationen im echten Game-Kartenadapter:459 tatsächlich
+ausgeführte Ray-/Seed-/Walk-Callbacks, Prüfsumme3380812522. Der Cursor wird
+nach dem Übergang ins überlappende Konturrecord nicht als alter Cursor gelesen.
+Einzelne vollständige Gamewege für Roboter und Panzer durchlaufen Queue,
+mehrere Workeraufrufe, endliche Veröffentlichung und Kopfverbrauch im Mainloop.
+
+BEWEGUNG UND BEFEHLE
+452200,48060,457020,44a040,53730/538f0 und der Phase15-Warteablauf sind jetzt
+mit ihren nativen Zuständen und Aufrufpunkten verbunden. Die direkte
+Bewegungslinie darf nicht vorzeitig den primären Link verbrauchen.
+Der UNIT-Durchlauf besucht240 feste Originalslots. Übernahmen während dieses
+Durchlaufs ändern die sichtbare Webidentität und erzeugen keinen zweiten Tick
+derselben nativen Einheit. Kollisionen ändern den Segmentfehler, verbrauchen
+aber nicht fälschlich dessen verbleibende Länge.
+432320:1.024 Original-Sichtstrahlen, Prüfsumme2420957529; gemeinsame
+x-Hauptrichtung startet mit Fehler0.53730/538f0:1.024 Fälle936368453;
+Warten:1.024 Fälle1263513072;44a040:1.024 Fälle369284258;
+Walk-Caller:2.048 Fälle1564914470.
+646b0/644d0:2.048 Projektilwarnungen527670769, einschließlich echten
+44f730-Bereichen, Gruppenübergaben, RNG-Verbrauch und erhaltener Primärroute.
+
+KONTAKT UND GEZIELTE AUSWEICHBEWEGUNG
+51330:8.192 Originalfälle1327429390;51700:4.096 Fälle2090520412;
+43bdd0 mit566d0/448470:4.096 Fälle3621350079. Fehlgeschlagene Zielausgaben
+werden nur dort ausgewertet, wo auch der Originalaufrufer sie auswertet.
+Der automatische Geländebeschuss verwendet seine eigene Tabelle49a728;
+dies ist nicht dieselbe Entscheidung wie ein manueller Angriffsklick.
+461d10 führt nach der KI eine weitere45a9f0-Aufnahme durch. Nahe, stehende
+Fahrzeuge derselben Partei werden über461b30/461bb0 auseinanderbewegt;
+das ist kein Fahnen-Capturepass. Der erste passende Nachbar zählt. Alle acht
+Kandidaten werden geprüft; die letzte angenommene direkte Linie bleibt stehen.
+1.024 vollständige Original-Controllerfälle einschließlich41c290:
+Prüfsumme4237801726. Nur60910 und525a0-Linieninstallation sind dabei
+aufgezeichnete Grenzen;525a0 ist zusätzlich durch eigene Bewegungstests belegt.
+Ein Game-Test erhält beide Primärlinks und die tatsächlichen Ausgangspositionen.
+
+ORIGINALTON
+775 Deskriptoren aus fünf tatsächlichen Kampf-Soundbänken. Die Menübank ist
+keine Ersatzquelle für Kampf-IDs. Gleiche PCM-Dateien dürfen unterschiedliche
+Deskriptor-Zeitstempel besitzen. Voice- und Effektaufrufe teilen den nativen
+Master-Schalter und die tatsächlichen Deskriptoren.
+46e660/46e6d0/46f650:12.560 vollständige Originalaufrufe, einschließlich
+signiertem16-Bit-Uhrüberlauf, Master-/Fort-Gates und SDL-Rückgabegrenze;
+Prüfsumme2239336345. Frontend spielt angenommene native Samples ohne einen
+zweiten erfundenen45-ms-Filter. Nicht alle allgemeinen Funkereignisse sind
+bereits durch ihre ursprünglichen UI-Aufrufer ersetzt.
+
+WEITER BESTEHENDE GRENZEN
+Die gekoppelten globalen Straßen-/Konturabschlussfälle und alle Überlauf-
+wechselwirkungen einer vollständigen Partie sind noch nicht vollständig als
+identische Original-Eingabespur verglichen. Dynamische UNIT-Kollisionsoverlays,
+einzelne Hardware-Belegungs-/Reparaturzustände, sämtliche UI-Globals und die
+Originaluhr in Menüs/Pause sind weitere konkrete Vergleichsgrenzen.
+Die globale Zeichenfolge hat einen eigenen Bericht ORIGINAL-ZEICHENQUEUE.txt.
+Einzelne bestandene Funktionstests schließen diese verbleibenden Punkte nicht.

@@ -75,6 +75,15 @@ async function run(){
  assert.equal(host.handle({type:'game:frame',payload:frame.payload}),false);
  const guestTime=guest.state.time;assert.equal(guest.handle({type:'game:frame',payload:frame.payload}),false);assert.equal(guest.state.time,guestTime);
  const perspective=guestApi.perspective({...host.state,winner:0,events:[{kind:'capture',team:0,previous:1,owner:0,attackerTeam:1}]},'guest');assert.equal(perspective.winner,1);assert.deepEqual(clone(perspective.events),[{kind:'capture',team:1,previous:0,owner:1,attackerTeam:0}]);
+ const sharedQueue=[{kind:'unit',stage:'queue',id:red,palette:0,queueY:50,x:20,y:50,sprite:66},{kind:'sprite',stage:'queue',id:1,palette:8,queueY:51,x:20,y:51,sprite:480},{kind:'effect',stage:'queue',queueY:52,draw:{sprite:4,x:20,y:52,scale:1,rotation:0,team:1}}];
+ const queueView=guestApi.perspective({...host.state,nativeDisplayQueue:sharedQueue},'guest').nativeDisplayQueue;
+ assert.equal(queueView[0].id,red);assert.equal(queueView[0].palette,1);assert.equal(queueView[1].palette,8);assert.equal(queueView[2].draw.team,0);assert.equal(sharedQueue[0].palette,0,'Guest palette changes cannot mutate authoritative identities or source rows');
+ const frozenBuilding={kind:'building',stage:'pre',id:0,time:1,seconds:12,radarDishQueued:false,art:{id:0,kind:'fort',team:0,x:64,y:64,w:128,h:160,hp:2000,maxHp:2000,stars:1,product:'grunt',progress:0,completionTicks:0,rawBase:[32,32],orientation:'north',nativeFortDestroyed:false,nativeFlagFrame:2}};
+ const newestSequence=Math.max(...outbound.map(m=>m.payload?.seq||0)),frozenPayload={...frame.payload,seq:newestSequence+1,state:{...frame.payload.state,nativeDisplayQueue:[frozenBuilding]}};
+ assert.equal(guest.handle({type:'game:frame',payload:frozenPayload}),true,'Frozen BUILD artwork with string orientation must pass the actual guest frame validator');
+ assert.equal(guest.viewState.nativeDisplayQueue[0].art.team,1);assert.equal(frozenBuilding.art.team,0);assert.equal(guest.state.nativeDisplayQueue[0].art.orientation,'north');
+ const invalidFrozen=clone(frozenPayload);invalidFrozen.seq++;invalidFrozen.state.nativeDisplayQueue[0].art.orientation=9;
+ assert.equal(guest.handle({type:'game:frame',payload:invalidFrozen}),false,'Malformed frozen artwork must be rejected');
  const actionsBefore=engine.calls.length;for(let i=0;i<60;i++)host.handle({type:'game:action',payload:{epoch:1,requestId:i,request:{op:'command',kind:'stop',ids:[blue]}}});
  assert(engine.calls.length-actionsBefore<=40,'Remote action rate must be bounded');pump();
  hostSession.connected=false;const disconnectedTime=host.state.time;assert.equal(host.tick(.05),null);assert.equal(host.state.time,disconnectedTime);assert.equal(host.paused,true,'Host must stop when the transport disconnects');

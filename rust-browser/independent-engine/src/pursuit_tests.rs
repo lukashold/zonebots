@@ -37,6 +37,8 @@ fn arena(original: bool) -> (Game, usize, usize) {
     for u in &mut g.units {
         u.hold_position = true;
         u.cooldown = 10_000.;
+        //Original hardware uses its raw callback countdown, not seconds.
+        if original&&u.native_class7c==1{u.native_reload7b=127;}
     }
     (g, attacker, target)
 }
@@ -161,6 +163,8 @@ fn each_member_of_a_selected_group_keeps_tracking_the_same_live_target() {
             g.spawn("grunt", 0, x, y, 1, None);
             let u = g.units.last_mut().unwrap();
             u.cooldown = 10_000.;
+        //Original hardware uses its raw callback countdown, not seconds.
+        if original&&u.native_class7c==1{u.native_reload7b=127;}
             ids.push(u.id);
         }
         g.command(&json!({"ids":ids,"kind":"attack","target":target}));

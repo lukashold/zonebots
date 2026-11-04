@@ -80,6 +80,9 @@ mod tests {
             g.step(0.1);
         }
     }
+    #[test]fn managed_flag_detour_resumes_the_existing_primary_link_without_allocating_a_new_road_route(){
+        let mut g=game();g.maintain_native_group_rosters();let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.observe_unit_context(slot);let head=g.native_routes.get_mut().pool.allocate_goal([308,208]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=head;g.native_routes.get_mut().managed[slot]=true;g.units[0].initiative=Some(Initiative::Flag(0));g.units[0].path=std::collections::VecDeque::from([(400.,320.)]);g.units[0].dest=Some((400.,320.));g.units[0].march_resume=Some((600.,400.));let nodes=g.native_routes.borrow().pool.nodes.clone();g.resume_march(0,Some((600.,400.)));assert_eq!(g.native_routes.borrow().pool.links[slot].primary,head);assert_eq!(g.native_routes.borrow().pool.nodes,nodes);assert_eq!(g.units[0].path.back(),Some(&(600.,400.)));assert_eq!(g.units[0].initiative,None);assert_eq!(g.units[0].dest,Some((600.,400.)));assert_eq!(g.units[0].order,"move");assert!(g.units[0].original_motion.is_some());
+    }
 
     #[test]
     fn idle_zero_hp_robot_walks_to_nearby_flag_for_either_team() {
@@ -227,6 +230,17 @@ impl Game {
     /// Crewing transfers this destination to mobile hardware, with a fresh route
     /// for that vehicle's terrain rules. Stationary guns simply stay crewed.
     pub(super) fn resume_march(&mut self, index:usize, destination:Option<(f64,f64)>) {
+        //57860 never replaced the finite primary list. Retire/check its
+        //actual head through52960 and start52810; do not allocate a new road
+        //route from the browser's saved destination after a flag detour.
+        if self.owns_native_route(index){
+            let u=&mut self.units[index];u.initiative=None;u.march_resume=None;u.target=None;u.pursuit=None;u.hold_position=false;
+            if u.team<0||!original_combat::alive(true,u.hp){return;}
+            self.units[index].path=self.native_owned_route_view(index).unwrap_or_default();
+            self.units[index].dest=destination.or_else(||self.units[index].path.back().copied());
+            self.units[index].order=if self.has_native_route(index){"move"}else{"guard"}.into();
+            if self.check_native_reset_path(index)&1!=0{self.resume_native_reset_path(index);}return;
+        }
         let u=&mut self.units[index];
         u.initiative=None;u.march_resume=None;u.order="guard".into();u.target=None;
         u.dest=None;u.path.clear();u.pursuit=None;u.motion_bonus=0;u.moving=false;u.hold_position=false;

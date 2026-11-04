@@ -27,7 +27,7 @@ impl Game{
  ///browser idle eligibility check; acquisition does not advance a fire frame.
  pub(crate) fn reset_native_idle(&mut self,index:usize)->bool{
   let Some(u)=self.units.get(index).cloned()else{return false;};let member=u.native_slot.and_then(|slot|self.native_group_rosters.members.get_mut(slot)).and_then(Option::as_mut);let leader=member.as_ref().is_some_and(|m|m.role==-1);if let Some(m)=member{m.flags8a&=!8;}if leader{if let Some(context)=self.native_group_rosters.current_roster.filter(|&s|s<240){self.native_group_rosters.pool[context].roster[59]=255;}}
-  if u.native_class7c==2{return true;}if u.native_class7c!=1{let chance=original_combat::CombatState::new(&u.kind).aim_skill as i8;let idle=Idle::enter(original_combat::facing(u.angle),chance,||self.native_random());let v=&mut self.units[index];v.native_frame32=idle.frame as i16;v.native_timer3c=idle.timer;v.native_idle=Some(idle);v.native_phase35=1;v.native_walk=None;v.native_fire=None;}
+  if u.native_class7c==2{return true;}if u.native_class7c!=1{let chance=original_combat::CombatState::new(&u.kind).aim_skill as i8;let idle=Idle::enter(original_combat::facing(u.angle),chance,||self.native_random());if let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.promotion.delay7d=idle.search_timer;}let v=&mut self.units[index];v.native_frame32=idle.frame as i16;v.native_timer3c=idle.timer;v.native_idle=Some(idle);v.native_phase35=1;v.native_walk=None;v.native_fire=None;v.native_cover=None;}
   if self.units[index].native_order5c<0{self.continue_native_idle_reset(index);}true
  }
  ///Known phase0/1 infantry dispatch. Its preamble precedes the idle counters
@@ -42,7 +42,7 @@ impl Game{
   let p=original_idle::Preamble{role:member.as_ref().map_or(0,|m|m.role),flags31:member.as_ref().map_or((u.team as u8&3)|4,|m|m.flags31),flags64:u.native_flags64,aim_skill:u.original_combat.as_ref().map_or(60,|s|s.aim_skill)as i8,valid_group:group.is_some(),group_target:group.and_then(|g|(g[59]!=255).then_some(g[59])),group_3d:group.map_or(0,|g|g[61]as i8),group_3e:group.map_or(0,|g|g[62]as i8),group_3f:group.map_or(0,|g|g[63]as i8),marked_unit:member.as_ref().map_or(-1,|m|m.promotion.target_x as i16)};
   if original_idle::requires_order_sync(&p){if let(Some(group),Some(member))=(group,member.as_ref()){
    let fields=[i16::from_le_bytes([group[44],group[45]]),i16::from_le_bytes([group[46],group[47]]),i16::from_le_bytes([group[48],group[49]])];
-   if let Some(order)=original_idle::sync_group_order(p.role,member.promotion.order as i8,member.flags69&128!=0,group[58]as i8,fields){if let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members.get_mut(s)).and_then(Option::as_mut){m.promotion.order=order.command as u8;m.promotion.target_x=order.field50;m.promotion.target_y=order.field54;m.promotion.target_aux=order.field56;}}
+   if let Some(order)=original_idle::sync_group_order(p.role,member.promotion.order as i8,member.flags69&128!=0,group[58]as i8,fields){self.units[index].native_order5c=order.command;if let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members.get_mut(s)).and_then(Option::as_mut){m.promotion.order=order.command as u8;m.promotion.target_x=order.field50;m.promotion.target_y=order.field54;m.promotion.target_aux=order.field56;}}
   }}
   match original_idle::preamble(&p,||self.native_random()){
    original_idle::Gate::Animate=>self.update_native_idle(index,false),
@@ -94,7 +94,7 @@ impl Game{
    let segment=original_motion::Segment::new(u.x,u.y,(f64::from(destination[0])*2.,f64::from(destination[1])*2.));
    if input.class7c!=1{self.prepare_native_walk(i);}
    let heading=segment.heading();let p=&mut self.units[i];
-   p.native_remaining48=segment.remaining();p.native_dodge=Some(Dodge{segment,counter8c:2});p.native_flags64|=64;if input.class7c!=1{p.native_phase35=2;}p.original_motion=None;p.native_idle=None;p.native_cover=None;p.native_fire=None;p.native_contact=None;
+   p.native_remaining48=segment.remaining();if p.native_remaining48!=0{p.native_directiona2=-1;p.native_directiona3=0;}p.native_dodge=Some(Dodge{segment,counter8c:2});p.native_flags64|=64;if input.class7c!=1{p.native_phase35=2;}p.original_motion=None;p.native_idle=None;p.native_cover=None;p.native_fire=None;p.native_contact=None;
    p.angle=heading;if input.class7c!=1{p.aim=heading;}
    if let Some(slot)=p.native_slot{if let Some(m)=self.native_group_rosters.members.get_mut(slot).and_then(Option::as_mut){if input.class7c!=1{m.promotion.phase=2;}}self.native_group_rosters.record_segment_direction(slot,original_combat::facing(heading),64);}
   }
@@ -132,7 +132,7 @@ impl Game{
   if let Action::Search{arrived}=tick.action{if self.native_idle_object_scan(index,if arrived{0}else{idle.frame as u8},arrived){return;}
    //44d920 searches for enemies only at its animation search actions. A
    //known in-range target enters the existing native attack-state machine.
-   if !arrived{if let Some(target)=self.native_scan(index,0,self.native_unit_stats(&u).range){if self.units[index].native_flags64&0x30==0x10{self.advance_native_fire(index,&target);if self.units[index].native_fire.is_some(){self.units[index].native_idle=None;self.units[index].native_walk=None;}return;}}}
+   if !arrived{if let Some(target)=self.native_scan(index,0,self.native_unit_stats(&u).range){if self.units[index].native_flags64&0x30==0x10{if let Some(slot)=target.native_slot{self.acquire_native_reset_target(index,slot as u8);}else{self.advance_native_fire(index,&target);}if self.units[index].native_fire.is_some(){self.units[index].native_idle=None;self.units[index].native_walk=None;}return;}}}
   }
   // The turn-completion micro-step is a local segment, not a replacement
   // player command. Existing legal global destinations remain intact.
@@ -169,7 +169,7 @@ impl Game{
   let facing=original_combat::facing(self.units[index].angle);let blocked=self.native_cover_prevented(index);
   if reaction::tick_cover(&mut cover,facing*2,(self.motion_tick&1)as u8,blocked){
    let chance=original_combat::CombatState::new(&self.units[index].kind).aim_skill as i8;
-   let idle=Idle::enter(facing,chance,||self.native_random());self.units[index].native_frame32=idle.frame as i16;self.units[index].native_timer3c=idle.timer;self.units[index].native_cover=None;self.units[index].native_idle=Some(idle);self.units[index].native_phase35=1;
+   let idle=Idle::enter(facing,chance,||self.native_random());if let Some(m)=self.units[index].native_slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.promotion.delay7d=idle.search_timer;}self.units[index].native_frame32=idle.frame as i16;self.units[index].native_timer3c=idle.timer;self.units[index].native_cover=None;self.units[index].native_idle=Some(idle);self.units[index].native_phase35=1;
   }else{self.units[index].native_frame32=cover.frame32;self.units[index].native_cover=Some(cover);}
   self.units[index].moving=false;true
  }
@@ -194,8 +194,8 @@ impl Game{
   let mut g=idle_robot();g.native_group_rosters.current_roster=None;let before=g.units[1].native_idle.as_ref().unwrap().timer;let rng=g.original_rng.words;assert!(g.update_native_idle_handler(1));assert_eq!(g.units[1].native_idle.as_ref().unwrap().timer,before);assert_eq!(g.original_rng.words,rng);
  }
  #[test]fn raw_idle_group_sync_preserves_the_native_50_54_56_fields(){
-  let mut g=idle_robot();let slot=g.units[1].native_slot.unwrap();let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.record_group_order(0,1,1,[-123,321],7);g.native_group_rosters.pool[group].roster[62]=1;let m=g.native_group_rosters.members[slot].as_mut().unwrap();m.promotion.order=12;m.flags69|=128;
-  assert!(g.update_native_idle_handler(1));let m=g.native_group_rosters.members[slot].as_ref().unwrap();assert_eq!((m.promotion.order,m.promotion.target_x,m.promotion.target_y,m.promotion.target_aux),(1,-123,321,7));
+  let mut g=idle_robot();let slot=g.units[1].native_slot.unwrap();let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.record_group_order(0,1,1,[-123,321],7);g.native_group_rosters.pool[group].roster[62]=1;g.units[1].native_order5c=12;let m=g.native_group_rosters.members[slot].as_mut().unwrap();m.promotion.order=12;m.flags69|=128;
+  assert!(g.update_native_idle_handler(1));let m=g.native_group_rosters.members[slot].as_ref().unwrap();assert_eq!((m.promotion.order,m.promotion.target_x,m.promotion.target_y,m.promotion.target_aux),(1,-123,321,7));assert_eq!(g.units[1].native_order5c,1);g.maintain_native_group_rosters();assert_eq!(g.native_group_rosters.members[slot].as_ref().unwrap().promotion.order,1);
  }
  #[test]fn partial_routes_and_manual_attack_orders_bypass_idle_dispatch(){
   let mut g=idle_robot();g.units[1].native_phase35=0;g.units[1].native_route_pending.set(Some((1400.,1400.)));assert!(!g.update_native_idle_handler(1));assert_eq!(g.units[1].native_phase35,0);

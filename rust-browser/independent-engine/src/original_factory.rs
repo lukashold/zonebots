@@ -239,6 +239,12 @@ pub fn select_ranked(list:&[u8],human_strength:i32,cpu_strength:i32)->Option<u8>
   }
   assert_eq!(hash(values),1429707117,"ZNativeFactoryWorkOracle,256 full40a8a0 and bounded40b2a0 executions");
  }
+ #[test]fn all_2048_original_main_build_callbacks_draw_old_work_then_spend_and_complete_before_b180(){
+  let mut values=Vec::new();for s in 0..2048i32{let kind=if s%2==0{2}else{4};let hold=[0,1,2,68][(s/2%4)as usize];let hp=[0,1,20,100][(s/8%4)as usize];let owned=s/32%9;let owner=[0,1,4][(s/288%3)as usize];let blocked=s/864%2;let phase=s%4;let rate=hp*(1+owned*100/8/4)/100;let remaining=[-1,0,1,rate,rate+1,1000][(s*7%6)as usize];let animation=[0,17,-27][(s%3)as usize];let mut work=Work{remaining,total:4000+s,credit:0,animation:animation as i16,hold:crate::original_building_display::completion_at_draw(hold as i16)};let(mut clocks,mut clock_work,mut clock_hold,mut seconds,mut spawns)=(0,0,0,0,0);
+   if hp!=0&&owner<4{if work.hold!=0{work.animation=0;if phase&2!=0{clocks=1;clock_work=remaining;clock_hold=i32::from(work.hold);}}else{clocks=1;clock_work=remaining;seconds=if rate==0{-1}else{remaining/(rate*17)};if spend_work(&mut work,rate,blocked!=0){complete_work(&mut work,crate::original_stats::PRODUCTS[0].5,12);spawns=1;}}}
+   values.extend([s,kind,owner,hp,owned,blocked,hold,remaining,animation,phase,rate,clocks,clock_work,clock_hold,seconds,spawns,work.remaining,work.total,i32::from(work.hold),i32::from(work.animation),0].map(|v|v as u32));
+  }assert_eq!(hash(values),3477325678,"actual40ad60+40a790+40b2a0/40c490+40a6d0+40ab90+40a8a0; capacity/spawn/CPU/raster are explicit boundaries;40b180 executes and preserves work");
+ }
  #[test]fn exits_match_80_commands_from_32_real_native_factory_creations_without_allocator_stubs(){
   let mut values=Vec::new();for scenario in 0..32{
    let owner=scenario%4;let producer=(scenario/4)%4;let kind=if producer==0{Producer::Fort}else if producer==3{Producer::Vehicle}else{Producer::Robot};

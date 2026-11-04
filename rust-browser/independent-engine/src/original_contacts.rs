@@ -52,7 +52,7 @@ impl Game{
      let next=(v.hp as i8).wrapping_sub(10);self.units[i].hp=f64::from(if next<0{10}else{next});
      let p=&mut self.units[i];p.native_contact=Some(State{phase:0,frame:0,side,path:VecDeque::new(),dest:None});p.native_cover=None;p.native_idle=None;
      p.order="guard".into();p.target=None;p.dest=None;p.path.clear();p.original_motion=None;p.native_walk=None;p.native_fire=None;p.formation=None;p.motion_bonus=0;p.moving=false;
-     p.angle=super::native_math::angle(0);p.aim=p.angle;p.native_frame32=0;p.native_phase35=if side{46}else{23};
+     p.angle=super::native_math::angle(0);p.aim=p.angle;p.native_frame32=0;p.native_elevation76=-32;p.native_phase35=if side{46}else{23};
     },
     3=>{
      let goal=(f64::from(vx*2-x-4)*2.,f64::from(vy*2-y-2)*2.);
@@ -78,6 +78,7 @@ impl Game{
     //0044cac0 starts idle with two random counters.
     self.native_random();self.native_random();self.units[index].native_contact=None;self.units[index].native_phase35=0;return true;
   }
+  self.units[index].native_elevation76=if state.phase==0{-32}else{0};
   self.units[index].native_phase35=if state.side{if state.phase==0{46}else{47}}else if state.phase==0{23}else{24};
   self.units[index].native_frame32=i16::from(state.frame);self.units[index].native_contact=Some(state);true
  }
@@ -111,7 +112,7 @@ impl Game{
  #[test]fn a_robot_waits_under_the_hull_then_stands_up_and_weak_robots_are_run_over(){
   for hp in [10.,30.]{
    let mut g=field();g.spawn("medium",0,1000.,1000.,1,None);g.spawn("grunt",1,1032.,1000.,2,None);let robot=g.units[1].id;
-   g.units[1].hp=hp;for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;}
+   g.units[1].hp=hp;for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;u.native_reload7b=127;}
    g.step(0.059);assert!(g.units[1].native_contact.is_none());g.step(0.059);
    if hp==10.{assert!(g.units.iter().all(|u|u.id!=robot||u.hp<0.));continue;}
    assert_eq!(g.units[1].hp,20.);assert_eq!(g.units[1].native_contact.as_ref().unwrap().phase,0);
@@ -123,7 +124,7 @@ impl Game{
  #[test]fn evasive_contact_restores_the_existing_march_and_respects_faction_and_fort_protection(){
   assert_eq!(action(0,0,false,true,30),3);
   for team in [0,1]{let mut g=field();g.spawn("medium",0,1000.,1000.,1,None);g.spawn("grunt",team,1040.,1000.,2,None);g.spawn("gatling",1,1800.,1200.,3,None);
-   for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;}let id=g.units[1].id;
+   for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;u.native_reload7b=127;}let id=g.units[1].id;
    g.command(&crate::json!({"team":team,"kind":"move","ids":[id],"x":1400.,"y":1000.}));g.step(0.059);g.step(0.059);
    assert_eq!(g.units[1].native_contact.is_some(),team==1);
    for _ in 0..80{g.step(0.059);}assert!(g.units[1].native_contact.is_none());assert_eq!(g.units[1].dest,Some((1400.,1000.)));assert!(g.units[1].x>1064.);
@@ -131,7 +132,7 @@ impl Game{
  }
  #[test]fn fort_raw_base_is_native_pixels_and_protects_against_crushing(){
   let mut fort=Game::new(0,1,2).buildings.into_iter().find(|b|b.kind=="fort").unwrap();fort.raw_base=Some((500.,500.));fort.team=0;
-  let mut g=field();g.buildings.push(fort);g.spawn("medium",0,1000.,1000.,1,None);g.spawn("grunt",1,1032.,1000.,2,None);for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;}let hp=g.units[1].hp;
+  let mut g=field();g.buildings.push(fort);g.spawn("medium",0,1000.,1000.,1,None);g.spawn("grunt",1,1032.,1000.,2,None);for u in &mut g.units{u.hold_position=true;u.cooldown=10000.;u.native_reload7b=127;}let hp=g.units[1].hp;
   g.step(0.059);g.step(0.059);assert_eq!(g.units[1].hp,hp);assert_ne!(g.units[1].native_contact.as_ref().map(|s|s.phase),Some(0));
  }
 }

@@ -21,6 +21,7 @@ pub struct State{
     contact_claims:Box<[i8;240]>,
     claim_controls:Box<[life::ClaimControl;240]>,
     produced_formations:BTreeMap<(i32,usize),u8>,
+    constructed_descriptors:BTreeMap<(i32,usize),u8>,
     direct_placements:BTreeSet<(i32,usize)>,
     last_tick:Option<u64>,
     last_cooldown_tick:Option<u64>,
@@ -30,7 +31,7 @@ pub struct State{
     pub raw_paths_available:bool,
 }
 impl Default for State{
-    fn default()->Self{Self{pool:boxed_slots(life::GroupSlot::empty),members:boxed_slots(||None),bindings:BTreeMap::new(),entities:boxed_slots(||None),snapshots:boxed_slots(||None),before_removal:boxed_slots(||None),primary_orders:boxed_slots(||None),contact_targets:boxed_slots(||None),contact_claims:boxed_slots(||-1),claim_controls:boxed_slots(life::ClaimControl::default),produced_formations:BTreeMap::new(),direct_placements:BTreeSet::new(),last_tick:None,last_cooldown_tick:None,current_roster:None,raw_paths_available:false}}
+    fn default()->Self{Self{pool:boxed_slots(life::GroupSlot::empty),members:boxed_slots(||None),bindings:BTreeMap::new(),entities:boxed_slots(||None),snapshots:boxed_slots(||None),before_removal:boxed_slots(||None),primary_orders:boxed_slots(||None),contact_targets:boxed_slots(||None),contact_claims:boxed_slots(||-1),claim_controls:boxed_slots(life::ClaimControl::default),produced_formations:BTreeMap::new(),constructed_descriptors:BTreeMap::new(),direct_placements:BTreeSet::new(),last_tick:None,last_cooldown_tick:None,current_roster:None,raw_paths_available:false}}
 }
 //Build through Vec so debug/Wasm compilation never constructs a large inline
 //temporary array before allocating its Box.
@@ -116,6 +117,12 @@ impl State{
     pub fn record_produced_group(&mut self,team:i32,squad:usize,saved_layout:u8){
         if let Some(slot)=self.group_slot(team,squad){self.pool[slot].roster[8]=255;self.pool[slot].roster[0x3c]=saved_layout;}
         else{self.produced_formations.insert((team,squad),saved_layout);}
+    }
+    ///A proven1b5d0 event can precede the browser's deferred registration.
+    ///Apply its48 descriptor once on that new binding, never on later reform.
+    pub fn record_constructed_descriptor(&mut self,team:i32,squad:usize,descriptor:u8){
+        if let Some(slot)=self.group_slot(team,squad){self.pool[slot].roster[65]=descriptor;}
+        else{self.constructed_descriptors.insert((team,squad),descriptor);}
     }
     ///17610 runs under4a69f3=1, bypassing1b5d0 formation initialization.
     pub fn record_direct_placement_group(&mut self,team:i32,squad:usize){self.direct_placements.insert((team,squad));}
@@ -273,6 +280,7 @@ impl Game{
                     let produced=state.produced_formations.remove(&(unit.team,unit.squad));
                     state.pool[target].roster[8]=if produced.is_some(){255}else{unit.formation_layout};state.pool[target].roster[0x3c]=produced.unwrap_or(unit.formation_layout);
                 }
+                if let Some(descriptor)=state.constructed_descriptors.remove(&(unit.team,unit.squad)){state.pool[target].roster[65]=descriptor;}
             }
             state.entities[slot]=Some(unit.id);state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.members[slot]=Some(member);
         }
@@ -433,13 +441,19 @@ impl Game{
     ///destination; unlike4e910 this function never clears it to force a rejoin.
     ///The global forced-formation byte4d029b has no Game writer yet (false).
     pub(crate) fn follow_native_idle_group(&mut self,index:usize){
+        self.follow_native_idle_group_with_force(index,false);
+    }
+    pub(crate) fn follow_native_idle_group_forced(&mut self,index:usize){
+        self.follow_native_idle_group_with_force(index,true);
+    }
+    fn follow_native_idle_group_with_force(&mut self,index:usize,forced:bool){
         let Some(unit)=self.units.get(index).cloned()else{return;};let Some(slot)=unit.native_slot.filter(|&s|s<240)else{return;};
         let Some(mut member)=self.native_group_rosters.members[slot].clone()else{return;};member=member_from_unit(&unit,Some(&member));
         let Some(context)=self.native_group_rosters.current_roster.filter(|&s|s<240)else{return;};
         let Some(leader_slot)=self.native_group_rosters.pool[context].member(0)else{return;};
         let Some(leader)=self.units.iter().find(|u|u.native_slot==Some(usize::from(leader_slot)))else{return;};
         let layout=self.native_group_rosters.pool[context].roster[8];let offset=super::original_formation::raw_offset(member.role.max(1)as usize,layout);
-        let result=life::idle_follow(&mut member,&mut self.native_group_rosters.pool[context],native_position(leader),!unit.path.is_empty()||unit.native_route_pending.get().is_some(),false,offset,native_math::sine);
+        let result=life::idle_follow(&mut member,&mut self.native_group_rosters.pool[context],native_position(leader),!unit.path.is_empty()||unit.native_route_pending.get().is_some(),forced,offset,native_math::sine);
         self.native_group_rosters.members[slot]=Some(member);
         if let Some(bonus)=result.motion_bonus{self.units[index].motion_bonus=bonus as i8;}
         if result.special_arrival{self.native_group_special_arrival(index,slot);return;}

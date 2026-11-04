@@ -3,6 +3,9 @@ use super::original_ambient as ambient;
 use super::{Game,json};
 use std::collections::BTreeMap;
 #[derive(Clone,Copy)]struct PointOrder{point:[i16;2],pending:bool}
+struct GroundQueries{
+ objects:Vec<super::original_point_fire::GroundObject>,buildings:Vec<super::original_world_contact::Building>,bridges:Vec<super::original_world_contact::Bridge>,flags69:u8,class:u8,family:u8,grenades:u8,
+}
 pub struct State{
  pub pool:ambient::State,
  pub blockers:Vec<ambient::Blocker>,
@@ -27,6 +30,14 @@ pub struct State{
   g.sync_native_world();g.maintain_native_group_rosters();g.native_group_rosters.observe_unit_context(g.units[0].native_slot.unwrap());g.native_ambient=Some(State::default());g
  }
  fn spawn(state:&mut State,p:[i16;2],template:u8)->usize{usize::from(state.pool.spawn(ambient::Spawn{position:p,template,arg4:255,arg5:2,arg6:-1,arg7:0,arg8:-1,heading:0,delay:0,arg11:0}).unwrap())}
+ #[test]fn terrain_autoattack_enters_command12_through_the_actual_dispatcher_and_releases_the_donated_grenade(){
+  let mut g=field("grunt",2);g.units[0].grenades=0;g.units[1].grenades=1;g.spawn("grunt",1,1800.,1800.,2,None);g.maintain_native_group_rosters();g.import_native_world(&super::super::Value::Null);let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.observe_unit_context(slot);let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.pool[group].roster[58]=1;g.native_group_rosters.pool[group].roster[44..46].copy_from_slice(&800i16.to_le_bytes());g.map.terrain_codes[32*64+32]=1;
+  let context=super::super::original_path_contact::Context{blocked:[32*128+32,-1],proposed:[501,500],force:false,callback_idle:true,current_actor:false,dummy_actor:false};assert_eq!(g.native_autoattack_contact(0,context,|_,_|panic!()),Ok(true));let m=g.native_group_rosters.members[slot].as_ref().unwrap();let intended=[m.promotion.target_x as i16,m.promotion.target_y];assert_eq!((g.units[0].grenades,g.units[1].grenades,g.units[0].native_order5c),(1,0,12));let rng=g.original_rng.words;
+  g.dispatch_recorded_native_order(0);assert_eq!(g.units[0].native_order5c,0);assert_eq!(g.units[0].native_phase35,66);assert_eq!(g.units[1].native_phase35,1);assert_eq!(g.native_ambient.as_ref().unwrap().point_orders[&g.units[0].id].point,intended);assert_eq!(g.native_group_rosters.pool[group].roster[58],1);assert_eq!(g.original_rng.words,rng);
+  for _ in 0..16{g.step(0.059);if g.units[0].grenades==0{break;}}assert_eq!(g.units[0].grenades,0,"point phase66 must reach its native grenade release through the real UNIT loop");assert!(g.projectiles.iter().any(|p|p.kind==super::super::original_projectiles::Kind::Grenade)||g.events.iter().any(|e|e["kind"]=="shot"&&e["weapon"]=="grenade"));assert_eq!(g.native_route_boundary,None);
+ }
+ #[test]fn hardware_point_command_acknowledges_flags_and_target_without_inventing_an_infantry_phase(){let mut g=field("medium",1);g.units[0].native_phase35=9;let slot=g.units[0].native_slot.unwrap();let event=super::super::original_orders_game::Event::classified(12,[510,520],-345);assert!(g.record_native_order_event(0,event));let rng=g.original_rng.words;g.dispatch_recorded_native_order(0);assert_eq!((g.units[0].native_order5c,g.units[0].native_phase35),(0,9));let m=g.native_group_rosters.members[slot].as_ref().unwrap();assert_eq!((m.promotion.target_x,m.promotion.target_y,m.promotion.target_aux),(510,520,-345));assert_ne!(m.flags69&32,0);assert!(g.native_ambient.as_ref().unwrap().point_orders.is_empty());assert_eq!(g.original_rng.words,rng);}
+ #[test]fn solitary_role0_point_command_keeps_the_original_command_and_does_not_start_group_fire(){let mut g=field("grunt",1);let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().role=0;assert!(g.record_native_order_event(0,super::super::original_orders_game::Event::classified(12,[510,520],0)));g.dispatch_recorded_native_order(0);assert_eq!((g.units[0].native_order5c,g.units[0].native_phase35),(12,1));assert!(g.native_ambient.as_ref().unwrap().point_orders.is_empty());}
  #[test]fn completed_idle_look_uses_target_buckets_and_records_command12_without_replacing_the_group_order(){
   let mut g=field("grunt",1);let target=spawn(g.native_ambient.as_mut().unwrap(),[500,480],2);g.native_ambient.as_mut().unwrap().pool.records[target].set_word(42,i16::from(super::super::original_initiative::native::coarse_cell([500,480])));
   let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.pool[group].roster[58]=1;g.native_group_rosters.pool[group].roster[44..46].copy_from_slice(&900i16.to_le_bytes());g.prepare_native_ambient_queries();let rng=g.original_rng.words;
@@ -55,7 +66,7 @@ pub struct State{
   let mut g=field("pyro",1);g.units[0].native_target46=0x5501;g.begin_native_ambient_point_order(0,[500,470]);assert_eq!(g.units[0].native_phase35,73);assert_eq!(g.units[0].native_target46,0x5501);let rng=g.original_rng.words;assert!(g.update_native_ambient_point_fire(0));assert_eq!(g.units[0].native_target46,0x5501);assert!(g.projectiles.is_empty());assert!(g.update_native_ambient_point_fire(0));assert_eq!(g.units[0].native_target46,-1);assert_eq!(g.original_rng.words,rng);assert_eq!(g.projectiles.len(),1);
  }
  #[test]fn raw_point_target_slots_keep_inactive_coordinates_until_reused_and_ignore_team_or_alive_filters(){
-  let mut g=field("pyro",1);g.spawn("medium",1,1360.,1020.,2,None);g.maintain_native_group_rosters();let slot=g.units[1].native_slot.unwrap()as u8;g.prepare_native_ambient_queries();assert!(g.native_direct_removal(1,[680,510],false,false));g.units.retain(|u|super::super::original_combat::alive(true,u.hp));assert_eq!(g.native_point_target(slot),Some(original_point_fire::FlameTarget{position:[680,510],class:1}));g.spawn("cannon",0,800.,900.,3,None);assert_eq!(g.units.last().unwrap().native_slot,Some(usize::from(slot)));assert_eq!(g.native_point_target(slot),Some(original_point_fire::FlameTarget{position:[400,450],class:2}));
+  let mut g=field("pyro",1);assert_eq!(g.native_raw_unit_position(239),Some([0,0]));assert_eq!(g.native_raw_unit_position(240),None);g.spawn("medium",1,1360.,1020.,2,None);g.maintain_native_group_rosters();let slot=g.units[1].native_slot.unwrap()as u8;g.prepare_native_ambient_queries();assert!(g.native_direct_removal(1,[680,510],false,false));g.units.retain(|u|super::super::original_combat::alive(true,u.hp));assert_eq!(g.native_point_target(slot),Some(original_point_fire::FlameTarget{position:[680,510],class:1}));assert_eq!(g.native_raw_unit_position(usize::from(slot)),Some([680,510]));g.spawn("cannon",0,800.,900.,3,None);assert_eq!(g.units.last().unwrap().native_slot,Some(usize::from(slot)));assert_eq!(g.native_point_target(slot),Some(original_point_fire::FlameTarget{position:[400,450],class:2}));assert_eq!(g.native_raw_unit_position(usize::from(slot)),Some([400,450]));
  }
  #[test]fn build_flame_uses_raw54_56_as_origin_and_the_original_neighbor_selection_in_both_modes(){
   for mp in[false,true]{let mut g=field("pyro",1);g.multiplayer=mp;g.units[0].x=600.;g.units[0].y=800.;g.units[0].original_combat.as_mut().unwrap().aim_skill=60;g.units[0].native_target46=123;g.units[0].angle=super::super::native_math::angle(6);g.original_rng.words=[7,2,3,4,5];let cell=(601/16)*g.map.width+(502/16)+1;g.map.terrain_codes[cell]=8;assert!(g.emit_native_ground_flame(0,[502,601]));assert_eq!(g.projectiles.len(),1);let p=&g.projectiles[0];assert_eq!((p.x,p.y),(1004.,1202.));assert_eq!(p.kind,super::super::original_projectiles::Kind::Flame);assert_eq!(p.angle,super::super::native_math::projectile_angle(16,-8));assert_eq!(g.units[0].native_target46,123);assert_eq!(g.units[0].angle,super::super::native_math::angle(6));assert_eq!(g.original_rng.words,if mp{[7,2,3,4,5]}else{[4149520986,7,2,3,1]});}
@@ -136,7 +147,7 @@ impl Game{
   let Some(mut state)=self.native_ambient.take()else{return;};for bucket in &mut state.unit_buckets{bucket.clear();}for bucket in &mut state.target_buckets{bucket.clear();}state.unit_ids.clear();
   let mut units=self.units.iter().filter_map(|u|u.native_slot.map(|slot|(slot,u))).collect::<Vec<_>>();units.sort_by_key(|&(slot,_)|slot);
   for(slot,u)in units{if let Some(target)=state.point_targets.get_mut(slot){*target=super::original_point_fire::FlameTarget{position:[if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16],class:u.native_class7c};}let Some(m)=self.native_group_rosters.members.get(slot).and_then(Option::as_ref)else{continue;};if m.flags31&4==0||m.group==255||self.native_group_rosters.pool[usize::from(m.group)].roster[9]&32!=0{continue;}
-   let inside=u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside);let p=[if inside{10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16];let bucket=super::original_initiative::native::coarse_cell(p);let ids=&mut state.unit_buckets[usize::from(bucket)];if ids.len()<32{ids.push(slot);state.unit_ids.insert(slot,u.id);}
+   let bucket=u.native_bucket38;let ids=&mut state.unit_buckets[usize::from(bucket)];if ids.len()<32{ids.push(slot);state.unit_ids.insert(slot,u.id);}
   }
   for(slot,r)in state.pool.records.iter().enumerate().filter(|(_,r)|r.active()){if let Ok(bucket)=usize::try_from(r.word(42)){if let Some(ids)=state.target_buckets.get_mut(bucket){if ids.len()<32{ids.push(slot as u8);}}}}
   self.native_ambient=Some(state);
@@ -146,6 +157,8 @@ impl Game{
  ///Preserve the raw UNIT origin before a Web death/conversion moves its
  ///renderer to a parked OBJECT origin or discards that renderer altogether.
  pub(crate) fn remember_native_point_target(&mut self,slot:usize,position:[i16;2],class:u8){if let Some(target)=self.native_ambient.as_mut().and_then(|s|s.point_targets.get_mut(slot)){*target=super::original_point_fire::FlameTarget{position,class};}}
+ ///Raw UNIT coordinates for native slot queries; retired slots retain their cached bytes.
+ pub(crate) fn native_raw_unit_position(&self,slot:usize)->Option<[i16;2]>{if slot>=240{return None;}if let Some(u)=self.units.iter().find(|u|u.native_slot==Some(slot)){return Some([if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16]);}self.native_ambient.as_ref()?.point_targets.get(slot).map(|t|t.position)}
  fn native_point_target(&mut self,slot:u8)->Option<super::original_point_fire::FlameTarget>{let slot=usize::from(slot);if slot>=240{return None;}if let Some(u)=self.units.iter().find(|u|u.native_slot==Some(slot)){let point=[if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16];let class=u.native_class7c;self.remember_native_point_target(slot,point,class);}self.native_ambient.as_ref()?.point_targets.get(slot).copied()}
  ///435dde visits active100 records in slot order after all UNIT updates.
  ///An emitter can allocate a later slot that runs during this same callback.
@@ -187,6 +200,16 @@ impl Game{
    if matches!(m.phase,20|21|66|73|74){v.native_idle=None;v.native_walk=None;v.native_fire=None;v.moving=false;self.native_ambient.as_mut().unwrap().point_orders.insert(v.id,PointOrder{point:m.point,pending:false});}
   }
  }
+ ///54160's actual opcode12 branch.51330 already stored50/54; only the
+ ///infantry family4 invokes53b80. Hardware keeps its current phase, sets
+ ///69:20 and clears the personal command through53ff0.
+ pub(crate) fn dispatch_native_point_order(&mut self,index:usize)->Result<bool,super::original_path_contact::game::Boundary>{
+  use super::original_path_contact::game::Boundary;
+  let u=self.units.get(index).ok_or(Boundary::MissingActor)?.clone();let slot=u.native_slot.ok_or(Boundary::MissingActor)?;let m=self.native_group_rosters.members[slot].as_ref().ok_or(Boundary::MissingMember)?;let role=m.role;let point=[m.promotion.target_x as i16,m.promotion.target_y];
+  if super::original_combat::animation_family(&u.kind)!=4{let m=self.native_group_rosters.members[slot].as_mut().unwrap();m.flags69|=32;m.promotion.order=0;self.units[index].native_order5c=0;return Ok(false);}
+  if role==0{return Ok(false);}if self.native_ambient.is_none(){return Err(Boundary::MissingPointState);}if self.native_group_rosters.current_roster.is_none(){return Err(Boundary::MissingGroup(i16::from(m.group)));}
+  self.native_ambient.as_mut().unwrap().point_orders.remove(&u.id);self.begin_native_ambient_point_order(index,point);Ok(true)
+ }
  ///54160's command12 initialization is followed by its chosen phase handler
  ///during the same native callback. Later roster slots see that new phase.
  pub(crate) fn update_native_ambient_point_fire(&mut self,index:usize)->bool{
@@ -216,19 +239,21 @@ impl Game{
  ///The raw54/56 point is both the selection input and the projectile origin;
  ///a rejected target or464a20's zero-distance/speed gate emits no projectile.
  pub(crate) fn emit_native_ground_flame(&mut self,index:usize,point:[i16;2])->bool{
-  use super::original_point_fire::{self as fire,GroundQuery};use super::original_world_contact as world;
-  let Some(u)=self.units.get(index).cloned()else{return false;};if !self.map.original||u.native_class7c!=15{return false;}let Some(buildings)=self.native_world_buildings()else{return false;};let Some(bridges)=self.native_world_bridges()else{return false;};let Some(grenades)=self.native_click_grenade_total(index)else{return false;};
-  let objects=self.native_world_scan_objects().into_iter().map(|o|fire::GroundObject{position:o.position,definition:o.definition,flags18:o.template_flags18}).collect::<Vec<_>>();let flags=u.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref).map_or(0,|m|m.flags69);let family=super::original_combat::animation_family(&u.kind);let mut rng=self.original_rng.clone();rng.multiplayer=self.multiplayer;
-  let plan=fire::build_flame(fire::FlameInput{position:[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16],heading:super::original_combat::facing(u.angle),point,target46:u.native_target46,aim:u.original_combat.as_ref().map_or(80,|c|c.aim_skill),flags69:flags,counter97:u.native_counter97 as u8,speed:u.original_combat.as_ref().and_then(|c|c.projectile_speed).unwrap_or(13)as i8},|query,p|match query{
-   GroundQuery::LiveBridge=>bridges.iter().any(|b|world::bridge_contains(*b,p)),
-   GroundQuery::DestroyedBridge=>bridges.iter().any(|b|b.position[0]!=-1&&b.flags15&2!=0&&world::bridge_contains(world::Bridge{flags15:b.flags15&!2,..*b},p)),
-   GroundQuery::LiveBuilding=>world::first_building(&buildings,p,true,false).is_some(),GroundQuery::Ruin=>world::first_building(&buildings,p,true,true).is_some(),
-   //448700's temporary range decrement has no effect on44a660, which reads
-   //the terrain table and411b90 inventory, never74/W5. Its writes cancel.
-   GroundQuery::Rejected{..}=>fire::fire_at_point(&objects,p)||super::original_attack_click::terrain_admission(self.ambient_terrain_cell((p[1]&!15).wrapping_mul(8).wrapping_add(p[0]>>4)),u.native_class7c,family,0,grenades)==0,
-   GroundQuery::Destructible=>objects.iter().any(|o|o.position[0]>=0&&o.flags18&16!=0&&(0..2).all(|a|{let extent=((i16::from(o.flags18 as i8)+1)*8)&24;o.position[a]<=p[a]&&i32::from(p[a])<i32::from(o.position[a])+i32::from(extent)})),
-  },||rng.next_u32());self.original_rng=rng;let Some(plan)=plan else{return false;};if plan.shot.speed==0{return false;}let d=self.native_unit_stats(&u);let range=((d.range/2.)as i32>>3)*8;let mut attack=super::original_combat::Attack::from_unit(&u,usize::MAX,d.damage,u.aim);attack.bullet=false;let made=self.emit_native_projectile(&u,(plan.shot.origin[0],plan.shot.origin[1]),(plan.shot.target[0],plan.shot.target[1]),super::original_projectiles::Kind::Flame,i32::from(plan.shot.speed),range,attack);if made{self.events.push(json!({"kind":"shot","type":u.kind,"weapon":"primary","team":u.team,"x":u.x,"y":u.y}));}made
+  use super::original_point_fire as fire;
+  let Some(u)=self.units.get(index).cloned()else{return false;};if !self.map.original||u.native_class7c!=15{return false;}let Some(query)=self.native_ground_queries(index)else{return false;};let mut rng=self.original_rng.clone();rng.multiplayer=self.multiplayer;
+  let plan=fire::build_flame(fire::FlameInput{position:[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16],heading:super::original_combat::facing(u.angle),point,target46:u.native_target46,aim:u.original_combat.as_ref().map_or(80,|c|c.aim_skill),flags69:query.flags69,counter97:u.native_counter97 as u8,speed:u.original_combat.as_ref().and_then(|c|c.projectile_speed).unwrap_or(13)as i8},|kind,p|self.native_ground_query(&query,kind,p),||rng.next_u32());self.original_rng=rng;let Some(plan)=plan else{return false;};if plan.shot.speed==0{return false;}let d=self.native_unit_stats(&u);let range=((d.range/2.)as i32>>3)*8;let mut attack=super::original_combat::Attack::from_unit(&u,usize::MAX,d.damage,u.aim);attack.bullet=false;let made=self.emit_native_projectile(&u,(plan.shot.origin[0],plan.shot.origin[1]),(plan.shot.target[0],plan.shot.target[1]),super::original_projectiles::Kind::Flame,i32::from(plan.shot.speed),range,attack);if made{self.events.push(json!({"kind":"shot","type":u.kind,"weapon":"primary","team":u.team,"x":u.x,"y":u.y}));}made
  }
+ fn native_ground_queries(&self,index:usize)->Option<GroundQueries>{let u=self.units.get(index)?;Some(GroundQueries{objects:self.native_world_scan_objects().into_iter().map(|o|super::original_point_fire::GroundObject{position:o.position,definition:o.definition,flags18:o.template_flags18}).collect(),buildings:self.native_world_buildings()?,bridges:self.native_world_bridges()?,flags69:u.native_slot.and_then(|slot|self.native_group_rosters.members.get(slot)).and_then(Option::as_ref).map_or(0,|m|m.flags69),class:u.native_class7c,family:super::original_combat::animation_family(&u.kind),grenades:self.native_click_grenade_total(index)?})}
+ fn native_ground_query(&self,q:&GroundQueries,kind:super::original_point_fire::GroundQuery,p:[i16;2])->bool{
+  use super::original_point_fire::{self as fire,GroundQuery};use super::original_world_contact as world;
+  match kind{GroundQuery::LiveBridge=>q.bridges.iter().any(|b|world::bridge_contains(*b,p)),GroundQuery::DestroyedBridge=>q.bridges.iter().any(|b|b.position[0]!=-1&&b.flags15&2!=0&&world::bridge_contains(world::Bridge{flags15:b.flags15&!2,..*b},p)),GroundQuery::LiveBuilding=>world::first_building(&q.buildings,p,true,false).is_some(),GroundQuery::Ruin=>world::first_building(&q.buildings,p,true,true).is_some(),
+   //448700's temporary74/W5 decrement cancels;44a660 does not read it.
+   GroundQuery::Rejected{..}=>fire::fire_at_point(&q.objects,p)||super::original_attack_click::terrain_admission(self.ambient_terrain_cell((p[1]&!15).wrapping_mul(8).wrapping_add(p[0]>>4)),q.class,q.family,0,q.grenades)==0,
+   GroundQuery::Destructible=>q.objects.iter().any(|o|o.position[0]>=0&&o.flags18&16!=0&&(0..2).all(|a|{let extent=((i16::from(o.flags18 as i8)+1)*8)&24;o.position[a]<=p[a]&&i32::from(p[a])<i32::from(o.position[a])+i32::from(extent)})),}
+ }
+ ///The same448750 call used by56840 and448e80's cycle completion. This
+ ///may consume original RNG; it deliberately emits no projectile or scatter.
+ pub(crate) fn native_ground_target_available(&mut self,index:usize,point:[i16;2])->bool{let Some(query)=self.native_ground_queries(index)else{return false;};let mut rng=self.original_rng.clone();rng.multiplayer=self.multiplayer;let result=super::original_point_fire::resolve_ground_point(point,query.flags69,|kind,p|self.native_ground_query(&query,kind,p),||rng.next_u32()).is_some();self.original_rng=rng;result}
  ///404ec0 is called by41f2d0 and4208f0 before the UNIT rectangle tests.
  pub(crate) fn native_ambient_area_contact(&mut self,point:[i16;2]){
   let Some(mut state)=self.native_ambient.take()else{return;};state.pool.damage(point,false,|fragment|self.spawn_native_ambient_fragment(fragment.position,fragment.sprite));self.native_ambient=Some(state);

@@ -3,6 +3,7 @@ window.OriginalHud=(()=>{
  'use strict';
  const base=new URL('../original/',document.currentScript.src),cache=new Map(),urls=new Map();
  let manifest,atlas,pixels,ready=false,lastState,lastUnit,lastPainter,skinWorld=-1,portraitSignature='';
+ let admittedPortrait=null,admittedPortraitKey='',admittedPortraitCounter=-1;
  const captions={grunt:81,pyro:82,laser:83,tough:84,psycho:85,sniper:86};
  //00469478 indexes0049c6c0 by the selected animation family.00469190 draws
  // descriptor[0] as the caption, descriptor[1] as the hardware image, and
@@ -49,9 +50,16 @@ window.OriginalHud=(()=>{
  }
  function communicator(state,unit){
   const face=manifest?.face,api=window.OriginalFace;if(!face||!api)return false;
+  const native=state.nativePortrait,sourcePortrait=[3,4].includes(native?.mode)&&[0x419,0x41b,0x41c,0x41e,0x41f,0x725].includes(native.message);
+  if(sourcePortrait){
+   const key=[state.map.seed,native.message,native.nativeSlot,native.unitId].join(':'),counter=native.phraseCounter|0;
+   if(key!==admittedPortraitKey||native.mode===4&&counter<admittedPortraitCounter){const speaker=state.units.find(u=>u.id===native.unitId);admittedPortrait=speaker?{...speaker,crew:speaker.crew?{...speaker.crew}:null}:null;admittedPortraitKey=key;}
+   admittedPortraitCounter=counter;unit=admittedPortrait;
+  }else{admittedPortrait=null;admittedPortraitKey='';admittedPortraitCounter=-1;}
   const world=state.map.world,kind=unit?.crew?.kind||unit?.type,head=face.headKinds[kind]??2,voice=window.RadioAudio?.voicePose?.();
-  const phrase=voice&&face.voicePhrases[voice.clip],words=Number.isInteger(phrase)?face.phrases[phrase]:null;
-  const word=api.phraseWord(words,voice?Math.floor(voice.seconds/.059):0),vehicle=Boolean(unit&&hardware[unit.type]&&!['cannon','missile','gatling','howitzer'].includes(unit.type));
+  const phrase=sourcePortrait?native.phraseIndex:voice&&face.voicePhrases[voice.clip],words=Number.isInteger(phrase)?face.phrases[phrase]:null;
+  const ticks=sourcePortrait?Math.max(0,native.phraseCounter-1):voice?Math.floor(voice.seconds/.059):0;
+  const word=api.phraseWord(words,ticks),vehicle=Boolean(unit&&hardware[unit.type]&&!['cannon','missile','gatling','howitzer'].includes(unit.type));
   const signature=[world,unit?.team??0,Boolean(unit),head,word,vehicle].join(':');if(signature===portraitSignature)return true;portraitSignature=signature;
   const portrait=$('portrait');if(portrait.width!==92||portrait.height!==64){portrait.width=92;portrait.height=64;}const pc=portrait.getContext('2d');pc.clearRect(0,0,92,64);pc.imageSmoothingEnabled=false;
   const draws=api.layers(word,head,[0,3,1,4,2][world],vehicle,{...face,backgroundStart:manifest.backgroundStart});
@@ -74,6 +82,9 @@ window.OriginalHud=(()=>{
   const caption=descriptor?.[0]??captions[unit?.type];
   if(caption!==undefined)paint($('hudCaption'),caption,world,unit?.team||0);
   $('hudCaption').hidden=!unit||caption===undefined;
+  //The app's HP and order lines share the same empty-selection instruction.
+  //Keep it once in the order line, leaving the original radio artwork intact.
+  $('unitInfo').hidden=!unit;
   $('unitName').style.color=unit&&caption===undefined?'#f2e9d5':'';
   if(!communicator(state,unit)){
    const pc=portrait.getContext('2d');pc.clearRect(0,0,96,96);pc.imageSmoothingEnabled=false;

@@ -9,7 +9,25 @@ const copy=v=>JSON.parse(JSON.stringify(v)),xy=(x,y)=>[(x+.5)*32,(y+.5)*32],dist
  function request(v){const bytes=enc.encode(JSON.stringify(v)),p=e.alloc(bytes.length);new Uint8Array(e.memory.buffer,p,bytes.length).set(bytes);let n;try{n=e.run(p,bytes.length);}finally{e.free(p,bytes.length);}const s=JSON.parse(dec.decode(new Uint8Array(e.memory.buffer,e.output(),n)));assert(!s.error,s.error);return s;}
  function fixture(){const width=32,height=24,n=width*height;return {map:{width,height,tileSize:32,world:0,tiles:Array(n).fill(0),territory:Array(n).fill(0),bridgeBase:Array(n).fill(-1),bridgeHp:[],seed:9187,revision:0,original:true,originalTiles:Array(n).fill(0),terrainCodes:Array(n).fill(0),waterTile:0},sectors:[],buildings:[],crates:[],originalObjects:[],walls:[],spawns:[{type:'medium',team:0,x:112,y:336,squad:1},{type:'gatling',team:1,x:32,y:704,squad:2}]};}
  const init=m=>request({op:'init',mission:0,difficulty:1,seed:9187,aiTeams:[],originalMission:m});
- function walk(m,goals,inspect=()=>{}){let s=init(m),u=s.units.find(u=>u.team===0),id=u.id,previous=[u.x,u.y],length=0,ticks=0;const terrain=s.map;for(const goal of goals){s=request({op:'command',kind:'move',team:0,ids:[id],x:goal[0],y:goal[1]});u=s.units.find(u=>u.id===id);for(let i=0;i<4000&&u.path.length;i++){s=request({op:'tick',dt:.05,compact:true});u=s.units.find(u=>u.id===id);assert(u,'Mover must survive');ticks++;const p=[u.x,u.y];length+=distance(previous,p);previous=p;inspect(p,terrain,s);assert.equal(s.winner,null,'Fixture must not end while checking movement');}assert(!u.path.length,'Movement must eventually finish');assert(distance([u.x,u.y],goal)<.01,`Requested endpoint ${goal} was replaced by ${u.x},${u.y}`);}return {seconds:ticks*.05,length,end:[u.x,u.y]};}
+ function walk(m,goals,inspect=()=>{}){
+  let s=init(m),u=s.units.find(u=>u.team===0),id=u.id,previous=[u.x,u.y],length=0,ticks=0;const terrain=s.map;
+  for(const goal of goals){
+   const before=[u.x,u.y];s=request({op:'command',kind:'move',team:0,ids:[id],x:goal[0],y:goal[1]});u=s.units.find(u=>u.id===id);
+   assert.deepEqual([u.x,u.y],before,'Recording a command must not spend movement');
+   if(terrain.nativeRoadGraph)assert.equal(u.nativeOrder5c,1,'Authored MOVE remains pending until the next native callback');
+   //45f070 records the positive opcode immediately;54160 builds its finite
+   //route on the next59ms callback. An initially empty path is not arrival.
+   const unfinished=()=>u.nativeOrder5c===1||u.path.length>0||distance([u.x,u.y],goal)>=.01;
+   for(let i=0;i<4000&&unfinished();i++){
+    s=request({op:'tick',dt:.05,compact:true});u=s.units.find(u=>u.id===id);assert(u,'Mover must survive');ticks++;
+    assert.equal(s.nativeRouteBoundary??null,null,`Unresolved native route at ${s.time}: ${s.nativeRouteBoundary}`);
+    const p=[u.x,u.y];length+=distance(previous,p);previous=p;inspect(p,terrain,s);assert.equal(s.winner,null,'Fixture must not end while checking movement');
+   }
+   assert.notEqual(u.nativeOrder5c,1,'The next native callback must dispatch the queued MOVE');
+   assert(!u.path.length,'Movement must eventually finish');assert(distance([u.x,u.y],goal)<.01,`Requested endpoint ${goal} was replaced by ${u.x},${u.y}`);
+  }
+  return {seconds:ticks*.05,length,end:[u.x,u.y]};
+ }
  // A long oblique command should not bounce through every intervening tile
  // center, and arbitrary legal click positions must survive route construction.
  let m=fixture();m.spawns[0].x=179;m.spawns[0].y=340;const end=[770,548],direct=distance([179,340],end);

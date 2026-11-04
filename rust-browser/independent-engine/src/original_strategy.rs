@@ -172,6 +172,13 @@ fn squads_contains(units:&[Unit],team:i32,squad:usize)->bool{units.iter().any(|u
 fn driver_duplicate(u:&Unit,units:&[Unit])->bool{u.transport_carrier.is_some_and(|id|units.iter().any(|c|c.id==id&&c.transport_actor==Some(u.id)))}
 
 impl Game{
+ ///Native sector24 flags at raw coordinates, using authored CP rectangles
+ ///and fixed fort bases. Missing original context stays unavailable.
+ pub(crate) fn native_sector_flags_at(&self,point:[i16;2])->Option<u8>{
+  self.native_fort_bases()?;let state=self.native_strategy.as_ref()?;
+  let id=state.sector_at(f64::from(point[0])*2.,f64::from(point[1])*2.)?;
+  self.native_factory_sector(id).map(|s|s.flags)
+ }
  pub(crate) fn native_factory_level_record_index(&self)->Option<usize>{(self.map.original&&self.map.native_road_graph.is_some()).then(||usize::try_from(self.map.native_level_record).ok()).flatten()}
  pub(crate) fn native_factory_sector(&self,id:usize)->Option<task::Sector>{
   let state=self.native_strategy.as_ref()?;let mut sector=state.sectors.iter().find(|s|s.id==id)?.clone();let owner=self.sectors.iter().find(|s|s.id==id)?.owner;sector.owner=if owner==1{1}else if owner>=0{0}else{4};sector.flags&=!19;

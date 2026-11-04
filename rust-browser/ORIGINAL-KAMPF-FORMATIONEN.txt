@@ -18,9 +18,10 @@ beträgt 59 ms. Die fünf Formationsmasken, vorzeichenbehaftete SINCOS-Drehung,
 Bewegungsmuster, Geländemodifikatoren und Folgerzustände werden übernommen.
 Nachholen verspäteter Browserbilder bleibt eine Webanpassung. Originalkarten
 benutzen native RoadGraph-Kandidaten, Preise, lokale Konturen, Kollisionsproben
-und Vereinfachung. Die endlichen globalen nativen Pfadpools und ihr Scheduler
-sind noch durch eigene Routenobjekte abgebildet; der Bericht behauptet hierfür
-keine vollständige Originalgleichheit.
+und Vereinfachung. Die endlichen globalen nativen Pfadpools, ihr Scheduler und die inkrementellen
+Konturworker sind jetzt getrennte native Zustände. Globale Straßenassemblierung
+und alle gekoppelten Überlauffälle bleiben weiter zu vergleichen; der Bericht
+behauptet keine vollständige Originalgleichheit. Details: ORIGINAL-PFADPOOL.txt.
 
 KI, BEFEHLE UND GRUPPEN
 CPUPLR-Kontrollwert, Strategie- und Aufgabentakt, Gruppenroster, aktuelle

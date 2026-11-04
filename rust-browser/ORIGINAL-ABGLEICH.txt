@@ -1,4 +1,4 @@
-Z / Rust-Wasm – aktueller Abgleichstand, 03.11.2026
+Z / Rust-Wasm – aktueller Abgleichstand, 04.11.2026
 
 ERGEBNIS
 Vollständige 1:1-Gleichheit ist nicht erreicht. Dieser Bericht ersetzt die
@@ -50,25 +50,43 @@ UMGESETZTE UND GEPRÜFTE BEREICHE
   nachgewiesenen, unterschiedlichen Feueranimationsbänke.
 Die genauen Vergleichsgrenzen stehen im Code und in ORIGINAL-KAMPF-FORMATIONEN.txt.
 
+NEU IN DIESER ABGLEICHRUNDE
+Die endlichen Pfadpools, der globale Scheduler und inkrementelle Worker sind
+nun explizite native Zustände. Bewegungs-/Warte-/Angriffscaller, direkte
+Originalbefehle, Projektilwarnungen, Autoangriffe auf Gelände und die weitere
+Fahrzeug-Abstandskorrektur nach der KI besitzen zusätzliche Originalvergleiche.
+Der Mainloop besucht feste240 UNIT-Slots; Übernahmen erzeugen keine doppelte
+Aktualisierung. Framegrenzen, AA-/Gruppenpräfix, Freeze und originale Idle-Posen
+laufen an ihren tatsächlichen Callbackpunkten. Anfangswerte und Nachladebytes
+von Hardware sind getrennt von allgemeinen Browser-Abklingzeiten.
+Fahrzeug-Zielschüsse und die vier festen Geschützfamilien verwenden ihre
+getrennten Originalcaller, einschließlich Teilsalven bei vollem Projektilpool.
+Die normale globale Zeichenqueue besitzt Originalsortierung und Paletten-
+zustände. Gebäude-/UNIT-Bilder bleiben ab ihrem tatsächlichen Abgabezeitpunkt
+erhalten. Fahnen werden nach UNIT/KI gezeichnet und sehen deren Übernahmen.
+775 Kampf-Sounddeskriptoren teilen die tatsächlichen nativen Zeitstempel und
+Master-Gates. Einzelne nachgewiesene Funkereignisse und direkte Waffensamples
+benutzen diese Freigabe statt eines weiteren erfundenen Browserfilters.
+Details und Prüfgrenzen: ORIGINAL-PFADPOOL.txt und ORIGINAL-ZEICHENQUEUE.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
-1. Der globale native Wegescheduler und seine endlichen, verketteten Pfadpools
-   sind noch durch eigene gespeicherte Routen und verzögerte Teilwege abgebildet.
-   Einzelne Planner-/Kollisionskernel stimmen überein; Poolbelegung, Wiederverwendung
-   und alle Wechselwirkungen einer vollständigen Partie sind nicht nachgewiesen.
-2. Der vollständige 48060-Ablauf für Bewegung und Zielerwerb wird weiter durch
-   den Web-Kern abgebildet. 53290, 449a90 und der 48250-Nachlauf sind einzeln
-   übertragen; 490b0 sowie einzelne Sichtaufrufer nutzen noch Routen-/Sichtadapter.
-   Der Phase65-Windup nutzt noch einen lokalen Zielersatz, obwohl die eigentliche
-   56840-BUILD-Schussfreigabe bereits den Originalzweig verwendet. Die vollständige
-   alte Eingabe-/Warteschlange 1a0d0 und
-   Strg-Einzelauswahl sind nicht vollständig übernommen.
-3. Bedingte native UI-/Sprachreaktionen über 46e890 sowie sämtliche ursprünglichen
-   UI-Globals und einzelne Stopp-Posen sind noch nicht vollständig verbunden.
-   Die native Auswahlrücksetzung nach einem Angriff wird inzwischen erhalten;
-   normale Browser-Ticks setzen den ausgewählten Akteur nicht erneut.
-4. Die vollständige globale Zeichenqueue mit allen Tiefen-/Palettenwechseln ist
-   nicht identisch rekonstruiert. Einige Wandvarianten bleiben deterministische
-   Ersatzwahl; einzelne Schatten und nicht genutzte Partikel-Randzustände sind offen.
+1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
+   alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
+   sind noch nicht als identische Eingabespur nachgewiesen. Insbesondere die
+   globale Straßenlisten-Assemblierung hat weiterhin einen Adapter; gleiche
+   Wegpunkte belegen nicht dieselben Raw-Record-Identitäten bei jedem Überlauf.
+2. Dynamische UNIT-Kollisionsoverlays, einzelne Hardware-Belegungs- und aktive
+   Werkstatt-Rohzustände, räumliche Zielauflöser sowie Weiterlauf nach Transport-
+   bereinigung auf einem bereits deaktivierten UNIT-Speicher bleiben Grenzen.
+   Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
+   Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
+3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten
+   Sprachaufrufer sind nicht vollständig übernommen. Die UI-Uhr in Menüs/Pause,
+   Banklade-/SDL-Kanalverhalten und weitere allgemeine Funkereignisse sind noch
+   nicht durchgehend an dieselben Originalaufrufpunkte gebunden.
+4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
+   maschinenanimationen und der globale Sieg-/Zwischensequenzcontroller sind
+   weiterhin offen. Normale Queuevergleiche belegen diese Sonderfälle nicht.
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem
    Zufallszustand sind nicht durchgehend gegen das Original aufgezeichnet.
 6. Online/LAN nutzt das eigene WebRTC-/Hostprotokoll. Das Originalnetzwerkprotokoll,

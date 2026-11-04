@@ -37,12 +37,15 @@ async function check(mode){
  element('stop').onclick();arrows=[];frame(4);assert.equal(arrows.length,0,`${mode}: new command removes the old entry marker`);
  // A completed crew change must remove the marker without any UI command.
  canvas.onpointerdown(p);canvas.onpointerup(p);arrows=[];frame(5);assert.equal(arrows.length,1);
- let completed=false;
+ let completed=false,approached=false;const origin=[claimants[0].x,claimants[0].y];
  for(let i=0;i<1200;i++){
   const request=Buffer.from(JSON.stringify({op:'tick',dt:.05})),ptr=raw.alloc(request.length);new Uint8Array(raw.memory.buffer,ptr,request.length).set(request);exports.run(ptr,request.length);raw.free(ptr,request.length);
+  assert.equal(response.nativeRouteBoundary??null,null,`${mode}: unresolved native entry route: ${response.nativeRouteBoundary}`);
+  const actor=response.units.find(u=>u.id===claimants[0].id);if(actor&&Math.hypot(actor.x-origin[0],actor.y-origin[1])>0)approached=true;
   if(response.units.find(u=>u.id===target.id)?.team===0){completed=true;break;}
  }
  assert(completed,`${mode}: the actual Rust engine must crew the commanded hardware`);
+ assert(approached,`${mode}: the selected robot must actually move to the vehicle before takeover`);
  // Refresh the frontend from the shared Wasm instance without advancing time.
  frame(65);arrows=[];frame(66);assert.equal(arrows.length,0,`${mode}: live crew change clears the marker`);
  console.log(`PASS ${mode}: cursor, click -> Rust enter order, infantry filter, single destination marker, stop cleanup and real crew completion.`);

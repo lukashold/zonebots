@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 #[derive(Debug)]
 pub(crate) enum RouteResult{Unavailable,Path(VecDeque<(f64,f64)>),Partial(VecDeque<(f64,f64)>),Blocked}
 impl Game{
- fn route_terrain_code(&self,p:route::Point)->u8{
+ pub(crate) fn route_terrain_code(&self,p:route::Point)->u8{
   let(x,y)=(i32::from(p.0),i32::from(p.1));
   if x<0||y<0||x>=128||y>=128{return 127;}
   if x<self.map.width as i32&&y<self.map.height as i32{return self.map.terrain_codes.get(y as usize*self.map.width+x as usize).copied().unwrap_or(127)&127;}
@@ -33,6 +33,7 @@ impl Game{
   });result.axes==0&&result.position==end
  }
  pub(crate) fn route_native_unit(&self,unit:&Unit,dx:f64,dy:f64)->RouteResult{
+  if self.native_route_mode{if let Some(result)=self.plan_native_primary_route(unit,dx,dy){return result;}}
   let result=self.plan_native_unit(unit,dx,dy);
   if let Some(actual)=self.units.iter().find(|u|u.id==unit.id){actual.native_route_pending.set(if matches!(result,RouteResult::Partial(_)){Some((dx,dy))}else{None});actual.native_secondary_route.set(matches!(result,RouteResult::Partial(_)));}
   result
@@ -119,8 +120,8 @@ impl Game{
   let mut g=Game::new(0,1,991);g.apply_original(&campaign["missions"][0]).unwrap();g.ai_teams.clear();
   let i=g.units.iter().position(|u|u.id==8).unwrap();let u=g.units[i].clone();assert_eq!((u.x,u.y),(1216.,2240.));
   let route=g.route_native_unit(&u,766.,2137.);assert!(matches!(route,RouteResult::Path(ref p)|RouteResult::Partial(ref p) if !p.is_empty()));
-  g.units[i].path=g.route_unit(&u,766.,2137.);g.units[i].order="move".into();g.units[i].dest=Some((766.,2137.));
-  for tick in 1..=2400{g.move_original(i,tick,1,true);if (g.units[i].x-766.).hypot(g.units[i].y-2137.)<2.{return;}}
+  g.command(&crate::json!({"ids":[u.id],"kind":"move","x":766.,"y":2137.}));
+  for _ in 1..=2400{g.step(crate::original_motion::TICK_SECONDS);assert_eq!(g.native_route_boundary,None,"native route metadata must remain resolved");if (g.units[i].x-766.).hypot(g.units[i].y-2137.)<2.{return;}}
   panic!("native movement did not finish its partial route: {:?}",(g.units[i].x,g.units[i].y));
  }
  fn field(kind:&str)->Game{

@@ -49,6 +49,8 @@ impl Game {
  }
  pub(crate) fn update_native_follower(&mut self,index:usize) {
   let u=self.units[index].clone();let Some(mut f)=u.formation.clone()else{return;};
+  //4d570 preserves a source scatter line while the group3f counter runs.
+  if self.owns_native_route(index)&&u.native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref()).and_then(|m|self.native_group_rosters.pool.get(usize::from(m.group))).is_some_and(|g|g.roster[63]!=0){return;}
   if let Some(layout)=self.native_group_rosters.formation_layout(u.team,u.squad){f.layout=layout;}
   if u.order!="move"||u.initiative.is_some()||u.hold_position||u.workshop.is_some(){self.units[index].motion_bonus=if u.initiative.is_some(){3}else{0};return;}
   let leader=self.units.iter().find(|p|p.id==f.leader&&p.squad==u.squad&&p.team==u.team&&original_combat::alive(true,p.hp)).cloned();

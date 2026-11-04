@@ -32,10 +32,43 @@ mod tests {
         let mut g=field();g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);
         let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().flags69|=32;
         assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));
+        g.native_group_rosters.members[slot].as_mut().unwrap().flags69|=32;g.units[0].native_order5c=-5;g.units[0].native_phase35=65;g.units[0].native_frame32=0;g.units[0].native_timer3c=1;
         for _ in 0..8{g.fire_native_ground(0,(1000.,1200.),900,false);}
-        assert_eq!(g.units[0].native_phase35,65);assert!(g.units[0].native_fire.is_some());
+        assert_eq!(g.units[0].native_phase35,65);assert!(g.units[0].native_fire.is_none());
         assert!(g.units[0].cooldown>0.,"the real windup reached a release attempt");
         assert!(g.projectiles.is_empty(),"56840 uses the same raw54/56 origin and selected target, so464a20 rejects the shot");
+    }
+    #[test]
+    fn ground_fire_waits_for_the_real_phase_selector_without_acquiring_a_surrogate_enemy(){
+        let mut g=field();g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.pool[group].roster[59]=255;let rng=g.original_rng.words;let activity=g.units[0].group_activity_ticks;let count=g.units.len();
+        for _ in 0..20{assert!(!g.fire_native_ground(0,(1000.,1200.),900,false));}
+        assert_eq!(g.units.len(),count);assert_eq!(g.units[0].native_phase35,0);assert!(g.units[0].native_fire.is_none());assert_eq!(g.native_group_rosters.pool[group].roster[59],255);assert_eq!(g.units[0].group_activity_ticks,activity);assert_eq!(g.original_rng.words,rng);assert!(g.native_attack_reports.is_empty());assert!(g.projectiles.is_empty());
+    }
+    #[test]
+    fn ground_flame_cycle_uses_persistent_a0_without_an_old_fire_state_or_enemy_reports(){
+        let mut g=field();g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().flags69|=32;g.units[0].native_order5c=-5;g.units[0].native_phase35=65;g.units[0].native_frame32=2;g.units[0].native_timer3c=0;g.units[0].native_cyclea0=3;g.units[0].original_combat.as_mut().unwrap().fire_rate=80;let rng=g.original_rng.words;
+        assert_eq!(g.update_native_ground_flame(0),Some(false));assert_eq!((g.units[0].native_frame32,g.units[0].native_timer3c,g.units[0].native_cyclea0),(1,127,0));assert!(g.units[0].native_fire.is_none());assert_eq!(g.units[0].native_order5c,-5);assert_eq!(g.original_rng.words,rng);assert!(g.native_attack_reports.is_empty());
+        g.units[0].native_frame32=2;g.units[0].native_timer3c=0;g.units[0].native_cyclea0=2;assert_eq!(g.update_native_ground_flame(0),Some(false));assert_eq!((g.units[0].native_frame32,g.units[0].native_timer3c,g.units[0].native_cyclea0),(0,1,3));
+    }
+    #[test]
+    fn ground_flame_lost_goal_clears_group_order_then_paths_and_runs_the_real_idle_reset(){
+        let mut g=field();g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));let group=g.native_group_rosters.current_roster.unwrap();g.units[0].native_order5c=-5;g.units[0].native_phase35=65;g.units[0].native_frame32=2;g.units[0].native_timer3c=0;g.units[0].native_cyclea0=1;g.units[0].path=std::collections::VecDeque::from([(1200.,1200.)]);g.map.terrain_codes.fill(0);g.map.native_terrain_plane.fill(0);let mut rng=g.original_rng.clone();for _ in 0..3{rng.next_u32();}
+        assert_eq!(g.update_native_ground_flame(0),Some(false));assert_eq!(g.units[0].native_cyclea0,2);assert_eq!(g.units[0].native_order5c,0);assert_eq!(g.native_group_rosters.pool[group].roster[58],0);assert_eq!(g.units[0].native_phase35,1);assert!(g.units[0].path.is_empty());assert!(g.units[0].native_idle.is_some());assert_eq!(g.original_rng.words,rng.words);assert!(g.projectiles.is_empty());
+    }
+    #[test]
+    fn real_ground_grenade_phase_releases_on_ninth_callback_and_finishes_after_last_grenade(){
+        let mut g=field();g.spawn("grunt",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));g.units[0].native_order5c=0;g.units[0].native_phase35=49;g.units[0].native_frame32=0;g.units[0].native_timer3c=3;g.units[0].grenades=1;
+        for _ in 0..8{assert_eq!(g.update_native_ground_fire(0),Some(false));}assert_eq!(g.update_native_ground_fire(0),Some(true));assert_eq!(g.units[0].grenades,0);assert_eq!(g.projectiles.len(),1);assert_eq!(g.projectiles[0].kind,Kind::Grenade);assert_eq!((g.units[0].native_frame32,g.units[0].native_timer3c),(3,3));for _ in 0..3{assert_eq!(g.update_native_ground_fire(0),Some(false));}assert_eq!(g.units[0].native_phase35,1);assert!(g.units[0].native_fire.is_none());assert_eq!(g.units.len(),1);assert!(g.native_attack_reports.is_empty());
+    }
+    #[test]
+    fn real_ground_rocket_phase_refreshes_the_raw_attack_after_its_animation(){
+        let mut g=field();g.spawn("tough",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,500],600)));g.units[0].native_order5c=-5;g.units[0].native_phase35=19;g.units[0].native_frame32=0;g.units[0].native_timer3c=20;
+        for _ in 0..21{assert_eq!(g.update_native_ground_fire(0),Some(false));}assert_eq!(g.update_native_ground_fire(0),Some(true));assert_eq!(g.projectiles.len(),1);assert_eq!(g.projectiles[0].kind,Kind::Rocket);for _ in 0..6{assert_eq!(g.update_native_ground_fire(0),Some(false));}assert_eq!((g.units[0].native_frame32,g.units[0].native_timer3c,g.units[0].native_order5c),(0,-2,5));let slot=g.units[0].native_slot.unwrap();assert_eq!(g.native_group_rosters.members[slot].as_ref().unwrap().promotion.order,5);assert!(g.native_attack_reports.is_empty());
+    }
+    #[test]
+    fn original_ground_entry_selects_flame_then_the_following_four_callbacks_attempt_release(){
+        let mut g=field();g.map.native_road_graph=Some(crate::original_route::RoadGraph{regions:vec![crate::original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});g.map.native_terrain_plane=vec![0;16384];g.spawn("pyro",0,1000.,1000.,10,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,10);g.import_native_world(&serde_json::Value::Null);let cell=(500/16)*g.map.width+520/16;g.map.terrain_codes[cell]=8;g.map.native_terrain_plane[(500/16)*128+520/16]=8;g.units[0].native_range4=Some(127);g.units[0].native_cyclea0=3;assert!(g.record_native_order_event(0,crate::original_orders_game::Event::classified(5,[3456,520],500)));assert_eq!(g.dispatch_native_attack_order(0),Some(crate::original_attack_order::AttackOrderResult::Ground([520,500])));
+        assert!(g.update_native_attack_phase(0));assert_eq!((g.units[0].native_phase35,g.units[0].native_frame32,g.units[0].native_timer3c,g.units[0].native_cyclea0),(65,0,1,3));assert!(g.units[0].native_fire.is_none());assert_eq!(g.units[0].cooldown,0.);for _ in 0..3{assert_eq!(g.update_native_ground_fire(0),Some(false));assert_eq!(g.units[0].cooldown,0.);}assert_eq!(g.update_native_ground_fire(0),Some(false));assert!(g.units[0].cooldown>0.);assert!(g.projectiles.is_empty());assert!(g.native_attack_reports.is_empty());assert_eq!(g.units.len(),1);
     }
     #[test]
     fn all_193_steps_match_executed_x86_flight_in_eight_octants_and_long_axis(){
@@ -155,6 +188,7 @@ pub struct Fire {
 }
 impl Fire{pub(crate) fn sync_native_object(&mut self,frame:u8,lifetime:i8){self.frame=frame;self.sprite=self.base+usize::from(frame);self.lifetime=i32::from(lifetime);}}
 impl Game {
+    #[cfg(test)]pub(crate) fn native_hardware_shot_debug(&self)->Vec<(Kind,[i16;2],[i16;2],i32,u8)>{self.projectiles.iter().map(|p|(p.kind,[p.flight.origin.0 as i16,p.flight.origin.1 as i16],[p.flight.target.0 as i16,p.flight.target.1 as i16],p.flight.speed,p.flight.elevation as u8)).collect()}
     fn native_height(&self,x:i32,y:i32)->i32 {
         let code=self.native_terrain(x,y);
         i32::from(data::TERRAIN_HEIGHT.get(code as usize).copied().unwrap_or(0))
@@ -247,28 +281,45 @@ impl Game {
             sprite:if kind==Kind::Flame{6046}else{1622},angle:native_math::projectile_angle(target.0-origin.0,target.1-origin.1),size:1,
             flight:Flight::new(origin,target,range,speed,elevation,kind),attack,shooter:u.native_slot});true
     }
+    ///464e80 / forced4648a0 from45c5c0. The already selected raw handler
+    ///owns release timing; this keeps the shared50-slot allocation and flight.
+    pub(crate) fn emit_native_hardware_point_projectile(&mut self,index:usize,shot:super::original_hardware_point::Shot)->Result<bool,super::original_path_contact::game::Boundary>{
+        self.emit_native_hardware_shot(index,shot,i32::from(shot.speed))
+    }
+    fn emit_native_hardware_shot(&mut self,index:usize,shot:super::original_hardware_point::Shot,speed:i32)->Result<bool,super::original_path_contact::game::Boundary>{
+        use super::original_path_contact::game::Boundary;
+        let u=self.units.get(index).ok_or(Boundary::MissingActor)?.clone();let origin=(i32::from(shot.origin[0]),i32::from(shot.origin[1]));let target=(i32::from(shot.target[0]),i32::from(shot.target[1]));if origin==target||speed==0{return Ok(false);}
+        let attributes=u.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s)).ok_or(Boundary::MissingHardwareProfile)?.attributes;
+        self.native_projectile_warning(index,shot.target);
+        //The original sound is attempted before the projectile-pool search.
+        let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));if shot.sound>=0&&self.native_feedback.sound_enabled!=0&&!super::original_feedback::outside_view(shot.origin,camera,size){self.emit_native_sample(i16::from(shot.sound),super::original_audio::Gate::Direct);}
+        let Some(id)=(0..50).find(|id|!self.projectiles.iter().any(|p|p.id==*id))else{return Ok(false);};let kind=if shot.rocket{Kind::Rocket}else{Kind::Shell};let range=i32::from(attributes.byte(5))*8;let cell=u.native_cell10 as u16 as usize;let (cx,cy)=(cell&127,cell>>7);let code=if cx<self.map.width&&cy<self.map.height{self.map.terrain_codes.get(cy*self.map.width+cx).copied().unwrap_or(0)}else{self.map.native_terrain_plane.get(cell).copied().unwrap_or(0)}&127;let elevation=i32::from(data::TERRAIN_HEIGHT[usize::from(code)])+2;
+        let attack=Attack{target:usize::MAX,damage:attributes.byte(6),aim:u.original_combat.as_ref().map_or(0,|c|c.aim_skill),facing:original_combat::facing(u.aim),bullet:false};self.projectiles.push(Projectile{id,x:f64::from(origin.0)*2.,y:f64::from(origin.1)*2.,team:u.team,kind,sprite:if shot.rocket{1622}else{1634},angle:native_math::projectile_angle(target.0-origin.0,target.1-origin.1),size:0,flight:Flight::new(origin,target,range,speed,elevation,kind),attack,shooter:u.native_slot});Ok(true)
+    }
+    ///44c220/45ae80 update only the projectile returned by a successful
+    ///allocation. A full later barrel cannot mutate the previous shot.
+    pub(crate) fn emit_native_hardware_caller_projectile(&mut self,index:usize,shot:super::original_hardware_point::Shot,howitzer:bool,unsigned_speed:bool)->Result<bool,super::original_path_contact::game::Boundary>{let made=self.emit_native_hardware_shot(index,shot,if unsigned_speed{i32::from(shot.speed as u8)}else{i32::from(shot.speed)})?;if made{let p=self.projectiles.last_mut().unwrap();if howitzer{p.kind=Kind::Howitzer;}}Ok(made)}
     /// Point orders share the unit weapon's windup and allocator. No damage is
     /// committed here; the world geometry at the eventual impact decides it.
     pub(crate) fn fire_native_ground(&mut self,index:usize,point:(f64,f64),target:usize,grenade:bool)->bool {
         if !grenade&&self.units[index].kind=="apc"{return self.fire_native_apc_point(index,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32),target);}
-        if grenade&&self.units[index].grenades==0{return false;}
-        let mut dummy=self.units[index].clone();dummy.id=target;
-        dummy.x=point.0-16.;dummy.y=point.1-16.;dummy.kind=if grenade{"medium"}else{"grunt"}.into();
-        if !self.advance_native_fire_choice(index,&dummy,grenade){return false;}
-        //56840 chooses its BUILD branch from the retained raw50 sentinel.
-        //The phase65 release must use raw54/56, including the source's
-        //zero-length rejection, rather than the generic target surrogate.
-        if !grenade&&self.units[index].native_phase35==65{
-            if let Some(point)=self.native_ground_attack_point(index){
-                let made=self.emit_native_ground_flame(index,point);
-                self.units[index].cooldown=self.units[index].original_combat.as_ref().map(|s|s.reload_seconds()).unwrap_or(stats(&self.units[index].kind).reload);
-                return made;
-            }
+
+        if let Some(made)=self.update_native_ground_flame(index){return made;}
+        //Synthetic/CLI maps lack the authored457020/44a040 caller. Preserve
+        //their directed explosive-fire contract with the verified19/49 seeds;
+        //this is an explicit web adapter, not an original class3 ground entry.
+        if self.map.native_road_graph.is_none()&&stats(&self.units[index].kind).cls==0{
+            let phase=if grenade&&self.units[index].grenades>0{Some((49,3))}else if !grenade&&self.units[index].kind=="tough"{Some((19,20))}else{None};
+            if let Some((phase,timer))=phase{if self.units[index].native_phase35!=phase||phase==19&&self.units[index].native_order5c!= -5{
+                let p=[(point.0/2.).floor()as i16,(point.1/2.).floor()as i16];let u=&mut self.units[index];u.native_phase35=phase;u.native_frame32=0;u.native_timer3c=timer;u.native_order5c=-5;u.native_idle=None;u.native_walk=None;u.native_fire=None;u.angle=native_math::angle(native_math::direction(i32::from(p[0])-(u.x/2.).floor()as i32,i32::from(p[1])-(u.y/2.).floor()as i32));u.aim=u.angle;if let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.promotion.order=(-5i8)as u8;m.promotion.target_x=3456;m.promotion.target_y=p[0];m.promotion.target_aux=p[1];}return false;
+            }}
         }
+        if !self.advance_native_ground_fire_choice(index,target,point,grenade){return false;}
+        if grenade&&self.units[index].grenades==0{return false;}
         let u=self.units[index].clone();let mut attack=Attack::from_unit(&u,target,if grenade{50.}else{self.native_unit_stats(&u).damage},u.aim);attack.bullet=false;
         let point=self.native_hardware_aim(&u,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32));
         let launched=self.launch_native_heavy_at(index,point,attack,grenade);
-        self.units[index].cooldown=self.units[index].original_combat.as_ref().map(|s|s.reload_seconds()).unwrap_or(stats(&u.kind).reload);
+        self.units[index].cooldown=if matches!(self.units[index].native_phase35,19|49){f64::from(100u8.wrapping_sub(self.units[index].original_combat.as_ref().map_or(80,|s|s.fire_rate)))/17.}else{self.units[index].original_combat.as_ref().map(|s|s.reload_seconds()).unwrap_or(stats(&u.kind).reload)};
         if launched{self.events.push(serde_json::json!({"kind":"shot","type":u.kind,"weapon":if grenade{"grenade"}else{"primary"},"x":u.x,"y":u.y,"team":u.team}));}
         launched
     }

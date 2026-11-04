@@ -171,7 +171,7 @@ impl Game{
  ///Allocate the real shared581f0/initial-constructor hardware slot. Repeated
  ///calls retain identity; a reused slot carries its prior target/counter bytes.
  pub(crate) fn allocate_native_hardware_record(&mut self,index:usize,vehicle_constructor:bool)->Option<usize>{
-  if let Some(slot)=self.units.get(index)?.native_hardware_slot{return Some(slot);}let profile=super::native_ai_scoring::default_input(&self.units[index].kind)?;let slot=self.allocate_native_takeover_record(index)?;self.native_hardware_pool[slot].initialize_profile(profile.hardware);let old=self.native_hardware_pool[slot].order;self.native_hardware_pool[slot].set_order(HardwareOrderRecord::after_constructor(old,vehicle_constructor));Some(slot)
+  if let Some(slot)=self.units.get(index)?.native_hardware_slot{return Some(slot);}let profile=super::native_ai_scoring::default_input(&self.units[index].kind)?;let slot=self.allocate_native_takeover_record(index)?;self.native_hardware_pool[slot].initialize_profile(profile.hardware);if let Some(state)=self.units[index].original_combat.as_mut(){state.fire_rate=profile.hardware.fire_rate;state.projectile_speed=Some(profile.hardware.projectile_speed);}self.units[index].native_reload7b=0;self.units[index].native_elevation76=0;self.units[index].native_range4=Some(profile.hardware.range.wrapping_mul(2)as i8);let old=self.native_hardware_pool[slot].order;self.native_hardware_pool[slot].set_order(HardwareOrderRecord::after_constructor(old,vehicle_constructor));Some(slot)
  }
  ///581f0 allocation alone.50be0/582c0's subsequent initialization belongs to
  ///the entry dispatcher; none of their writes are folded into this allocator.
@@ -210,7 +210,7 @@ impl Game{
  ///5a080's independentAA preamble. Call once per actual native unitcallback,
  ///before54160/handlers. A new command never clears this counter.
  pub(crate) fn advance_native_order_preamble(&mut self,index:usize){
-  if !self.map.original||self.units.get(index).is_none_or(|u|u.native_protectionaa==0||u.team<0||u.native_slot.is_none()||!super::original_combat::alive(true,u.hp)){return;}let u=&mut self.units[index];u.native_protectionaa-=1;u.native_flags9c&=!0x14;let slot=u.native_slot;
+  if !self.map.original||self.units.get(index).is_none_or(|u|u.native_protectionaa==0||u.team<0||u.native_slot.is_none()||!super::original_combat::alive(true,u.hp)){return;}self.native_protected_order_seen=true;let u=&mut self.units[index];u.native_protectionaa-=1;u.native_flags9c&=!0x14;let slot=u.native_slot;
   if let Some(exit)=u.native_factory_exit.as_mut(){exit.protection=u.native_protectionaa;exit.flags9c=u.native_flags9c;}
   if let Some(member)=slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){member.flags9c=self.units[index].native_flags9c;let group=usize::from(member.group);if let Some(row)=self.native_group_rosters.pool.get_mut(group){row.roster[9]&=!32;}}
  }
@@ -248,6 +248,8 @@ impl Game{
   if !self.map.original||self.units[index].native_order5c!=1{return;}let slot=self.units[index].native_slot;let role=slot.and_then(|s|self.native_group_rosters.role(s));
   if role==Some(-1){self.units[index].native_flags9c&=!32;if let Some(group)=self.native_group_rosters.current_roster.filter(|&s|s<240){let row=&mut self.native_group_rosters.pool[group].roster;row[8]=row[60];}}
   self.units[index].native_order5c=-1;if let Some(m)=slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.promotion.order=255;m.flags9c=self.units[index].native_flags9c;m.flags69&=0x7f;}
+  //538f0 after a selected52810 head, hardware-only movement state.
+  if self.units[index].native_class7c==1{let family=super::original_combat::animation_family(&self.units[index].kind);self.units[index].native_phase35=super::original_move_order::hardware_phase(family);self.units[index].native_flags64&=!8;if let Some(m)=slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.flags31&=!16;}if self.units[index].native_initiative_scan.flags71&1==0{let w=self.units[index].native_hardware_slot;let mut record=w.map(|w|self.native_hardware_pool[w].order).unwrap_or(self.native_hardware_dummy);record.field17=(record.field17&!2)|1;if let Some(w)=w{self.native_hardware_pool[w].set_order(record);}else{self.native_hardware_dummy=record;}}}
  }
  ///53290 entry accepts non-class2 actors and clears9c20 before target work.
  ///The actual5→−5 transition belongs to53290's accepted live-target branch.

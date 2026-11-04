@@ -20,7 +20,8 @@ window.OriginalArt=(()=>{
  function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
  // Native palette4 maps faction16..31 to neutral grayscale80..95 (0040bb50/00465cb0).
  function sprite(id,world,team=0){const key=`${id}:${world}:${team}`;if(cache.has(key))return cache.get(key);const f=manifest.frames[id];if(!f||!f.w||!f.h)return null;const c=cv(f.w,f.h),ctx=c.getContext('2d'),img=ctx.createImageData(f.w,f.h),pal=manifest.palettes[world]||manifest.palettes[0];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){const at=((f.y+y)*atlas.width+f.x+x)*4;let index=pixels[at];if(!pixels[at+3])continue;if(index>=16&&index<32)index=team<0?index+64:Number.isInteger(team)&&team>=0&&team<4?index+team*16:index;const p=(y*f.w+x)*4;img.data[p]=team===255?255:pal[index*3];img.data[p+1]=team===255?255:pal[index*3+1];img.data[p+2]=team===255?255:pal[index*3+2];img.data[p+3]=255;}ctx.putImageData(img,0,0);cache.set(key,c);return c;}
- function centered(ctx,id,u,map,offsetY=0){const im=sprite(id,map.world,u.team);if(!im)return false;ctx.drawImage(im,Math.round(u.x-im.width),Math.round(u.y-im.height+offsetY),im.width*2,im.height*2);return true;}
+ function paletteForUnit(u){return Number.isInteger(u.nativeDrawPalette)?u.nativeDrawPalette:u.team;}
+ function centered(ctx,id,u,map,offsetY=0){const im=sprite(id,map.world,paletteForUnit(u));if(!im)return false;ctx.drawImage(im,Math.round(u.x-im.width),Math.round(u.y-im.height+offsetY),im.width*2,im.height*2);return true;}
  function neutralSprite(u){return Number.isInteger(u.nativeObjectSprite)?u.nativeObjectSprite:manifest?.neutralUnits?.[u.type];}
  function gunFrame(u){if(u.team<0&&neutralSprite(u)!==undefined)return neutralSprite(u);const layout=manifest?.gunLayouts?.[u.type]||gunLayouts[u.type];if(!layout)return null;const rate=u.originalCombat?.fireRate??({gatling:97,howitzer:10})[u.type],freshShot=u.cooldown>0&&Number.isFinite(rate)&&Math.abs(u.cooldown-(100-Math.min(100,rate))/17)<1e-6;return layout.base+dir(u.aim)*layout.stride+(layout.stride===2&&freshShot?1:0);}
  //00455f10 queues raw X; queue elevation is cancelled again in004549f0.
@@ -28,8 +29,8 @@ window.OriginalArt=(()=>{
  function layerBounds(parts){const layers=parts.map(p=>({...p,x:Math.round(p.x),y:Math.round(p.y),frame:manifest.frames[p.id]})).filter(p=>p.frame);if(!layers.length)return null;const x=Math.min(...layers.map(p=>p.x)),y=Math.min(...layers.map(p=>p.y));return {x,y,w:Math.max(...layers.map(p=>p.x+p.frame.w*2))-x,h:Math.max(...layers.map(p=>p.y+p.frame.h*2))-y};}
  //00455f10 queues infantry at the native upper-left anchor; the former
  // browser centering (-8,-15 native pixels) displaced robots from their bullets.
- function robotFrame(u,time=0){if(u.nativeCover)return 2075+u.nativeCover.frame32;const tr=u.nativeTransport;if(tr?.phase==='entering')return 5217+tr.direction*5+tr.frame;if(tr?.phase==='exiting')return 5257+tr.direction*6+tr.frame;if(u.nativeContact?.phase<2)return u.nativeContact.phase===0?(u.nativeContact.side?316:315):(u.nativeContact.side?365:319)+u.nativeContact.frame;if(u.nativeIdle&&!u.moving&&!u.nativeFire)return 184+u.nativeIdle.direction*3+u.nativeIdle.frame;const pointFire=({20:[127,5],21:[226,3],66:[2522,4],73:[6022,3],74:[1340,3]})[u.nativePhase35];if(pointFire&&Number.isInteger(u.nativeFrame32))return pointFire[0]+dir(u.aim)*pointFire[1]+u.nativeFrame32;const seq=u.nativeFire?.mode==='grenade'?[2522,4]:attack[u.type];if(!seq)return null;const firing=Boolean(u.nativeFire)||(!u.originalCombat&&u.cooldown>0&&u.order!=='move'),frame=firing?Math.min(seq[1]-1,u.nativeFire?.frame??Math.floor(time*12)%seq[1]):0;return u.moving?74+dir(u.angle)*4+(u.nativeWalk?.frame??Math.floor(time*8)%4):firing?seq[0]+dir(u.aim)*seq[1]+frame:66+dir(u.angle);}
- const robotY=u=>u.y+(u.nativeContact?.phase===0?-64:0);
+ function robotFrame(u,time=0){if(u.nativePhase35===33)return 1959+(u.nativeFrame32??0);if(u.nativePhase35===42)return 66+dir(u.angle)+(u.nativeFrame32??0);const rawFire=({19:[226,3],49:[2522,4],65:[6022,3]})[u.nativePhase35];if(rawFire&&Number.isInteger(u.nativeFrame32))return rawFire[0]+dir(u.angle)*rawFire[1]+u.nativeFrame32;if(u.nativeCover)return 2075+u.nativeCover.frame32;const tr=u.nativeTransport;if(tr?.phase==='entering')return 5217+tr.direction*5+tr.frame;if(tr?.phase==='exiting')return 5257+tr.direction*6+tr.frame;if(u.nativeContact?.phase<2)return u.nativeContact.phase===0?(u.nativeContact.side?316:315):(u.nativeContact.side?365:319)+u.nativeContact.frame;if(u.nativeIdle&&!u.moving&&!u.nativeFire)return 184+u.nativeIdle.direction*3+u.nativeIdle.frame;const pointFire=({20:[127,5],21:[226,3],66:[2522,4],73:[6022,3],74:[1340,3]})[u.nativePhase35];if(pointFire&&Number.isInteger(u.nativeFrame32))return pointFire[0]+dir(u.aim)*pointFire[1]+u.nativeFrame32;const seq=u.nativeFire?.mode==='grenade'?[2522,4]:attack[u.type];if(!seq)return null;const firing=Boolean(u.nativeFire)||(!u.originalCombat&&u.cooldown>0&&u.order!=='move'),frame=firing?Math.min(seq[1]-1,u.nativeFire?.frame??Math.floor(time*12)%seq[1]):0;return u.moving?74+dir(u.angle)*4+(u.nativeWalk?.frame??Math.floor(time*8)%4):firing?seq[0]+dir(u.aim)*seq[1]+frame:66+dir(u.angle);}
+ const robotY=u=>u.y;
  function unitBounds(u,map,time=0){if(!ready||!map?.original||u.nativeTransport?.visible===false)return null;if(attack[u.type]&&Number.isFinite(u.x)&&Number.isFinite(u.y)){const f=manifest.frames[robotFrame(u,time)];return f?{x:Math.round(u.x),y:Math.round(robotY(u)),w:f.w*2,h:f.h*2}:null;}if(u.team<0&&neutralSprite(u)!==undefined){const f=manifest.frames[neutralSprite(u)];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}if(u.type==='jeep')return layerBounds(jeepLayers(u,time,map));if(manifest.unitLayouts?.[u.type])return layerBounds(vehicleLayers(u,time,map));if(!guns.has(u.type))return null;const f=manifest.frames[gunFrame(u)];return f?{x:Math.round(u.x),y:Math.round(u.y),w:f.w*2,h:f.h*2}:null;}
  // Contextual attacks use the whole currently rendered unit, including heads,
  // barrels and crane arms. Collect renderer rectangles instead of duplicating
@@ -54,7 +55,7 @@ window.OriginalArt=(()=>{
   const p=manifest.unitLayouts?.jeep,d=dir(u.angle),aim=dir(u.aim);
   if(!p)return [{id:5590+d*2,x:u.x-12,y:u.y-12}];
   const tick=Math.max(0,Math.floor(time*17)),wheelPhase=u.moving?(u.nativeMoveFrame??tick%4):0;
-  const terrain=(map.terrainCodes?.[Math.floor(u.y/32)*map.width+Math.floor(u.x/32)]||0)&127;
+  const terrain=(u.nativeTerrainCode??map.terrainCodes?.[Math.floor(u.y/32)*map.width+Math.floor(u.x/32)]??0)&127;
   const bodyPhase=u.moving?(([7,51,23].includes(terrain)?wheelPhase>>1:wheelPhase)&1):(tick>>1&1);
   const x=u.x+p.anchor[0]*2,y=u.y+p.anchor[1]*2,parts=[];
   if(p.underlay[d])parts.push({id:p.underlay[d]+wheelPhase,x,y});
@@ -62,12 +63,12 @@ window.OriginalArt=(()=>{
   parts.push({id:p.weapon+aim*2+(u.cooldown>0?1:0),x:x+(p.weaponAnchor[0]+p.bodyOffsets[d][0]+p.aimOffsets[aim][0])*2,y:y+(p.weaponAnchor[1]+p.bodyOffsets[d][1]+p.aimOffsets[aim][1]-bodyPhase)*2});
   return parts;
  }
- function unit(ctx,u,time,map){if(!ready||!map.original)return false;selectNativePalette(ctx,u.team);if(u.nativeTransport?.visible===false)return true;const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?(u.nativeMoveFrame??Math.floor(time*8)%3):0;
-  if(u.type==='jeep'){for(const p of jeepLayers(u,time,map))native(ctx,p.id,p.x,p.y,map,u.team);return true;}
-  if(u.team<0&&neutralSprite(u)!==undefined)return native(ctx,neutralSprite(u),u.x,u.y,map,u.team);
-  if(guns.has(u.type))return native(ctx,gunFrame(u),u.x,u.y,map,u.team);
+ function unit(ctx,u,time,map){if(!ready||!map.original)return false;selectNativePalette(ctx,paletteForUnit(u));if(u.nativeTransport?.visible===false)return true;const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?(u.nativeMoveFrame??Math.floor(time*8)%3):0;
+  if(u.type==='jeep'){for(const p of jeepLayers(u,time,map))native(ctx,p.id,p.x,p.y,map,paletteForUnit(u));return true;}
+  if(u.team<0&&neutralSprite(u)!==undefined)return native(ctx,neutralSprite(u),u.x,u.y,map,paletteForUnit(u));
+  if(guns.has(u.type))return native(ctx,gunFrame(u),u.x,u.y,map,paletteForUnit(u));
   if(manifest.unitLayouts?.[u.type])return vehicle(ctx,u,time,map,d,aim,walking);
-  if(attack[u.type])return native(ctx,robotFrame(u,time),u.x,robotY(u),map,u.team);
+  if(attack[u.type])return native(ctx,robotFrame(u,time),u.x,robotY(u),map,paletteForUnit(u));
   if(HULL[u.type]){centered(ctx,HULL[u.type]+(u.type==='apc'?d:d%4)*3+walking,u,map);if(TURRET[u.type])centered(ctx,TURRET[u.type]+aim,u,map);return true;}
   if(u.type==='launcher'){centered(ctx,1845+d*3+walking,u,map);centered(ctx,1869+aim,u,map);return true;}
   if(u.type==='crane')return centered(ctx,u.team<0?5834:5834+d*3+walking,u,map);
@@ -99,7 +100,7 @@ window.OriginalArt=(()=>{
   return parts;
  }
  function vehicle(ctx,u,time,map,d,aim,walking){
-  for(const p of vehicleLayers(u,time,map,d,aim,walking))native(ctx,p.id,p.x,p.y,map,u.team);
+  for(const p of vehicleLayers(u,time,map,d,aim,walking))native(ctx,p.id,p.x,p.y,map,paletteForUnit(u));
   return true;
  }
  function native(ctx,id,x,y,map,team=null){selectNativePalette(ctx,team);const im=sprite(id,map.world,Number.isInteger(team)?team:(nativePalettes.get(ctx)??0));if(!im)return false;ctx.drawImage(im,Math.round(x),Math.round(y),im.width*2,im.height*2);return true;}
@@ -123,7 +124,7 @@ window.OriginalArt=(()=>{
    const conveyorThreshold=(Math.trunc(max)-3*Math.trunc(max/5))<<24>>24;
    if(owned&&b.hp>conveyorThreshold)for(let i=0;i<6;i++)part('0040bfe0',tick&1,i);
   }else if(b.kind==='radar'){
-   part('0040c8a0',healthy20?1:0);part('0040c930',tick&1);part('0040ca70',healthy40?tick%12:0);part('0040c9b0',healthy20?tick%8:0);
+   part('0040c8a0',healthy20?1:0);part('0040c930',tick&1);part('0040ca70',healthy40?tick%12:0);if(!b.nativeRadarDishQueued)part('0040c9b0',healthy20?tick%8:0);
   }else if(b.kind==='repair'){
    part('0040cdf0',healthy40?1:0);part('0040ce60',above(3)?tick%3:0);part('0040ced0',healthy40?1:0);teamOverlay(ctx,b,map,descriptor,false);
    if(!owned)part('0040cda0');else if(tick<3)part('0040cda0',tick+1);
@@ -142,8 +143,9 @@ window.OriginalArt=(()=>{
   if(!b||b.team<0||(b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?b.nativeFortDestroyed:b.hp<=0)||!b.product||!['vehicle','robot','fort'].includes(b.kind))return null;
   //0040ad60 holds68 native updates after completion. The producer draws
   //0:00 only when00622d40&2;00434a70 advances that phase every other update.
-  //The17Hz global phase is the web clock adaptation, not a measured OS scheduler.
-  if(b.completionTicks>0)return ((Math.max(0,Math.floor(time*17))+1)>>1&2)?'0:00':null;
+  //Captured BUILD rows retain the actual622d40 phase at40ad60. The clock
+  //conversion remains only for callers outside that native queue adapter.
+  if(b.completionTicks>0)return (Number.isInteger(b.nativeFlagFrame)?b.nativeFlagFrame&2:((Math.max(0,Math.floor(time*17))+1)>>1&2))?'0:00':null;
   if(seconds===null)return '*:**';
   if(!Number.isFinite(seconds))return null;
   const value=Math.min(599,Math.max(0,Math.trunc(seconds)));
@@ -210,5 +212,5 @@ window.OriginalArt=(()=>{
  function fires(ctx,items,map){if(!ready||!map?.original)return false;for(const f of items)native(ctx,f.sprite,f.x,f.y,map,null);return true;}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
  async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
- return {load,selectNativePalette,unit,unitBounds,attackBounds,jeepLayers,vehicleLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,attackCursor,attackMarker,workshopCursor,workshopMarker,bullets,projectiles,blasts,fires,nativeEffects,effects,object,objectShadows,objectDepth,crate,crateBounds,get ready(){return ready;}};
+ return {load,selectNativePalette,nativePalette:ctx=>nativePalettes.get(ctx)??0,unit,unitBounds,attackBounds,jeepLayers,vehicleLayers,fortGuns,building,production,productionText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,attackCursor,attackMarker,workshopCursor,workshopMarker,bullets,projectiles,blasts,fires,nativeEffects,effects,object,objectShadows,objectDepth,crate,crateBounds,get ready(){return ready;}};
 })();

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z · Rust Browser</title>
+
+
+<style>
+  :root {
+    --bg: #0d0f12; --steel: #4a5059; --steel-hi: #7b838e; --steel-lo: #23272d; --well: #101317;
+    --text: #e9e4d2; --dim: #9aa39c; --accent: #ffd23a; --red: #d23b2a; --blue: #2f62d6; --green: #3ed43e;
+    --font: "VT323", "Lucida Console", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 20px/1.1 var(--font); user-select: none; -webkit-user-select: none; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  canvas#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; touch-action: none; }
+  .hidden { display: none !important; }
+
+  /* bevelled steel, like riveted plates */
+  .steel { background: linear-gradient(180deg, #5a616b 0%, #454b54 45%, #3a3f47 100%); border: 2px solid; border-color: var(--steel-hi) var(--steel-lo) var(--steel-lo) var(--steel-hi); box-shadow: inset 0 0 0 1px #000; }
+  .well { background: var(--well); border: 2px solid; border-color: var(--steel-lo) var(--steel-hi) var(--steel-hi) var(--steel-lo); }
+  button { font: inherit; font-size: 20px; color: var(--text); background: linear-gradient(180deg, #6a727d, #4b525b); border: 2px solid; border-color: #9aa3ae #22262b #22262b #9aa3ae; padding: 2px 10px; cursor: pointer; text-shadow: 1px 1px 0 #000; }
+  button:hover:not(:disabled) { background: linear-gradient(180deg, #7d8692, #59616b); }
+  button:active:not(:disabled) { border-color: #22262b #9aa3ae #9aa3ae #22262b; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: linear-gradient(180deg, #ffe066, #d9a920); color: #1b1b1b; text-shadow: none; border-color: #fff2a8 #7a5d0a #7a5d0a #fff2a8; }
+  button.on { background: linear-gradient(180deg, #3a3416, #57491a); border-color: #22262b #ffd23a #ffd23a #22262b; color: var(--accent); }
+
+  /* ---------- in-game display, laid out like the original: clock and messages on top, panels on demand ---------- */
+  .plaque { position: absolute; left: 50%; transform: translateX(-50%); padding: 1px 12px; color: #e8ecf4; text-shadow: 1px 1px 0 #000;
+    background: linear-gradient(180deg, #8d95a6 0%, #5b6274 50%, #444a59 100%); border: 2px solid; border-color: #c3c9d6 #23262e #23262e #c3c9d6; box-shadow: 0 2px 0 #000; }
+  #clockBox { top: 6px; font-size: 20px; letter-spacing: 1px; }
+  #msgBox { top: 36px; min-width: 220px; text-align: center; font-size: 22px; letter-spacing: 1px; transition: opacity 0.4s; }
+  #msgBox.good { color: #b9ffb0; } #msgBox.bad { color: #ffb3a8; }
+  #msgBox.fade { opacity: 0; }
+  #terrBox { left: 8px; top: 6px; transform: none; display: flex; gap: 8px; align-items: center; font-size: 18px; }
+  #terr { width: 110px; height: 10px; display: flex; border: 1px solid #000; background: #2a2a2a; }
+  #terr i { display: block; height: 100%; transition: width 0.4s; }
+  #terrR { background: var(--red); } #terrN { flex: 1; } #terrB { background: var(--blue); }
+  #lvTitle { max-width: 34vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cfd5e2; }
+  #topBtns { position: absolute; top: 6px; right: 8px; display: flex; gap: 4px; }
+  #topBtns button { padding: 0 8px; }
+  #mode { position: absolute; top: 66px; left: 50%; transform: translateX(-50%); background: var(--red); padding: 1px 10px; border: 2px solid #000; }
+  #acts { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 4px; flex-wrap: wrap; max-width: 60vw; }
+  #miniBtn { position: absolute; right: 8px; bottom: 8px; width: 44px; height: 44px; padding: 0; font-size: 26px; border-radius: 50%; }
+  #miniPanel { position: absolute; right: 8px; bottom: 60px; padding: 4px; }
+  #mini { display: block; cursor: crosshair; }
+
+  /* building panel, opened next to the building */
+  #bpanel { position: absolute; display: flex; gap: 2px; z-index: 2; }
+  .zarrows { display: flex; flex-direction: column; gap: 2px; padding-top: 22px; }
+  .zarrows button { width: 26px; height: 40px; padding: 0; font-size: 16px; }
+  .zbody { padding: 3px 5px 6px; background: linear-gradient(180deg, #9ba1ad 0%, #6c727f 100%); border: 2px solid; border-color: #d3d8e1 #2a2d34 #2a2d34 #d3d8e1; box-shadow: 2px 3px 0 rgba(0,0,0,0.6); }
+  .zhead { display: flex; gap: 8px; align-items: center; padding: 0 4px; margin-bottom: 4px; background: #3d4352; border: 1px solid #1c1f26; color: #f2f4f8; white-space: nowrap; }
+  .zhead #bpStars { color: var(--accent); }
+  .zhead #bpPct { margin-left: auto; background: #7a1d16; padding: 0 4px; }
+  .zrow { display: flex; gap: 6px; }
+  .zport { position: relative; width: 84px; display: flex; flex-direction: column; border: 2px solid; border-color: #2a2d34 #d3d8e1 #d3d8e1 #2a2d34; background: #1d2420; }
+  .zport canvas { width: 80px; height: 72px; display: block; }
+  .zport b { position: absolute; left: 3px; top: 0; font-weight: normal; color: var(--accent); text-shadow: 1px 1px 0 #000; }
+  #bpUnit { background: #8a1c13; color: #fff; text-align: center; font-size: 16px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .zbtns { display: flex; flex-direction: column; gap: 3px; min-width: 92px; }
+  .zbtns button { padding: 0 6px; font-size: 18px; background: linear-gradient(180deg, #6d7891, #4a5368); }
+  #bpTime { background: #2b303c; border: 1px solid #14161b; text-align: center; font-size: 18px; color: #e8ecf4; }
+  #bpOk { color: var(--accent); }
+
+  /* ---------- menus ---------- */
+  .screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 16px;
+    background: radial-gradient(ellipse at 62% 30%, rgba(255, 214, 120, 0.85) 0%, rgba(214, 120, 40, 0.55) 18%, rgba(90, 52, 26, 0.6) 42%, transparent 70%),
+      radial-gradient(ellipse at 20% 85%, rgba(160, 130, 90, 0.35) 0%, transparent 55%),
+      linear-gradient(180deg, #4a3a2a 0%, #2a2016 60%, #17110b 100%);
+    background-size: cover; background-position: center; }
+  /* menu like the original: big yellow chrome words over a battle scene, pages on a plate with warning stripes */
+  .zmenu { flex-direction: column; }
+  .mtitle { font: 64px/1 "Audiowide", var(--font); letter-spacing: 4px; margin: 0 0 18px; text-align: center;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffe25a 35%, #e3a400 60%, #fff3a0 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #2a1a00) drop-shadow(0 0 6px rgba(255, 200, 40, 0.5)); }
+  .mlist { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .mitem { font: 38px/1.15 "Audiowide", var(--font); background: none; border: none; padding: 0 4px; cursor: pointer; text-shadow: none;
+    background-image: linear-gradient(180deg, #fff6c0 0%, #ffd400 45%, #b37a00 75%, #ffe680 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(3px 3px 0 #3b2400); }
+  .mitem:hover:not(:disabled), .mitem:active:not(:disabled), .mitem:focus-visible { border: none; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(180deg, #ffffff 0%, #fff27a 45%, #ffcc00 75%, #ffffff 100%); filter: drop-shadow(3px 3px 0 #3b2400) drop-shadow(0 0 8px #ffe000); }
+  .mitem:disabled { opacity: 0.4; }
+  .box { position: relative; padding: 22px 22px 24px; color: #efe7d2;
+    background: radial-gradient(ellipse at 50% 45%, rgba(70, 50, 34, 0.9), rgba(52, 46, 42, 0.96) 70%), #3c3833; background-size: 100% 100%;
+    border: 2px solid #15120f; box-shadow: 0 0 0 1px #6b6359 inset, 6px 8px 0 rgba(0, 0, 0, 0.55); }
+  .box::before, .box::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background: repeating-linear-gradient(-45deg, #d9b21c 0 10px, #1b1712 10px 20px); opacity: 0.85; }
+  .box::before { top: 4px; } .box::after { bottom: 4px; }
+  .box.zskin { background-color: transparent; }
+  .box.zskin::before, .box.zskin::after { display: none; }
+  .mpanel { width: min(780px, 100%); max-height: 100%; overflow: auto; }
+  .mback { margin-top: 14px; }
+  .overlay { background: rgba(5, 6, 8, 0.72); }
+  .card { width: min(760px, 100%); padding: 20px 22px; max-height: 100%; overflow: auto; }
+  .card.small { width: min(420px, 100%); text-align: center; }
+  h1 { margin: 0; font-size: 72px; line-height: 0.9; letter-spacing: 6px; font-weight: normal; text-shadow: 4px 4px 0 #000; }
+  h1 b { color: var(--red); font-weight: normal; } h1 i { color: #8fb0ff; font-style: normal; }
+  h2 { margin: 0 0 10px; font-size: 40px; font-weight: normal; text-shadow: 3px 3px 0 #000; }
+  .tag { color: var(--dim); margin: 2px 0 14px; }
+  h4 { margin: 16px 0 8px; font-weight: normal; color: var(--accent); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; letter-spacing: 1px; }
+  .world { display: grid; grid-template-columns: 170px repeat(4, 1fr); gap: 6px; align-items: center; margin-bottom: 6px; }
+  .world .wn { display: flex; align-items: center; gap: 8px; }
+  .world .sw { width: 16px; height: 16px; border: 2px solid #000; flex: none; }
+  .lvl { padding: 6px 0; }
+  .lvl.done { color: var(--green); }
+  .row { display: flex; gap: 8px; margin-top: 14px; justify-content: space-between; flex-wrap: wrap; }
+  .center { justify-content: center; }
+  #diffBtns, #ctrlBtns { display: flex; gap: 4px; align-items: center; }
+  .sk { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .sk label { display: flex; flex-direction: column; gap: 2px; color: var(--dim); }
+  select, input { font: inherit; color: var(--text); background: var(--well); border: 2px solid; border-color: var(--steel-lo) var(--steel-hi) var(--steel-hi) var(--steel-lo); padding: 2px 6px; }
+  input#skSeed { width: 90px; }
+  label.btn { font: inherit; color: var(--text); background: linear-gradient(180deg, #6a727d, #4b525b); border: 2px solid; border-color: #9aa3ae #22262b #22262b #9aa3ae; padding: 2px 10px; cursor: pointer; text-shadow: 1px 1px 0 #000; }
+  label.btn:hover { background: linear-gradient(180deg, #7d8692, #59616b); }
+  #zBtns { display: flex; gap: 4px; align-items: center; }
+  .zl { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; }
+  .zl button { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #helpBody p { margin: 0 0 10px; color: #d8d3c2; user-select: text; }
+  #helpBody b { color: var(--accent); font-weight: normal; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; margin: 12px auto; width: fit-content; text-align: left; color: var(--dim); }
+  .stats b { color: var(--text); text-align: right; font-weight: normal; }
+  #endBest { color: var(--accent); min-height: 22px; }
+  @media (max-width: 640px) { .world { grid-template-columns: repeat(4, 1fr); } .world .wn { grid-column: 1 / -1; } h1 { font-size: 52px; } }
+
+  /* Standalone visual edition: authored industrial plates and our own rendered battlefield. */
+  :root { --font: "Lucida Console", "Courier New", monospace; }
+  #menu { background-color:#8d774e; image-rendering:pixelated; background-size:cover; background-position:65% 50%; }
+  #menu::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(13,22,19,.96),rgba(15,23,19,.85) 32%,rgba(15,23,19,.1) 76%),linear-gradient(0deg,rgba(11,19,16,.7),transparent 35%); pointer-events:none; }
+  #menu>div { position:relative; }
+  #mMain { width:min(1120px,100%); padding:24px; }
+  .edition { color:#c4b887; font-size:12px; letter-spacing:3px; }
+  .mtitle { text-align:left; font:italic 900 clamp(100px,18vw,190px)/1 Impact,"Arial Black",sans-serif; letter-spacing:-12px; margin:6px 0; width:200px; filter:drop-shadow(5px 6px 0 #423416); }
+  .menu-intro { font-size:11px; color:#b9bba0; letter-spacing:2px; margin:12px 0 30px; }
+  .mlist { gap:12px; }
+  .mitem { font:700 clamp(20px,3vw,30px)/1.3 "Courier New",monospace; letter-spacing:1px; }
+  #miQuick { padding:10px 18px; margin-bottom:10px; color:#20291f; background:#dac168; border:2px solid; border-color:#f6e4a5 #69572c #69572c #f6e4a5; filter:none; text-shadow:none; }
+  #miQuick:hover { background:#f2d780; color:#17241c; }
+  #tagline { text-align:left!important; color:#b7bda7; max-width:390px; font-size:12px; line-height:1.7; margin-top:30px!important; }
+  .box { background-color:#39443a; background-image:repeating-linear-gradient(0deg,transparent 0 3px,#ffffff03 3px 4px); }
+  .plaque { background:linear-gradient(#a2aa94,#646f60); border-color:#d5d8bb #29382a #29382a #d5d8bb; color:#f2efcf; font-size:14px; }
+  #clockBox { font-size:16px; } #terrBox { font-size:12px; } #msgBox { font-size:17px; }
+  .steel,.zbody { background:linear-gradient(#a7ad96,#697560); border-color:#d4d6ba #2c3a2e #2c3a2e #d4d6ba; }
+  .zhead { background:#344a39; } .zbtns button { background:linear-gradient(#7b8a72,#4b604b); }
+  button:focus-visible,.btn:focus-within { outline:2px solid #ffe5a0; outline-offset:4px; }
+  @media(max-width:600px) { #mMain{padding:12px}.edition{font-size:9px;letter-spacing:1px} #lvTitle{display:none}.mitem{font-size:22px} .menu-intro{font-size:9px} #menu::before{background:rgba(13,22,19,.75)} }
+
+  .difficulty { max-width:360px;margin:0 0 20px; }
+  .difficulty label { font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#c8c8ac; }
+  #quickDiff { display:block; margin-top:8px;width:100%;padding:8px;color:#eee6bd;background:#26392e;border:1px solid #7e8a68;font:16px monospace; }
+  #diffDescription { font:12px/1.5 monospace;color:#b6bda5;margin:8px 0;min-height:36px; }
+  .audio-settings { display:grid;gap:12px;padding:14px 0;text-align:left;font-size:14px; }
+  .audio-settings label { display:grid;grid-template-columns:90px 1fr 40px;align-items:center;gap:12px; }
+  .audio-settings input { min-width:0;width:100%;accent-color:#dfc470; }
+  .radio { position:absolute;left:12px;bottom:66px;display:flex;align-items:center;gap:12px;max-width:min(410px,75vw);padding:10px 14px;background:#1d302bea;border:1px solid #899b79;box-shadow:3px 3px 0 #0006;color:#f1ebc7;font:15px/1.4 monospace;pointer-events:none; }
+  .radio canvas { width:56px;height:56px;flex-shrink:0;background:#101e18;border:1px solid #61795d; }
+  .radio small { color:#b3bd88;letter-spacing:3px;font-size:10px; }
+  .radio.urgent { border-color:#dbb76a; }
+  #mMain { padding-top:12px;padding-bottom:12px; } .mtitle { font-size:clamp(80px,13vw,150px); }
+  .menu-intro { margin-bottom:18px; } .mlist{gap:8px} #tagline{margin-top:18px!important}
+  @media(max-height:800px){.mtitle{font-size:90px}.mitem{font-size:22px}.menu-intro{margin:6px 0 12px}.difficulty{margin-bottom:12px}#miQuick{padding:6px 12px}#tagline{margin-top:12px!important}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="terrBox" class="plaque"><div id="terr"><i id="terrR"></i><i id="terrN"></i><i id="terrB"></i></div><span id="terrTxt"></span><span id="lvTitle"></span></div>
+  <div id="clockBox" class="plaque"><span id="clock">0:00:00</span></div>
+  <div id="msgBox" class="plaque fade"></div>
+  <div id="mode" class="hidden"></div>
+  <div id="topBtns"><button id="btnFull" title="Vollbild">⛶</button><button id="btnMenu" title="Menü">☰</button><button id="btnSpeed">1×</button><button id="btnSound">♪</button></div>
+  <div id="bpanel" class="hidden">
+    <div class="zarrows"><button id="bpUp">▲</button><button id="bpDown">▼</button></div>
+    <div class="zbody">
+      <div class="zhead"><span id="bpName"></span><span id="bpStars"></span><span id="bpPct"></span></div>
+      <div class="zrow">
+        <div class="zport"><canvas id="bpPort" width="40" height="36"></canvas><b id="bpCount"></b><div id="bpUnit"></div></div>
+        <div class="zbtns"><button id="bpRally"></button><button id="bpCancel"></button><div id="bpTime"></div><button id="bpOk">Ok</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="radio" class="radio hidden" role="status"><canvas id="radioPortrait" width="28" height="28"></canvas><div><small id="radioLabel">FUNK</small><div id="radioText"></div></div></div>
+  <div id="acts"></div>
+  <button id="miniBtn" title="Karte">▦</button>
+  <div id="miniPanel" class="steel hidden"><canvas id="mini"></canvas></div>
+</div>
+
+<div id="menu" class="screen zmenu">
+  <div id="mMain">
+    <div class="edition">ZONEBOTS &middot; STANDALONE EDITION</div><div class="mtitle">Z</div><div class="menu-intro">ROBOTS. TERRITORY. TOTAL WAR.</div>
+    <div class="difficulty"><label id="quickDiffLabel" for="quickDiff">Schwierigkeit</label><select id="quickDiff"></select><p id="diffDescription"></p></div>
+    <div class="mlist">
+      <button class="mitem" id="miQuick">Spiel starten</button>
+      <button class="mitem" data-go="mPlay" id="miPlay"></button>
+      <button class="mitem hidden" data-go="mOrig" id="miOrig"></button>
+      <button class="mitem" data-go="mSkirm" id="miSkirm"></button>
+      <button class="mitem" data-go="mOpts" id="miOpts"></button>
+      <button class="mitem" id="btnHelp"></button>
+    </div>
+    <div class="tag" id="tagline" style="text-align:center;margin-top:18px"></div>
+  </div>
+  <div id="mPlay" class="mpanel box hidden">
+    <h4><span id="campTitle"></span></h4>
+    <span id="diffLabel" class="hidden"></span>
+    <div id="worlds"></div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mOrig" class="mpanel box hidden">
+    <h4><span id="zTitle"></span><span id="zBtns"><label class="btn" id="zPickLabel"><input type="file" id="zPick" webkitdirectory directory multiple hidden><span id="zPickText"></span></label><label class="btn" id="zZipLabel"><input type="file" id="zZip" accept=".zip,application/zip" hidden><span id="zZipText"></span></label><button id="zForget" class="hidden"></button></span></h4>
+    <div id="zHint" class="tag"></div>
+    <div id="zLevels" class="zl"></div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mSkirm" class="mpanel box hidden">
+    <h4><span id="skTitle"></span></h4>
+    <div class="sk">
+      <label><span></span><select id="skSize"></select></label>
+      <label><span></span><select id="skWorld"></select></label>
+      <label><span></span><select id="skTech"></select></label>
+      <label><span></span><input id="skSeed" type="number" min="1" max="999999"></label>
+      <button id="btnSeed" title="Random">⚄</button>
+      <button id="btnSkirmish" class="primary"></button>
+    </div>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+  <div id="mOpts" class="mpanel box hidden">
+    <div id="audioSettings" class="audio-settings"></div>
+    <h4><span id="optDiffTitle"></span><span id="diffBtns"></span></h4>
+    <h4><span id="ctrlTitle"></span><span id="ctrlBtns"></span></h4>
+    <h4><span id="langTitle"></span><button id="btnLang"></button></h4>
+    <button class="mback" data-go="mMain"></button>
+  </div>
+</div>
+
+<div id="help" class="screen overlay hidden">
+  <div class="card box">
+    <h2 id="helpTitle"></h2>
+    <div id="helpBody"></div>
+    <div class="row center"><button class="primary" id="btnHelpBack"></button></div>
+  </div>
+</div>
+
+<div id="pause" class="screen overlay hidden">
+  <div class="card small box">
+    <h2 id="pauseTitle"></h2><div id="pauseAudio" class="audio-settings"></div>
+    <div class="row center">
+      <button class="primary" id="btnResume"></button>
+      <button id="btnRestart"></button>
+      <button id="btnPauseHelp"></button>
+      <button id="btnQuit"></button>
+    </div>
+  </div>
+</div>
+
+<div id="end" class="screen overlay hidden">
+  <div class="card small box">
+    <h2 id="endTitle"></h2>
+    <div id="endSub" class="tag"></div>
+    <div class="stats" id="endStats"></div>
+    <div id="endBest"></div>
+    <div class="row center">
+      <button class="primary" id="btnNext"></button>
+      <button id="btnRetry"></button>
+      <button id="btnEndMenu"></button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/map.js"></script>
+<script src="js/zdata.js"></script>
+<script src="js/game.js"></script>
+<script src="js/art.js"></script>
+<script src="js/render.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

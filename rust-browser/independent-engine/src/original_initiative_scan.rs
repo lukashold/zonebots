@@ -63,7 +63,7 @@ pub fn clear_ray(mut start:[i16;3],mut end:[i16;3],mut height:impl FnMut(i16)->i
  if start[2]!=0{start[2]=start[2].wrapping_add(1);}if end[2]!=0{end[2]=end[2].wrapping_add(1);}
  start[0]>>=4;start[1]>>=4;end[0]>>=4;end[1]>>=4;if start[0]>=end[0]{std::mem::swap(&mut start,&mut end);}
  let delta=std::array::from_fn::<_,3,_>(|i|i32::from(end[i])-i32::from(start[i]));let abs=delta.map(i32::abs);let signs=delta.map(|n|if n<0{-1}else{1});
- let major=if abs[1]<abs[0]&&abs[2]<=abs[0]{0}else if abs[0]<=abs[1]&&abs[2]<=abs[1]{1}else{2};let length=abs[major];let mut error=[length>>1;3];let mut at=start.map(i32::from);
+ let major=if abs[1]<abs[0]&&abs[2]<=abs[0]{0}else if abs[0]<=abs[1]&&abs[2]<=abs[1]{1}else{2};let length=abs[major];let mut error=[length>>1;3];/*431ee0 X-major uses a zero Z accumulator.*/if major==0{error[2]=0;}let mut at=start.map(i32::from);
  for _ in 0..length{at[major]+=signs[major];for axis in 0..3{if axis!=major{error[axis]-=abs[axis];if error[axis]<0{error[axis]+=length;at[axis]+=signs[axis];}}}let cell=(at[0]+at[1]*128)as i16;if i16::from(height(cell))>at[2]as i16{return false;}}
  true
 }

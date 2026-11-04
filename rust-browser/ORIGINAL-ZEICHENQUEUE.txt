@@ -1,0 +1,84 @@
+ORIGINALABGLEICH ZEICHENQUEUE – 04.11.2026
+
+BELEGT UND VERBUNDEN
+Die gemeinsame Queue verwendet die originale, nicht stabile Y-Sortierung
+545b0 und die Palettenwechsel von4549f0/40bb50. Die normalen UNIT-Records
+entstehen am Ende des jeweiligen UNIT-Callbacks. Ein späterer Treffer oder
+eine Freigabe des Slots verändert dieses bereits eingereihte Bild nicht.
+Der64:4-Einmalblitz wird erst bei einer tatsächlichen sichtbaren Einreihung
+gelöscht. Hardware erhält die bereits belegten minimalen Artwork-Eingaben;
+das ist kein Nachweis des vollständigen Hardware-Rasteraufrufers.
+
+Die tatsächliche Mainfolge435c12..435e21 ist:
+Tracks; BUILD samt Produktion40ad60; UNIT5a240; KI419fb0; Fahrzeug-Nahauflösung
+461d10; Fahnen41d110; Routenarbeiter43e780; Todesbilder563c0; OBJECT200;
+weitere native Effektpools, Animationsstücke41d6a0, Ambient100 und Lava;
+danach gemeinsame Sortierung und Ausgabe4549f0. Die spät gezeichneten
+500er-Effekte und Projektile werden nicht pauschal in diese Queue verschoben.
+
+461d10 ist keine Gebietsübernahme:45a9f0 sammelt aktive class1-UNITs,
+461b30/461bb0 behandeln nahe beieinander liegende Fahrzeuge. Die tatsächliche
+Fahnenübernahme44f1e0→44ea30 bleibt innerhalb des einzelnen UNIT-Callbacks.
+Ihre Farbe steht daher schon für den späteren Fahnen-Zeichenpass fest.
+Bei gleicher Tiefe werden UNITs vor Fahnen eingereiht; die instabile Sortierung
+kann diese Reihenfolge durch einen dazwischen vertauschten Schatten umkehren.
+
+BUILD-Artwork erhält gespeicherte Position, Besitzer, HP, Produkt und Uhrwerte
+vom BUILD-Aufrufpunkt. Die spätere Snapshot-Erstellung ersetzt diese Angaben
+nicht durch den Endzustand. Der Fertig-Blinktakt verwendet622d40. Der vor dem
+BUILD-Callback liegende signed-word36-DECrement/Clamp schreibt den lebenden
+Zähler genau einmal. Innerhalb40b2a0/40c490 folgt auf die gespeicherte Uhr
+erst der Arbeitsabzug, danach gegebenenfalls Fertigstellung und neue Einheiten.
+Spätere BUILD-Slots sehen bereits die von früheren Fabriken belegten Slots.
+40b180 zählt anschließend lediglich Gebäude je Besitzer und verändert weder
+Restarbeit noch Fertigpause.40acf0 betrifft ein separates Budget toter Gebäude,
+keinen zweiten Produktions-Arbeitsabzug.
+
+Radar verwendet BUILDword0A und die tatsächlich gespeicherten flags6/byte15.
+Der aktuell eingereihte Schüsselframe wird vor dem nächsten Framewechsel
+gespeichert. Fahnen und Fortbanner benutzen ihre originalen Queue-Records,
+Schatten, globalen Frame und Sichtbarkeitsgates. Der Fahnenpool ist unabhängig
+von der Lebensdauer des zugehörigen OBJECTs. Die Übernahme baut sämtliche
+aktiven Flaggenfarben neu auf; ein unbelegter Senk-/Hebetakt wird nicht erfunden.
+
+NATIVE PRÜFUNGEN
+96 ausgeführte Mainabschnitte einschließlich des echten240-Slot-UNIT-Loops:
+Signatur2084901077. Die aufgerufenen Handler und Rasterizer sind explizite
+Grenzen dieses Ablaufnachweises. Varianten prüfen drei Mainmodi sowie aktive,
+inaktive und X=0-UNIT/OBJECT/Ambient-Aufrufstellen.
+1024 echte40ad60-Schleifen mit ausgewählten BUILD-Slots und signed-word36:
+Signatur3044181778. Bulk-, Work-/Raten- und einzelne BUILD-Callbacks sind
+explizite Grenzen. Die Dekrementierung wird vor dem Callback beobachtet.
+2048 echte40ad60-Aufrufe mit40a790,40b2a0/40c490,40a6d0,40ab90 und40a8a0:
+Signatur3477325678. HP, Gebietsanteil, Besitzer, Restarbeit, Animation, Hold und
+blockierte Kapazität werden variiert. Die Uhr sieht die alte Restarbeit;
+Arbeitsabzug und Fertigstellung folgen im selben BUILD-Callback. Der danach
+ausgeführte40b180 lässt diese Werte unverändert. Kapazitätsabfragen, Erstellung
+der Einheiten, CPU-Neuwahl und endgültige Rasteraufrufe sind explizite Grenzen.
+
+Weitere getrennte native Nachweise:
+512 Queue-/Palettenfolgen:131070041;
+4480 normale UNIT-Records:3040814069;
+9984 OBJECT-Primärrecords:3811278845;
+800 UNIT-Callback-Enden/Sicht-/Viewport-/Retirementfälle:2839048781;
+4096 Radaraufrufe:262484407;
+8192 Fahnen-/Fortbanneraufrufe:1122415333;
+256 Radarkonstruktoren:3159254469;
+512 Fahnenpool-Neuaufbauten:2526159676.
+Die öffentlichen Werkzeuge enthalten nur eigene Prüfprogramme und numerische
+Signaturen. Originalmedien, Binärdateien und Decompilertexte bleiben privat.
+
+KONKRETE RESTGRENZEN
+Die ursprünglichen Defaultglobals622db2/622db4 werden weiterhin durch die
+vom Benutzer gewünschte fortlaufende Robotervorgabe ersetzt. Der Capturepfad
+411860 initialisiert ausschließlich leere, lebende Fabriken ohne fertigen
+Bestand, erhält bestehende Produkte und konsumiert vorhandenes Arbeitsguthaben
+einmal. Der separate Abbau des Budgets zerstörter Gebäude über40acf0/+4c und
+vollständige Fabrik-Rasternebenwirkungen gehören nicht zum Worknachweis.
+Weitere Fabrik-/Radarmaschinenteile verwenden weiterhin den Artwork-Zeitadapter.
+Spezielle UNIT97-Fade-/Terrainclips,98-Hardwaremasken und119 zusätzliche
+OBJECT-Wrack-Overlayfälle sind nicht durch die normalen Records abgedeckt.
+Der vollständige Sieg-/Zwischensequenzcontroller622cc0/e18/e19 ist nicht durch
+die einzeln geprüften Banner-Gates und Setter ersetzt. Identische komplette
+Missionen mit gleichem Eingabe- und RNG-Verlauf bleiben gesondert nachzuweisen.
+Dieser Stand ist kein Nachweis vollständiger1:1-Gleichheit.

@@ -24,8 +24,16 @@ function field(){const width=64,height=48,n=width*height;return{map:{width,heigh
  const expected=[[800,900],[768,868],[768,932]];robots.forEach((id,i)=>assert.deepEqual(state.units.find(u=>u.id===id).dest,expected[i]));
  req({op:'advance',steps:500,compact:true,knownMapSeed:7291,knownMapRevision:0});
  robots.forEach((id,i)=>{const u=state.units.find(u=>u.id===id);near(u.x,expected[i][0]);near(u.y,expected[i][1]);assert.equal(u.path.length,0);});
- // A supplied original strategy clock must not activate AI in PvP or aiTeams:[] fixtures.
- const m=field();m.nativeAi={decisionControl:127};m.sectors=[{id:0,x:800,y:600,owner:-1,home:false,countsForProduction:true}];
- for(const multiplayer of [false,true]){req({op:'init',mission:0,difficulty:1,seed:7291,aiTeams:[],multiplayer,originalMission:m});assert(state.units.every(u=>u.path.length===0));for(let i=0;i<8;i++)tick(.059);assert(state.units.every(u=>u.order==='guard'));}
+ //44d920 acquisition and local formations still run without strategic AI.
+ //Fresh instances isolate preserved native process globals from the AI clock.
+ async function aiIsolation(multiplayer,aiTeams,withClock){
+  const x=(await WebAssembly.instantiate(fs.readFileSync(path.join(root,'dist/independent/engine.wasm')),{})).instance.exports;
+  const mission=field();mission.sectors=[{id:0,x:800,y:600,owner:-1,home:false,countsForProduction:true}];if(withClock)mission.nativeAi={decisionControl:127};
+  function request(v){const b=enc.encode(JSON.stringify(v)),p=x.alloc(b.length);new Uint8Array(x.memory.buffer,p,b.length).set(b);let n;try{n=x.run(p,b.length);}finally{x.free(p,b.length);}const s=JSON.parse(dec.decode(new Uint8Array(x.memory.buffer,x.output(),n)));assert(!s.error,s.error);return s;}
+  const view=s=>({units:s.units.map(u=>({id:u.id,type:u.type,team:u.team,order:u.order,target:u.target,dest:u.dest,path:u.path,x:u.x,y:u.y,hp:u.hp,phase:u.nativePhase35,rawOrder:u.nativeOrder5c,fire:u.nativeFire})),sectors:s.sectors.map(s=>({id:s.id,owner:s.owner}))});
+  const initial=view(request({op:'init',mission:0,difficulty:1,seed:7291,aiTeams,multiplayer,originalMission:mission})),frames=[];for(let i=0;i<80;i++)frames.push(view(request({op:'tick',dt:.059,compact:false})));return {initial,frames};
+ }
+ for(const multiplayer of [false,true]){const baseline=await aiIsolation(multiplayer,[],false),clocked=await aiIsolation(multiplayer,[],true);assert.deepEqual(clocked,baseline,'A supplied native AI clock must not change any unit command, combat or movement with aiTeams:[]');assert(clocked.frames.some(s=>s.units.some(u=>u.order==='attack'||u.fire)),'The fixture must retain native autonomous acquisition');if(multiplayer)assert.deepEqual(await aiIsolation(true,[1],true),baseline,'PvP must ignore even an explicitly requested AI team');}
+ const enabled=await aiIsolation(false,[1],true);assert(enabled.initial.units.some(u=>u.team===1&&u.order==='move'&&u.path.length>0&&u.dest?.[0]===800&&u.dest?.[1]===600),'The positive control must actually admit a strategic sector order');
  console.log('PASS: native59ms boundary,12-handler windup,15-pixel traveling bullet, delayed physical contact, canonical/guest projectile colors, V formation arrival, disabled AI and PvP isolation.');
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

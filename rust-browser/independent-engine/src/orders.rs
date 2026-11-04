@@ -11,6 +11,8 @@ impl Game {
         let Some(op)=self.prepare_native_order_dispatch(index,false)else{return;};
         let slot=self.units[index].native_hardware_slot.filter(|&s|s<self.native_hardware_pool.len());
         match op{
+            1=>{self.dispatch_native_move_order(index);},
+            12=>{if let Err(boundary)=self.dispatch_native_point_order(index){self.native_route_boundary=Some(boundary);}},
             4=>{let mut record=slot.map(|s|self.native_hardware_pool[s].order).unwrap_or(self.native_hardware_dummy);self.complete_native_stop_order(index,Some(&mut record));if let Some(s)=slot{self.native_hardware_pool[s].set_order(record);}else{self.native_hardware_dummy=record;}},
             2=>{let mut record=slot.map(|s|self.native_hardware_pool[s].order);let movement=slot.map_or(0,|s|self.native_hardware_pool[s].attributes.byte(7));let aim=self.units[index].native_control06;self.begin_native_hardware_order(index,record.as_mut(),movement,aim);if let(Some(s),Some(record))=(slot,record){self.native_hardware_pool[s].set_order(record);}},
             5=>{if let Some(result)=self.dispatch_native_attack_order(index){

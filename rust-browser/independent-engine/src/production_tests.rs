@@ -65,14 +65,14 @@ fn owned_robot_factories_and_forts_start_with_robots_at_every_technology_level()
 }
 
 #[test]
-fn capturing_an_idle_robot_factory_starts_production_in_the_same_tick() {
+fn captured_idle_factory_initializes_work_without_spending_a_second_tick() {
     let mut game = original_factory("robot", -1, 1, None);
     assert!(game.buildings[0].product.is_none());
     capture_with_player(&mut game);
     let factory = &game.buildings[0];
     assert_eq!(factory.product.as_deref(), Some("grunt"));
     assert_eq!(factory.progress,0.,"Capture follows the producer phase; the new order starts without spending work");
-    assert_eq!(factory.remaining_work,Some(original_stats::workload("grunt")as f64));
+    assert_eq!(factory.remaining_work,Some(original_stats::workload("grunt")as f64),"44ea30→411860 initializes a missing product immediately without another40ad60 work tick");
     game.step(0.059);assert!(game.buildings[0].progress>0.);
     let factory=&game.buildings[0];
     assert!(game.remaining_seconds(factory).unwrap() > 0);

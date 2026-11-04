@@ -66,18 +66,24 @@ impl Game{
    match self.native_group_apc_target(index,object){Some(255)=>return false,Some(found)if found==object=>{},_=>if u.native_initiative_scan.excluded9d==object{return false;}}
   }
   let Some(world)=self.native_world_scan_objects().into_iter().find(|o|o.slot==object)else{return false;};
-  let (goal,destination)=if let Some(sector)=world.flag_sector{
+  let (goal,destination,waypoint)=if let Some(sector)=world.flag_sector{
    let Some(order)=self.claim_native_flag_order(index,object,world.flag_delay1f)else{return false;};
-   (Initiative::Flag(sector),order.destination)
+   (Initiative::Flag(sector),order.destination,None)
   }else if let Some(target)=world.unit{
    let Some(order)=self.claim_native_hardware_order(index,target)else{return false;};
-   (Initiative::Vehicle(target),order.anchor_destination())
+   (Initiative::Vehicle(target),order.anchor_destination(),Some(order.destination))
   }else{return false;};
   let point=(f64::from(destination[0])*2.,f64::from(destination[1])*2.);
-  let route=self.route_unit(&u,point.0,point.1);let p=&mut self.units[index];
-  //The retained primary Game order remains the existing browser route adapter;
-  //the native31:8/36/5d reservation itself is owned by578b0/57860 above.
-  p.march_resume=if u.order=="move"{u.dest}else{None};p.initiative=Some(goal);p.dest=Some(point);p.path=route;p.original_motion=None;p.native_idle=None;p.native_walk=None;p.native_phase35=2;p.hold_position=false;
+  if self.owns_native_route(index){
+   //The same57860/578b0 route writers apply to idle and walking searches:
+   //flags take a direct525a0 detour; hardware prepends59c60 without replacing
+   //the retained primary list. Both use the existing source-tested52810 API.
+   if let Some(waypoint)=waypoint{if !self.prepend_native_walk_claim(index,waypoint){return false;}}else{self.start_native_walking_direct(index,destination);}
+  }else{
+   //Graph-less/legacy arenas retain their existing flattened route adapter.
+   let route=self.route_unit(&u,point.0,point.1);let p=&mut self.units[index];p.path=route;p.original_motion=None;p.native_walk=None;p.native_phase35=2;
+  }
+  let p=&mut self.units[index];p.march_resume=if u.order=="move"{u.dest}else{None};p.initiative=Some(goal);p.dest=Some(point);p.native_idle=None;p.hold_position=false;
   match goal{Initiative::Flag(_)=>{p.order="move".into();p.target=None;},Initiative::Vehicle(id)=>{p.order="enter".into();p.target=Some(id);}}
   true
  }
@@ -123,6 +129,9 @@ impl Game{
   let rng=g.original_rng.words;assert!(!g.native_idle_object_scan(0,0,false));assert_eq!(g.native_world_scan_objects()[0].flags13&1,0);
   g.units[0].angle=0.;assert!(g.native_idle_object_scan(0,0,false));assert_eq!(g.units[0].initiative,Some(Initiative::Vehicle(id)));assert_eq!(g.native_world_scan_objects()[0].flags13&1,1);
   let m=g.native_group_rosters.members[g.units[0].native_slot.unwrap()].as_ref().unwrap();assert_eq!(m.reserved_object,Some(0));assert_eq!(m.contact_order,3);assert_eq!(g.original_rng.words,rng);
+ }
+ #[test]fn managed_idle_hardware_claim_prepends_the_original_waypoint_without_rebuilding_the_primary_list(){
+  let mut g=field();let id=car(&mut g,400,320,0);imported(&mut g);let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.observe_unit_context(slot);let head=g.native_routes.get_mut().pool.allocate_goal([308,208]).unwrap();g.native_routes.get_mut().managed[slot]=true;g.native_routes.get_mut().pool.links[slot].primary=head;g.units[0].path=std::collections::VecDeque::from([(600.,400.)]);g.units[0].dest=Some((600.,400.));g.units[0].order="move".into();assert!(g.native_idle_object_scan(0,0,false));let new=g.native_routes.borrow().pool.links[slot].primary;assert_ne!(new,head);assert_eq!(g.native_routes.borrow().pool.node(new).unwrap().next,head);assert_eq!(g.native_routes.borrow().pool.node(head).unwrap().point,[308,208]);assert_eq!(g.units[0].march_resume,Some((600.,400.)));assert_eq!(g.units[0].initiative,Some(Initiative::Vehicle(id)));assert_eq!(g.units[0].path.back(),Some(&(600.,400.)));assert!(g.units[0].original_motion.is_some());
  }
  #[test]fn a_reserved_nearest_object_is_not_replaced_by_a_farther_candidate(){
   let mut g=field();car(&mut g,384,320,0);car(&mut g,448,320,1);imported(&mut g);assert!(g.reserve_native_object(0));

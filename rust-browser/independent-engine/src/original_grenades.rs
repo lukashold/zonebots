@@ -31,6 +31,7 @@ mod tests {
         for unit in &mut game.units {unit.hold_position=true;}
         game.units[0].grenades=2;
         game.units[1].cooldown=100.;
+        game.units[1].native_reload7b=127;
         game
     }
 

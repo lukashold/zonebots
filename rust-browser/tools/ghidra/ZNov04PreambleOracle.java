@@ -1,0 +1,14 @@
+// Real5a080 until44f1e0, including41b950.59d80/59e60/4b590 are explicit
+// recorded mutable leaves, and459eb0 is tested independently without stubs.
+import ghidra.app.script.GhidraScript;import ghidra.app.emulator.EmulatorHelper;import java.io.*;
+public class ZNov04PreambleOracle extends GhidraScript{
+ static final long U=0x5e30c8L,R=0x60ec00L,S=0x7fff0000L,RET=0x12345000L;
+ long read(EmulatorHelper e,long a,int n){byte[]b=e.readMemory(toAddr(a),n);long v=0;for(int i=0;i<n;i++)v|=(b[i]&255L)<<(8*i);return v;}void put(EmulatorHelper e,long a,int n,long v)throws Exception{e.writeMemoryValue(toAddr(a),n,v);}void back(EmulatorHelper e)throws Exception{long sp=e.readRegister("ESP").longValue(),ret=read(e,sp,4);e.writeRegister("ESP",sp+4);if(!e.run(toAddr(ret),null,monitor))throw new Exception(e.getLastError());}
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){for(int s=0;s<1024;s++){EmulatorHelper e=new EmulatorHelper(currentProgram);try{
+ e.writeMemory(toAddr(U),new byte[192]);e.writeMemory(toAddr(R),new byte[216]);put(e,0x632194,4,R+144);put(e,0x586977,1,0);put(e,0x4d02bb,1,0);put(e,U+0x5f,1,1);put(e,U+0x5e,1,new int[]{-1,0,1}[s%3]);put(e,U+0x35,1,new int[]{0,1,5,8,19,61,42,77}[s/3%8]);put(e,U+0x7c,1,new int[]{0,3,15}[s/24%3]);put(e,U+0x31,1,s%4);put(e,U+0x36,2,0);put(e,0x612f80,2,s%5==0?-1:5);put(e,U+0x8a,1,s*29);put(e,U+0x9c,1,s*37);put(e,U+0xaa,1,new int[]{0,1,2,255}[s/7%4]);put(e,U+0x32,2,new int[]{-32768,-1,0,1,4,5,10,255,256,32767}[s%10]);put(e,U+0x6e,1,new int[]{0,1,254,255}[s/3%4]);put(e,U+0x69,1,s*17);put(e,U+0x18,4,0x12345678);put(e,U+0x1c,4,0x87654321L);
+ for(int g=0;g<3;g++){put(e,R+g*72+9,1,s*(g+3));put(e,R+g*72+0x3f,1,s/3%4);put(e,R+g*72+0x40,1,new int[]{0,1,127,128,255}[s/9%5]);put(e,R+g*72+0x3b,1,s%7==0?255:17);put(e,R+g*72+0x10,1,s%4==0?0:7);}
+ for(long p:new long[]{RET,0x44f1e0,0x459d80,0x459e60,0x44b590})e.setBreakpoint(toAddr(p));put(e,S,4,RET);e.writeRegister("ESP",S);e.writeRegister("ECX",U);if(!e.run(toAddr(0x45a080),null,monitor))throw new Exception(e.getLastError());int trace=0x811c9dc5;boolean reached=false;int n=0;
+ while(e.readRegister("EIP").longValue()!=RET){if(++n>8)throw new Exception("loop");long pc=e.readRegister("EIP").longValue();if(pc==0x44f1e0){reached=true;break;}int code=pc==0x459d80?1:pc==0x459e60?2:3;trace=(trace^code)*16777619;if(pc==0x44b590){put(e,0x632194,4,R+144);if(s%2==0)put(e,U+0x35,1,5);}back(e);}
+ out.print("{\"scenario\":"+s+",\"reached\":"+(reached?1:0)+",\"context\":"+((read(e,0x632194,4)-R)/72)+",\"seen\":"+read(e,0x4d02bb,1)+",\"trace\":"+(trace&0xffffffffL));for(int[]f:new int[][]{{0x35,1},{0x32,2},{0x8a,1},{0x9c,1},{0xaa,1},{0x6e,1},{0x18,4},{0x1c,4}}){long v=read(e,U+f[0],f[1]);if(f[1]==2)v=(short)v;out.print(",\"u"+f[0]+"\":"+v);}for(int g=0;g<3;g++)for(int off:new int[]{9,0x3f,0x40,0x3b})out.print(",\"g"+g+"_"+off+"\":"+read(e,R+g*72+off,1));out.println("}");
+ }finally{e.dispose();}}}}
+}

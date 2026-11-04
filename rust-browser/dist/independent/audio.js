@@ -4,7 +4,7 @@ window.RadioAudio=(()=>{
  const base=new URL('../original/',document.currentScript.src),levels={music:.5,effects:.7,voice:.9};
  let manifest=null,loading=null,ctx=null,effectsBus=null,voiceBus=null,unlocked=false,enabled=true,lang='de',scene='menu',world=0;
  let music=null,musicKey='',musicToken=0,voiceToken=0,activeVoice=null,activeVoicePose=null,speaking=false,queue=[],rotation=0;
- const buffers=new Map(),recent=new Map(),activeEffects=new Set();
+ const buffers=new Map(),recent=new Map(),activeEffects=new Set(),nativeVoices=new Set();let nativeVoiceToken=0,nativeEffectToken=0;
  const labels={capture:['Gebiet erobert!','Territory taken!'],lost:['Gebiet verloren.','Territory lost.'],
   ready:['Verstärkung hergestellt.','Reinforcements manufactured.'],crewed:['Fahrzeug übernommen.','Vehicle captured.'],
   grenades:['Granaten eingesammelt!','Grenades collected!'],victory:['Geschafft!','We have done it!'],
@@ -74,6 +74,26 @@ window.RadioAudio=(()=>{
   if(kind==='victory'||kind==='defeat')stopVoice();
   queue.push({id,text});if(queue.length>4)queue.shift();if(!loading)load();if(manifest||loading===null)pump();else loading.then(pump);
  }
+ //46e660 requests a free mixer channel directly. Native admission and sample
+ //choice already happened in Rust; these clips have no browser voice queue.
+ async function nativeVoice(event){
+  if(event?.playAudio!==true||!/^(ROB|COMP)\d\d$/.test(event.clip)||!enabled||!unlocked||levels.voice===0)return;
+  const token=nativeVoiceToken;try{await load();const clip=(manifest?.voices?.[lang]||manifest?.voices?.de||manifest?.voices?.en)?.[event.clip];if(!clip||!ctx)return;
+   const decoded=await buffer(clip);if(token!==nativeVoiceToken||!enabled||!unlocked||levels.voice===0)return;
+   const source=ctx.createBufferSource();source.buffer=decoded;source.connect(voiceBus);nativeVoices.add(source);source.onended=()=>nativeVoices.delete(source);source.start();
+  }catch{}
+ }
+ function stopNativeVoices(){nativeVoiceToken++;for(const source of nativeVoices){try{source.stop();}catch{}}nativeVoices.clear();}
+ //Rust has already applied the original descriptor's clock admission. Do
+ //not apply the compatibility effect throttle or its browser channel cap.
+ async function nativeSample(event){
+  if(event?.playAudio!==true||!/^[A-Z0-9_]{1,22}$/.test(event.clip))return;
+  if(event.lane==='voice')return nativeVoice(event);
+  if(event.lane!=='effects'||!enabled||!unlocked||levels.effects===0)return;
+  const token=nativeEffectToken;try{await load();const clip=manifest?.effects?.[event.clip];if(!clip||!ctx)return;const decoded=await buffer(clip);if(token!==nativeEffectToken||!enabled||!unlocked||levels.effects===0)return;
+   const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=decoded;gain.gain.value=clip.gain??1;source.connect(gain);gain.connect(effectsBus);activeEffects.add(source);source.onended=()=>{activeEffects.delete(source);gain.disconnect();};source.start();
+  }catch{}
+ }
  async function effect(kind,type=''){
   if(!enabled||!unlocked||levels.effects===0||activeEffects.size>=28)return;
   const name=kind==='shot'?(shots[type]||'RIFLE3'):kind==='explosion'?(type==='large'?'ZEXPLO5':'EXP1'):kind==='click'?'CLICK1L':kind==='grenade'?'GRENADE':kind.toUpperCase();
@@ -81,9 +101,10 @@ window.RadioAudio=(()=>{
   const clip=manifest?.effects?.[name];if(!ctx||!clip)return;
   try{const decoded=await buffer(clip);if(!enabled||activeEffects.size>=28)return;const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=decoded;gain.gain.value=clip.gain??1;source.connect(gain);gain.connect(effectsBus);activeEffects.add(source);source.onended=()=>{activeEffects.delete(source);gain.disconnect();};source.start();}catch{}
  }
- return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0)stopVoice();mix();if(key==='voice'&&levels.voice>0)pump();},
-  mute(value){enabled=!value;if(value){stopVoice();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
-  setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,
+ return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0){stopVoice();stopNativeVoices();}mix();if(key==='voice'&&levels.voice>0)pump();},
+  mute(value){enabled=!value;if(value){nativeEffectToken++;stopVoice();stopNativeVoices();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
+  setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,nativeVoice,nativeSample,
+  nativeSettings(){return {soundEnabled:enabled,effectsEnabled:enabled};},
   voicePose(){return activeVoicePose&&ctx?{clip:activeVoicePose.clip,seconds:Math.max(0,ctx.currentTime-activeVoicePose.started)}:null;},
   status(){return {original:Boolean(manifest),unlocked,enabled,scene,world,music:music?.src||null,musicTime:music?.currentTime||0,musicPaused:music?.paused??true,musicError:music?.error?.code||null,contextState:ctx?.state||'locked',speaking,queued:queue.length};}};
 })();

@@ -12,11 +12,33 @@ impl Game{
  }
  pub(crate) fn update_original_production(&mut self,dt:f64){
   self.production_clock+=dt*17.;let ticks=self.production_clock.floor()as usize;self.production_clock-=ticks as f64;
-  let total=self.sectors.iter().filter(|s|s.counts_for_production).count();
-  for index in 0..self.buildings.len(){
-   if self.buildings[index].team<0||!self.buildings[index].alive(true){self.buildings[index].completion_ticks=self.buildings[index].completion_ticks.saturating_sub(ticks as u32);continue;}
-   let Some(kind)=self.buildings[index].product.clone()else{if ticks!=0&&self.buildings[index].kind=="fort"{let id=self.buildings[index].id;self.sync_native_fort_producer_health(id);}continue;};
-   let id=self.buildings[index].id;let team=self.buildings[index].team;
+  //Compatibility entry for direct producer/CLI calls. Main's real BUILD
+  //stage calls these two halves around its own retained artwork row.
+  for _ in 0..ticks{for id in self.native_factory_draw_order(){if let Some(i)=self.buildings.iter().position(|b|b.id==id){self.prepare_native_factory_draw(i);self.finish_native_factory_draw(i);}}}
+ }
+ pub(crate) fn native_factory_draw_order(&self)->Vec<usize>{let mut order=self.native_display_building_order();for b in &self.buildings{if !order.contains(&b.id){order.push(b.id);}}order}
+ ///44ea30→411860: the changed CP initializes only an empty, live producer
+ ///with no ready stock. Existing BUILD7/work are never technology-rechecked.
+ ///The default product follows the user's continuous-robot preference.
+ pub(crate) fn initialize_native_capture_defaults(&mut self,sector:usize){
+  for index in 0..self.buildings.len(){let b=&self.buildings[index];if b.sector!=sector||b.team<0||!matches!(b.kind.as_str(),"fort"|"robot"|"vehicle")||!b.alive(true)||b.product.is_some()||!b.ready_guns.is_empty(){continue;}let Some(kind)=self.default_product(b)else{continue;};let id=b.id;let mut work=self.native_factory_work.get(&id).cloned().unwrap_or(native::Work{remaining:0,total:0,credit:0,animation:0,hold:b.completion_ticks as i16});let duration=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind).map(|p|p.5).unwrap_or(1);native::initialize_work(&mut work,duration,12);work.credit=0;self.buildings[index].product=Some(kind);self.store_native_factory_work(index,work);}
+ }
+ ///40ad60's word36 prefix, then the per-BUILD owner/HP/default-selection
+ ///and40b1c0 fort mirror before40ab90 draws the remaining work. Work is
+ ///NOT spent here: that happens after the clock submission in the same
+ ///40b2a0/40c490 callback, never in40b180 (which only counts buildings).
+ pub(crate) fn prepare_native_factory_draw(&mut self,index:usize){
+   let b=&mut self.buildings[index];b.completion_ticks=super::original_building_display::completion_at_draw(b.completion_ticks as i16)as u32;let id=b.id;
+   if let Some(work)=self.native_factory_work.get_mut(&id){work.hold=b.completion_ticks as i16;if work.hold!=0{work.animation=0;}}
+   if !matches!(b.kind.as_str(),"robot"|"vehicle"|"fort")||b.team<0||!b.alive(true)||self.native_work_health(&self.buildings[index]).0==0.{return;}
+   if self.buildings[index].kind=="fort"{self.sync_native_fort_producer_health(id);}
+   if self.buildings[index].completion_ticks!=0{return;}
+   //Keep the user's continuous-production default and valid selections.
+   //The single BUILD is selected here; later BUILD slots have not run yet.
+   if self.buildings[index].product.is_none(){
+    let product=self.default_product(&self.buildings[index]);if product!=self.buildings[index].product{self.buildings[index].product=product;self.buildings[index].remaining_work=None;self.buildings[index].progress=0.;}
+   }
+   let Some(kind)=self.buildings[index].product.clone()else{return;};
    let total_work=super::original_stats::workload(&kind);
    let mut work=self.native_factory_work.remove(&id).unwrap_or(native::Work{remaining:total_work,total:total_work,credit:0,animation:0,hold:0});
    //The command adapter marks an explicit new product withremainingNone.
@@ -24,13 +46,15 @@ impl Game{
    //old40a8a0 work until its next original initialization event.
    if self.buildings[index].remaining_work.is_none(){let duration=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind).map(|p|p.5).unwrap_or(1);native::initialize_work(&mut work,duration,12);work.credit=0;}
    work.remaining=self.buildings[index].remaining_work.map(|v|v as i32).unwrap_or(work.remaining);work.hold=self.buildings[index].completion_ticks as i16;
-   self.buildings[index].remaining_work=Some(f64::from(work.remaining));
-   for _ in 0..ticks{
-    let Some(kind)=self.buildings[index].product.clone()else{break;};let duration=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind).map(|p|p.5).unwrap_or(1);
-    if work.hold!=0{work.hold=work.hold.wrapping_sub(1);}
-    if self.buildings[index].kind=="fort"{self.sync_native_fort_producer_health(id);}
+   self.store_native_factory_work(index,work);
+ }
+ fn store_native_factory_work(&mut self,index:usize,work:native::Work){let b=&mut self.buildings[index];b.remaining_work=Some(f64::from(work.remaining));b.progress=(1.-f64::from(work.remaining)/f64::from(work.total.max(1))).clamp(0.,1.);b.completion_ticks=work.hold as u16 as u32;self.native_factory_work.insert(b.id,work);}
+ pub(crate) fn finish_native_factory_draw(&mut self,index:usize){
+    let b=&self.buildings[index];if !matches!(b.kind.as_str(),"robot"|"vehicle"|"fort")||b.team<0||!b.alive(true)||self.native_work_health(b).0==0.{return;}
+    let Some(kind)=b.product.clone()else{return;};let(id,team)=(b.id,b.team);let total=super::original_stats::workload(&kind);let mut work=self.native_factory_work.get(&id).cloned().unwrap_or(native::Work{remaining:b.remaining_work.map(|v|v as i32).unwrap_or(total),total,credit:0,animation:0,hold:b.completion_ticks as i16});work.hold=b.completion_ticks as i16;if let Some(remaining)=b.remaining_work{work.remaining=remaining as i32;}
+    let duration=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind).map(|p|p.5).unwrap_or(1);
     let (health,maximum)=self.native_work_health(&self.buildings[index]);
-    let owned=self.sectors.iter().filter(|s|s.owner==team&&s.counts_for_production).count();let rate=super::original_stats::rate(health,maximum,owned,total);
+    let owned=self.sectors.iter().filter(|s|s.owner==team&&s.counts_for_production).count();let sectors=self.sectors.iter().filter(|s|s.counts_for_production).count();let rate=super::original_stats::rate(health,maximum,owned,sectors);
     let free=240-(0..240).filter(|&slot|self.units.iter().any(|u|u.team>=0&&super::original_combat::alive(true,u.hp)&&u.native_slot==Some(slot))).count();
     let count=self.units.iter().filter(|u|u.team==team&&u.native_slot.is_some()&&super::original_combat::alive(true,u.hp)).count()as i8;
     let queued=(self.buildings.iter().filter(|b|b.team==team&&self.native_work_health(b).0!=0.).map(|b|b.ready_guns.len()).sum::<usize>()as i16).wrapping_add(self.native_factory_placement.pending_team_count(team as usize));
@@ -41,10 +65,7 @@ impl Game{
      else{self.spawn_native_factory_group(id,&kind,team);}
      let pending=self.native_pending_sector_guns(self.buildings[index].sector);if let Some(product)=self.native_cpu_factory_product(index,false,pending){self.buildings[index].product=Some(product);}
     }
-   }
-   let b=&mut self.buildings[index];b.remaining_work=Some(f64::from(work.remaining));b.progress=(1.-f64::from(work.remaining)/f64::from(work.total.max(1))).clamp(0.,1.);b.completion_ticks=work.hold as u32;
-   self.native_factory_work.insert(id,work);
-  }
+    self.store_native_factory_work(index,work);
  }
  pub(crate) fn spawn_native_factory_group(&mut self,factory:usize,kind:&str,team:i32){
   let Some(b)=self.buildings.iter().find(|b|b.id==factory).cloned()else{return;};
@@ -57,7 +78,7 @@ impl Game{
    let Some(u)=self.units.last_mut().filter(|u|u.squad==squad)else{continue;};
    u.formation_layout=layout;let state=FactoryExitState::new(exit.destination);u.native_flags9c=state.flags9c;u.native_order5c=state.order;u.native_factory_exit=Some(state);u.order="move".into();u.dest=Some((f64::from(exit.destination[0]-8)*2.,f64::from(exit.destination[1]-8)*2.));u.native_group_order_pending=true;
   }
-  if self.units.len()>first{self.native_group_rosters.record_produced_group(team,squad,layout);self.events.push(super::json!({"kind":"ready","team":team,"type":kind}));}
+  if self.units.len()>first{self.native_group_rosters.record_produced_group(team,squad,layout);if let Some(product)=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind){self.initialize_native_group_descriptor(team,squad,product.1);}self.events.push(super::json!({"kind":"ready","team":team,"type":kind}));}
  }
  pub(crate) fn update_native_factory_exit(&mut self,index:usize){
   if !self.map.original{return;}
@@ -95,6 +116,7 @@ impl Game{
  #[test]fn native_human_ready_stock_keeps_the_newest_four_products_and_discards_the_oldest(){
   let mut g=field();g.map.native_road_graph=Some(super::super::original_route::RoadGraph{regions:vec![]});g.buildings[0].product=Some("cannon".into());g.buildings[0].ready_guns=["cannon","missile","howitzer","gatling"].into_iter().map(str::to_string).collect();
   g.update_original_production(1./17.);assert_eq!(g.buildings[0].ready_guns,["cannon","cannon","missile","howitzer"]);assert_eq!(g.buildings[0].completion_ticks,68);
+  g.buildings[0].completion_ticks=0;g.buildings[0].remaining_work=Some(10000.);assert!(g.remaining_seconds(&g.buildings[0]).is_some_and(|n|n>0),"40ab90 draws before capacity checks; four native stock slots still have a production clock");
  }
  #[test]fn preserved_cpu_work_and_explicit_product_initialization_have_different_native_timing(){
   let mut g=field();g.buildings[0].product=Some("psycho".into());g.buildings[0].remaining_work=Some(1000.);g.native_factory_work.insert(0,native::Work{remaining:1000,total:1000,credit:0,animation:0,hold:0});g.update_original_production(1./17.);assert_eq!(g.native_factory_work[&0].total,1000,"automatic product changes retain the old completion-time40a8a0 total");
@@ -106,4 +128,19 @@ impl Game{
   g.update_original_production(1./17.);let remaining=g.buildings[0].remaining_work.unwrap();assert!(remaining<1000.&&remaining>0.);g.buildings[0].hp=5000.;assert_eq!(g.native_work_health(&g.buildings[0]),(9999.,9999.),"global contact does not eagerly overwrite the producer mirror");g.update_original_production(1./17.);assert_eq!(g.native_world_buildings().unwrap()[4].hp,5000);assert!(g.buildings[0].remaining_work.unwrap()<remaining);
  }
  #[test]fn fresh_constructor_pass_uses_build_slot_order_and_separate_rng_streams_in_both_modes(){for multiplayer in [false,true]{let mut g=field();g.multiplayer=multiplayer;g.map.native_road_graph=Some(super::super::original_route::RoadGraph{regions:vec![]});let mut records=(0..35).map(|slot|super::super::json!({"nativeSlot":slot,"kind":-1,"flags6":255,"x":-1,"y":-1,"hp":0,"maxHp":0})).collect::<Vec<_>>();for(id,kind,rawkind,hp)in[(0,"robot",4,1000),(1,"repair",0,500),(2,"fort",2,9999),(3,"robot",4,0)]{let mut b=g.buildings[0].clone();b.id=id;b.kind=kind.into();b.hp=hp as f64;b.max_hp=hp as f64;b.raw_base=(kind=="fort").then_some((400.,400.));if id==0{g.buildings[0]=b;}else{g.buildings.push(b);}records[id]=super::super::json!({"nativeSlot":id,"buildingId":id,"kind":rawkind,"flags6":255,"x":100+id*100,"y":100,"hp":hp,"maxHp":hp,"fortProxy":kind=="fort"});}let input=super::super::json!({"nativeWorldBuildings":records});g.import_native_world(&input);g.native_cosmetic_rng=1;let mut expected=g.original_rng.clone();expected.multiplayer=multiplayer;expected.next_u32();let mut crt=1u32;let mut values=vec![];for _ in 0..3{if multiplayer{values.push(0);}else{crt=crt.wrapping_mul(214013).wrapping_add(2531011);values.push(((crt>>16)&32767)as u8);}}assert_eq!(g.initialize_native_factory_constructors(&input),Some(4));assert_eq!(g.original_rng.words,expected.words);assert_eq!(g.native_cosmetic_rng,crt);for(slot,value)in [0,2,3].into_iter().zip(values){assert_eq!(g.native_building_constructor(slot).unwrap().clock3e,Some(value));}assert_eq!(g.native_building_constructor(1).unwrap().door3a,32);assert_eq!(g.native_factory_flags6.get(&0),Some(&0xe0));assert_eq!(g.native_factory_work[&0].remaining,0);assert_eq!(g.buildings[0].remaining_work,None,"the user's selected default is initialized by its next production callback");}}
+ #[test]fn real_build_stage_draws_before_completion_and_decrements_the_new_hold_once_per_later_callback(){
+  let mut g=field();g.capture_native_building_display();let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="building").unwrap();assert_eq!(row["art"]["completionTicks"],0);assert_eq!(g.buildings[0].completion_ticks,68);assert_eq!(g.units.len(),3);g.capture_native_building_display();assert_eq!(g.buildings[0].completion_ticks,67);assert_eq!(g.native_display_queue().into_iter().find(|r|r["kind"]=="building").unwrap()["art"]["completionTicks"],67);g.update_original_production(0.);assert_eq!(g.buildings[0].completion_ticks,67);assert_eq!(g.units.len(),3);
+ }
+ #[test]fn held_cold_work_and_existing_product_survive_lower_technology(){
+  let mut g=field();g.buildings[0].product=Some("psycho".into());g.buildings[0].remaining_work=Some(777.);g.buildings[0].completion_ticks=2;g.buildings[0].stars=1;g.capture_native_building_display();assert_eq!(g.buildings[0].product.as_deref(),Some("psycho"));assert_eq!(g.buildings[0].remaining_work,Some(777.));assert_eq!(g.buildings[0].completion_ticks,1);assert_eq!(g.native_factory_work[&0].animation,0);g.capture_native_building_display();assert_eq!(g.buildings[0].remaining_work,Some(751.));assert_eq!(g.buildings[0].completion_ticks,0);
+ }
+ #[test]fn held_warm_work_reads_the_actual_changed_build24_instead_of_a_stale_shadow(){
+  let mut g=field();g.capture_native_building_display();let total=g.native_factory_work[&0].total;g.buildings[0].remaining_work=Some(f64::from(total/2));g.capture_native_building_display();assert_eq!(g.buildings[0].completion_ticks,67);assert_eq!(g.buildings[0].remaining_work,Some(f64::from(total/2)));assert_eq!(g.native_factory_work[&0].remaining,total/2);assert_eq!(g.native_factory_work[&0].total,total);
+ }
+ #[test]fn capture_initializes_only_empty_unstocked_live_producers_and_consumes_credit_once(){
+  let mut g=field();g.buildings[0].product=None;g.buildings[0].remaining_work=None;g.buildings[0].sector=7;g.native_factory_work.insert(0,native::Work{remaining:0,total:1000,credit:123,animation:17,hold:0});for id in 1..5{let mut b=g.buildings[0].clone();b.id=id;if id==1{b.product=Some("psycho".into());b.remaining_work=Some(777.);}if id==2{b.ready_guns.push("cannon".into());}if id==3{b.hp=0.;}if id==4{b.kind="radar".into();}g.buildings.push(b);}g.initialize_native_capture_defaults(7);assert_eq!(g.buildings[0].product.as_deref(),Some("grunt"));assert_eq!(g.buildings[0].remaining_work,Some(f64::from(super::super::original_stats::workload("grunt")-123)));assert_eq!(g.native_factory_work[&0].credit,0);assert_eq!(g.buildings[1].product.as_deref(),Some("psycho"));assert_eq!(g.buildings[1].remaining_work,Some(777.));for b in &g.buildings[2..]{assert_eq!(b.product,None);}let before=g.buildings[0].remaining_work;g.initialize_native_capture_defaults(7);assert_eq!(g.buildings[0].remaining_work,before);
+ }
+ #[test]fn native_build_order_interleaves_radar_and_first_factory_slots_before_later_capacity_checks(){
+  let mut g=field();let mut first=g.buildings[0].clone();first.id=1;first.x=600.;let mut radar=first.clone();radar.id=2;radar.x=900.;radar.kind="radar".into();radar.product=None;g.buildings.push(first);g.buildings.push(radar);let mut raw=(0..35).map(|slot|super::super::json!({"nativeSlot":slot,"kind":-1,"x":-1,"y":-1,"hp":0,"maxHp":0})).collect::<Vec<_>>();for(slot,id,kind,x)in[(0,1,4,300),(1,2,8,450),(2,0,4,150)]{raw[slot]=super::super::json!({"nativeSlot":slot,"buildingId":id,"kind":kind,"x":x,"y":100,"hp":1000,"maxHp":1000,"flags6":0,"nativeWord0A":0});}g.import_native_world(&super::super::json!({"nativeWorldBuildings":raw}));for id in 0..232{g.spawn("grunt",(id&1)as i32,1200.,900.,100+id,None);}g.native_callback_mode=255;g.capture_native_building_display();assert_eq!(g.buildings.iter().find(|b|b.id==1).unwrap().completion_ticks,68);assert_eq!(g.buildings[0].completion_ticks,0);assert_eq!(g.buildings[0].remaining_work,Some(1.));assert_eq!(g.units.len(),235);let rows=g.native_display_queue();assert_eq!(rows.iter().filter(|r|r["kind"]=="building").map(|r|r["id"].as_u64().unwrap()).collect::<Vec<_>>(),[1,2,0]);assert_eq!(rows.iter().find(|r|r["source"]=="radarDish").unwrap()["sprite"],1488);assert_eq!(g.native_radar_raw_state(1).unwrap().word0a,1);
+ }
 }

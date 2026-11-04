@@ -31,6 +31,8 @@ impl State {
     }
     #[cfg(test)]pub(crate) fn seed_raw_scan(&mut self,cursor:u8){self.scan=cursor;}
     #[cfg(test)]pub(crate) fn raw_scan_cursor(&self)->u8{self.scan}
+    pub(crate) fn raw_scan_cursor_value(&self)->u8{self.scan}
+    pub(crate) fn store_raw_scan_cursor(&mut self,n:u8){self.scan=n;}
     pub fn aim(&mut self,direction:u8,odd:bool,ready:bool)->bool{
         self.aim_timer=self.aim_timer.wrapping_sub(1);
         if self.aim_timer>=0{return false;}
@@ -112,7 +114,7 @@ impl Game {
         let u=&self.units[index];
         let direction=native_math::direction((target.x/2.).floor()as i32+12-((u.x/2.).floor()as i32+14),
             (target.y/2.).floor()as i32+8-((u.y/2.).floor()as i32+12));
-        let ready=u.cooldown<=0.;let h=self.units[index].native_hardware.as_mut().unwrap();
+        let ready=self.native_hardware_ready(u);let h=self.units[index].native_hardware.as_mut().unwrap();
         let release=h.aim(direction,self.motion_tick&1!=0,ready);
         self.units[index].aim=native_math::angle(h.turret);
         if stats(&self.units[index].kind).cls==2{self.units[index].angle=self.units[index].aim;}
@@ -160,12 +162,12 @@ impl Game {
                 }
                 let point=((target.x/2.).floor()as i32+12,(target.y/2.).floor()as i32+8);
                 let direction=native_math::direction(point.0-((u.x/2.).floor()as i32+14),point.1-((u.y/2.).floor()as i32+12));
-                let h=self.units[index].native_hardware.as_mut().unwrap();let release=h.aim(direction,self.motion_tick&1!=0,u.cooldown<=0.);
+                let ready=self.native_hardware_ready(&u);let h=self.units[index].native_hardware.as_mut().unwrap();let release=h.aim(direction,self.motion_tick&1!=0,ready);
                 self.units[index].aim=native_math::angle(h.turret);
                 if release{self.fire_native_apc_point(index,point,target.id);}
             }
         }else{self.units[index].native_hardware.as_mut().unwrap().apc_target=None;}
-        if self.units[index].cooldown>0.{return;}
+        if !self.native_hardware_ready(&self.units[index]){return;}
         let mut targets:[Option<Unit>;4]=[None,None,None,None];
         for side in [1,3,0,2]{
             //004476f0 first scans without a weapon-range cutoff, then checks
@@ -177,7 +179,7 @@ impl Game {
         }
         if targets.iter().all(Option::is_none){return;}
         let rate=u.original_combat.as_ref().map(|s|s.fire_rate).unwrap_or(80);
-        self.units[index].cooldown=f64::from(apc_reload(rate,false))/17.;
+        self.set_native_hardware_reload(index,apc_reload(rate,false));
         let weapon_kind=driver.kind.clone();
         let passengers=std::iter::once(driver).chain(u.cargo.clone()).take(21).collect::<Vec<_>>();
         let mask=targets.iter().enumerate().fold(0,|m,(side,t)|m|if t.is_some(){1<<side}else{0});
@@ -208,7 +210,7 @@ impl Game {
     /// passenger, independent two-axis jitter, and the separate manual phase gate.
     /// The browser currently exposes directed unit fire for Tough crews only.
     pub(crate) fn fire_native_apc_point(&mut self,index:usize,point:(i32,i32),target:usize)->bool{
-        if self.units[index].kind!="apc"||self.units[index].cooldown>0.{return false;}
+        if self.units[index].kind!="apc"||!self.native_hardware_ready(&self.units[index]){return false;}
         let u=self.units[index].clone();let Some(driver)=u.crew.as_ref()else{return false;};
         if !matches!(driver.kind.as_str(),"tough"|"pyro"){return false;}
         self.ensure_native_hardware(index);
@@ -227,14 +229,15 @@ impl Game {
                 emitted=true;self.events.push(serde_json::json!({"kind":"shot","type":driver.kind,"weapon":"passenger","carrier":u.id,"x":origin.0*2,"y":origin.1*2,"team":u.team}));
             }
         }
-        self.units[index].cooldown=f64::from(apc_reload(u.original_combat.as_ref().map(|s|s.fire_rate).unwrap_or(80),true))/17.;
+        self.set_native_hardware_reload(index,apc_reload(u.original_combat.as_ref().map(|s|s.fire_rate).unwrap_or(80),true));
         emitted
     }
     pub(crate) fn update_native_hardware(&mut self,index:usize){
         if !self.map.original||self.units[index].team<0||stats(&self.units[index].kind).cls==0{return;}
         self.ensure_native_hardware(index);
+        if self.units[index].native_phase35==9{self.units[index].native_elevation76=0;}
         self.update_native_vehicle_contacts(index);
-        if self.units[index].kind=="apc"{self.update_native_apc(index);return;}
+        if self.units[index].kind=="apc"{let point=self.units[index].native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref()).is_some_and(|m|m.flags69&32!=0);if !point{self.update_native_apc(index);}return;}
         if !has_hatch(&self.units[index].kind){return;}
         let u=self.units[index].clone();
         // The native hatch only scans while its firing countdown is negative.
@@ -374,7 +377,7 @@ mod tests{
     #[test]
     fn game_waits_for_the_turret_and_keeps_its_heading_during_a_march(){
         let mut g=field();g.spawn("medium",0,320.,320.,1,None);g.spawn("gatling",1,512.,320.,2,None);
-        for u in &mut g.units{u.hold_position=true;}g.units[1].cooldown=10000.;
+        for u in &mut g.units{u.hold_position=true;}g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
         let id=g.units[0].id;let mut first=None;
         for tick in 1..=24{g.step(0.059);if g.events.iter().any(|e|e["kind"]=="shot"&&e["team"]==0){first=Some(tick);break;}}
         assert_eq!(first,Some(24));assert_eq!(g.units[0].native_hardware.as_ref().unwrap().turret,2);
@@ -387,7 +390,7 @@ mod tests{
         for kind in ["grunt","tough","pyro","laser"]{
             let mut g=field();g.spawn("apc",0,320.,320.,1,Some(super::super::Crew{kind:kind.into(),hp:100.}));
             g.units[0].cargo=vec![super::super::Crew{kind:kind.into(),hp:100.};5];g.units[0].hold_position=true;
-            g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;
+            g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
             g.step(0.059);let events=g.events.iter().filter(|e|e["kind"]=="shot"&&e["weapon"]=="passenger").collect::<Vec<_>>();
             assert_eq!(events.len(),6,"{kind}");assert!(events.iter().all(|e|e["type"]==kind&&e["carrier"]==g.units[0].id));
             assert!(!g.events.iter().any(|e|e["kind"]=="shot"&&e["team"]==0&&e["weapon"]=="primary"));
@@ -399,8 +402,8 @@ mod tests{
         let mut g=field();g.spawn("apc",0,320.,320.,1,Some(super::super::Crew{kind:"pyro".into(),hp:80.}));
         g.units[0].hold_position=true;let state=g.units[0].original_combat.as_mut().unwrap();state.aim_skill=13;state.fire_rate=60;
         assert_eq!(apc_shooter(&g.units[0],"pyro").original_combat.unwrap().aim_skill,13);
-        g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;
-        g.step(0.059);assert_eq!(g.units[0].cooldown,60./17.);
+        g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
+        g.step(0.059);assert_eq!(g.units[0].native_reload7b,60);assert_eq!(g.units[0].cooldown,60.*0.059);
         assert_eq!(apc_reload(98,false),3);assert_eq!(apc_reload(80,false),30);assert_eq!(apc_reload(80,true),20);
     }
     #[test]
@@ -409,14 +412,14 @@ mod tests{
         g.units[0].cargo=vec![super::super::Crew{kind:"tough".into(),hp:100.};20];g.units[0].original_combat.as_mut().unwrap().fire_rate=70;
         g.original_rng=original_combat::OriginalRng{words:[1,2,3,4,5],multiplayer:false};
         assert!(g.fire_native_apc_point(0,(800,900),200));assert_eq!(g.projectiles.len(),21);
-        assert!(g.projectiles.iter().all(|p|p.x==1000.&&p.y==1200.));assert_eq!(g.units[0].cooldown,30./17.);
+        assert!(g.projectiles.iter().all(|p|p.x==1000.&&p.y==1200.));assert_eq!(g.units[0].native_reload7b,30);assert_eq!(g.units[0].cooldown,30.*0.059);
         assert_eq!(g.events.iter().filter(|e|e["weapon"]=="passenger").count(),21);
     }
     #[test]
     fn one_carrier_weapon_class_controls_every_passenger_port(){
         let mut g=field();g.spawn("apc",0,320.,320.,1,Some(super::super::Crew{kind:"laser".into(),hp:60.}));
         g.units[0].cargo=vec![super::super::Crew{kind:"grunt".into(),hp:30.},super::super::Crew{kind:"pyro".into(),hp:80.}];
-        g.units[0].hold_position=true;g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;
+        g.units[0].hold_position=true;g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
         g.step(0.059);let shots=g.events.iter().filter(|e|e["weapon"]=="passenger").collect::<Vec<_>>();
         assert_eq!(shots.len(),3);assert!(shots.iter().all(|e|e["type"]=="laser"));assert!(g.bullets.iter().all(|b|b.laser));assert!(g.projectiles.is_empty());
     }
