@@ -7,6 +7,7 @@ pub const PRIMARY_COUNT:usize=4800;
 pub const SECONDARY_COUNT:usize=9600;
 pub const FREE:u32=u32::MAX;
 #[path="original_route_pool_game.rs"]pub mod game;
+#[path="original_road_assembly.rs"]pub mod road;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Node{pub point:[i16;2],pub next:u32}
 impl Default for Node{fn default()->Self{Self{point:[-1;2],next:FREE}}}
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct Links{pub primary:u32,pub secondary:u32}

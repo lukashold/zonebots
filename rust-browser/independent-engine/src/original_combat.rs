@@ -204,6 +204,9 @@ pub fn apply_attack_with_mode(
     } else {
         apply_body_damage(&mut target, attack.damage, difficulty, multiplayer)
     };
+    //41f150 sets the hull flash before its immunity gate.41e7b0 sets the
+    //crew-only mask after that gate, so protected crew keeps its old mask.
+    if result.route==DamageRoute::Body||!target.immune{unit.native_flags64|=4;unit.native_mask98=if result.route==DamageRoute::Body{7}else{3};}
     if result.route == DamageRoute::Body && !target.immune {
         if let Some(mut hull) = old_hull {
             for _ in 0..result.calls {
@@ -702,6 +705,10 @@ mod tests {
             .apply_original(&payload)
             .unwrap_err()
             .contains("Invalid original crates"));
+    }
+    #[test]
+    fn body_and_crew_flash_masks_keep_the_original_immunity_order() {
+        for immune in [false,true]{for bullet in [false,true]{let mut g=engine_game();g.spawn("jeep",1,640.,640.,1,None);let u=&mut g.units[0];u.native_flags64=17;u.native_mask98=1;u.original_combat.as_mut().unwrap().immune=immune;let hp=u.hp;let crew=u.crew.as_ref().unwrap().hp;let a=Attack{target:u.id,damage:1,aim:120,facing:0,bullet};apply_attack_with_mode(u,a,1,true,||0);if bullet&&immune{assert_eq!((u.native_flags64,u.native_mask98),(17,1),"41e7b0 protection precedes crew flash");}else{assert_eq!(u.native_flags64,21);assert_eq!(u.native_mask98,if bullet{3}else{7});}if immune{assert_eq!(u.hp,hp);assert_eq!(u.crew.as_ref().unwrap().hp,crew);}}}
     }
 }
 

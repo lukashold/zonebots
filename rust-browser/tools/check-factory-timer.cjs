@@ -11,6 +11,9 @@ vm.createContext(env);vm.runInContext(fs.readFileSync(root+'/dist/independent/or
  const art=env.window.OriginalArt;assert(await art.load());let calls=[];const ctx={drawImage:(im,x,y,w,h)=>calls.push({id:im.frameId,x,y,w,h})},map={original:true,world:0};
  const b={x:100,y:200,hp:100,team:0,product:'grunt',kind:'robot'};
  assert.equal(art.productionText(b,383),'6:23');assert.equal(art.productionText(b,0),'0:00');assert.equal(art.productionText(b,599.9),'9:59');assert.equal(art.productionText(b,600),'9:59');assert.equal(art.productionText(b,null),'*:**');
+ for(const [seconds,text] of [[null,'*:**'],[0,'0:00'],[8,'0:08'],[59,'0:59'],[60,'1:00'],[599,'9:59'],[600,'9:59'],[-1,'0:-1'],[-61,'-1:-1'],[65535,'0:-1'],[65596,'1:00']])assert.equal(art.clockText(seconds),text,'40ac30 signed-short clock formatting');
+ for(const value of [undefined,NaN,Infinity])assert.equal(art.clockText(value),null);
+ assert(art.clock(ctx,152,282,61,map));assert.deepEqual(calls.map(c=>[c.id,c.x,c.y]),[[581,152,282],[590,160,282],[580,166,282],[581,174,282]],'40ab90 workshop clock uses retained BUILD+26/+41 coordinates');calls=[];
  const completed={...b,completionTicks:68};
  // Global phase increments every other native update: four visible ticks then four blank.
  for(let tick=0;tick<24;tick++)assert.equal(art.productionText(completed,383,tick/17),(((tick+1)>>1)&2)?'0:00':null);

@@ -66,11 +66,31 @@ Prüfsumme2239336345. Frontend spielt angenommene native Samples ohne einen
 zweiten erfundenen45-ms-Filter. Nicht alle allgemeinen Funkereignisse sind
 bereits durch ihre ursprünglichen UI-Aufrufer ersetzt.
 
+PRIMÄRE GLOBALE STRASSENASSEMBLIERUNG
+43bbe0/43b640/43b6f0/43bba0/43ba60:192 komplette Originalfälle mit allen
+14.400 Records, Linkidentitäten, Rückgabe, Zähler und UNIT9c:1813887958.
+Der erste reservierte Zieleintrag wird als erster Straßenpunkt überschrieben.
+Primärscan4800 ist inklusiv; Zwischenfehler räumen nur den gespeicherten Präfix
+auf. Der letzte aktuelle Record kann verwaist bleiben. Der Aufrufer ignoriert
+AL vom letzten Zielanhang. Diese Wirkungen sind nicht atomar.
+Der tatsächliche53730-Gamecaller setzt das Roadflag vor538f0 und hält den
+ursprünglichen Kopf. Die temporäre80-Liste überlappt ab Record44 mit nativen
+Globals und ist nicht durch diesen primären Poolnachweis abgedeckt.
+
+DYNAMISCHE MASKEN UND TERRAINBELEGUNG
+44e520/45a5c0:2.048 Originalaufrufe mit allen wiederhergestellten Maskenbytes,
+Signatur165255187.5aa60/5ab40/5b470/5b3c0/5ba10:1.024 vollständige Aufrufe,
+Signatur2596835704, einschließlich signed16-Wait, W44 und Terrain16384Bytes.
+1.024 kombinierte51da0→Wrapper-Aufrufe:2305097233; korrigierte UNIT-Position
+und vorgeschlagene globale Position sind tatsächlich verschiedene Werte.
+63 kommt aus footprint18[terrain10&127], signednegative wird0. W17:1 markiert
+einen tatsächlichen Linienstart, sodass spätere61d10-Parked-Gates ihn sehen.
+
 WEITER BESTEHENDE GRENZEN
 Die gekoppelten globalen Straßen-/Konturabschlussfälle und alle Überlauf-
 wechselwirkungen einer vollständigen Partie sind noch nicht vollständig als
-identische Original-Eingabespur verglichen. Dynamische UNIT-Kollisionsoverlays,
-einzelne Hardware-Belegungs-/Reparaturzustände, sämtliche UI-Globals und die
-Originaluhr in Menüs/Pause sind weitere konkrete Vergleichsgrenzen.
+identische Original-Eingabespur verglichen. Scratch-/Globalaliasing, weitere
+freundliche Ausweichcaller, entfernte Werkstattinsassen, sämtliche UI-Globals
+und die Originaluhr in Menüs/Pause bleiben konkrete Vergleichsgrenzen.
 Die globale Zeichenfolge hat einen eigenen Bericht ORIGINAL-ZEICHENQUEUE.txt.
 Einzelne bestandene Funktionstests schließen diese verbleibenden Punkte nicht.

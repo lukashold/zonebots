@@ -1,10 +1,10 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-716/716 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-67/67 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+752/752 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
+68/68 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 26fb556883a0263ca9b22728a5ed09f0229e341727114917b02903aacf1bf104
+Wasm SHA256: 416c386b6c28bd621a8a3436e654832da0bdc374e9ab6202d9bb04f2e3d1e439
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,7 +40,7 @@ UMFANG
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
 
-ZUSÄTZLICHE ORIGINALVERGLEICHE
+NEUER GEPRÜFTER UMFANG- Aktive native Werkstätten:30 gezielte Rusttests, echter Mainloop und authored  Mission11 mit Eintritt, Freeze, Raten, Heilung, Besitzwechsel und Ausfahrt.  Alle21 authored Werkstätten sind in den20 Missionen an BUILD-Slots gebunden.  Fünf Welten prüfen das Auslassen alter doppelter Maschinenanimationen sowie  erhaltene Uhr-, Indikator-, Overlay- und Tor-Reihenfolge.- 6.664 neue Originalfixtures:4.096 Werkstattcallbacks,1.024 Eintritte,  512 Sparkctor,1.024 CP-Ratenscans und8 Faktorinitialisierungszweige.- 16.384 zusätzliche Hardwarezeichenfälle bis zum Raster-/Palettenendpunkt;  16.389 tatsächliche Frontendfälle prüfen erhaltene Layer und Bildgrenzen.- 4.096 dynamische Originalaufrufe:2.048 Wrapper/Masken,1.024 Terrainbelegung/  Freigabe/Wait und1.024 vollständige51da0→Wrapper-Aufrufe. Weitere Gamefälle  prüfen Linienstart, Todes-/APC-Freigabe, Übernahme und Versuchsposition.- 192 vollständige primäre Straßenassemblerfälle über alle14.400 Records,  einschließlich Fragmentierung, knappem Speicher, Kopfidentität und Teilwrites.  Der tatsächliche53730-Auftrag erhält denselben Kopf und setzt sein Roadflag.- Werkstattuhren und Besitzer-Overlays erreichen den tatsächlichen Multiplayer-  Gast. Ungültige Rasterflags und Uhr-/Slotdaten werden abgewiesen.ZUSÄTZLICHE ORIGINALVERGLEICHE
 Werkzeuge in tools/ghidra führen die unveränderte lokale GOG-EXE im x86-Emulator
 unter Ghidra12.2 aus. Eigene Tests vergleichen die protokollierten Felder und
 numerischen Signaturen. Explizite Aufrufgrenzen stehen im jeweiligen Werkzeug.
@@ -61,13 +61,13 @@ behaupteten End-to-end-Fällen zusammengerechnet. Details: ORIGINAL-PFADPOOL.txt
 und ORIGINAL-ZEICHENQUEUE.txt. Rohprotokolle und Decompilertexte bleiben privat.
 
 BROWSER
-Aktuellen Release in Edge mit Originalgrafik(Mission1) und HD-Remake(Mission20)
+Aktuellen Release in Edge mit Originalgrafik(Mission1) und HD-Remake(Mission17)
 gestartet. Menü/Grafikwechsel und der korrigierte einzelne Leerhinweis im HUD
 sind am tatsächlichen DOM und an Browseraufnahmen geprüft. Keine erfassten
-Browserwarnungen/-fehler. Beobachtete Bild-/Kern-p95: Original11,2/4,8ms,
-HD12,3/5,5ms. Automations-/Hintergrundtabs liefen zeitweise nur mit30–42FPS;
-dies ist kein belastbarer allgemeiner Frameratenvergleich. Browseraufnahmen
-wurden in der Sitzung angezeigt, keine separate Bilddatei wird mitveröffentlicht.
+Browserwarnungen/-fehler. Beobachtete Bild-/Kern-p95: Original6,0/4,5ms
+bei57FPS, HD10,1/7,9ms bei41FPS. Dies ist kein allgemeiner Frameratenvergleich.
+Browseraufnahmen wurden lokal gespeichert; sie werden nicht öffentlich
+mitveröffentlicht, weil sie Originalmedien enthalten.
 macOS-Hardware, tatsächliche Lautsprecherausgabe und zwei physische LAN-Rechner
 wurden nicht separat geprüft.
 
@@ -78,3 +78,5 @@ DATEN UND VERÖFFENTLICHUNG
 native Radarfelder in allen700 BUILD-Diskrecords.
 Originaldaten bleiben im genehmigten privaten Paket beziehungsweise LAN.
 Öffentliches Git enthält eigenen Code, Werkzeuge und Befunddokumentation.
+
+Die Sichtprüfung ist keine allgemeine60FPS-Zusage und kein Pixelvergleich.

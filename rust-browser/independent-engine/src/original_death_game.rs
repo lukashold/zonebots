@@ -14,9 +14,14 @@ impl Game{
   self.remember_original_group_order(index,before);self.release_original_claim(index);
   if [32,59].contains(&family){self.kill_native_apc_passengers(index,suppressed,forced);}
   if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,point,before.native_class7c);}
-  self.native_removed_hardware(index,before,suppressed,crew_only);self.release_native_hardware_record(index);
+  self.native_removed_hardware(index,before,suppressed,crew_only);
+  //58660 releases occupancy only for an extant W pointer, before freeing it.
+  //58af0 may already have replaced UNIT8 with-1, retaining the outer dummycase.
+  if self.units[index].native_hardware_slot.is_some(){self.release_native_removal_occupancy(index);}self.release_native_hardware_record(index);
+  if let Some(m)=self.units[index].native_slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.flags31&=!4;}
   self.native_deaths.allocate(point,before.native_flags64,suppressed,forced,||self.original_rng.next_u32());
-  self.remove_original_group_member(index);self.clear_native_owned_paths(index);
+  //58ec0 repeats5ab40 after58660, now with inactive31:4 (no path restart).
+  self.release_native_removal_occupancy(index);self.remove_original_group_member(index);self.clear_native_owned_paths(index);
   let u=&mut self.units[index];u.native_slot=None;u.native_dodge=None;u.native_cover=None;u.native_idle=None;u.native_walk=None;u.native_fire=None;u.path.clear();u.native_route_pending.set(None);u.dest=None;u.target=None;u.moving=false;
  }
  ///41eb30 writes UNIT.family30=FF before calling58ec0 directly. That skips
@@ -24,7 +29,7 @@ impl Game{
  ///caller supplies the real native position, including Inside sentinel10000.
  pub(crate) fn native_direct_removal(&mut self,index:usize,point:[i16;2],suppressed:bool,forced:bool)->bool{
   let Some(before)=self.units.get(index).cloned()else{return false;};let active=before.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).is_some_and(|m|m.flags31&4!=0);if !active{return false;}
-  if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,point,before.native_class7c);}self.remember_original_group_order(index,&before);self.release_original_claim(index);self.release_native_hardware_record(index);self.native_deaths.allocate(point,before.native_flags64,suppressed,forced,||self.original_rng.next_u32());self.remove_original_group_member(index);
+  if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,point,before.native_class7c);}self.remember_original_group_order(index,&before);self.release_original_claim(index);if self.units[index].native_hardware_slot.is_some(){self.release_native_removal_occupancy(index);}self.release_native_hardware_record(index);if let Some(m)=self.units[index].native_slot.and_then(|s|self.native_group_rosters.members[s].as_mut()){m.flags31&=!4;}self.native_deaths.allocate(point,before.native_flags64,suppressed,forced,||self.original_rng.next_u32());self.release_native_removal_occupancy(index);self.remove_original_group_member(index);
   let u=&mut self.units[index];u.hp=-1.;u.native_slot=None;u.native_dodge=None;u.native_cover=None;u.native_idle=None;u.native_walk=None;u.native_fire=None;u.path.clear();u.native_route_pending.set(None);u.dest=None;u.target=None;u.moving=false;true
  }
  ///Run before the group promotion callback:58660 allocates its independent

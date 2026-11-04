@@ -124,6 +124,12 @@ fn optional_owned_campaign_wall_composition_matches_the_extractor_for_all_twenty
         //409690 also retires the bridge's authored road rectangle, including
         //its north/west fringe. That source region can exceed deck tiles.
         if let Some(graph)=&expected.native_road_graph{for b in mission["bridges"].as_array().unwrap().iter().filter(|b|b["initiallyDestroyed"]==true){let point=((b["x"].as_f64().unwrap()/2.)as i16,(b["y"].as_f64().unwrap()/2.)as i16);if let Some(slot)=graph.region_at(point){let r=graph.regions[slot as usize].bounds;for y in ((r[1]-16).max(0)as usize/16)..=(r[3].max(0)as usize/16){for x in ((r[0]-16).max(0)as usize/16)..=(r[2].max(0)as usize/16){if x<expected.width&&y<expected.height{overlays.insert(y*expected.width+x);}}}}}}
+        //40cd20 stamps the authored5x4 workshop portal after the MAP load.
+        //The native repair-state constructor now owns these low-seven codes.
+        for b in mission["nativeWorldBuildings"].as_array().unwrap().iter().filter(|b|g.native_workshop_raw_state(b["nativeSlot"].as_u64().unwrap()as usize).is_some()){
+            let x=b["x"].as_i64().unwrap()as i32>>4;let y=b["y"].as_i64().unwrap()as i32>>4;
+            for dy in 0..4{for dx in 0..5{let(x,y)=(x+dx,y+dy);if x>=0&&y>=0&&(x as usize)<expected.width&&(y as usize)<expected.height{overlays.insert(y as usize*expected.width+x as usize);}}}
+        }
         for cell in 0..expected.tiles.len(){
             if !overlays.contains(&cell){assert_eq!(g.map.terrain_codes[cell],expected.terrain_codes[cell],"Mission{} cell{cell}: unchanged MAP collision",mission["number"]);assert_eq!(g.map.tiles[cell],expected.tiles[cell],"Mission{} cell{cell}: unchanged MAP class",mission["number"]);}
         }

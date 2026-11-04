@@ -271,6 +271,8 @@ def extract(root,out):
    record=next(b for b in native_buildings if b['kind']==-1)
    record.update({'kind':2,'x':ft['rawBase'][0],'y':ft['rawBase'][1]+16,'buildingId':next(b['id']for b in buildings if b['kind']=='fort'and b['team']==ft['team']),'fortProxy':True})
   data['nativeWorldBuildings']=native_buildings
+  #428d20 sets622db8=2;17b30 maps18-(18>>3)-(18>>2) to12.
+  data['nativeProduction']={'sourceInitializationMode':2,'factor':12}
   data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes})
   data['diagnostics']['wallRecords']=len({wall['wallRecord']for wall in walls})
   data['diagnostics']['wallPieces']=len(walls)

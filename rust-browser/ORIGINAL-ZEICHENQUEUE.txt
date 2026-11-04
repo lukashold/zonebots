@@ -6,8 +6,21 @@ Die gemeinsame Queue verwendet die originale, nicht stabile Y-Sortierung
 entstehen am Ende des jeweiligen UNIT-Callbacks. Ein späterer Treffer oder
 eine Freigabe des Slots verändert dieses bereits eingereihte Bild nicht.
 Der64:4-Einmalblitz wird erst bei einer tatsächlichen sichtbaren Einreihung
-gelöscht. Hardware erhält die bereits belegten minimalen Artwork-Eingaben;
-das ist kein Nachweis des vollständigen Hardware-Rasteraufrufers.
+gelöscht. Für normale mittlere, schwere und leichte Panzer entstehen jetzt
+die ursprünglichen16-Byte-Layerrecords aus55f10→455c30/455110/455290 und454ff0.
+Wanne, Turm, Rohr, Luke und Besatzung behalten ihre tatsächliche Zeichenfolge,
+Position und einzelne Palette. Hull-Richtung und Turmrichtung bleiben getrennt.
+Der beschädigte Wannenframe folgt dem echten W-HP-Vergleich, der Kettenframe
+dem tatsächlichen UNIT32-Schreiber. Zeichnen verwendet keinen Zeitersatz.
+Die vier normalen Geschütztypen verwenden Phase/Frame/UNIT84 und die originalen
+Flash-Offsets statt einer aus dem Cooldown geschätzten Grafik.
+
+UNIT98 maskiert nur die betreffenden Hardware-Layer: Crewtreffer41e7b0 setzen
+3 nach der Immunitätsprüfung, Hüllentreffer41f150 setzen7 schon davor. Die
+unmaskierten Luken-/Besatzungslayer können daher anders blinken als die Wanne.
+Bei tatsächlicher Tank-Einreihung mit64:4 wird98 wieder7. Der Originalslot
+behält diese Maske über den Rendererwechsel beim Ein- und Aussteigen.
+Andere Hardwarefamilien behalten den ausdrücklich begrenzten Artworkadapter.
 
 Die tatsächliche Mainfolge435c12..435e21 ist:
 Tracks; BUILD samt Produktion40ad60; UNIT5a240; KI419fb0; Fahrzeug-Nahauflösung
@@ -57,6 +70,12 @@ ausgeführte40b180 lässt diese Werte unverändert. Kapazitätsabfragen, Erstell
 der Einheiten, CPU-Neuwahl und endgültige Rasteraufrufe sind explizite Grenzen.
 
 Weitere getrennte native Nachweise:
+16384 vollständige normale Hardware-/Geschützzeichenaufrufe einschließlich
+55f10, Tank-Layerhelfern und4549f0/454630 bis zu Paletten-/Rasterendpunkten:
+Signatur3583215544. Alle achtbyteHeader,16byteLayer und Paletten-/Zeichenfolgen
+sind einzeln verglichen. Varianten umfassen beide Richtungen, Kettenframe,
+HP-Schwelle, Luken-/Crewzustand, Masken0/1/3/7, Trefferweiß und Geschütz84.
+97 ist für diese Hardwarefamilien unverändert:454d90 behandelt family4.
 512 Queue-/Palettenfolgen:131070041;
 4480 normale UNIT-Records:3040814069;
 9984 OBJECT-Primärrecords:3811278845;
@@ -76,8 +95,13 @@ Bestand, erhält bestehende Produkte und konsumiert vorhandenes Arbeitsguthaben
 einmal. Der separate Abbau des Budgets zerstörter Gebäude über40acf0/+4c und
 vollständige Fabrik-Rasternebenwirkungen gehören nicht zum Worknachweis.
 Weitere Fabrik-/Radarmaschinenteile verwenden weiterhin den Artwork-Zeitadapter.
-Spezielle UNIT97-Fade-/Terrainclips,98-Hardwaremasken und119 zusätzliche
-OBJECT-Wrack-Overlayfälle sind nicht durch die normalen Records abgedeckt.
+Spezielle UNIT97-Infanteriefades, BUILD-/Terrainclips bei Codes30/31/44/62..66
+und119 zusätzliche OBJECT-Wrack-Overlayfälle sind nicht durch die normalen
+Records abgedeckt. Der98=1-Schreiber im separaten Eingabedecoder4460c0 ist
+nicht Teil dieses Hardware-Drawnachweises; die Grafik verarbeitet diesen Wert.
+Die HD-Fortdarstellung verwendet die tatsächlichen fortId-Zuordnungen und
+Originalkoordinaten. Bodenpanzer neben dem Fort sind keine Dachgeschütze.
+Die neue HD-Geometrie ist kein Pixelgleichheitsnachweis der Originalgrafik.
 Der vollständige Sieg-/Zwischensequenzcontroller622cc0/e18/e19 ist nicht durch
 die einzeln geprüften Banner-Gates und Setter ersetzt. Identische komplette
 Missionen mit gleichem Eingabe- und RNG-Verlauf bleiben gesondert nachzuweisen.

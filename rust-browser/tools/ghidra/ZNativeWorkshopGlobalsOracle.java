@@ -1,0 +1,5 @@
+// Execute40a790 and the bounded17b79..17be7 initialization arithmetic.
+import ghidra.app.emulator.EmulatorHelper;import java.io.*;
+public class ZNativeWorkshopGlobalsOracle extends ZNativeWorldEffectOracle{
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){EmulatorHelper e=new EmulatorHelper(currentProgram);try{e.setBreakpoint(toAddr(RET));for(int s=0;s<1024;s++){for(int j=0;j<64;j++){put(e,0x5c3f0c+j*30,2,(s+j*3)%7==0?-1:0);put(e,0x5c3f14+j*30,1,new int[]{0,1,2,3,4,255}[(s+j*7)%6]);}e.writeRegister("ESP",S);put(e,S,4,RET);if(!e.run(toAddr(0x40a790),null,monitor))throw new Exception(e.getLastError());out.println("{\"mode\":0,\"scenario\":"+s+",\"rates\":"+hash(e.readMemory(toAddr(0x4a68a4),4))+"}");}e.clearBreakpoint(toAddr(RET));e.setBreakpoint(toAddr(0x417be7));for(int mode:new int[]{-32768,-1,0,1,2,3,4,32767}){put(e,0x622db8,2,mode);if(!e.run(toAddr(0x417b79),null,monitor))throw new Exception(e.getLastError());out.println("{\"mode\":1,\"input\":"+mode+",\"factor\":"+(short)read(e,0x622dba,2)+"}");}}finally{e.dispose();}}}
+}

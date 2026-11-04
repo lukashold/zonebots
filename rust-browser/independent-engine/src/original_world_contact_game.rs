@@ -7,6 +7,8 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_world_effects.rs"] mod effects;
 #[path="original_world_fire.rs"] pub(crate) mod fire;
 #[path="original_pickups.rs"] pub(crate) mod pickups;
+#[path="original_workshop.rs"] pub(crate) mod workshop;
+#[path="original_workshop_game.rs"] mod workshop_game;
 
 #[derive(Clone)]
 struct ObjectSlot {
@@ -15,7 +17,7 @@ struct ObjectSlot {
 }
 
 #[derive(Clone)]
-struct BuildingSlot { record: native::Building, maximum: i16, binding: Option<usize>, fort_proxy: bool, constructor:Option<super::original_factory::ConstructorFields>,display:super::original_building_display::Radar }
+struct BuildingSlot { record: native::Building, maximum: i16, binding: Option<usize>, fort_proxy: bool, repair:Option<workshop::State>, constructor:Option<super::original_factory::ConstructorFields>,display:super::original_building_display::Radar }
 #[derive(Clone)]
 struct BridgeSlot { record: native::Bridge, binding: usize, native_slot:usize, orientation:i16,
     retired_road:Option<(usize,[i16;4])>, restored_terrain:Vec<(i16,u8)> }
@@ -127,11 +129,11 @@ impl Game {
             }
         }
         if let Some(records)=v["nativeWorldBuildings"].as_array() {
-            state.buildings=(0..35).map(|_|BuildingSlot{record:native::Building{position:[-1,-1],kind:-1,hp:-1},maximum:-1,binding:None,fort_proxy:false,constructor:None,display:Default::default()}).collect();
-            for b in records { let slot=number(b,"nativeSlot",-1);if !(0..35).contains(&slot){continue;}state.buildings[slot as usize]=BuildingSlot{record:native::Building{position:[number(b,"x",-1)as i16,number(b,"y",-1)as i16],kind:number(b,"kind",-1)as i8,hp:number(b,"hp",-1)as i16},maximum:number(b,"maxHp",-1)as i16,binding:b["buildingId"].as_u64().map(|n|n as usize),fort_proxy:b["fortProxy"].as_bool().unwrap_or(false),constructor:None,display:super::original_building_display::Radar{word0a:number(b,"nativeWord0A",0)as i16,flags6:number(b,"flags6",0)as u8,notice15:number(b,"nativeByte15",0)as u8}}; }
+            state.buildings=(0..35).map(|_|BuildingSlot{record:native::Building{position:[-1,-1],kind:-1,hp:-1},maximum:-1,binding:None,fort_proxy:false,repair:None,constructor:None,display:Default::default()}).collect();
+            for b in records { let slot=number(b,"nativeSlot",-1);if !(0..35).contains(&slot){continue;}state.buildings[slot as usize]=BuildingSlot{record:native::Building{position:[number(b,"x",-1)as i16,number(b,"y",-1)as i16],kind:number(b,"kind",-1)as i8,hp:number(b,"hp",-1)as i16},maximum:number(b,"maxHp",-1)as i16,binding:b["buildingId"].as_u64().map(|n|n as usize),fort_proxy:b["fortProxy"].as_bool().unwrap_or(false),repair:None,constructor:None,display:super::original_building_display::Radar{word0a:number(b,"nativeWord0A",0)as i16,flags6:number(b,"flags6",0)as u8,notice15:number(b,"nativeByte15",0)as u8}}; }
         } else {
             // Synthetic arenas still use the native descriptors and HP rules.
-            for b in &self.buildings { if let Some(kind)=building_kind(&b.kind){let mut position=native_point(b.x,b.y);if kind==2{position=b.raw_base.map(|p|[p.0 as i16,p.1 as i16+16]).unwrap_or([position[0],position[1]+16]);}state.buildings.push(BuildingSlot{record:native::Building{position,kind,hp:b.hp as i16},maximum:b.max_hp as i16,binding:Some(b.id),fort_proxy:kind==2,constructor:None,display:Default::default()});} }
+            for b in &self.buildings { if let Some(kind)=building_kind(&b.kind){let mut position=native_point(b.x,b.y);if kind==2{position=b.raw_base.map(|p|[p.0 as i16,p.1 as i16+16]).unwrap_or([position[0],position[1]+16]);}state.buildings.push(BuildingSlot{record:native::Building{position,kind,hp:b.hp as i16},maximum:b.max_hp as i16,binding:Some(b.id),fort_proxy:kind==2,repair:None,constructor:None,display:Default::default()});} }
         }
         state.forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|Fort{binding:b.id,base:b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y))}).collect();state.forts.sort_by_key(|f|(f.base[1],f.base[0]));state.forts.truncate(2);
         for b in v["bridges"].as_array().into_iter().flatten() { let id=number(b,"id",-1);if id<0{continue;}let hp=number(b,"hp",0)as i16;let flags=number(b,"nativeFlags15",if hp<=0{2}else{0})as u8;
@@ -183,7 +185,7 @@ impl Game {
     pub(crate) fn native_neutral_unit_sprite(&self,id:usize)->Option<i16>{let o=self.native_world.as_ref()?.objects.iter().flatten().find(|o|o.active&&o.unit==Some(id))?;Some((o.sprite as i16).wrapping_add(i16::from(o.animation18 as i8)).wrapping_add(i16::from(o.sprite_offset21)))}
     pub(crate) fn native_object_visuals(&self)->Vec<Value>{self.native_world.as_ref().map(|s|s.objects.iter().flatten().filter_map(|o|o.render.map(|id|json!({"id":id,"nativeActive":o.active,"x":i32::from(o.record.position[0])*2,"y":i32::from(o.record.position[1])*2,"nativeAnimation18":o.animation18,"nativeSpriteOffset21":o.sprite_offset21}))).collect()).unwrap_or_default()}
     pub(crate) fn native_object_unit(&self,slot:usize)->Option<usize>{self.native_world.as_ref()?.objects.get(slot)?.as_ref().filter(|o|o.active)?.unit}
-    ///460430 initializes only X to−1. A never-used cold BSS slot has Y0;
+    ///460430 initializes only X toÃ¢Ë†â€™1. A never-used cold BSS slot has Y0;
     ///retired records retain their actual old Y for43bdd0's raw read.
     pub(crate) fn native_object_raw_position(&self,slot:u8)->Option<[i16;2]>{Some(self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().map_or([-1,0],|o|o.record.position))}
     pub(crate) fn native_object_hardware_input(&self,slot:u8)->Option<super::original_entry::ObjectHardware>{let o=self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().filter(|o|o.active)?;let mut h=o.hardware?;h.set_byte(15,o.hp);h.set_byte(40,o.maximum);Some(h)}
@@ -204,10 +206,23 @@ impl Game {
     pub(crate) fn native_world_buildings(&self)->Option<Vec<native::Building>>{Some(self.native_world.as_ref()?.buildings.iter().map(|b|b.record).collect())}
     ///The constructor delta records only source-written fields; None bytes
     ///retain their imported value and are not fabricated from cold defaults.
-    pub(crate) fn set_native_building_constructor(&mut self,slot:usize,fields:super::original_factory::ConstructorFields){if let Some(b)=self.native_world.as_mut().and_then(|s|s.buildings.get_mut(slot)){if let Some(maximum)=fields.maximum1c{b.maximum=maximum;}b.display.flags6=fields.flags6;if b.record.kind==8{b.display.construct();}b.constructor=Some(fields);}}
+    pub(crate) fn set_native_building_constructor(&mut self,slot:usize,fields:super::original_factory::ConstructorFields){let repair=if let Some(b)=self.native_world.as_mut().and_then(|s|s.buildings.get_mut(slot)){if let Some(maximum)=fields.maximum1c{b.maximum=maximum;}b.display.flags6=fields.flags6;if b.record.kind==8{b.display.construct();}if b.record.kind==0{let mut r=b.repair.unwrap_or_default();r.set_word(0,b.record.position[0]);r.set_word(2,b.record.position[1]);r.set_word(30,b.record.hp);r.construct(fields.flags6,b.maximum,fields.field11);b.repair=Some(r);}b.constructor=Some(fields);b.record.kind==0}else{false};if repair{self.initialize_native_workshop_terrain(slot);}}
+
     pub(crate) fn native_building_constructor(&self,slot:usize)->Option<super::original_factory::ConstructorFields>{self.native_world.as_ref()?.buildings.get(slot)?.constructor}
     pub(crate) fn native_hardware_building_owner_at(&self,slot:Option<usize>)->Option<u8>{let b=self.native_world.as_ref()?.buildings.get(slot?)?;let b=self.buildings.iter().find(|v|Some(v.id)==b.binding)?;u8::try_from(b.team).ok()}
-    pub(crate) fn native_hardware_repair_at(&self,point:[i16;2])->Result<Option<([i16;2],u8)>,super::original_path_contact::game::Boundary>{let Some(world)=self.native_world.as_ref()else{return Err(super::original_path_contact::game::Boundary::MissingHardwareProfile);};for(slot,b)in world.buildings.iter().enumerate().filter(|(_,b)|b.record.kind==0&&b.record.hp!=0){let bound=b.binding.and_then(|id|self.buildings.iter().find(|v|v.id==id));if bound.is_some_and(|b|self.units.iter().any(|u|u.workshop.as_ref().is_some_and(|w|w.building_id==b.id&&w.phase!="approach"))){return Err(super::original_path_contact::game::Boundary::HardwareRepairState(slot));}let Some(c)=b.constructor else{if b.record.position[0]<=point[0]&&i32::from(point[0])<=i32::from(b.record.position[0])+80&&(i32::from(point[1])-i32::from(b.record.position[1])).abs()<=159{return Err(super::original_path_contact::game::Boundary::HardwareRepairState(slot));}continue;};let y=i32::from(b.record.position[1])+i32::from(c.door3a);if c.remaining24.unwrap_or(0)==0&&b.record.position[0]<=point[0]&&point[0]<=b.record.position[0].wrapping_add(80)&&y<=i32::from(point[1])&&i32::from(point[1])<=i32::from((y+32)as i16){return Ok(Some(([b.record.position[0].wrapping_add(32),b.record.position[1].wrapping_add(24)],bound.map_or(255,|b|b.team as u8&7))));}}Ok(None)}
+    ///41c3f0 reads the actual BUILD24 work and signed3a door offset.
+    pub(crate) fn native_hardware_repair_at(&self,point:[i16;2])->Result<Option<([i16;2],u8)>,super::original_path_contact::game::Boundary>{
+        let Some(world)=self.native_world.as_ref()else{return Err(super::original_path_contact::game::Boundary::MissingHardwareProfile);};
+        for(slot,b)in world.buildings.iter().enumerate().take(35).filter(|(_,b)|b.record.kind==0&&b.record.hp!=0){
+            let Some(raw)=b.repair else{if b.record.position[0]<=point[0]&&point[0]<=b.record.position[0].wrapping_add(80)&&(i32::from(point[1])-i32::from(b.record.position[1])).abs()<=159{return Err(super::original_path_contact::game::Boundary::HardwareRepairState(slot));}continue;};
+            //A compatibility job has no source BUILD24 yet; never pretend its
+            //bay is free. Authored native admissions use the raw slot below.
+            if b.binding.is_some_and(|id|self.units.iter().any(|u|u.workshop.as_ref().is_some_and(|w|w.building_id==id&&w.native_slot.is_none()&&w.phase!="approach"))){return Err(super::original_path_contact::game::Boundary::HardwareRepairState(slot));}
+            let input=super::original_attack_click::RepairBuilding{position:b.record.position,kind:b.record.kind,hp:b.record.hp,remaining:raw.remaining(),offset3a:raw.bytes[58]as i8,owner:self.native_workshop_owner(slot).unwrap_or(4)as u8};
+            if let Some((_,at,owner))=super::original_attack_click::repair_at(&[input],point){return Ok(Some((at,owner as u8)));}
+        }Ok(None)
+    }
+
     pub(crate) fn native_world_bridges(&self)->Option<Vec<native::Bridge>>{let state=self.native_world.as_ref()?;Some((0..12).map(|slot|state.bridges.iter().find(|b|b.native_slot==slot).map(|b|b.record).unwrap_or(native::Bridge{position:[-1,-1],size:[0,0],hp:0,maximum:0,flags15:2})).collect())}
     pub(crate) fn native_fort_bases(&self)->Option<[[i16;2];2]>{let s=self.native_world.as_ref()?;Some([s.forts.first()?.base,s.forts.get(1)?.base])}
     pub(crate) fn native_ai_world_buildings(&self,team:i32)->Option<Vec<task::BuildingRecord>>{let s=self.native_world.as_ref()?;Some(s.buildings.iter().enumerate().map(|(slot,b)|{let binding=b.binding.and_then(|id|self.buildings.iter().find(|v|v.id==id));let shape=usize::try_from(b.record.kind).ok().and_then(|kind|native::BUILDING_SHAPES.get(kind));task::BuildingRecord{id:b.binding.unwrap_or(65536+slot),position:b.record.position,kind:b.record.kind,owner:binding.map_or(4,|v|if v.team==team{1}else if v.team>=0{0}else{4}),sector:binding.map(|v|v.sector).or_else(||self.world_sector(b.record.position)),hit_points:b.record.hp,attack_offset:shape.map_or([0,0],|v|[v[2],v[3]])}}).collect())}

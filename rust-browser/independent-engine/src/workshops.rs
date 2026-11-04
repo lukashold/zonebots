@@ -6,6 +6,8 @@ use super::*;
 #[serde(rename_all = "camelCase")]
 pub struct State {
     pub building_id: usize,
+    ///Some identifies the authoritative native BUILD repair record.
+    #[serde(default)] pub native_slot: Option<u8>,
     pub phase: String,
     /// Remaining/total native repair work, not wall-clock seconds.
     pub remaining: f64,
@@ -24,7 +26,7 @@ pub(crate) fn capable(unit: &Unit, original: bool) -> bool {
 }
 
 pub(crate) fn hidden(unit: &Unit) -> bool {
-    unit.workshop.as_ref().is_some_and(|s| s.phase == "repairing")||unit.native_transport.as_ref().is_some_and(|s|s.hidden())
+    unit.workshop.as_ref().is_some_and(|s| s.phase == "repairing"&&s.native_slot.is_none())||unit.native_transport.as_ref().is_some_and(|s|s.hidden())
 }
 
 fn bay(b: &Building, original: bool) -> (f64, f64) {
@@ -66,7 +68,7 @@ impl Game {
         let total=work_for(u.hp,u.max_hp);
         let unit=&mut self.units[index];unit.order="repairVehicle".into();unit.target=Some(target);
         unit.dest=Some(stage(&b,self.map.original));unit.path=path;unit.initiative=None;unit.march_resume=None;unit.pursuit=None;unit.hold_position=false;
-        unit.workshop=Some(State{building_id:target,phase:"approach".into(),remaining:total,total,seconds:None,progress:0.,tick_clock:0.,heal_ticks:0,admitting:false});
+        unit.workshop=Some(State{building_id:target,native_slot:None,phase:"approach".into(),remaining:total,total,seconds:None,progress:0.,tick_clock:0.,heal_ticks:0,admitting:false});
         true
     }
     fn release_workshop_position(&mut self,index:usize,building:usize) {
@@ -78,6 +80,9 @@ impl Game {
         }
     }
     pub(crate) fn cancel_workshop(&mut self,index:usize) {
+        //Frozen native jobs belong to BUILD8/24 and cannot be released by the
+        //browser approach adapter.40d050 owns their unfreeze/exit writes.
+        if self.units.get(index).and_then(|u|u.workshop.as_ref()).is_some_and(|s|s.native_slot.is_some()){return;}
         let Some(s)=self.units[index].workshop.take()else{return;};
         if s.phase=="repairing"||s.phase=="exiting"||s.admitting {self.release_workshop_position(index,s.building_id);}
         let u=&mut self.units[index];u.path.clear();u.dest=None;u.target=None;
@@ -118,6 +123,7 @@ impl Game {
     /// Returns true when this update is consumed by the workshop state machine.
     pub(crate) fn update_workshop(&mut self,index:usize,dt:f64)->bool {
         let Some(mut state)=self.units[index].workshop.clone()else{return false;};
+        if state.native_slot.is_some(){return false;}
         let u=self.units[index].clone();
         let b=self.buildings.iter().find(|b|b.id==state.building_id&&b.kind=="repair"&&b.team==u.team&&b.hp>0.).cloned();
         if u.order!="repairVehicle"||u.team<0||!original_combat::alive(self.map.original,u.hp)||stats(&u.kind).cls!=1||u.crew.is_none()||b.is_none(){

@@ -11,7 +11,7 @@ impl Game{
  ///wrapper; an unowned compatibility line remains with its existing caller.
  pub(crate) fn native_route_contact(&mut self,index:usize,contact:crate::original_collision::Contact)->Result<bool,crate::original_path_contact::game::Boundary>{
   use crate::original_path_contact::Context;
-  if !self.owns_native_route(index){return Ok(false);}let u=self.units[index].clone();let slot=u.native_slot.unwrap();let Some(member)=self.native_group_rosters.members[slot].as_ref().cloned()else{return Ok(false);};let mut proposed=[contact.position.0,contact.position.1];let old=[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16];let mut context={let paths=self.native_routes.borrow();Context{blocked:[contact.x.unwrap_or(-1),contact.y.unwrap_or(-1)],proposed,force:false,callback_idle:paths.scheduler.function==Function::Idle,current_actor:usize::from(paths.scheduler.current)==slot,dummy_actor:false}};
+  if !self.owns_native_route(index){return Ok(false);}let u=self.units[index].clone();let slot=u.native_slot.unwrap();let Some(member)=self.native_group_rosters.members[slot].as_ref().cloned()else{return Ok(false);};let mut proposed=[contact.attempted.0,contact.attempted.1];let old=[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16];let mut context={let paths=self.native_routes.borrow();Context{blocked:[contact.x.unwrap_or(-1),contact.y.unwrap_or(-1)],proposed,force:false,callback_idle:paths.scheduler.function==Function::Idle,current_actor:usize::from(paths.scheduler.current)==slot,dummy_actor:false}};
   self.native_attack_walk_marked=true;self.units[index].native_pose7e|=128;
   if u.native_class7c==1&&u.native_flags64&64!=0{self.units[index].native_flags64&=!64;self.finish_native_walk_line(index);return Ok(true);}
   if u.native_class7c!=1{let speed=u.native_speed8b.max(0)as usize;let thresholds=[10i8,8,6,5,5,4,3,2,2,2,1,1,1];let v=&mut self.units[index];v.native_timer3c=v.native_timer3c.wrapping_sub(1);if v.native_timer3c<0{v.native_timer3c=thresholds[speed.min(12)];v.native_frame32=v.native_frame32.wrapping_add(1)&3;}}
@@ -41,19 +41,19 @@ impl Game{
  pub(crate) fn plan_native_primary_route(&self,u:&Unit,dx:f64,dy:f64)->Option<RouteResult>{
   if !self.map.original||self.native_world.is_none()||self.map.native_road_graph.is_none(){return None;}let slot=u.native_slot?;let m=self.native_group_rosters.members[slot].as_ref()?;
   if ![u.x,u.y,dx,dy].iter().all(|n|n.is_finite()&&*n>=0.&&*n<=4094.)||u.native_class7c==2{return Some(RouteResult::Blocked);}
-  let active=self.native_path_active_slots();let goal_link={let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;paths.pool.clear(slot,active[slot],m.role);let Some(goal_link)=paths.pool.allocate_goal(raw((dx,dy)))else{return Some(RouteResult::Blocked);};goal_link};self.plan_native_primary_route_with_goal(u,dx,dy,goal_link)
+  let active=self.native_path_active_slots();let goal_link={let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;paths.pool.clear(slot,active[slot],m.role);let Some(goal_link)=paths.pool.allocate_goal(raw((dx,dy)))else{return Some(RouteResult::Blocked);};goal_link};match self.plan_native_primary_route_with_goal(u,dx,dy,goal_link){Ok(result)=>result.map(|p|p.0),Err(_)=>Some(RouteResult::Blocked)}
  }
  ///43bbe0 with the goal record already allocated by its actual caller.
  ///This helper performs no52500, allocation of that goal, or538f0 writes.
- pub(crate) fn plan_native_primary_route_with_goal(&self,u:&Unit,_dx:f64,_dy:f64,goal_link:u32)->Option<RouteResult>{
-  if !self.map.original||self.native_world.is_none(){return None;}let graph=self.map.native_road_graph.as_ref()?;let slot=u.native_slot?;let m=self.native_group_rosters.members[slot].as_ref()?;let goal=self.native_routes.borrow().pool.node(goal_link)?.point;
+ pub(crate) fn plan_native_primary_route_with_goal(&self,u:&Unit,_dx:f64,_dy:f64,goal_link:u32)->Result<Option<(RouteResult,bool)>,super::road::Boundary>{
+  if !self.map.original||self.native_world.is_none(){return Ok(None);}let Some(graph)=self.map.native_road_graph.as_ref()else{return Ok(None);};let Some(slot)=u.native_slot else{return Ok(None);};let Some(m)=self.native_group_rosters.members[slot].as_ref()else{return Ok(None);};
   let start=((u.x/2.).floor()as i16,(u.y/2.).floor()as i16);let profile=if u.kind=="apc"&&u.crew.as_ref().is_some_and(|c|c.kind=="tough"){original_terrain::Profile::Tracked}else{original_terrain::profile(&u.kind)};
   let allowed=|code|if u.kind=="tough"&&m.role<1{route::tough_leader_passable(code)}else{original_terrain::passable(code,self.map.world,profile)};
   let terrain=|p|self.route_terrain_code(p);let price=|c|if u.native_class7c!=1&&self.map.world==1&&c==9{12}else{original_terrain::route_cost(c,profile)};
-  let plan=route::plan_road(graph,start,(goal[0],goal[1]),((self.map.width*16)as i16,(self.map.height*16)as i16),terrain,|c|!allowed(c),price,self.map.native_level_record,true);
-  let active=self.native_path_active_slots();let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;let mut head=goal_link;let mut previous=None;
-  for p in plan.points.iter().take(plan.points.len().saturating_sub(1)){let Some(link)=paths.pool.allocate_goal([p.0,p.1])else{break;};if let Some(last)=previous{paths.pool.node_mut(last).unwrap().next=link;}else{head=link;}previous=Some(link);paths.pool.node_mut(link).unwrap().next=goal_link;}
-  paths.pool.assign_primary(slot,head,&active);let view=anchors(&paths.pool,paths.pool.links[slot].primary);u.native_route_pending.set(None);u.native_secondary_route.set(false);Some(RouteResult::Path(view))
+  let active=self.native_path_active_slots();let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;
+  let outcome=super::road::primary(&mut paths.pool.nodes,goal_link,start,graph,((self.map.width*16)as i16,(self.map.height*16)as i16),terrain,|c|!allowed(c),price,self.map.native_level_record,true);
+  let result=match outcome{Ok(result)=>result,Err(boundary)=>return Err(boundary)};
+  paths.pool.assign_primary(slot,goal_link,&active);let view=anchors(&paths.pool,paths.pool.links[slot].primary);u.native_route_pending.set(None);u.native_secondary_route.set(false);Ok(Some((RouteResult::Path(view),result.set_road_flag)))
  }
  pub(crate) fn native_owned_route_view(&self,index:usize)->Option<VecDeque<(f64,f64)>>{let u=self.units.get(index)?;let slot=u.native_slot?;let paths=self.native_routes.borrow();if !paths.managed[slot]{return None;}let m=self.native_group_rosters.members[slot].as_ref()?;Some(anchors(&paths.pool,if m.flags31&32!=0{paths.pool.links[slot].secondary}else{paths.pool.links[slot].primary}))}
 }

@@ -1,0 +1,21 @@
+//Actual55f10→455c30/regular tank composition and gun84 branches, then the
+//actual4549f0→454630 palette/layer dispatcher. Only texture/palette upload
+//and raster endpoints are boundaries. Terrain0 has no special BUILD clipping.
+import ghidra.app.script.GhidraScript;import ghidra.app.emulator.EmulatorHelper;import java.io.PrintWriter;
+public class ZNativeHardwareDisplayOracle extends GhidraScript{
+ static final long U=0x5e30c8L,H=0x72000000L,Q=0x62dc50L,E=0x628e18L,S=0x7fff0000L,RET=0x12345000L;
+ long read(EmulatorHelper e,long a,int n){byte[]b=e.readMemory(toAddr(a),n);long v=0;for(int i=0;i<n;i++)v|=(b[i]&255L)<<(8*i);return v;}
+ void put(EmulatorHelper e,long a,int n,long v)throws Exception{e.writeMemoryValue(toAddr(a),n,v);}
+ int hash(EmulatorHelper e,long a,int n){int h=0x811c9dc5;for(byte b:e.readMemory(toAddr(a),n))h=(h^(b&255))*16777619;return h;}
+ int mix(int h,int...v){for(int n:v)h=(h^n)*16777619;return h;}
+ String hex(EmulatorHelper e,long a,int n){if(n==0)return "";StringBuilder s=new StringBuilder();for(byte b:e.readMemory(toAddr(a),n))s.append(String.format("%02x",b&255));return s.toString();}
+ void call(EmulatorHelper e,long pc)throws Exception{put(e,S,4,RET);e.writeRegister("ESP",S);e.writeRegister("ECX",U);if(!e.run(toAddr(pc),null,monitor))throw new Exception(e.getLastError());}
+ public void run()throws Exception{try(PrintWriter o=new PrintWriter(getScriptArgs()[0])){EmulatorHelper e=new EmulatorHelper(currentProgram);try{
+  for(long a:new long[]{RET,0x46bde0,0x465cb0,0x466090,0x466180,0x466ac0})e.setBreakpoint(toAddr(a));put(e,0x622cb8,4,0);put(e,0x498c24,2,1024);put(e,0x498c20,2,1024);put(e,0x58aaaa,1,0);put(e,0x4d02df,1,0);put(e,0x680cfc,4,0);put(e,0x4d18ff,1,0);
+  for(int s=0;s<16384;s++){int which=s%7,family=new int[]{6,25,30,5,21,22,23}[which],phase=new int[]{9,9,9,0,50,51,52}[which],cls=which<3?1:2,heading=s/7%8,turret=s/56%8,frame=s/448%3,body=new int[]{0,1,2,255}[s/1344%4],hatch=new int[]{-1,0,1,2,3,4}[s*11%6],flags=new int[]{0,1,2,3,4,5,6,7,16,17,20,21}[s/2%12],mask=new int[]{0,1,3,7}[s/5%4],hp=new int[]{24,25,100}[s/9%3],counter=new int[]{-1,0,1,2,3,4,6}[s/13%7],elevation=new int[]{-32,0,7}[s/17%3],initial=s/23%4;
+   e.writeMemory(toAddr(U),new byte[192]);e.writeMemory(toAddr(H),new byte[44]);e.writeMemory(toAddr(Q),new byte[32]);e.writeMemory(toAddr(E),new byte[256]);put(e,U+8,4,H);put(e,U+44,2,500);put(e,U+46,2,600);put(e,U+48,1,family);put(e,U+50,2,frame);put(e,U+53,1,phase);put(e,U+57,1,heading);put(e,U+100,1,flags);put(e,U+105,1,4);put(e,U+118,1,elevation);put(e,U+124,1,cls);put(e,U+132,2,counter);put(e,U+151,1,27);put(e,U+152,1,mask);put(e,H+4,1,body);put(e,H+8,2,hp);put(e,H+10,2,100);put(e,H+21,1,turret);put(e,H+25,1,hatch);put(e,0x62b3a4,4,Q);put(e,0x62d5d8,4,E);put(e,0x477063,1,initial);put(e,0x47717f,1,initial);call(e,0x455f10);if(e.readRegister("EIP").longValue()!=RET)throw new Exception("unexpected producer boundary");int q=(int)(read(e,0x62b3a4,4)-Q),n=(int)(read(e,0x62d5d8,4)-E);if(q!=8||n<0||n>128||n%16!=0)throw new Exception("bad native queue shape");String header=hex(e,Q,q),layers=hex(e,E,n);int flagsAfter=(int)read(e,U+100,1),maskAfter=(int)read(e,U+152,1),trace=0x811c9dc5,draws=0,uploads=0;call(e,0x4549f0);
+   for(int budget=0;e.readRegister("EIP").longValue()!=RET;budget++){if(budget>40)throw new Exception("draw budget");long pc=e.readRegister("EIP").longValue(),sp=e.readRegister("ESP").longValue();int pal=(int)read(e,0x477063,1);if(pc==0x46bde0){uploads++;trace=mix(trace,0,pal);}else if(pc==0x465cb0)e.writeRegister("ECX",0);else if(pc==0x466090||pc==0x466180){draws++;trace=mix(trace,pc==0x466090?1:2,(short)e.readRegister("ECX").intValue(),(short)e.readRegister("EDX").intValue(),(short)read(e,sp+8,2),pal);}else throw new Exception("unexpected raster boundary "+Long.toHexString(pc));long ret=read(e,sp,4);e.writeRegister("ESP",sp+4);if(!e.run(toAddr(ret),null,monitor))throw new Exception(e.getLastError());}
+   o.println(s+","+family+","+phase+","+heading+","+turret+","+frame+","+body+","+hatch+","+flags+","+mask+","+hp+","+counter+","+elevation+","+initial+","+header+","+layers+","+flagsAfter+","+maskAfter+","+read(e,U+151,1)+","+(trace&0xffffffffL)+","+draws+","+uploads+","+read(e,0x477063,1));
+  }
+ }finally{e.dispose();}}}
+}

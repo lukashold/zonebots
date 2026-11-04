@@ -172,6 +172,12 @@ fn squads_contains(units:&[Unit],team:i32,squad:usize)->bool{units.iter().any(|u
 fn driver_duplicate(u:&Unit,units:&[Unit])->bool{u.transport_carrier.is_some_and(|id|units.iter().any(|c|c.id==id&&c.transport_actor==Some(u.id)))}
 
 impl Game{
+ ///40a790 counts the native valid-left CP records. The live browser binding
+ ///retains current team ownership; valid neutral CPs use native owner4.
+ pub(crate) fn native_production_cp_owners(&self)->Option<Vec<i8>>{
+  let state=self.native_strategy.as_ref()?;Some(state.sectors.iter().filter(|s|s.rect[0]>=0).map(|s|{let owner=self.sectors.iter().find(|v|v.id==s.id).map_or(i32::from(s.owner),|v|v.owner);if owner<0{4}else{owner as i8}}).collect())
+ }
+
  ///Native sector24 flags at raw coordinates, using authored CP rectangles
  ///and fixed fort bases. Missing original context stays unavailable.
  pub(crate) fn native_sector_flags_at(&self,point:[i16;2])->Option<u8>{

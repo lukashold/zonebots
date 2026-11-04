@@ -69,15 +69,37 @@ Master-Gates. Einzelne nachgewiesene Funkereignisse und direkte Waffensamples
 benutzen diese Freigabe statt eines weiteren erfundenen Browserfilters.
 Details und Prüfgrenzen: ORIGINAL-PFADPOOL.txt und ORIGINAL-ZEICHENQUEUE.txt.
 
+ZUSÄTZLICHER ABGLEICH: WERKSTATT, HARDWARE UND KOLLISION
+Die aktive Werkstatt verwendet BUILD8/24/3e/45 an den tatsächlichen Aufrufpunkten:
+Torfelder, Eintritt, Freeze ab folgendem Callback, Heilung, Arbeitsabzug,
+Besitzwechsel und einmaliger Ausfahrbefehl mit metadata4. Gebietsraten40a790
+liegen vor den BUILD-Callbacks. Kampagnenstart428d20 setzt Modus2;17b30 ergibt
+daraus Arbeitsfaktor12. Dieser wird als Originalmetadatum importiert.
+Uhr und Maschinenbilder folgen dem gespeicherten BUILD-Zustand; die alten
+zeitbasierten Werkstattteile werden dabei nicht doppelt gezeichnet.
+Reguläre Panzer und vier Geschützfamilien besitzen genaue gespeicherte
+Karosserie-/Turm-/Luken-/Besatzungslayer, einschließlich getrennter Paletten
+und Treffermasken.16.384 ausgeführte Originalfälle wurden einzeln verglichen.
+Dynamische Kollisionsmasken und Terrainbelegung besitzen eigene Originaloracles.
+63 ist ein Terrain-Tag aus der Fußabdruckmaske, nicht die Teamnummer. Globale
+Versuchsposition und bereits korrigierte UNIT-Position bleiben getrennt.
+Die primäre Straßenliste verwendet den ersten Zieleintrag weiter.192 Original-
+fälle vergleichen sämtliche14.400 Records, fragmentierte/fast volle Pools,
+den inklusiven4800-Rand, Teilwrites und fehlgeschlagene letzte Anhänge.
+Diese Nachweise ersetzen keinen vollständigen Originalpartievergleich.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
    sind noch nicht als identische Eingabespur nachgewiesen. Insbesondere die
-   globale Straßenlisten-Assemblierung hat weiterhin einen Adapter; gleiche
-   Wegpunkte belegen nicht dieselben Raw-Record-Identitäten bei jedem Überlauf.
-2. Dynamische UNIT-Kollisionsoverlays, einzelne Hardware-Belegungs- und aktive
-   Werkstatt-Rohzustände, räumliche Zielauflöser sowie Weiterlauf nach Transport-
-   bereinigung auf einem bereits deaktivierten UNIT-Speicher bleiben Grenzen.
+   temporäre Straßenliste überlappt ab Record44 mit Originalglobals. Lokale
+   Kontur-zu-Straße-Ersetzung und vollständiges Scratch-/Globalaliasing bleiben
+   getrennt von der jetzt geprüften primären Straßenassemblierung.
+2. Weitere freundliche Kollisions-/Ausweichcaller, räumliche Zielauflöser und
+   Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
+   Speicher bleiben Grenzen. Werkstätten brauchen nach Entfernung ihres Insassen
+   noch dessen alte UNIT/W-Felder. Der BUILD18-Schadensfragmentpool41f610 samt
+   420200-/Terrainfolgen ist ebenfalls noch offen.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten

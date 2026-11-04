@@ -15,14 +15,23 @@ impl Game{
   (m.flags31&4!=0&&m.flags69&64==0).then_some(slot)
  }
  pub(crate) fn begin_native_display_frame(&mut self){if self.map.original{self.native_display.units=Some(Vec::new());}}
+ fn native_regular_hardware_picture(&self,u:&Unit)->Option<super::hardware::Draw>{
+  let cell=u.native_cell10 as u16 as usize;let(x,y)=(cell&127,cell>>7);let terrain=if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x).copied().unwrap_or(127)}else{self.map.native_terrain_plane.get(cell).copied().unwrap_or(127)}&127;
+  //55f10's BUILD clipping path is a separate query/caller boundary. Do not
+  //silently claim those clipped compositions as the ordinary layer branch.
+  if matches!(terrain,30|31|44|62|63|64|65|66)||u.native_flags64&u.native_mask98>=128{return None;}
+  let w=u.native_hardware_slot.and_then(|slot|self.native_hardware_pool.get(slot)).map(|s|s.attributes);let h=u.native_hardware.as_ref();
+  super::hardware::draw(super::hardware::Input{position:point(u.x,u.y),family:original_combat::animation_family(&u.kind),class:u.native_class7c,phase:u.native_phase35,frame:u.native_frame32,heading:original_combat::facing(u.angle),turret:h.map_or(original_combat::facing(u.aim),|h|h.turret),hp:w.map_or(u.hp as i16,|w|w.word(8)),maximum:w.map_or(u.max_hp as i16,|w|w.word(10)),hatch_body:h.map_or_else(||w.map_or(0,|w|w.byte(4)),|h|h.hatch_body),hatch_frame:h.map_or_else(||u.original_combat.as_ref().map_or(-1,|c|c.secondary_state),|h|h.hatch_frame),flags64:u.native_flags64,mask98:u.native_mask98,elevation:u.native_elevation76,counter84:u.native_counter84})
+ }
  fn native_unit_display_row(&self,u:&Unit,slot:usize)->Option<(Record,Value)>{
   if workshops::hidden(u)||matches!(u.native_phase35,18|68){return None;}let p=point(u.x,u.y);if p[0]==10000{return None;}
   let flags69=self.native_group_rosters.members.get(slot).and_then(Option::as_ref).map_or(self.native_display.entry69[slot],|m|m.flags69);
   //55f10 checks visibility and signed screen bounds before selecting the
   //normal record or clearing its one-shot64:4 palette flag.
   if flags69&4==0{return None;}let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let screen=[p[0].wrapping_sub(camera[0]),p[1].wrapping_sub(camera[1])];if screen[0]<=-32||screen[0]>=size[0]||screen[1]<=-48||screen[1]>=size[1]{return None;}
-  let hardware=matches!(u.native_class7c,1|2);let header=if u.native_class7c==1{Record{x:p[0],y:p[1].wrapping_add(i16::from(u.native_elevation76)).wrapping_add(8),sprite:0,palette:u.native_flags64&7,offset:0}}else{infantry(p,u.native_phase35,u.native_frame32,original_combat::facing(u.angle)as i8,u.native_elevation76,u.native_flags64)?};
-  let mut row=json!({"kind":"unit","id":u.id,"nativeSlot":slot,"queueY":i32::from(header.y)*2,"palette":header.palette,"sprite":if hardware{None}else{Some(header.sprite)},"x":i32::from(p[0])*2,"y":i32::from(p[1])*2});
+  let hardware=matches!(u.native_class7c,1|2);let native=if hardware{self.native_regular_hardware_picture(u)}else{None};let header=if let Some(n)=&native{n.header}else if u.native_class7c==1{Record{x:p[0],y:p[1].wrapping_add(i16::from(u.native_elevation76)).wrapping_add(8),sprite:0,palette:u.native_flags64&7,offset:0}}else{infantry(p,u.native_phase35,u.native_frame32,original_combat::facing(u.angle)as i8,u.native_elevation76,u.native_flags64)?};let plain_hardware=native.as_ref().is_some_and(|n|n.layers.is_empty());
+  let mut row=json!({"kind":"unit","id":u.id,"nativeSlot":slot,"queueY":i32::from(header.y)*2,"palette":header.palette,"sprite":if hardware&&!plain_hardware{None}else{Some(header.sprite)},"x":i32::from(if plain_hardware{header.x}else{p[0]})*2,"y":i32::from(if plain_hardware{header.y.wrapping_add(i16::from(header.offset))}else{p[1]})*2});
+  if let Some(native)=&native{if !native.layers.is_empty(){row["nativeLayers"]=json!(native.layers.iter().map(|l|json!({"sprite":l.sprite,"x":i32::from(l.position[0])*2,"y":i32::from(l.position[1])*2,"palette":l.palette,"flags":l.flags})).collect::<Vec<_>>());}}
   if hardware{
    //Only fields consumed by the existing hardware artwork adapter are kept.
    //No path, roster, passenger, target, fire state or complete UNIT is copied.
@@ -36,7 +45,7 @@ impl Game{
  ///ambient contacts, deaths, identity changes and frontend snapshots.
  pub(crate) fn capture_native_unit_display(&mut self,index:usize,original_slot:Option<usize>){
   let Some(slot)=original_slot else{return;};if !self.map.original||self.native_display.units.as_ref().is_some_and(|rows|rows.iter().any(|(_,v)|v["nativeSlot"].as_u64()==Some(slot as u64))){return;}let actor=self.units.iter().rposition(|u|u.native_slot==Some(slot)).unwrap_or(index);let Some(u)=self.units.get(actor)else{return;};
-  let row=self.native_unit_display_row(u,slot);if row.is_some(){self.units[actor].native_flags64&=!4;}
+  let row=self.native_unit_display_row(u,slot);if row.is_some(){let white=self.units[actor].native_flags64&4!=0;self.units[actor].native_flags64&=!4;if white&&row.as_ref().is_some_and(|(_,v)|v.get("nativeLayers").is_some()){self.units[actor].native_mask98=7;}}
   if let(Some(rows),Some(row))=(&mut self.native_display.units,row){rows.push(row);}
  }
  pub(crate) fn native_display_queue(&self)->Vec<Value>{
@@ -87,6 +96,13 @@ impl Game{
   let mut g=field();g.time=1.25;g.spawn("medium",1,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_hardware=Some(crate::original_hardware::State::new(3,-1));g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);let before=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(before["time"],1.25);assert_eq!(before["art"]["nativeHardware"]["hatchFrame"],-1);assert_eq!(before["art"]["nativeTerrainCode"],0);for key in["path","target","cargo","nativeFire","squad","order"]{assert!(before["art"].get(key).is_none());}
   g.time=8.;g.units[0].hp=1.;g.units[0].angle=crate::native_math::angle(7);g.units[0].aim=crate::native_math::angle(4);g.units[0].native_hardware.as_mut().unwrap().hatch_frame=4;g.units[0].native_move_frame=3;let cell=31*g.map.width+31;g.map.terrain_codes[cell]=7;let after=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(before,after);
  }
+ #[test]fn tank_capture_retains_masked_body_unmasked_hatch_and_raw_track_frame_then_resets_once(){
+  let mut g=field();g.spawn("medium",1,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_phase35=9;g.units[0].native_frame32=2;g.units[0].native_move_frame=0;g.units[0].native_flags64=21;g.units[0].native_mask98=3;g.units[0].native_hardware=Some(crate::original_hardware::State::new(0,-1));g.units[0].angle=crate::native_math::angle(0);g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);let row=g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap();let layers=row["nativeLayers"].as_array().unwrap();assert_eq!(layers.len(),4);assert_eq!(layers[0]["sprite"],490);assert_eq!(layers[0]["palette"],1);assert_eq!(layers[3]["palette"],5);assert_eq!(layers[3]["flags"],1);assert_eq!((g.units[0].native_flags64,g.units[0].native_mask98),(17,7));g.units[0].native_frame32=0;g.units[0].native_hardware.as_mut().unwrap().turret=7;assert_eq!(g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap(),row,"later state cannot rewrite already submitted layers");
+ }
+ #[test]fn gun_source_pose_uses_phase_frame_and_84_offsets_instead_of_weapon_cooldown(){
+  let mut g=field();g.spawn("gatling",1,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_class7c=2;g.units[0].native_phase35=51;g.units[0].native_frame32=1;g.units[0].native_counter84=-1;g.units[0].angle=crate::native_math::angle(0);g.units[0].cooldown=999.;g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);let row=g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap();assert_eq!(row["sprite"],1660);assert_eq!((row["x"].as_i64(),row["y"].as_i64()),(Some(1002),Some(996)));g.units[0].native_counter84=3;g.units[0].cooldown=0.;g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);assert_eq!(g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap()["sprite"],2419);
+ }
+ #[test]fn special_build_clipping_stays_an_explicit_artwork_boundary(){let mut g=field();g.spawn("medium",0,640.,640.,1,None);g.maintain_native_group_rosters();g.units[0].native_cell10=0;g.map.terrain_codes[0]=31;let rows=g.native_display_queue();let row=rows.iter().find(|r|r["kind"]=="unit").unwrap();assert!(row.get("nativeLayers").is_none());assert!(row.get("art").is_some());}
  #[test]fn real_unit_loop_captures_after_an_early_handler_break_and_does_not_clear_flash_on_snapshot(){
   let mut g=field();g.ai_teams.clear();g.spawn("grunt",0,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_flags64|=4;g.units[0].native_phase35=33;g.units[0].native_frame32=0;g.units[0].native_timer3c=5;g.step(0.059);let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(row["palette"],4);assert_eq!(g.units[0].native_flags64&4,0);g.units[0].native_flags64|=4;let again=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(row,again);assert_eq!(g.units[0].native_flags64&4,4);
  }

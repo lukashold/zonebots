@@ -460,7 +460,7 @@ impl Game{
         let Some(route)=result.route else{return;};let(target,direct)=match route{life::FollowRoute::Primary(p)=>([p[0].wrapping_sub(8),p[1].wrapping_sub(8)],false),life::FollowRoute::Direct(p)=>(p,true)};
         let goal=(f64::from(target[0])*2.,f64::from(target[1])*2.);let already=native_position(&unit)==target;
         let path=if direct{if already{VecDeque::new()}else{VecDeque::from([goal])}}else{self.route_unit(&unit,goal.0,goal.1)};
-        if direct&&!already{self.prepare_native_walk(index);}
+        if direct&&!already{if !self.prepare_native_line_occupancy(index,target){return;}self.prepare_native_walk(index);}
         let u=&mut self.units[index];u.path=path;u.dest=Some(goal);u.original_motion=None;u.moving=!u.path.is_empty();
         if direct{
             if !already{u.native_remaining48=super::original_motion::Segment::new(u.x,u.y,goal).remaining();}
