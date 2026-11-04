@@ -12,8 +12,10 @@ impl Radar{
  ///40c820 resets word0A, clears6:20 and preserves notice15. Disk loading
  ///copied word0A directly; ordinary world sync is not a constructor call.
  pub fn construct(&mut self){self.word0a=0;self.flags6&=!32;}
+ ///Only the listener-owned acquisition bit/countdown, without a dish/BUILD tick.
+ pub fn advance_notice(&mut self,owner:i8,local_team:i8)->bool{let mut secured=false;if owner!=4{if owner==local_team{if self.flags6&32==0{self.flags6|=32;self.notice15=50;}else if self.notice15!=0{self.notice15=self.notice15.wrapping_sub(1);secured=self.notice15==0;}}else{self.flags6&=!32;}}secured}
  pub fn advance(&mut self,input:Input)->Result{
-  let mut out=Result::default();if input.owner!=4{if input.owner==input.local_team{if self.flags6&32==0{self.flags6|=32;self.notice15=50;}else if self.notice15!=0{self.notice15=self.notice15.wrapping_sub(1);out.secured=self.notice15==0;}}else{self.flags6&=!32;}}
+  let mut out=Result::default();out.secured=self.advance_notice(input.owner,input.local_team);
   let screen=[input.position[0].wrapping_sub(input.camera[0]),input.position[1].wrapping_sub(input.camera[1])];if screen[0]<=-64||screen[0]>input.size[0]||screen[1]<=-48||screen[1]>input.size[1]||input.hp==0{return out;}
   //Fresh40c820 sets0 and40c9b0 masks every subsequent increment to0..7.
   //Do not invent a frame for malformed/stale records outside that domain.

@@ -19,7 +19,8 @@ impl Game{
  ///Shared descriptor timestamps also apply when a speech caller emits its
  ///own nativeVoice event and needs admission without a second playback event.
  pub(crate) fn admit_native_sample(&mut self,id:i16,gate:Gate)->Option<Descriptor>{let bank=self.native_audio_bank();let enabled=self.native_feedback.sound_enabled!=0;self.native_audio.admit(bank,id,self.native_feedback.ui_clock,gate,enabled)}
- pub(crate) fn emit_native_sample(&mut self,id:i16,gate:Gate)->bool{let Some(sample)=self.admit_native_sample(id,gate)else{return false;};self.events.push(json!({"kind":"nativeSample","sampleId":sample.id,"clip":sample.clip,"lane":if is_voice(sample.clip){"voice"}else{"effects"},"playAudio":true,"team":self.native_feedback.local_team}));true}
+ pub(crate) fn emit_native_sample(&mut self,id:i16,gate:Gate)->bool{self.emit_native_sample_for_actor(id,gate,None)}
+ pub(crate) fn emit_native_sample_for_actor(&mut self,id:i16,gate:Gate,actor:Option<i32>)->bool{let mut any=false;self.for_native_listeners(|g|{let Some(sample)=g.admit_native_sample(id,gate)else{return;};let mut event=json!({"kind":"nativeSample","sampleId":sample.id,"clip":sample.clip,"lane":if is_voice(sample.clip){"voice"}else{"effects"},"playAudio":true,"team":g.native_feedback.local_team});g.tag_native_audio_event(&mut event,actor);g.events.push(event);any=true;});any}
 }
 #[cfg(test)]mod tests{
  use super::*;

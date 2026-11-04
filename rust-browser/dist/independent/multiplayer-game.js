@@ -12,7 +12,7 @@
  function remapCrew(crew){if(!object(crew))return crew;const result={...crew};if(own(result,'team'))result.team=flip(result.team);return result;}
  function perspective(state,role){
   if(!state||role!=='guest')return state;
-  return {...state,units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
+  return {...state,nativePortrait:state.nativePortraits?.find(p=>p.recipientTeam===1)?{...state.nativePortraits.find(p=>p.recipientTeam===1),recipientTeam:0}:state.nativePortrait,nativePortraits:state.nativePortraits?.map(p=>({...p,recipientTeam:flip(p.recipientTeam)})),units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
    objects:(state.objects||[]).map(o=>Number.isInteger(o.nativeTeam)?{...o,nativeTeam:flip(o.nativeTeam)}:o),
    nativeEffects:(state.nativeEffects||[]).map(f=>f.primitive==='colorPoint'?{...f,...(Number.isInteger(f.nativeTintOwner)?{nativeTintOwner:flip(f.nativeTintOwner),colorIndex:(flip(f.nativeTintOwner)*16+24)&255}:{})}:{...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})}),
    nativeAmbientVisuals:(state.nativeAmbientVisuals||[]).map(f=>({...f,team:flip(f.team),palette:flip(f.palette)})),
@@ -29,6 +29,8 @@
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
   if(state.nativeUiClock!==undefined&&(!Number.isInteger(state.nativeUiClock)||state.nativeUiClock< -32768||state.nativeUiClock>32767))return false;
+  if(state.nativePortraits!==undefined&&(!Array.isArray(state.nativePortraits)||state.nativePortraits.length!==2||!state.nativePortraits.every((p,i)=>object(p)&&p.recipientTeam===i&&integer(p.mode,4)&&Number.isInteger(p.message)&&p.message>=-2147483648&&p.message<=2147483647&&['phraseIndex','phraseCounter','phraseFrame'].every(k=>Number.isInteger(p[k])&&p[k]>=-32768&&p[k]<=32767)&&['nativeSlot','rawSpeakerSlot'].every(k=>p[k]===null||integer(p[k],239))&&(p.unitId===null||integer(p.unitId)))))return false;
+  if(Array.isArray(state.events)&&!state.events.every(e=>!['nativeVoice','nativeSample'].includes(e?.kind)||e.nativeAudioId===undefined||typeof e.nativeAudioId==='string'&&/^[0-9]{1,20}$/.test(e.nativeAudioId)&&integer(e.recipientTeam,1)&&(e.actorTeam===null||integer(e.actorTeam,3))))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
   if(state.bullets!==undefined&&(!Array.isArray(state.bullets)||state.bullets.length>200||!state.bullets.every(b=>object(b)&&integer(b.id,199)&&[b.x,b.y,b.angle].every(Number.isFinite)&&[0,1].includes(b.team)&&typeof b.laser==='boolean'&&integer(b.phase,1))))return false;
   if(state.projectiles!==undefined&&(!Array.isArray(state.projectiles)||state.projectiles.length>50||!state.projectiles.every(p=>object(p)&&integer(p.id,49)&&[p.x,p.y,p.angle,p.size].every(Number.isFinite)&&[0,1].includes(p.team)&&['shell','grenade','rocket','flame','howitzer'].includes(p.kind)&&integer(p.sprite,7210)&&p.size>=0&&p.size<=256)))return false;
@@ -114,6 +116,7 @@
   if(typeof options.run!=='function')throw Error('Multiplayer benötigt einen Spielkern.');
   let session=null,role=null,canonical=null,view=null,active=false,paused=true,awaitingReady=false,epoch=0,sequence=0,receivedSequence=-1;
   let frameClock=0,lastMap='',lastWalls='',pendingEvents=[],nextRequest=1,readyTimer=null;
+  let hostAudio=null,guestAudio=null,ownAudio=null,audioSequence=0,lastGuestAudioSequence=-1;
   let actionBudget=40,previewBudget=20,pauseBudget=4,budgetAt=Date.now();
   const info=(phase,message,extra={})=>options.onInfo?.({phase,message,...extra});
   const send=(type,payload,settings)=>session?.send(type,payload,settings)===true;
@@ -128,9 +131,19 @@
    if(pendingEvents.length>MAX_EVENTS)pendingEvents.splice(0,pendingEvents.length-MAX_EVENTS);
    options.apply?.(view);return view;
   }
+  const localAudio=value=>object(value)&&typeof value.soundEnabled==='boolean'?{soundEnabled:value.soundEnabled}:null;
+  const wireAudio=value=>object(value)&&Object.keys(value).length===1&&typeof value.soundEnabled==='boolean'?{soundEnabled:value.soundEnabled}:null;
+  const sameAudio=(a,b)=>a?.soundEnabled===b?.soundEnabled;
+  function audioRequest(request){return {...request,nativeListenerAudio:{...(hostAudio?{'0':hostAudio}:{}),...(guestAudio?{'1':guestAudio}:{})}};}
+  function setNativeAudioSettings(value){
+   if(!active||!session?.connected)return false;const settings=localAudio(value);if(!settings)return false;if(sameAudio(settings,ownAudio))return true;
+   if(role==='guest'){const seq=audioSequence+1;if(!send('game:audioSettings',{epoch,seq,settings}))return false;audioSequence=seq;ownAudio=settings;return true;}
+   ownAudio=settings;hostAudio=settings;if(canonical)run({op:'audioSettings'});return true;
+  }
+  function refreshHostAudio(){const settings=localAudio(options.nativeAudioSettings?.());if(settings&&!sameAudio(settings,ownAudio)){ownAudio=settings;hostAudio=settings;}}
   function run(request){
    const compact=canonical?{compact:true,knownMapSeed:canonical.map.seed,knownMapRevision:canonical.map.revision}:{};
-   const result=options.run({...request,...compact});if(result?.error)throw Error(String(result.error));
+   const result=options.run(audioRequest({...request,...compact}));if(result?.error)throw Error(String(result.error));
    return apply(result);
   }
   function mapStamp(){return canonical?canonical.map.seed+':'+canonical.map.revision:'';}
@@ -156,14 +169,15 @@
   function bind(nextSession,nextRole){
    if(!nextSession||typeof nextSession.send!=='function'||!['host','guest'].includes(nextRole))throw Error('Ungültige Multiplayer-Verbindung.');
    clearTimeout(readyTimer);session=nextSession;role=nextRole;canonical=view=null;active=false;paused=true;awaitingReady=false;epoch=sequence=0;receivedSequence=-1;frameClock=0;lastMap='';lastWalls='';pendingEvents=[];
-   actionBudget=40;previewBudget=20;pauseBudget=4;budgetAt=Date.now();return api;
+   actionBudget=40;previewBudget=20;pauseBudget=4;budgetAt=Date.now();hostAudio=guestAudio=ownAudio=null;audioSequence=0;lastGuestAudioSequence=-1;return api;
   }
   function start(initRequest,meta={}){
    if(role!=='host'||!session?.connected)return false;
    clearTimeout(readyTimer);epoch++;sequence=0;receivedSequence=-1;canonical=view=null;frameClock=0;pendingEvents=[];active=true;paused=true;awaitingReady=true;
    try{
-    const request={...initRequest,op:'init',multiplayer:true,difficulty:1,aiTeams:[],compact:false};
-    const result=options.run(request);if(result?.error)throw Error(String(result.error));apply(result);
+    ownAudio=localAudio(options.nativeAudioSettings?.());hostAudio=ownAudio;guestAudio=null;audioSequence=0;lastGuestAudioSequence=-1;
+    const request=audioRequest({...initRequest,op:'init',multiplayer:true,difficulty:1,aiTeams:[],compact:false});
+    const result=options.run(request);if(result?.error)throw Error(String(result.error));options.onNativeAudioSession?.();apply(result);
     const details={mission:canonical.mission,difficulty:1,seed:request.seed,original:Boolean(canonical.map.original),name:String(meta.name||'Mehrspielerpartie').slice(0,96)};
     options.onStart?.(details,role);options.onPause?.(true,'Warte auf Mitspieler …');lastMap=mapStamp();lastWalls=wallStamp();
     if(!send('game:init',{epoch,seq:0,meta:details,state:canonical,paused:true}))return fail('Der Spielzustand konnte nicht gesendet werden.');
@@ -190,11 +204,11 @@
   function tick(dt){
    if(role!=='host'||!active||paused||awaitingReady||!Number.isFinite(dt)||dt<=0)return null;
    if(!session?.connected){fail('Verbindung zum Mitspieler unterbrochen.');return null;}
-   try{const result=run({op:'tick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}if(canonical.winner!==null){broadcast(true);commitPause(true,'Schlacht beendet.');}return result;}catch(error){fail(error.message);return null;}
+   try{refreshHostAudio();const result=run({op:'tick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}if(canonical.winner!==null){broadcast(true);commitPause(true,'Schlacht beendet.');}return result;}catch(error){fail(error.message);return null;}
   }
   function tickUi(dt){
    if(role!=='host'||!active||!paused||awaitingReady||!session?.connected||!canonical?.map.original||!Number.isFinite(dt)||dt<=0)return null;
-   try{const result=run({op:'uiTick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}return result;}catch(error){fail(error.message);return null;}
+   try{refreshHostAudio();const result=run({op:'uiTick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}return result;}catch(error){fail(error.message);return null;}
   }
   function setPaused(value,reason='Pause'){
    if(!active||typeof value!=='boolean'||awaitingReady)return false;
@@ -215,13 +229,18 @@
    try{
     if(type==='game:init'){
      if(role!=='guest'||!integer(p.epoch)||p.epoch<=epoch||!validState(p.state,true)||!object(p.meta))return false;
-     epoch=p.epoch;receivedSequence=0;active=true;paused=true;awaitingReady=false;frameClock=0;pendingEvents=[];canonical=null;apply(p.state,false);
+     epoch=p.epoch;receivedSequence=0;active=true;paused=true;awaitingReady=false;frameClock=0;pendingEvents=[];canonical=null;options.onNativeAudioSession?.();apply(p.state,false);
      const meta={mission:canonical.mission,difficulty:1,seed:p.meta.seed,original:Boolean(canonical.map.original),name:String(p.meta.name||'Mehrspielerpartie').slice(0,96)};
-     options.onStart?.(meta,role);options.onPause?.(true,'Warte auf Gastgeber …');send('game:ready',{epoch});return true;
+     options.onStart?.(meta,role);options.onPause?.(true,'Warte auf Gastgeber …');ownAudio=localAudio(options.nativeAudioSettings?.());audioSequence=0;send('game:ready',{epoch,...(ownAudio?{nativeAudio:ownAudio,audioSeq:0}:{})});return true;
     }
     if(!active||p.epoch!==epoch)return false;
+    if(type==='game:audioSettings'){
+     if(role!=='host'||awaitingReady||!integer(p.seq)||p.seq<=lastGuestAudioSequence)return false;
+     const settings=wireAudio(p.settings);if(!settings)return false;
+     lastGuestAudioSequence=p.seq;guestAudio=settings;run({op:'audioSettings'});return true;
+    }
     if(type==='game:ready'){
-     if(role!=='host'||!awaitingReady)return false;clearTimeout(readyTimer);awaitingReady=false;commitPause(false,'Partie gestartet.');info('playing','Mehrspielerpartie gestartet.');return true;
+     if(role!=='host'||!awaitingReady)return false;if(p.nativeAudio!==undefined){const settings=wireAudio(p.nativeAudio);if(!settings||p.audioSeq!==0)return false;guestAudio=settings;lastGuestAudioSequence=0;run({op:'audioSettings'});}clearTimeout(readyTimer);awaitingReady=false;commitPause(false,'Partie gestartet.');info('playing','Mehrspielerpartie gestartet.');return true;
     }
     if(type==='game:frame'||type==='game:result'&&p.state){
      if(role!=='guest'||!integer(p.seq)||p.seq<=receivedSequence||!validState(p.state))return false;
@@ -258,7 +277,7 @@
    }catch(error){return fail(error.message||'Mehrspielerzustand konnte nicht verarbeitet werden.');}
    return false;
   }
-  const api=Object.freeze({bind,start,handle,action,tick,tickUi,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
+  const api=Object.freeze({bind,start,handle,action,tick,tickUi,setNativeAudioSettings,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
   return api;
  }
  global.MultiplayerGame=Object.freeze({create,perspective,validateAction});

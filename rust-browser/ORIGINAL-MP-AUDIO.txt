@@ -1,0 +1,109 @@
+NATIVE MP AUDIO — nov04-r43
+
+Scope: two listening contexts on the authoritative Host. A single world/BUILD
+callback and UI clock remain. Only proven local descriptor/feedback/radar-notice
+admission is selected for each canonical listener0/1; no physics, damage, BUILD
+work, particle allocation or original/CRT RNG is repeated. SP response semantics
+are retained. This is a bounded browser MP adaptation, not the original MP wire
+protocol or a complete audio/mixer reconstruction.
+
+State/API:
+- original_listener_audio::State stores Guest descriptor/feedback state and the
+ 35 local radar-notice fields, an active local-admission context, and event IDs.
+ Existing native_audio/native_feedback fields remain the Host/SP context.
+ Descriptor/feedback process state persists on original mission init. Radar local
+ state is initialized from that mission's actual post-constructor BUILD records.
+- One native_feedback.ui_clock is authoritative. Guest's feedback projection
+ mirrors that word; it has no independent scheduler. Phrase advances only during
+ the game handler, for both local contexts; paused UI callbacks advance neither.
+- Host-only trusted ABI nativeListenerAudio {'0':{soundEnabled},'1':...} sets
+ accepted local masters. Ordinary MP nativeAudio (App's local Host setting) cannot
+ overwrite both listeners. SP keeps its original nativeAudio behavior.
+- audioSettings is a metadata-only request. It clears that response's events and
+ changes no simulation/clock/selection/portrait counters. No Guest executes Wasm.
+- Original samples carry explicit recipientTeam and optional actorTeam separately.
+ Generic world effects have no invented actor. Both effects and voice filter the
+ recipient after perspective; repair notices do not acquire an owner-only filter.
+- nativePortraits contains both authoritative listener projections. Host sees0;
+ Guest perspective selects1 and remaps its recipient to0. Face phrase rendering
+ uses that listener's native counter, including while paused/muted.
+
+Policies preserve distinct native operations:
+ Direct descriptor admission is not implicitly master-gated.
+ Enabled checks that listener's master before stamp/counter changes.
+ Notice additionally checks that listener's fortFF and substitutes196.
+ Workshop193/194 is caller-master+local-fort followed by Direct, with notice-counter
+ increment only after admission, WITHOUT owner==localteam filtering.
+ Projectile caller master gating is evaluated per listener after the existing
+ canonical spatial check; it is not changed into an Enabled wrapper.
+ Radar word0A/dish advances once. Only flags6:20 and notice15 are listener-local;
+16 belongs to the owning listener;196 follows that listener's50-callback notice.
+ Failed-path/under-attack feedback uses that listener's local-team/busy/portrait
+ state. Under-attack spatial admission still uses the canonical viewport below.
+
+Settings protocol and timing:
+- App supplies nativeAudioSettings at Host init and Guest ready. No simulation or
+ UI-only authority runs while waiting for ready. Missing settings are not guessed
+ as enabled; they retain native cold/preserved state (actual App always supplies).
+- Guest changes use game:audioSettings(epoch,seq,settings). Host requires its
+ current active epoch, a strict own-side {soundEnabled:boolean} payload, and a
+ strictly increasing unsigned32 sequence. No team selector is accepted. Host local
+ API changes only0; Guest packets only1; Guest rejects Host settings packets.
+- Guest caches its new ownAudio and sequence only after send() accepts the
+ transport packet. A rejected send can be retried with the identical value.
+ Acceptance means queued, not a new remote-ACK/reconnect protocol; existing
+ transport disconnect/pause/ready behavior remains.
+- Master takes effect in admission at Host receipt. Local Audio.mute stops/mutes
+ immediately. There is no clock rewind, input-time prediction or retroactive
+ admission of opportunities missed before settings arrived. Changes while paused
+ still use the Host's UI clock and do not resume the world.
+- A late frame created under an earlier Host-accepted master can still be played
+ if it arrives after a later local unmute and was never delivered/consumed before.
+ Settings-generation tagging to discard all such in-flight intervals is NOT in
+ this bounded candidate. Known delivered muted opportunities are consumed and
+ never queued/replayed. The protocol does not claim original MP latency behavior.
+
+Delivery/counter bounds:
+- Samples/voices have a process-persistent unsigned64 event sequence serialized
+ as decimal text; original signed16 descriptor clocks and min-tick wrap math are
+ unchanged. Audio uses a BigInt high-water mark per accepted game and refuses
+ duplicate/older IDs before local mute/volume checks. Native voice-through-sample
+ consumes once. Non-native legacy events keep their separate compatibility path.
+- Only an accepted new game/init resets the playback high-water mark, before its
+ first App.update. A new Host process can therefore start its own ID stream;
+ mute/settings changes cannot reset it. Existing controller epoch/frame validation
+ rejects previous-game and stale state frames. Same Host rematches preserve the
+ source process descriptor stamps and continue Core event IDs.
+- Unsigned64 event-ID overflow and >2^32 settings changes within one game are
+ explicit adapter counter limits, not emulated original clocks. No original
+ runtime counter or source random number is reused as a protocol event identity.
+- The existing8Hz/1024 pending-events cap and transport disconnect policy remain.
+ This change does not make loss/reorder/reconnect behavior equal to original Z.
+
+Remaining limits:
+- Shared spatial gates, native_blast_sound_gate (Source4d18ee),
+ native_blast_sound_cycle (Source4a6f4e) and quiet (Source4a6e6f)/emitter globals remain canonical,
+ NOT listener-local authorities. Their source opportunity/selected sample can
+ therefore differ from a future true local-camera pass even though descriptor
+ admission now fans out per listener. In particular expiry3/401640 requires its
+ own source gate/contact port; this patch does not claim to complete that leaf.
+- MP still uses the canonical full-map nativeView. Local cameras, spatial sample
+ admission, offscreen41f4d0 triggers, original mixer/channel behavior and arbitrary
+ original MP protocol state are separate. Guest camera never replaces WorldView.
+- Two current players0/1 only; no inferred3/4-player listener contexts.
+- Generic vehicleRepaired->ROB48 fallback still exists independently; it is not
+ represented as proof of native COMP07 playback and may accompany that notice.
+- zonebots-mp-8-native-listener-audio requires matching peers; older builds
+ cannot receive the new listener settings, recipient and portrait protocol.
+
+Verification:16 original failing real-ABI baselines now corrected; simultaneous
+listeners/settings/epoch/seq/re-delivery/rematch/failed-send retry endpoints; signed min12 wrap and
+Direct/Enabled/Notice/caller-fort Rust cases;120 paired actual game callbacks with
+identical World/FX/production/original RNG/CRT;1034 exact SP responses compared to
+Root V42 Wasm; existing pause/result-audio/MP/workshop-MP checks retained. WebAudio is instrumented: actual Audio.js loads/chooses the local original WAV
+bytes and reaches Gain/BufferSource.start, but the test decodeAudioData returns a
+placeholder URL/duration. No PCM decode, real browser codec, mixer or speaker
+output is asserted. Private
+resource input is external; optional Cargo campaign-file tests in this asset-free
+candidate return without reading a missing local campaign. These candidate checks precede integration; final integrated release checks
+and publication provenance are recorded in TESTERGEBNIS.txt.

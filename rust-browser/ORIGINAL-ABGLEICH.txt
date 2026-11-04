@@ -237,6 +237,25 @@ Kontrollrow. Weitere Owner4-Verlaufspuffer, Zerstörungsemitter, Expiry3 und
 die ursprüngliche Kran-/BUILD-Wiederherstellung sind damit nicht geschlossen.
 Details: ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt.
 
+WEITERER ABGLEICHSBLOCK nov04-r43
+Die nativen lokalen Audiogates, Deskriptorstempel, Feedback-/Portraitzustände
+und Radarbesitzmeldungen besitzen im Browser-MP je einen Host-/Gastkontext.
+Eine stumme Hosteinstellung unterdrückt dadurch keine Originalansage des Gastes.
+Radar16/196, Werkstatt193/194 und ROB37 sind durch16 echte ABI-/App-/RPC-
+Baselines sowie vier zusätzliche Zustellungs-/Settingsfälle geprüft. Reparatur-
+ansagen behalten ihren belegten Fort-/Mastergate ohne erfundenen Besitzerfilter.
+
+Die Welt/Produktion/FX und Host-UIuhr laufen weiterhin einmal. Sechs neue Rusttests,
+120 paarweise Weltcallbacks und1034 identische SP-Antworten prüfen diese Grenze.
+Recipient und Actor sind getrennt; die Gastperspektive wählt ihr eigenes Portrait.
+Doppelte native Audiozustellung wird vor Mute-/Volumegates verworfen. Fehlgeschlagene
+Settingsübertragung darf denselben Wert erneut senden. Alte Builds bis7 werden
+vor Spielbeginn abgewiesen. Diese Anpassung ersetzt nicht das Originalnetzwerk.
+Kamerabezug, gemeinsame Explosions-/Quiet-/Cyclegates und nicht zugestellte alte
+Settingsintervalle bleiben ausdrücklich abgegrenzt. Instrumentiertes WebAudio
+belegt den Lade-/Auswahl-/Startpfad, keinen echten PCM-Decoder oder Lautsprecher.
+Details: ORIGINAL-MP-AUDIO.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -258,7 +277,8 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten
    Sprachaufrufer sind nicht vollständig übernommen. Die normale Pausen-UIuhr
    ist getrennt angebunden; weitere Menü-/Lade-/Abbruchzweige, Banklade-/SDL-
-   Kanalverhalten und allgemeine Funkereignisse sind damit nicht durchgehend
+   Kanalverhalten, lokale Mehrspielerkameras/Explosionsgates und weitere
+   allgemeine Funkereignisse sind damit nicht durchgehend
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
    maschinenanimationen und der globale Sieg-/Zwischensequenzcontroller sind

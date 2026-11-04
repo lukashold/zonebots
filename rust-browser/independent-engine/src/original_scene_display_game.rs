@@ -1,6 +1,6 @@
 //!Main435c3e submits BUILD/production before5a240 UNIT callbacks.41d110's
 //!FLAG pass follows UNITs and AI at435d32; it observes their ownership writes.
-use crate::{Game,json,Value,original_flag_display as flag,original_audio::Gate};
+use crate::{Game,json,Value,original_flag_display as flag};
 use super::{Record,FlagSeed,game::plain};
 use std::collections::BTreeSet;
 impl Game{
@@ -30,7 +30,7 @@ impl Game{
  fn native_building_display_row(&self,id:usize,radar:bool)->Option<Value>{let b=self.buildings.iter().find(|b|b.id==id)?;Some(json!({"kind":"building","stage":"pre","id":id,"time":self.time,"seconds":self.remaining_seconds(b),"radarDishQueued":radar,"art":{"id":id,"kind":b.kind,"team":b.team,"x":b.x,"y":b.y,"w":b.w,"h":b.h,"hp":b.hp,"maxHp":b.max_hp,"stars":b.stars,"product":b.product,"progress":b.progress,"completionTicks":b.completion_ticks,"rawBase":b.raw_base,"orientation":b.orientation,"nativeFortDestroyed":b.kind=="fort"&&b.hp<0.,"nativeWorkshopDrawQueued":self.native_workshop_draw_queued(id),"nativeFlagFrame":self.native_flag_frame}}))}
  ///40ad60 invokes the per-BUILD radar caller before UNIT callbacks. Capture
  ///the old dish frame, then retain its advanced word0A for the next call.
- pub(crate) fn capture_native_building_display(&mut self){if !self.map.original{return;}self.prepare_native_workshop_rates();let radar=self.native_radar_building_ids();let mut rows=Vec::new();let mut dishes=Vec::new();for id in self.native_factory_draw_order(){let Some(index)=self.buildings.iter().position(|b|b.id==id)else{continue;};self.prepare_native_factory_draw(index);if let Some(row)=self.native_building_display_row(id,radar.contains(&id)){rows.push(row);}rows.extend(self.native_workshop_building_callback_by_id(id));let values=self.advance_native_radar_display_for(id);for(_,_,out)in &values{if out.secured{let team=usize::from(self.native_feedback.local_team);self.emit_native_sample(196,Gate::Notice(self.native_display.fort_visible.get(team)==Some(&255)));}if out.sweep{self.emit_native_sample(16,Gate::Enabled);}}dishes.extend(Self::radar_rows(values));self.finish_native_factory_draw(index);self.native_building_fragment_tail(id);}self.native_display.buildings_before=Some(rows);self.native_display.radar_before=Some(dishes);}
+ pub(crate) fn capture_native_building_display(&mut self){if !self.map.original{return;}self.prepare_native_workshop_rates();let radar=self.native_radar_building_ids();let mut rows=Vec::new();let mut dishes=Vec::new();for id in self.native_factory_draw_order(){let Some(index)=self.buildings.iter().position(|b|b.id==id)else{continue;};self.prepare_native_factory_draw(index);if let Some(row)=self.native_building_display_row(id,radar.contains(&id)){rows.push(row);}rows.extend(self.native_workshop_building_callback_by_id(id));let values=self.advance_native_radar_display_for(id);dishes.extend(Self::radar_rows(values));self.finish_native_factory_draw(index);self.native_building_fragment_tail(id);}self.native_display.buildings_before=Some(rows);self.native_display.radar_before=Some(dishes);}
  ///422850/4228f0 write2 while starting the original fort defeat scene. The
  ///banner remains visible; renderer visibility is not inferred from HP.
  pub(crate) fn set_native_display_fort_state(&mut self,owner:usize,value:u8){if let Some(f)=self.native_display.fort_visible.get_mut(owner){*f=value;}}

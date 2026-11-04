@@ -1,11 +1,11 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-883 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
-separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-77/77 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+889 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
+zuletzt separat im Vorgängerrelease nov04-r42 erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
+78/78 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 187b3ed7b5d12e1b2d8698d206ef2f375b7168e030dfd433c17c54dd2366b096
+Wasm SHA256: 3c306d1155766a071c35a5f4dd934185f7e1c3b244f2d698e1283be42fcb044c
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -187,9 +187,32 @@ NEUER ABGLEICHSBLOCK nov04-r42
  werden weiterhin in die lokale Gastperspektive umgefärbt.
 - zonebots-mp-7-native-fort-fragments weist die älteren Builds3/4/5/6 ab.
 Owner4-Trümmelaufzeichnung, deren späte Wiedergabe/Kran-Restauration und
-getrennte native Mehrspieler-Audiogates bleiben als nächste Blöcke offen.
+weitere gekoppelte Audiogates bleiben als nächste Blöcke offen.
 Details und engere Quellen-/Speichergrenzen: ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt
 und ORIGINAL-ABGLEICH.txt. Die Prüfzahlen sind keine vollständigen Partien.
+
+NEUER ABGLEICHSBLOCK nov04-r43
+- Zwei native Hörkontexte für Host und Gast: getrennte Mastergates, Deskriptor-
+ stempel/-zähler, Feedback-/Portraitzustände und lokale Radarmeldungen. Eine
+ stumme Hosteinstellung kann die Originalansagen des Gastes nicht mehr sperren.
+-16 zuvor fehlerhafte echte Wasm-/App-/Controllerfälle bestehen jetzt; vier
+ weitere Endpunktfälle prüfen gleichzeitige Hörer, Mute-/Volumegates, Settings-
+ Epoch/Sequenz/Besitz, Zustellungsduplikate, Rematches und fehlgeschlagene Sends.
+ Der Retryfehler wurde vor dem Fix tatsächlich reproduziert und danach geprüft.
+- Sechs neue Rusttests und120 paarweise tatsächliche Gamecallbacks bewahren
+ Welt/Produktion/FX/Original-RNG/CRT bei unterschiedlichen lokalen Toneinstellungen.
+ 1034 volle Singleplayer-Antworten sind identisch zum gebauten Release42-Wasm.
+ Die Welt- und Host-UIuhr laufen einmal; der Gast simuliert nicht selbst.
+- Native Audios erhalten getrennte Empfänger-/Actoridentitäten und eine einmalig
+ konsumierte Zustellungskennung. Der Gast erhält sein eigenes natives Portrait.
+ Originale Direct-/Enabled-/Notice-/Fortgates bleiben verschiedene Operationen.
+- zonebots-mp-8-native-listener-audio weist die früheren Builds3/4/5/6/7 ab.
+Der erste Gesamtlauf endete ohne Bericht und wird nicht als Prüfnachweis gezählt.
+Die Wiederholung mit direkter Ausgabe besteht alle78 Programme.
+Die WebAudio-Prüfung liest Original-WAVs und instrumentiert Audio.js-Auswahl,
+Gain und BufferSource.start; sie dekodiert PCM nicht mit einem echten Browsercodec.
+Lokale Kameras, gemeinsame Explosions-/Quiet-/Cyclegates, in-flight alte Settings
+und das Originalnetzwerk bleiben offen. Details: ORIGINAL-MP-AUDIO.txt.
 
 BROWSER
 Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
@@ -198,7 +221,7 @@ gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
 und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
 Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
 kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
-nov04-r40/r41/r42 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
+nov04-r40/r41/r42/r43 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
 Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
 Graphics-Adaptertests geprüft.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
