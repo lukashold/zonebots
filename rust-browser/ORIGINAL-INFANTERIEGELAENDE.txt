@@ -1,0 +1,37 @@
+Infanterie und Gelände / 04.11.2026
+
+454d90 wird an der echten 55f10-Submission vor Sicht- und Viewportprüfung
+verarbeitet. Nur Familie 4 wird erfasst. Der signierte Zähler 97 bewegt sich
+je Aufruf um einen Schritt zum Geländewert: Code9→7,38→4,39→11,42→16.
+Bei 97=0 folgt der normale Zeichenpfad. Bei 1..15 erzeugt454bb0 eine Lage
+mit Y+97 und einer 256×(16−97)-Maske. Das ist kein Alphaüberblenden.
+Die Palette64&7 wird vor dem Verbrauch von64:4 gespeichert;98 bleibt erhalten.
+HeaderX bleibt ungeschrieben, die Queue wird ausschließlich nach Y sortiert.
+Ab 16 entfällt die Figur; ein RNG-Aufruf kann Template25 im echten100er-
+Ambientpool erzeugen. Die Originalkonstruktorparameter bleiben erhalten.
+Der native Weltdeskriptor 3 entfernt bei 97≠0 und 97<16 über58ec0 mit dem
+4d029f-Flag; die separate 15er-Entfernungspoolzeile 16 wird ohneRNG gewählt.
+Die seltene 459460-Wasserpose prüft drei Spalten mit je vier Terraincodes,
+ändert Phase/Frame/Zähler und verbraucht die beiden nachfolgendenRNG-Werte
+vor der Bildausgabe. Gefrorene 69:40-Einträge erreichen55f10 weiterhin nicht.
+
+NACHWEISE
+8192 ausgeführte454d90-Ketten einschließlich454d00/454d40/454bb0/459460/
+4593f0; RNG-Werte und Removal-/Ambientconstructor sind explizite Blattinputs.
+Signatur 1816197881, 132 Zeichenrecords,524 Removal- und 238 Spawnanforderungen.
+Alle 132 Records wurden durch den echten 4549f0/454630-Rasterdispatcher
+geführt: Signatur 2968198360 für Sprite/Palette/Position/Scissor.
+OriginalDisplay→OriginalArt prüft120 dieser Infanterielagen im tatsächlichen
+Canvasadapter, dazu30 vorhandene Hardwarefixtures. Zwölf absichtlich negative
+OpenGL-Höhen bleiben außerhalb der Canvasparität; kein invertiertesCliprechteck
+ersetzt den altenGPU-Fehlerzustand. Sechs Game-Regressionen prüfen Callpunkt,
+Sichtbarkeit, Auftauchen, RNG, Entfernung, Ambientpool und Wasserpose.
+Das öffentlicheOracle enthält nur eigene Testprogramme. Originalbilder,
+Decompilationen und rohe Emulatorausgaben bleiben privat.
+
+GRENZEN
+Dies ist kein Original-Gesamtpartie-/GPU-Pixelvergleich. Die temporäre 4a653b-
+Sperre ist im numerischenKernel enthalten; der separate Menüobjekt-Previewcaller
+4102c0 ist nicht durch diese UNIT-Integration ersetzt. Beschädigte negative
+Phasebytes und negative GPU-Scissorhöhen sind kein behaupteter Gleichheitsfall.
+HD bleibt eine zusätzliche Grafikdarstellung, kein Pixelremake des Originalrasters.

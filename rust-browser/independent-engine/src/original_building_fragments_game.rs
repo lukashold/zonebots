@@ -19,9 +19,7 @@ struct Env<'a>{game:&'a mut Game,camera:[i16;2],slot:usize,submitted:usize,conta
 impl native::World for Env<'_>{
  fn contact_mode(&mut self,enabled:bool){self.contact_mode=enabled;}
  fn submit(&mut self,mut r:Record){r.x=r.x.wrapping_add(self.camera[0]);r.y=r.y.wrapping_add(self.camera[1]);if let Some(world)=&mut self.game.native_world{world.fragments.draws.push((r,self.slot*50+self.submitted,self.slot));}self.submitted+=1;}
- //The existing source environment adapter owns zero-strength OBJECT/terrain
- //contacts. Its general auxiliary audio/global boundaries remain explicit.
- fn environment(&mut self,p:[i16;2]){debug_assert!(self.contact_mode);self.game.native_blast_environment(i32::from(p[0]),i32::from(p[1]),0,255,false);}
+ fn environment(&mut self,p:[i16;2]){debug_assert!(self.contact_mode);self.game.native_fragment_zero_blast(p);}
  fn spark(&mut self,p:[i16;2]){let random=if self.game.multiplayer{0}else{self.game.native_cosmetic_random()};self.game.native_ambient_animations.spawn_spark(p,random);}
  fn crt(&mut self)->u16{self.game.native_cosmetic_random()}
 }

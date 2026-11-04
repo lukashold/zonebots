@@ -10,6 +10,7 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_workshop.rs"] pub(crate) mod workshop;
 #[path="original_workshop_game.rs"] mod workshop_game;
 #[path="original_building_fragments_game.rs"] mod building_fragments;
+#[path="original_fragment_blast_game.rs"] mod fragment_blast;
 
 #[derive(Clone)]
 struct ObjectSlot {
@@ -448,6 +449,7 @@ impl Game {
             let Some(state)=&mut self.native_world else{return;};let Some(p)=state.effects[slot].as_mut().filter(|p|p.active)else{break;};
             let step=if resume{p.resume_native(view,&mut state.last_projection)}else{p.advance_native(view,&mut state.last_projection)};
             if let Some(draw)=step.draw{state.effect_draws.push((slot,draw));}let Some(mode)=step.expiry else{break;};let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];let actions=effects::expiry_prefix_with_sprite(mode,point,p.sprite,view,state.crate_sound_played);
+            if matches!(mode,5|8){self.retire_native_fragment_water_particle(slot);break;}
             self.execute_native_effect_actions(slot,actions,view);
             resume=self.native_world.as_ref().and_then(|s|s.effects[slot].as_ref()).is_some_and(|p|p.active&&p.position[2]>=0);if !resume{break;}
         }}

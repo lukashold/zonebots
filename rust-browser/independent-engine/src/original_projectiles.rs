@@ -324,6 +324,7 @@ impl Game {
         launched
     }
     pub(crate) fn spawn_native_blast(&mut self,x:i32,y:i32,attack:Attack,team:i32,shooter:Option<usize>){
+        self.native_blast_sound_prefix([x as i16,y as i16]);
         // Scenery contacts are synchronous even if the visual/delayed pool is full.
         self.native_blast_environment(x,y,attack.damage,team,false);
         let Some(id)=(0..50).find(|id|!self.blasts.iter().any(|b|b.id==*id))else{return;};
@@ -331,7 +332,14 @@ impl Game {
         let special=data::TERRAIN_BLAST[self.map.world.min(4)];
         let (sprite,lifetime)=if water{if attack.damage<25{(special[2]as usize,special[3]as u8)}else{(special[0]as usize,special[1]as u8)}}else{(395,12)};
         self.blasts.push(Blast{id,x:f64::from(x)*2.,y:f64::from(y)*2.,team,frame:0,strength:attack.damage,water,sprite,lifetime,attack,_shooter:shooter});
-        self.events.push(serde_json::json!({"kind":"explosion","x":(x+12)*2,"y":(y+24)*2,"radius":32,"silent":self.native_blast_quiet()}));
+        self.events.push(serde_json::json!({"kind":"explosion","x":(x+12)*2,"y":(y+24)*2,"radius":32,"silent":true}));
+    }
+    ///41f9d0/420200 tail for the41f610 ownerless zero-strength call. Sound and
+    ///environment were already executed by its caller; no second event/sample.
+    pub(crate) fn allocate_native_fragment_zero_blast(&mut self,p:[i16;2],water:bool)->bool {
+        let Some(id)=(0..50).find(|id|!self.blasts.iter().any(|b|b.id==*id))else{return false;};
+        let special=data::TERRAIN_BLAST[self.map.world.min(4)];let(sprite,lifetime)=if water{(special[2]as usize,special[3]as u8)}else{(395,12)};
+        self.blasts.push(Blast{id,x:f64::from(p[0])*2.,y:f64::from(p[1])*2.,team:255,frame:0,strength:0,water,sprite,lifetime,attack:Attack{target:0,damage:0,aim:0,facing:0,bullet:false},_shooter:None});true
     }
     pub(crate) fn update_native_projectiles(&mut self){
         let mut pending=std::mem::take(&mut self.projectiles);pending.sort_by_key(|p|p.id);

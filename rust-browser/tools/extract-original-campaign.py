@@ -281,8 +281,10 @@ def extract(root,out):
   data['nativeBuildingFragments']=[{'nativeSlot':b['nativeSlot'],'templates':repair_fragments} for b in native_buildings if b['kind']==0]
 
   #428d20 sets622db8=2;17b30 maps18-(18>>3)-(18>>2) to12.
-  data['nativeProduction']={'sourceInitializationMode':2,'factor':12}
-  data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes})
+  #4600bd defaults the cap to50 before loading CPUPLR;10570 reads the
+  #loaded CP+8a8 byte with MOVSX, independently of the selected product.
+  data['nativeProduction']={'sourceInitializationMode':2,'factor':12,'teamUnitLimit':cp[0x8a8]}
+  data['map'].update({'wallTileLookup':wall_lookup,'wallCells':sorted({cell for wall in walls for cell in wall['cells']}),'wallGroundTiles':wall_ground_tiles,'wallGroundCodes':wall_ground_codes,'wallGroundClasses':wall_ground_classes,'nativeTilePlane':list(d[0x2791:0x6791])})
   data['diagnostics']['wallRecords']=len({wall['wallRecord']for wall in walls})
   data['diagnostics']['wallPieces']=len(walls)
   missions.append(data)

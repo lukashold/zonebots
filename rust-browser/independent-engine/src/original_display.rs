@@ -3,6 +3,8 @@
 #[path="original_display_game.rs"]mod game;
 #[path="original_scene_display_game.rs"]mod scene;
 #[path="original_display_hardware.rs"]pub(crate) mod hardware;
+#[path="original_display_terrain.rs"]pub(crate) mod terrain;
+#[path="original_display_terrain_game.rs"]mod terrain_game;
 ///UNIT submissions are retained from their own callback. A later OBJECT,
 ///ambient hit or slot retirement must not rewrite the already queued record.
 #[derive(Clone,Copy)]pub(crate) struct FlagSeed{pub sector:usize,pub position:[i16;2]}

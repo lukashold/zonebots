@@ -44,6 +44,7 @@ pub fn exit_geometry(producer:Producer,building:[i16;2],owner:u8,role:usize)->Ex
 pub fn can_create_group(suppressed:bool,team_status:i8,gun_product:bool)->bool{!suppressed&&team_status==-1&&!gun_product}
 ///10570 includes ready/queued guns in the team limit and reserves at least
 ///seven free native unit slots, independent of the selected group's size.
+///The caller sign-extends CPUPLR+8a8/global5c47b4 before this signed16 compare.
 pub fn team_capacity_blocked(queued_guns:i16,team_units:i8,team_limit:i16,free_unit_slots:usize)->bool{
     queued_guns.wrapping_add(i16::from(team_units))>=team_limit||free_unit_slots<7
 }
@@ -218,6 +219,12 @@ pub fn select_ranked(list:&[u8],human_strength:i32,cpu_strength:i32)->Option<u8>
    let guns=gun_capacity_blocked(profile,(scenario%7)as i16-1);values.extend([scenario as u32,u32::from(blocked),u32::from(guns),99]);
   }
   assert_eq!(hash(values),2514787596,"ZNativeFactoryCapacityOracle actual10510/10570 and f580 with explicit10600 count input");
+ }
+ #[test]fn signed_cp_limit_and_queued_stock_match_512_executed_whole_capacity_wrappers(){
+  let mut values=Vec::new();for s in 0..512usize{
+   let limit=[50,120,127,-128,-1,0,1][s/11%7];let units=[48,49,50,51,119,120,127,-128,-1,0,1][s%11];let queued=s/77%5;let pending=s/385%2;let free=[220,7,6][s/33%3];let blocked=team_capacity_blocked((queued+pending)as i16,units,limit,free);
+   values.extend([s as u32,limit as u32,units as u32,queued as u32,pending as u32,free as u32,u32::from(blocked)]);
+  }assert_eq!(hash(values),1338239080,"actual40c080→10570/10510 and f580; Grunt profile0 needs no intercepted gun-count leaf");
  }
  #[test]fn exit_protection_order_and_layout_preambles_match_128_native_sequences(){
   let mut values=Vec::new();for scenario in 0..128{

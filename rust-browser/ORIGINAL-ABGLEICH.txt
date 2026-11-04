@@ -108,6 +108,31 @@ Die25 Vorlagen aller21 Werkstätten sind privat importiert. Der40d050-Adapter
 führt Blattwirkungen vor den nachfolgenden UNIT-/W-Lesezugriffen aus.
 Umfang und verbleibende Grenzen: ORIGINAL-GEBAEUDESCHADEN.txt.
 
+WEITERER NATIVER ABGLEICHSCHRITT
+Die anfängliche M1-Produktion wurde bis zum tatsächlichen40c180-Aufruf
+untersucht: Bei konstantem Besitz/HP beginnt die Uhr mit 6:23; das erste
+Produkt erreicht Callback 6520. 14 v37-Wasm-Snapshots stimmen bei Arbeit und
+gezeichneter Uhr überein. Kein Zeitfaktor wird aus einem anderen Screenshot
+abgeleitet. CPUPLR+8a8 ist in allen 20 Missionen 50; die Produktionsfreigabe
+liest jetzt das signierte Limitbyte statt des bisherigen 120-Adapters.
+512 vollständige 40c080-Aufrufe ergeben die Signatur 1338239080.
+Ein 49er-Stand darf die gesamte 3er-Gruppe noch erzeugen; ab 50 wird blockiert.
+Der separate Legacy-Guard in der Geschützplatzierung ist damit nicht geprüft.
+
+Class2-Geschütze verwenden an BUILD/Forts eine einzelne Originalphase statt
+der sonstigen 84-Blitzgrafik.7168 tatsächliche Cliprecords und deren
+Rasterausgaben sind feldweise geprüft; HeaderX bleibt explizit ungeschrieben.
+Infanterie verarbeitet den signierten 97-Geländeoffset am echten 55f10-Punkt,
+vor Sicht-/Viewportgates, einschließlich Wasserpose, Ambientpool und nativer
+Weltdeskriptor3-Entfernung.8192 Prefix- und 132 Rasteraufrufe sind numerisch
+verglichen. Die Canvasdarstellung nutzt die originale Höhenmaske.
+Der enge Gebäudefragmentpfad41f610/Stärke0 erzeugt jetzt verzögerte50er-
+Blastrecords, Frame3-Treffer, Soundprefix, Krater/Terrainmerge und die belegten
+Wasserconstructoren. Normale Explosionen teilen denselben Soundzyklus und
+Callbackgate. Weitere Brücken-/Folgeemitter bleiben weiterhin abgegrenzt.
+Details und Abgrenzungen: ORIGINAL-INFANTERIEGELAENDE.txt und
+ORIGINAL-ZEICHENQUEUE.txt. Diese Teilvergleiche sind keine Gesamtsimulation.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

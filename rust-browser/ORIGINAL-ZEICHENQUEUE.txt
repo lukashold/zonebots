@@ -90,6 +90,23 @@ gespeicherter Lage, einschließlich Rohr, Turm, Luke und Besatzung.
 überein; weitere110 Fälle liefern negative OpenGL-Maskenhöhen und bleiben
 ausdrücklich beim bestehenden Artwork-Adapter. Native GPU-Endpunkte sowie
 deren Fehlerzustände sind nicht durch diesen Rasterargument-Nachweis ersetzt.
+8200 tatsächliche class2-Geschützaufrufe einschließlich Canonical-Phasen
+4/50/51/52 und aller84-Blitzstände: Signatur1963662532. Davon enthalten7168
+einen erfolgreichen Sonderclip,1024 den normalen Rückfall und8 eine phase18-
+Nichtausgabe. Die7168 erfolgreichen Cliprecords sind zusätzlich einzeln im
+Rustkernel geprüft: Signatur2422670850. Alle vier Geschützfamilien, acht
+Richtungen, sieben84-Werte und alle acht Clipcodes sind enthalten.
+Der erfolgreiche Geschützclip erzeugt genau einen16byte-Extra-Record:
+Originalphase/Frame/Richtung bestimmen das Sprite;84-Blitzposition und
+Spriteersetzung,76-Höhenversatz sowie97 werden hier umgangen. HeaderY ist
+das rohe UNIT-Y. HeaderX bleibt original ungeschrieben und wird deshalb als
+unbekannt modelliert; Bytes können nur mit explizit bekanntem Vorwert geprüft
+werden. Der Browser löst den Extraindex in seine gespeicherte Lage auf und
+behauptet keinen identischen globalen Queue-Speicherplatz. Byte8 wird16;
+dies ist kein Fadeflag. Byte9,14/15 und das gegenüberliegende Clip-Y-Wort
+bleiben erhalten.64:4 wird verbraucht,98 bleibt beim Geschütz unverändert.
+7168 entsprechende OriginalDisplay→OriginalArt-Ausgaben sind gegen dieselben
+numerischen Sprite-, Positions-, Paletten- und Maskenwerte geprüft.
 512 Queue-/Palettenfolgen:131070041;
 4480 normale UNIT-Records:3040814069;
 9984 OBJECT-Primärrecords:3811278845;
@@ -109,13 +126,15 @@ Bestand, erhält bestehende Produkte und konsumiert vorhandenes Arbeitsguthaben
 einmal. Der separate Abbau des Budgets zerstörter Gebäude über40acf0/+4c und
 vollständige Fabrik-Rasternebenwirkungen gehören nicht zum Worknachweis.
 Weitere Fabrik-/Radarmaschinenteile verwenden weiterhin den Artwork-Zeitadapter.
-Für reguläre class1-Panzerfamilien6/25/30 sind BUILD-/Fortclips der Codes
-30/31/44/62..66 mit positiven oder leeren Masken jetzt im gespeicherten
-Zeichenpfad enthalten. Negative OpenGL-Maskenhöhen, der einzelne Cliprecord
-für class2-Geschütze, Crane-Ruinenabfragen und weitere Hardwarefamilien bleiben
-explizite Grenzen. Bei fehlendem ursprünglichem BUILD-/Fortpool wird keine
-Maske aus Browser-Gebäuderechtecken erfunden. Spezielle UNIT97-Infanteriefades
-und119 zusätzliche OBJECT-Wrack-Overlayfälle sind ebenfalls nicht abgedeckt.
+Für reguläre class1-Panzerfamilien6/25/30 und class2-Geschützphasen4/50/51/52
+sind BUILD-/Fortclips der Codes30/31/44/62..66 mit positiven oder leeren Masken
+jetzt im gespeicherten Zeichenpfad enthalten. Negative OpenGL-Maskenhöhen,
+Crane-Ruinenabfragen und weitere Hardwarefamilien bleiben explizite Grenzen.
+Bei fehlendem ursprünglichem BUILD-/Fortpool wird keine
+Maske aus Browser-Gebäuderechtecken erfunden. Der UNIT97-Geländeprefix ist
+in ORIGINAL-INFANTERIEGELAENDE.txt mit8192 Originalaufrufen und132 tatsächlichen
+Rasterausgaben separat nachgewiesen.119 zusätzliche OBJECT-Wrack-Overlayfälle
+bleiben weiterhin offen.
 Die Operand98-Inventarliste enthält auch fremde Strukturen:
 4460c0 gehört einem Bilddecoder und ist ausdrücklich kein UNIT98-Schreiber.
 Die HD-Fortdarstellung verwendet die tatsächlichen fortId-Zuordnungen und

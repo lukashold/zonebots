@@ -35,11 +35,54 @@ Die Zeichenqueue führt sie mit Radarrecords in BUILD-Slotreihenfolge vor den
 UNIT-Records zusammen. Schon abgegebene Bilder bleiben für diesen Frame erhalten.
 Funken verwenden den eigenen belegten41dbf0-Konstruktor mit demselben CRT-Strom.
 
+ENGER420200-FOLGEPFAD (04.11., v38-Vorbereitung)
+Der belegte41f610-Aufruf mit ECX0, Stärke0 und4a6e72=1 benutzt jetzt einen
+eigenen Liveadapter. Die Flagge unterdrückt weder Sound noch die verzögerte
+Explosion. Vorhandene OBJECT-/BUILD-/Fort-/Blocker-/Wand-/Brückenkontakte laufen
+einmal synchron; der50er-Pool wird danach auch bei Stärke0 belegt. Eigentümer255
+und Frame0 erreichen den bestehenden echten Frame3-Kontaktbackend. Auf Easy
+verliert Team0 dort auch bei Stärke0 einen HP-/Hüllenpunkt; andere Teams erhalten
+bei Stärke0 weiterhin den originalen Trefferblitz. Vor Frame3 erfolgt dieser
+UNIT-Kontakt nicht. Ein voller Pool verhindert die synchronen Kontakte nicht.
+
+420200-Soundprefix wird mit normalen spawn_native_blast-Aufrufen geteilt:
+41f4d0-Kameragrenzen, einmaliges Callbackgate und Zyklus1,2,3,4,5,1,2,3. Die
+native Descriptor-Drosselung bleibt aktiv; das zusätzliche Browser-Explosionsevent
+ist stumm.435b07 setzt nur das Gate vor Producer/UNIT zurück. Zyklus und der
+Terrainklassen-Zwischenwert4a6f4b bleiben über den Missionswechsel erhalten.
+
+42e1a0/41f7e0 laden die numerischen5-Welten-Krater-/Klassenregeln. Die private
+MAP-Kampagne transportiert jetzt auch alle128x128 LowTilebytes.41fda0,420e20 und
+die41fc90/41fbd0-Zusammenführung schreiben ursprüngliche Tiles/Terrain und nutzen
+den gemeinsamen Gameplay-RNG. Die ungewöhnliche südliche Registerbasis und
+anschließende Nachbarsuchreihenfolge wurden ausgeführt, nicht aus einer
+symmetrischen Browser-Näheprüfung abgeleitet. Wasserallokationen erzeugen die
+belegten403100/402d50-Kinder mit5 RNG-Werten je tatsächlich freiem Partikelslot.
+
+Zusätzliche Nachweise:
+-512 direkte420200- und512 tatsächliche41f610-Aufrufe: echte Sound-/Umwelt-/
+ Terrain-/Blastpool-Blätter; Audio, Kindereffekte, Redraw und Teardown bleiben
+ aufgezeichnete Blattgrenzen. Keine unmittelbaren UNIT-Schreiboperationen.
+-32 Originalfixtures mit je4 aufeinanderfolgenden Blastzuständen zeigen den
+ Frame3-Blitz und Easy-Mindestschaden einschließlich Immunitätsgates.
+-1.024 ausgeführte42e1a0/41f7e0 + Ground/Floor/Merge-Fälle:2002137334.
+-1.024 ausgeführte420200-Terrain-Dispatchfälle:4253057555.
+-512 originale403100/402d50-Konstruktoren mit Recyclingbytes:1781977814.
+-Game-Regressionen prüfen tatsächliche verzögerte HP-/Hulländerungen, vollen
+ Blastpool, normalen/gemischten Soundprefix mit Folgetickreset und RNG bei
+ vollem Wasserpartikelpool. Die drei Oraclezahlen sind getrennte FNV-Nachweise.
+
 GRENZEN
+Das ist kein vollständiger420200-Gesamtport.41f870 schreibt denselben Soundzyklus
+und ist noch nicht angeschlossen. Weitere globale Eingangsgates und Scratch-
+Aliase62b39c/62d5d0/62d5d4 sowie gekoppelte ganze Partien bleiben offen. Der
+Wasser-Expiry8/5-Callback retiriert den Ausgangsslot quellengetreu; sein zuvor
+aufgerufener42230(count12,tint9)-Emitter ist noch eine explizite kosmetische
+Blattgrenze. Dessen Folgeallokationen und RNG-Verbrauch fehlen weiterhin; es
+werden keine erfundenen Ersatzpartikel erzeugt. Der Slot darf künftig erst NACH
+diesem Emitter frei werden. Allgemeine Projektile benutzen weiter ihren eigenen
+Umwelt-/Terrainadapter; die neuen Kraterregeln gelten gezielt für41f610/Stärke0.
 Weitere Fabrik-/Radar-/Fort-Fragmenttabellen und deren vollständige ursprüngliche
-Maschinenaufrufer sind noch nicht angebunden. Der allgemeine420200-Adapter
-übernimmt die bestehenden nativen OBJECT-/Geländekontakte; vollständige
-gekoppelte Audio-/Global-/Poolalias-Nebenwirkungen dieses Aufrufers bleiben
-gesondert gegen das Original zu prüfen.41f2d0 und weitere Schreiber außerhalb
-der beiden Kernel gehören nicht zu diesem Nachweis.
+Maschinenaufrufer sind noch nicht angebunden.41f2d0 und die vollständige Kopplung
+aller alten Blastpool-/UNIT-Bucket-Speicher gehören nicht zu diesem Nachweis.
 Die Gebäudeschadensroutinen sind damit kein Beleg vollständiger1:1-Gleichheit.

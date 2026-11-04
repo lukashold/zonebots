@@ -1,10 +1,10 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-778/778 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-70/70 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+799/799 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
+71/71 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 80d607f99472c1ddbcf5d92b5c4dd6a7a6892c93198e9292dc2d44035bddf8c4
+Wasm SHA256: ba2a05dc904cd0d321595e894cb5fe6416b73ae5e58d2b986f9f80d3363d6c7b
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -99,13 +99,27 @@ Diese Blöcke sind keine vollständigen Partien; ihre Zahlen werden nicht zu
 behaupteten End-to-end-Fällen zusammengerechnet. Details: ORIGINAL-PFADPOOL.txt
 und ORIGINAL-ZEICHENQUEUE.txt. Rohprotokolle und Decompilertexte bleiben privat.
 
+NEUER ABGLEICHSBLOCK nov04-r38
+- 8.192 family4-Terrainprefixe mit signiertem97-Zähler, 132 echte native
+  Rasterausgaben und 120 positive Canvas-Zuschnitte. Zwölf absichtlich negative
+  OpenGL-Höhen bleiben als GPU-Zustandsgrenze ausgeschlossen.
+- Sechs Game-Regressionen und 69 tatsächliche Wasm-Bilder prüfen Absinken,
+  Auftauchen, vier Geländestufen, Welt3-Entfernung und Gastperspektive.
+- 8.200 Class2-Geschützaufrufe, darunter 7.168 echte Einzellagenclips,
+  samt bewahrten Header-/Recordbytes, Palette, 84-Bypass und 98-Erhalt.
+- Native CP-Teamgrenze50 statt120; 512 vollständige Freigabewrapper und
+  echte49/50-Gamegrenzen. M1-Anfangsarbeit und6:23 wurden nicht verändert.
+- Enge41f610/Stärke0-Blastintegration: verzögerte Frame3-Kontakte, Soundprefix,
+  Krater/Terrainmerge, Wasserconstructoren sowie volle Blast-/Partikelpools.
+  1.024 Terrainconstructor-/Mergefälle, 1.024 Nachbarwahl- und512 Wasserfälle.
+- Der eigenständige42230-Folgeemitter und41f870 bleiben ausdrücklich offen.
+
 BROWSER
-Aktuellen Release in Edge mit Originalgrafik(Mission11) und HD-Remake(Mission20)
-gestartet. Menü/Grafikwechsel und der korrigierte einzelne Leerhinweis im HUD
-sind am tatsächlichen DOM und an Browseraufnahmen geprüft. Keine erfassten
-Browserwarnungen/-fehler. Beobachtete Bild-/Kern-p95: Original6,2/6,2ms bei57FPS,
-HD17,8/12,5ms bei38FPS. Das sind Beobachtungen einzelner Browserläufe,
-kein allgemeiner Frameratenvergleich.
+Aktuellen Release in Edge mit Originalgrafik (Mission4) und HD-Remake (Mission20)
+gestartet. Menü/Grafikwechsel und laufende Darstellung sind am tatsächlichen
+DOM und an Browseraufnahmen geprüft. Keine erfassten Browserwarnungen/-fehler.
+Beobachtete Bild-/Kern-p95: Original6,4/5,8ms bei56FPS, HD12,3/10,6ms bei54FPS.
+Das sind Beobachtungen einzelner Browserläufe, kein allgemeiner Frameratenvergleich.
 Browseraufnahmen wurden lokal gespeichert; sie werden nicht öffentlich
 mitveröffentlicht, weil sie Originalmedien enthalten.
 macOS-Hardware, tatsächliche Lautsprecherausgabe und zwei physische LAN-Rechner
