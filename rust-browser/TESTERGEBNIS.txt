@@ -1,11 +1,12 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-951 Rust-Tests bestanden;9 Privatdiagnostiken standardmäßig ignoriert und
-im unveränderten nov04-r45-Kern separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-83/83 Node-Prüfprogramme im aktuellen nov04-r46 bestanden, einschließlich aller20 privaten Missionen.
-Der Rust/Wasm-Kern ist bytegleich zu nov04-r45 und wurde dort mit --locked gebaut.
-Wasm SHA256: c19b27767f3c84cd9ce42bd54fa1b86e0e0d042b3a62e61ed6ba1e56896f7f27
+1.009 Rusttests bestanden;11 Privatdiagnostiken separat erfolgreich ausgeführt
+(alle38 Brückenfälle in einem Programm, die übrigen10 Programme anschließend).
+Doctests bestanden (0 vorhanden).87/87 Node-Prüfprogramme im aktuellen
+nov04-r47 bestanden, einschließlich aller20 privaten Missionen.
+Der Rust/Wasm-Release wurde mit --locked gebaut.
+Wasm SHA256: 46a716b3f38bfd65b65ab2f4ba2e3a7fb8c0669f7a28dca8f8e15df36cf505e8
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,7 +42,41 @@ UMFANG
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
 
-ZUSAETZLICHER GEPRUEFTER UMFANG DIESER RUNDE
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV04-R47
+- Gemeinsamer Hardware-Common für9/10/53/54/55/58, unverändertes RET60 und
+  Kran59-Delegation.128 Originalfälle:108 vollständige Rückgaben und20 ehrliche
+  CRT-Präfixe. Positive Rollen, W17, geteilter Dummy und Main-Slotindex behalten
+  ihre vorhandenen Zustände. APC56 und weitere gekoppelte Blätter bleiben Legacy.
+- Bridge80-Reparatur mit ursprünglicher Arbeit, endlichem Rückzug und spätem
+  letztem Job.5.728 vollständige Originalpuffer; alle19 authored zerstörten
+  Brücken in SP und Browser-MP (38 tatsächliche Gamefälle) im fertigen Kern
+  erfolgreich repariert. Frische Rootzeilen passieren die Art-/Gast-RPC-Prüfung.
+- 52960 erhält die laufende Inlinebewegung; drei erfolgreiche43e190-Commits
+  löschen sie ebenfalls nicht mehr.192 Ankunfts- und20 Commit-Originalaufrufe
+  prüfen unveränderte Actor-Linebytes. Der tatsächliche M13-Erstschreiber ist
+  vor/nach der Adoptionskorrektur mit denselben Eingaben belegt.
+- Registrierter Stopp4 erhält Linie, Köpfe und Ausweichen bis zum eigentlichen
+  54160/52d90-Callback.32 gekoppelte Originalfälle,5 Game-/C-ABI-Fälle und8
+  tatsächliche Wasmfälle prüfen den vorher reproduzierten MissingLine-Fehler.
+  Opcode4 verspricht in diesem Nativepfad keinen sofortigen physischen Halt.
+- 512 Original-Auftragsmarkerfälle sowie32 Pointer-Resetpräfixe; frische Kräne
+  und Definition35-Übernahme schreiben den belegten2084-Marker.64 vollständige
+  Konstruktoren und64 enge Gameprojektionen erfinden keine warmen9a-Werte.
+- Hardware-Schussaudio bewertet lokale Zuhörer vor der einmaligen Allokation;
+  1.024 Originalpräfixe,24 tatsächliche App-Endpunkte und14 Sitzungstests.
+  Alte wartende Audioladevorgänge überleben keinen Sitzungswechsel. Allgemeine
+  Explosionen und weitere späte Audiocaller bleiben separat offen.
+- Vollständig warmer20-Missionen-Soak bis300 Spielsekunden je Mission, beide
+  KIs, ohne nativeRouteBoundary. Alle21 Werkstätten bestehen realen Beschuss,
+  Anfahrt, Heilung, Besatzungserhalt und Ausfahrt. Die kontrollierte Verletzung
+  wird durch echte feindliche Granaten im Nahkampf nachgewiesen; die überholte
+  Erwartung eines kosmetischen shot-Events ist entfernt. Keine HP-Injektion.
+- Sieben aktuelle Rust-Main-Snapshots passieren14 Gast-RPCs und14 tatsächliche
+  OriginalDisplay-Callbacks. Keine Gast-Simulation wird dafür eingeführt.
+Details: ORIGINAL-BEWEGUNGSLINIE.txt, ORIGINAL-HARDWARE-COMMON.txt,
+ORIGINAL-BRUECKEN-KRAN.txt und ORIGINAL-HARDWARE-AUDIO.txt.
+
+FRÜHERE ABGLEICHRUNDE NOV04-R45
 -5.120 vollständige41f8f0/41f610-Kernelzeilen:1.024 Konstruktoren und4.096
   aufeinanderfolgende Animationscallbacks, Signatur1413238458. Vier weitere
   Gameprüfungen belegen tatsächliche Werkstattbilder, CRT-Folge, Frameerhalt,
@@ -305,6 +340,12 @@ denselben Stand0:02. Keine erfassten Seitenkonsolenwarnungen/-fehler. Die beiden
 Screenshotversuche scheiterten mit einer Zeitüberschreitung der Browseraufnahme;
 eine neue visuelle GPU-Prüfung dieser Partie wird daher nicht behauptet.
 Beide eigenen Tabs sind geschlossen; der Benutzertab wurde nicht bedient.
+nov04-r47 wurde nach dem endgültigen Build im eigenen versteckten Prüftab
+frisch geladen: Originalgrafik, M13 Hot n Steamy, Normal, gestartete Partie
+bis HUD0:10. Keine erfassten Seitenkonsolenwarnungen/-fehler. Der eigene Tab
+ist geschlossen; die laufende Benutzerpartie wurde nicht bedient. Die bekannte
+Browseraufnahme-Zeitüberschreitung verhindert einen neuen GPU-/Pixelbeleg;
+aus diesem Starttest folgt keine neue Frameratenzusage.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
 öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
 und zwei physische LAN-Rechner wurden nicht separat geprüft.

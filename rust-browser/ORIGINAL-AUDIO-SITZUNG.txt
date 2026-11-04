@@ -1,0 +1,29 @@
+Native Audiositzungen: wartende Dateiladevorgaenge
+================================================
+resetNativeEvents setzt die Ereignis-ID fuer eine neue Sitzung zurueck und
+invalidiert dabei bereits akzeptierte, noch wartende nativeVoice/nativeSample.
+Dafuer werden deren bestehende Start-Tokens weitergezaehlt. Bereits spielende
+Clips werden an dieser Stelle nicht gestoppt. Die bisherige Mute-/Dedupe-Logik
+und der separate Legacy-effect-Pfad bleiben unveraendert.
+
+Gezielte Pruefung:
+ node tools/check-native-audio-session.cjs --wasm dist/independent/engine.wasm
+Original-Audioressourcen werden in dist/original oder ORIGINAL_PRIVATE_ROOT
+gesucht; --assets kann einen anderen privaten Pfad benennen.
+--source erlaubt den unveraenderten Quellenstand als Vorher-Vergleich, --output
+schreibt das maschinenlesbare Ergebnis. Der Test baut oder veraendert kein Wasm.
+
+14 Pruefungen: beide nativen Audiowege mit Reset vor Manifestende, vor Wave/
+Decode und nach Decode-Aufloesung vor Start; neue ID1/Dedupe; laufender Clip;
+Mutewechsel; Legacy-Kontrolle; echte App/Host/Gast-Sitzungswechsel mit alten,
+doppelten und vorauseilenden Frames. Die unveraenderte Basis scheitert in sieben
+dieser Faelle. Instrumentiertes WebAudio liest Original-WAV-Bytes und zeichnet
+BufferSource.start auf; es dekodiert PCM nicht tatsaechlich und belegt weder
+Browserdecoder- noch Lautsprecher-/Device-Mixer-Gleichheit.
+
+Der Endpointtest fuehrt ein vorhandenes Wasm aus und erhaelt einen echten ersten
+MTANKGUN-Schuss. ROB01 und die neuen ID1/ID2-Frames sind explizite Audiotransport-
+Fixtures, keine Behauptung eines im Originalspiel erzeugten Sprachereignisses.
+Eine fehlende lokale Audio-Kamera wird hier nicht geloest. Raeumliche Chancen,
+Original-Gates/Zyklen, Radar, Gruppen-Cooldowns und Legacy-Descriptoranschluesse
+bleiben gesonderte Aufgaben.

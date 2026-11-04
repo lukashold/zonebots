@@ -1,7 +1,7 @@
 //!44fcc0 ordinary BUILD branch. Movement/contact/artwork have ordered inputs;
 //! the work/arrival state is never inferred from a Web distance or HP timer.
-#[derive(Clone,Debug)]pub struct Crane{pub entity:usize,pub target:Option<usize>,pub work9a:u8,pub work9a_known:bool,pub frame86:i8,pub mouth96:u8,pub interval87:i8,pub delay82:i16,pub saved:[i16;2]}
-impl Default for Crane{fn default()->Self{Self{entity:0,target:None,work9a:0,work9a_known:false,frame86:-1,mouth96:0,interval87:0,delay82:0,saved:[0;2]}}}
+#[derive(Clone,Debug)]pub struct Crane{pub entity:usize,pub target:Option<usize>,pub work9a:u8,pub work9a_known:bool,pub frame86:i8,pub mouth96:u8,pub interval87:i8,pub delay82:i16,pub saved:[i16;2],pub approach_b1:Option<u8>}
+impl Default for Crane{fn default()->Self{Self{entity:0,target:None,work9a:0,work9a_known:false,frame86:-1,mouth96:0,interval87:0,delay82:0,saved:[0;2],approach_b1:None}}}
 pub trait World{
  fn overlay(&mut self,c:&Crane)->Option<bool>;
  fn crt(&mut self)->u16;

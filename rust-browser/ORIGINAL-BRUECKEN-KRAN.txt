@@ -1,0 +1,50 @@
+Bridge80: bounded original repair after browser command acceptance
+
+The native Bridge32 records,44fcc0 work/retreat,409e70 terrain writes,
+shared64x24 job allocation and late40e9d0 completion now share the existing
+Crane, BridgeSlot, finite path, hardwareW and playback authorities. No second
+queue, bridge HP clock or9a value is introduced. Work uses signed16 wrapping
+HP + (W6>>4), including overshoot. Reaching maximum HP is not completion:
+the crane retreats through the native finite route and52960; only the last
+delayed playback job clears the destroyed flag and releases the bridge.
+
+The approved browser repair input enters through
+begin_native_bridge_after_browser_acceptance. The original438cf0 warm UI
+stack local and45ef00 native network router/latency remain separate, unported
+callers. No zero or guessed stack value is supplied. Missing native inputs or
+GraphNone keep the explicit older browser adapter, including its65HP/s rate.
+That adapter is excluded only for a genuinely adopted native bridge repair.
+
+45fef0 preserves unwritten Bridge32 runtime bytes.45fff0 reloads the eight
+original1280-byte H/VSHWING prefixes while existing mapped tails stay warm.
+The actual434169 REP STOSD clears ALL64x24 job bytes at mission reset;
+an earlier head-only interpretation from one REF writer was disproven by256
+executed whole-pool resets. Within a mission, allocation preserves unowned
+job bytes. Full capacity still consumes the one native seed and does not
+invent completion, retry jobs or a second pool.
+
+Private pack enrichment adds only nativeBridgeDisk26,
+nativeBridgePlaybackHeaders and nativeCraneBridgeFrames. Existing v8 local
+and LAN starts detect missing inputs and run --enrich-bridge80. Validation
+precedes an atomic replacement; every other campaign field is retained.
+No Ghidra instance or original executable download is needed by a player.
+
+Verification:1024 original whole work records plus4704 original late reader
+records, with public numeric buffer-hash goldens always executed. Setting
+Z_NATIVE_TRACE_DIR additionally compares private original data; the separate
+checker verified5728 complete byte outputs,2932 work queue rows and34380
+late draws. Public Game tests cover warm reload, partial/full job capacity,
+last-job completion, actual58ec0 target release and fresh same-slot reuse.
+The explicit asset diagnostic repairs all19 authored destroyed bridges in SP
+and browserMP (38 cases), with an injected crane on a legal bank to isolate
+the repair. These are not untouched campaign openings.1136 actual Art draws
+and86 guest RPC cases verify four/six work parts, reverse parts, late inherited
+palette and payload rejection without guest simulation. The RPC envelope
+uses baseline Wasm; the new simulation evidence comes from the Rust Game.
+
+Remaining boundaries: native UI/network admission, general order interruption
+outside owned death/reuse paths, unavailable raw pointer aliases, completion
+UI branches, per-listener camera/audio visibility, Canvas/GL raster/scissor/
+batch equality and whole-match global equivalence. Existing Common code is
+not expanded here; its separate owner supplies the shared hardware update.
+No claim of full-game1:1 equality follows from this bounded repair block.

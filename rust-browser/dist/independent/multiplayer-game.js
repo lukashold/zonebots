@@ -7,6 +7,8 @@
  const STATIC=['map','catalog','objects','walls'],FRAME_STEP=1/8,MAX_EVENTS=1024;
  const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o!==null&&typeof o==='object'&&!Array.isArray(o);
  const integer=(n,max=0xffffffff)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
+ const audioContext=value=>typeof value==='string'&&/^(0|[1-9][0-9]{0,9}):(0|[1-9][0-9]{0,9})$/.test(value)&&value.split(':').every(n=>integer(+n));
+ const audioView=value=>object(value)&&Object.keys(value).length===2&&['camera','size'].every(k=>Array.isArray(value[k])&&value[k].length===2&&value[k].every(n=>Number.isInteger(n)&&n>=-32768&&n<=32767))&&value.size.every(n=>n>0);
  const flip=n=>n===0?1:n===1?0:n;
  //41cfa0 selects baked red/blue banks, both with palette0. Guest color
  //mapping must retain each bank's own pixels/alpha; the banks are not exact
@@ -36,6 +38,7 @@
   if(state.nativeUiClock!==undefined&&(!Number.isInteger(state.nativeUiClock)||state.nativeUiClock< -32768||state.nativeUiClock>32767))return false;
   if(state.nativePortraits!==undefined&&(!Array.isArray(state.nativePortraits)||state.nativePortraits.length!==2||!state.nativePortraits.every((p,i)=>object(p)&&p.recipientTeam===i&&integer(p.mode,4)&&Number.isInteger(p.message)&&p.message>=-2147483648&&p.message<=2147483647&&['phraseIndex','phraseCounter','phraseFrame'].every(k=>Number.isInteger(p[k])&&p[k]>=-32768&&p[k]<=32767)&&['nativeSlot','rawSpeakerSlot'].every(k=>p[k]===null||integer(p[k],239))&&(p.unitId===null||integer(p.unitId)))))return false;
   if(Array.isArray(state.events)&&!state.events.every(e=>!['nativeVoice','nativeSample'].includes(e?.kind)||e.nativeAudioId===undefined||typeof e.nativeAudioId==='string'&&/^[0-9]{1,20}$/.test(e.nativeAudioId)&&integer(e.recipientTeam,1)&&(e.actorTeam===null||integer(e.actorTeam,3))))return false;
+  if(Array.isArray(state.events)&&!state.events.every(e=>!own(e,'nativeHardwareAudioContext')||e.kind==='nativeSample'&&e.lane==='effects'&&audioContext(e.nativeHardwareAudioContext)&&integer(e.recipientTeam,1)&&typeof e.nativeAudioId==='string'))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
   if(state.bullets!==undefined&&(!Array.isArray(state.bullets)||state.bullets.length>200||!state.bullets.every(b=>object(b)&&integer(b.id,199)&&[b.x,b.y,b.angle].every(Number.isFinite)&&[0,1].includes(b.team)&&typeof b.laser==='boolean'&&integer(b.phase,1))))return false;
   if(state.projectiles!==undefined&&(!Array.isArray(state.projectiles)||state.projectiles.length>50||!state.projectiles.every(p=>object(p)&&integer(p.id,49)&&[p.x,p.y,p.angle,p.size].every(Number.isFinite)&&[0,1].includes(p.team)&&['shell','grenade','rocket','flame','howitzer'].includes(p.kind)&&integer(p.sprite,7210)&&p.size>=0&&p.size<=256)))return false;
@@ -142,16 +145,19 @@
    if(pendingEvents.length>MAX_EVENTS)pendingEvents.splice(0,pendingEvents.length-MAX_EVENTS);
    options.apply?.(view);return view;
   }
-  const localAudio=value=>object(value)&&typeof value.soundEnabled==='boolean'?{soundEnabled:value.soundEnabled}:null;
-  const wireAudio=value=>object(value)&&Object.keys(value).length===1&&typeof value.soundEnabled==='boolean'?{soundEnabled:value.soundEnabled}:null;
-  const sameAudio=(a,b)=>a?.soundEnabled===b?.soundEnabled;
-  function audioRequest(request){return {...request,nativeListenerAudio:{...(hostAudio?{'0':hostAudio}:{}),...(guestAudio?{'1':guestAudio}:{})}};}
+  const localAudio=value=>object(value)&&typeof value.soundEnabled==='boolean'&&(!own(value,'view')||audioView(value.view))?{soundEnabled:value.soundEnabled,...(own(value,'view')?{view:{camera:[...value.view.camera],size:[...value.view.size]}}:{})}:null;
+  const wireAudio=value=>object(value)&&Object.keys(value).every(k=>k==='soundEnabled'||k==='view')?localAudio(value):null;
+  const sameAudio=(a,b)=>Boolean(a&&b)&&a.soundEnabled===b.soundEnabled&&JSON.stringify(a.view??null)===JSON.stringify(b.view??null);
+  function notifyHardwareAudio(settings,seq){options.onNativeHardwareAudioContext?.(settings?.view?epoch+':'+seq:null);}
+  function audioRequest(request){const entry=(s,seq)=>({...s,...(s.view?{hardwareContext:epoch+':'+seq}:{})});return {...request,nativeListenerAudio:{...(hostAudio?{'0':entry(hostAudio,audioSequence)}:{}),...(guestAudio?{'1':entry(guestAudio,lastGuestAudioSequence)}:{})}};}
   function setNativeAudioSettings(value){
-   if(!active||!session?.connected)return false;const settings=localAudio(value);if(!settings)return false;if(sameAudio(settings,ownAudio))return true;
-   if(role==='guest'){const seq=audioSequence+1;if(!send('game:audioSettings',{epoch,seq,settings}))return false;audioSequence=seq;ownAudio=settings;return true;}
-   ownAudio=settings;hostAudio=settings;if(canonical)run({op:'audioSettings'});return true;
+   if(!active||!session?.connected)return false;const settings=localAudio(value);if(!settings)return false;if(!settings.view&&ownAudio?.view)settings.view={camera:[...ownAudio.view.camera],size:[...ownAudio.view.size]};if(sameAudio(settings,ownAudio)){notifyHardwareAudio(ownAudio,audioSequence);return true;}
+   if(audioSequence>=0xffffffff)return false;const seq=audioSequence+1;notifyHardwareAudio(settings,seq);
+   if(role==='guest'){if(!send('game:audioSettings',{epoch,seq,settings}))return false;audioSequence=seq;ownAudio=settings;return true;}
+   audioSequence=seq;ownAudio=settings;hostAudio=settings;if(canonical)run({op:'audioSettings'});return true;
   }
-  function refreshHostAudio(){const settings=localAudio(options.nativeAudioSettings?.());if(settings&&!sameAudio(settings,ownAudio)){ownAudio=settings;hostAudio=settings;}}
+  function refreshHostAudio(){const settings=localAudio(options.nativeAudioSettings?.());if(settings&&!sameAudio(settings,ownAudio)&&audioSequence<0xffffffff){audioSequence++;ownAudio=settings;hostAudio=settings;notifyHardwareAudio(settings,audioSequence);}}
+  function refreshNativeAudioSettings(){return setNativeAudioSettings(options.nativeAudioSettings?.());}
   function run(request){
    const compact=canonical?{compact:true,knownMapSeed:canonical.map.seed,knownMapRevision:canonical.map.revision}:{};
    const result=options.run(audioRequest({...request,...compact}));if(result?.error)throw Error(String(result.error));
@@ -188,7 +194,7 @@
    try{
     ownAudio=localAudio(options.nativeAudioSettings?.());hostAudio=ownAudio;guestAudio=null;audioSequence=0;lastGuestAudioSequence=-1;
     const request=audioRequest({...initRequest,op:'init',multiplayer:true,difficulty:1,aiTeams:[],compact:false});
-    const result=options.run(request);if(result?.error)throw Error(String(result.error));options.onNativeAudioSession?.();apply(result);
+    const result=options.run(request);if(result?.error)throw Error(String(result.error));options.onNativeAudioSession?.();notifyHardwareAudio(ownAudio,0);apply(result);
     const details={mission:canonical.mission,difficulty:1,seed:request.seed,original:Boolean(canonical.map.original),name:String(meta.name||'Mehrspielerpartie').slice(0,96)};
     options.onStart?.(details,role);options.onPause?.(true,'Warte auf Mitspieler …');lastMap=mapStamp();lastWalls=wallStamp();
     if(!send('game:init',{epoch,seq:0,meta:details,state:canonical,paused:true}))return fail('Der Spielzustand konnte nicht gesendet werden.');
@@ -232,7 +238,7 @@
   }
   function close(notify=true){
    if(notify&&active)send('game:close',{epoch});clearTimeout(readyTimer);active=false;paused=true;awaitingReady=false;pendingEvents=[];
-   options.onPause?.(true,'Mehrspielerpartie beendet.');info('closed','Mehrspielerpartie beendet.');session=null;return true;
+   options.onPause?.(true,'Mehrspielerpartie beendet.');info('closed','Mehrspielerpartie beendet.');options.onNativeHardwareAudioContext?.(null);session=null;return true;
   }
   function handle(message){
    if(!object(message)||typeof message.type!=='string'||!object(message.payload))return false;
@@ -242,7 +248,7 @@
      if(role!=='guest'||!integer(p.epoch)||p.epoch<=epoch||!validState(p.state,true)||!object(p.meta))return false;
      epoch=p.epoch;receivedSequence=0;active=true;paused=true;awaitingReady=false;frameClock=0;pendingEvents=[];canonical=null;options.onNativeAudioSession?.();apply(p.state,false);
      const meta={mission:canonical.mission,difficulty:1,seed:p.meta.seed,original:Boolean(canonical.map.original),name:String(p.meta.name||'Mehrspielerpartie').slice(0,96)};
-     options.onStart?.(meta,role);options.onPause?.(true,'Warte auf Gastgeber …');ownAudio=localAudio(options.nativeAudioSettings?.());audioSequence=0;send('game:ready',{epoch,...(ownAudio?{nativeAudio:ownAudio,audioSeq:0}:{})});return true;
+     options.onStart?.(meta,role);options.onPause?.(true,'Warte auf Gastgeber …');ownAudio=localAudio(options.nativeAudioSettings?.());audioSequence=0;notifyHardwareAudio(ownAudio,0);send('game:ready',{epoch,...(ownAudio?{nativeAudio:ownAudio,audioSeq:0}:{})});return true;
     }
     if(!active||p.epoch!==epoch)return false;
     if(type==='game:audioSettings'){
@@ -288,7 +294,7 @@
    }catch(error){return fail(error.message||'Mehrspielerzustand konnte nicht verarbeitet werden.');}
    return false;
   }
-  const api=Object.freeze({bind,start,handle,action,tick,tickUi,setNativeAudioSettings,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
+   const api=Object.freeze({bind,start,handle,action,tick,tickUi,setNativeAudioSettings,refreshNativeAudioSettings,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
   return api;
  }
  global.MultiplayerGame=Object.freeze({create,perspective,validateAction});

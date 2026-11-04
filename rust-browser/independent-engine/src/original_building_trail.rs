@@ -16,20 +16,20 @@ impl Job{
  pub arena:Vec<u8>,pub jobs:[Job;64],pub headers:[Option<u32>;35],
  pub error:u8,pub boundary:Option<Boundary>,pub sound_clock:u32,
  pub height_global:u32,pub angle_global:u32,
- pub builds:Vec<[u8;88]>,pub known_builds:[bool;35],
+ pub builds:Vec<[u8;88]>,pub known_builds:[bool;35],pub bridge_headers:Vec<(u32,Vec<u8>)>,
 }
-impl Default for State{fn default()->Self{Self{arena:vec![0;BLOCK*4],jobs:[Job([0;24]);64],headers:[None;35],error:0,boundary:None,sound_clock:0,height_global:0,angle_global:0,builds:vec![[0;88];35],known_builds:[false;35]}}}
+impl Default for State{fn default()->Self{Self{arena:vec![0;BLOCK*4],jobs:[Job([0;24]);64],headers:[None;35],error:0,boundary:None,sound_clock:0,height_global:0,angle_global:0,builds:vec![[0;88];35],known_builds:[false;35],bridge_headers:vec![]}}}
 #[derive(Clone,Copy,Debug)]pub struct View{pub camera:[i16;2],pub size:[i16;2],pub clip_min:[i16;2],pub quality:i8,pub world_base:i16}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Draw{pub position:[i16;2],pub screen:[i16;2],pub sprite:i16,pub angle:u8,pub height_global:u32}
-#[derive(Clone,Debug,Default)]pub struct Playback{pub draws:Vec<Draw>,pub restore:Option<Job>,pub sound:Option<i16>,pub complete:bool}
+#[derive(Clone,Debug,Default)]pub struct Playback{pub draws:Vec<Draw>,pub restore:Option<Job>,pub bridge_complete:Option<Job>,pub sound:Option<i16>,pub complete:bool,pub visible:bool}
 pub fn header(kind:i8)->Option<(u32,u8)>{Some(match kind{0=>(0x5befd0,10),1=>(0x5bc83c,12),4=>(BASE,23),8=>(0x5c1764,8),_=>return None})}
 impl State{
  pub fn mission_reset(&mut self){self.jobs.fill(Job([0;24]));self.headers.fill(None);self.known_builds.fill(false);self.sound_clock=0;self.boundary=None;}
  ///45fcb0 initializes ONLY0x299 dwords, then expands80-byte disk fields.
  ///Remaining bytes of late slots survive the prefix fill until source writes.
  pub fn load_buildings(&mut self,disk:&[[u8;80]]){for n in 0..0x299*4{self.builds[n/88][n%88]=255;}for(slot,d)in disk.iter().take(35).enumerate(){let b=&mut self.builds[slot];b[..22].copy_from_slice(&d[..22]);for(to,from)in[(28,26),(30,28),(54,52),(60,57),(80,73)]{b[to..to+2].copy_from_slice(&d[from..from+2]);}for(to,from)in[(36,34),(40,38),(44,42),(76,69)]{let mut v=i32::from(d[from+3]as i8);for n in(0..3).rev(){v=v.wrapping_mul(256).wrapping_add(i32::from(d[from+n]as i8));}b[to..to+4].copy_from_slice(&v.to_le_bytes());}for(to,from)in[(52,50),(53,51),(56,54),(57,55),(58,56),(62,59),(68,64),(69,65),(70,66),(71,67),(72,68),(82,75),(83,76),(84,77),(85,78)]{b[to]=d[from];}self.known_builds[slot]=true;}}
- pub fn read(&self,address:u32,len:usize)->Result<&[u8],Boundary>{let start=address.wrapping_sub(BASE)as usize;self.arena.get(start..start.checked_add(len).ok_or(Boundary{address,length:len})?).ok_or(Boundary{address,length:len})}
- pub fn write(&mut self,address:u32,data:&[u8])->Result<(),Boundary>{for(i,&b)in data.iter().enumerate(){let a=address.wrapping_add(i as u32);let Some(v)=self.arena.get_mut(a.wrapping_sub(BASE)as usize)else{return Err(Boundary{address:a,length:data.len()-i});};*v=b;}Ok(())}
+ pub fn read(&self,address:u32,len:usize)->Result<&[u8],Boundary>{let start=address.wrapping_sub(BASE)as usize;if let Some(end)=start.checked_add(len){if let Some(v)=self.arena.get(start..end){return Ok(v);}}for(head,bytes)in &self.bridge_headers{let start=address.wrapping_sub(*head)as usize;if let Some(end)=start.checked_add(len){if let Some(v)=bytes.get(start..end){return Ok(v);}}}Err(Boundary{address,length:len})}
+ pub fn write(&mut self,address:u32,data:&[u8])->Result<(),Boundary>{for(i,&b)in data.iter().enumerate(){let a=address.wrapping_add(i as u32);if let Some(v)=self.arena.get_mut(a.wrapping_sub(BASE)as usize){*v=b;continue;}let Some(v)=self.bridge_headers.iter_mut().find_map(|(head,bytes)|bytes.get_mut(a.wrapping_sub(*head)as usize))else{return Err(Boundary{address:a,length:data.len()-i});};*v=b;}Ok(())}
  pub fn word(&self,a:u32)->Result<i16,Boundary>{Ok(i16::from_le_bytes(self.read(a,2)?.try_into().unwrap()))}
  pub fn put_word(&mut self,a:u32,v:i16)->Result<(),Boundary>{self.write(a,&v.to_le_bytes())}
  pub fn footer(&mut self,p:&Particle)->Result<(),Boundary>{if p.owner&4!=0{let h=u32::from_le_bytes(p.raw_tail[8..12].try_into().unwrap());self.write(h.wrapping_add(10),&[p.raw_tail[1],p.raw_tail[1]])?;}Ok(())}
@@ -55,7 +55,7 @@ impl State{
   }
   let visible=target_position.is_some_and(|p|{let s=[p[0].wrapping_sub(v.camera[0]),p[1].wrapping_sub(v.camera[1])];s[0]>=-48&&i32::from(s[0])<=i32::from(v.size[0])+32&&s[1]>=-48&&i32::from(s[1])<=i32::from(v.size[1])+32});
   if frame==7&&visible&&self.sound_clock==0{out.sound=Some(44);self.sound_clock=100;}
-  if frame==1{if self.word(h)?as u16&128!=0{return Err(Boundary{address:h,length:12});}out.restore=Some(job);out.complete=true;if visible{out.sound=Some(46);self.sound_clock=100;}}Ok(out)
+  out.visible=visible;if frame==1{if self.word(h)?as u16&128!=0{out.bridge_complete=Some(job);}else{out.restore=Some(job);if visible{out.sound=Some(46);self.sound_clock=100;}}out.complete=true;}Ok(out)
  }
  pub fn complete(&mut self,slot:usize,head:u32)->Result<(),Boundary>{self.jobs[slot].set_ptr(0,0);let end=self.read(head.wrapping_add(10),1)?[0];self.write(head.wrapping_add(11),&[end])}
  pub fn end_reader(&mut self){if self.sound_clock!=0{self.sound_clock=self.sound_clock.wrapping_sub(1);}}

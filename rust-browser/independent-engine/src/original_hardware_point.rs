@@ -24,7 +24,7 @@ impl Game{
  ///45a080's69:20 tail precedes55f10. `original_slot` is captured before
  ///the callback, so a transport identity change still resolves its raw UNIT.
  pub(crate) fn finish_native_unit_callback(&mut self,index:usize,original_slot:Option<usize>){
-  let Some(slot)=original_slot else{return;};let index=self.units.iter().rposition(|u|u.native_slot==Some(slot)).unwrap_or(index);if self.native_group_rosters.members.get(slot).and_then(Option::as_ref).is_some_and(|m|m.flags69&32!=0)&&self.units.get(index).is_some_and(|u|u.native_slot==Some(slot)&&u.native_class7c==1){if let Err(boundary)=self.update_native_hardware_point(index){self.native_route_boundary=Some(boundary);}}
+  let Some(slot)=original_slot else{return;};let index=self.units.iter().rposition(|u|u.native_slot==Some(slot)).unwrap_or(index);if self.native_group_rosters.members.get(slot).and_then(Option::as_ref).is_some_and(|m|m.flags69&32!=0)&&self.units.get(index).is_some_and(|u|u.native_slot==Some(slot)&&u.native_class7c==1&&u.native_common_callback!=Some(self.motion_tick)){if let Err(boundary)=self.update_native_hardware_point(index){self.native_route_boundary=Some(boundary);}}
   let Some(member)=self.native_group_rosters.members.get_mut(slot).and_then(Option::as_mut)else{return;};if member.flags69&32==0{return;}member.flags69&=!32;self.sync_native_group_order(index);
  }
 }

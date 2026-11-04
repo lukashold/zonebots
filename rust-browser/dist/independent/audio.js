@@ -76,8 +76,12 @@ window.RadioAudio=(()=>{
  }
  //46e660 requests a free mixer channel directly. Native admission and sample
  //choice already happened in Rust; these clips have no browser voice queue.
- let consumedNative=-1n;
- function resetNativeEvents(){consumedNative=-1n;}
+  let consumedNative=-1n,hardwareContext=null,hardwareContextToken=0;
+  //Only waiting spatial hardware samples depend on this listener revision.
+  function setNativeHardwareAudioContext(value){if(value!==null&&(typeof value!=='string'||!/^(0|[1-9][0-9]{0,9}):(0|[1-9][0-9]{0,9})$/.test(value)||value.split(':').some(n=>+n>0xffffffff)))return false;if(value!==hardwareContext){hardwareContext=value;hardwareContextToken++;}return true;}
+  //A new session may reuse its IDs while an old accepted clip is still loading.
+  //Invalidate only pending native starts; already playing and legacy FX remain.
+  function resetNativeEvents(){nativeVoiceToken++;nativeEffectToken++;consumedNative=-1n;}
  function consumeNative(event){const id=event?.nativeAudioId;if(id===undefined)return true;if(typeof id!=='string'||!/^[0-9]{1,20}$/.test(id))return false;const n=BigInt(id);if(n<=consumedNative)return false;consumedNative=n;return true;}
  async function nativeVoice(event){
   if(!consumeNative(event))return;
@@ -95,7 +99,8 @@ window.RadioAudio=(()=>{
   if(event?.playAudio!==true||!/^[A-Z0-9_]{1,22}$/.test(event.clip))return;
   if(event.lane==='voice')return nativeVoice(event);
   if(event.lane!=='effects'||!enabled||!unlocked||levels.effects===0)return;
-  const token=nativeEffectToken;try{await load();const clip=manifest?.effects?.[event.clip];if(!clip||!ctx)return;const decoded=await buffer(clip);if(token!==nativeEffectToken||!enabled||!unlocked||levels.effects===0)return;
+   const spatial=event.nativeHardwareAudioContext!==undefined,context=event.nativeHardwareAudioContext,viewToken=hardwareContextToken;if(spatial&&(typeof context!=='string'||context!==hardwareContext))return;
+   const token=nativeEffectToken;try{await load();const clip=manifest?.effects?.[event.clip];if(!clip||!ctx)return;const decoded=await buffer(clip);if(token!==nativeEffectToken||spatial&&(viewToken!==hardwareContextToken||context!==hardwareContext)||!enabled||!unlocked||levels.effects===0)return;
    const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=decoded;gain.gain.value=clip.gain??1;source.connect(gain);gain.connect(effectsBus);activeEffects.add(source);source.onended=()=>{activeEffects.delete(source);gain.disconnect();};source.start();
   }catch{}
  }
@@ -108,7 +113,7 @@ window.RadioAudio=(()=>{
  }
  return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0){stopVoice();stopNativeVoices();}mix();if(key==='voice'&&levels.voice>0)pump();},
   mute(value){enabled=!value;if(value){nativeEffectToken++;stopVoice();stopNativeVoices();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
-  resetNativeEvents,setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,nativeVoice,nativeSample,
+   resetNativeEvents,setNativeHardwareAudioContext,setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,nativeVoice,nativeSample,
   nativeSettings(){return {soundEnabled:enabled,effectsEnabled:enabled};},
   voicePose(){return activeVoicePose&&ctx?{clip:activeVoicePose.clip,seconds:Math.max(0,ctx.currentTime-activeVoicePose.started)}:null;},
   status(){return {original:Boolean(manifest),unlocked,enabled,scene,world,music:music?.src||null,musicTime:music?.currentTime||0,musicPaused:music?.paused??true,musicError:music?.error?.code||null,contextState:ctx?.state||'locked',speaking,queued:queue.length};}};

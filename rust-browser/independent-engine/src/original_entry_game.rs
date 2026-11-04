@@ -63,6 +63,8 @@ impl Game{
   let Some(hardware)=self.allocate_native_takeover_record(index)else{return;};
   let old=driver.original_combat.clone().unwrap_or_else(||original_combat::CombatState::new(&driver.kind));let previous_speed=old.projectile_speed.unwrap_or_else(||super::native_ai_scoring::default_input(&driver.kind).map_or(15,|i|i.projectile_speed));
   let controls=self.native_hardware_pool[hardware].attributes.take_over(input,old.fire_rate,previous_speed);let profile=self.native_hardware_pool[hardware].attributes.initialize_occupied(definition,vehicle);
+  //57ff0@45802a writes this retained native slot before renderer ID remap.
+  if vehicle&&definition==35{if let Some(slot)=driver.native_slot{self.record_native_selection_link(slot,Some(0x2084));}}
   if !vehicle{if let Some(slot)=driver.native_slot{self.record_native_selection_saved_class(slot,driver.native_class7c);}}
   let mut order=self.native_hardware_pool[hardware].order;order.selected_target12=255;if vehicle{order.field17=0;}self.native_hardware_pool[hardware].set_order(order);
   let attributes=self.native_hardware_pool[hardware].attributes;let mut state=old;state.fire_rate=controls.fire_rate;state.projectile_speed=Some(controls.projectile_speed);state.movement_control=attributes.byte(7);state.secondary_state=attributes.byte(25)as i8;

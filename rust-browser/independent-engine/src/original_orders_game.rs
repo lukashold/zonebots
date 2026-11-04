@@ -76,6 +76,9 @@ pub fn reserved_goal(point:[i16;2],r:GoalReservation)->bool{
  pub target:[i16;2],pub selected_target12:u8,pub counter13:i8,pub counter14:i8,pub field17:u8,
 }
 impl HardwareOrderRecord{
+ pub(crate)fn overlay(self,b:&mut[u8;44]){b[14..16].copy_from_slice(&self.target[0].to_le_bytes());b[16..18].copy_from_slice(&self.target[1].to_le_bytes());b[18]=self.selected_target12;b[19]=self.counter13 as u8;b[20]=self.counter14 as u8;b[23]=self.field17;}
+ pub(crate)fn from_bytes(b:&[u8;44])->Self{Self{target:[i16::from_le_bytes([b[14],b[15]]),i16::from_le_bytes([b[16],b[17]])],selected_target12:b[18],counter13:b[19]as i8,counter14:b[20]as i8,field17:b[23]}}
+
  ///41ba80/41bad0/41bb20/41bb70/57ff0/58050/58090 reset12 and17;
  ///582c0 resets only12. All target/counter bytes remain from the allocated
  ///44-byte pool slot. `Default` represents cold BSS, not a reused-slot reset.
@@ -193,9 +196,9 @@ impl Game{
   for slot in followers.into_iter().filter(|&s|s!=255){let Some(i)=self.units.iter().position(|u|u.native_slot==Some(usize::from(slot)))else{continue;};let ground=self.native_group_rosters.members[usize::from(slot)].as_ref().is_some_and(|m|m.promotion.target_x==3456);if matches!(self.units[i].native_order5c,5|-5)&&ground{self.units[i].native_order5c=0;if let Some(m)=self.native_group_rosters.members[usize::from(slot)].as_mut(){m.promotion.order=0;}self.reset_native_idle(i);}}
   self.units[index].native_flags64&=!8;if result==12&&super::original_combat::animation_family(&self.units[index].kind)!=4{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags69|=32;}}Some(result)
  }
- ///52d90 only changes native command state; the accepted browser STOP event
- ///already owns its visible selection/path cancellation. Pass the shared dummy
- ///record for a missing hardware pointer when that state is available.
+ ///52d90 preserves inline movement and finite heads. The accepted browser
+ ///caption is separate;54160 invokes these native writes in the callback.
+ ///Pass the shared dummy record when the hardware pointer is null/-1.
  pub(crate) fn complete_native_stop_order(&mut self,index:usize,record:Option<&mut HardwareOrderRecord>)->bool{
   let Some(slot)=self.units.get(index).and_then(|u|u.native_slot)else{return false;};let Some(member)=self.native_group_rosters.members.get_mut(slot).and_then(Option::as_mut)else{return false;};stop_order(member,&mut self.units[index].native_flags9c,record);self.units[index].native_order5c=0;true
  }
@@ -221,7 +224,7 @@ impl Game{
   if self.native_group_rosters.members[slot].is_none(){self.maintain_native_group_rosters();}
   let Some(mut member)=self.native_group_rosters.members[slot].take()else{return false;};let roster=self.native_group_rosters.pool.get_mut(usize::from(member.group));let u=&mut self.units[index];
   self.native_order_arguments=[event.waypoint[0],event.waypoint[1],event.metadata];
-  write_event(&mut member,roster,&mut u.native_flags9c,&mut u.native_counter6e,event);u.native_order5c=member.promotion.order as i8;self.native_group_rosters.members[slot]=Some(member);true
+  write_event(&mut member,roster,&mut u.native_flags9c,&mut u.native_counter6e,event);u.native_order5c=member.promotion.order as i8;self.native_group_rosters.members[slot]=Some(member);if let Some(marker)=self.native_order_object_marker(event){self.units[index].native_fieldb3=marker;}true
  }
  ///Source15ee0 constructor using stable native identities, not browser IDs.
  pub(crate) fn native_target_order_event(&self,index:usize,target:usize,metadata:i16)->Option<Event>{

@@ -8,6 +8,8 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_building_trail.rs"]mod trail;
 #[path="original_crane_building.rs"]mod crane;
 #[path="original_crane_building_game.rs"]mod crane_game;
+#[path="original_crane_bridge.rs"]mod crane_bridge;
+#[path="original_crane_bridge_game.rs"]mod crane_bridge_game;
 #[path="original_building_trail_game.rs"]mod trail_game;
 #[path="original_building_blast_game.rs"]mod trail_blast;
 #[path="original_world_fire.rs"] pub(crate) mod fire;
@@ -34,18 +36,20 @@ struct ObjectSlot {
 struct BuildingSlot { record: native::Building, maximum: i16, binding: Option<usize>, fort_proxy: bool, repair:Option<workshop::State>, constructor:Option<super::original_factory::ConstructorFields>,display:super::original_building_display::Radar }
 #[derive(Clone)]
 struct BridgeSlot { record: native::Bridge, binding: usize, native_slot:usize, orientation:i16,
-    retired_road:Option<(usize,[i16;4])>, restored_terrain:Vec<(i16,u8)> }
+    retired_road:Option<(usize,[i16;4])>, restored_terrain:Vec<(i16,u8)>,raw_tail:[u8;32],native_work_owned:bool }
 #[derive(Clone, Copy)]
 struct Fort { binding: usize, base: [i16;2] }
 pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pub flags13:u8,pub flags19:u8,pub flags26:u8,pub definition:u16,pub sprite:u16,pub template_flags18:u8,pub extent20:i8,pub extent21:i8,pub unit:Option<usize>,pub flag_sector:Option<usize>,pub flag_delay1f:u8}
 
 pub struct State {
-    trail:trail::State,trail_draws:Vec<Value>,direct_palette:Option<u8>,trail_main_result:Option<u8>,trail_scenes:[i32;4],cranes:Vec<Option<crane::Crane>>,crane_frames:Vec<Vec<[i16;4]>>,ruin_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,alive_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,effect_world_suppression:u8,effect_world_mask4f:u8,effect_wall_mask43:u8,effect_quality:i8,
+    ///Raw4d18c8, written only by43ea80. A miss and a mission import preserve it.
+    order_object_pointer:u32,
+    trail:trail::State,trail_draws:Vec<Value>,direct_palette:Option<u8>,trail_main_result:Option<u8>,trail_scenes:[i32;4],cranes:Vec<Option<crane::Crane>>,crane_frames:Vec<Vec<[i16;4]>>,bridge_crane_frames:Vec<Vec<Vec<[i16;4]>>>,bridge_repair_ready:bool,ruin_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,alive_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,effect_world_suppression:u8,effect_world_mask4f:u8,effect_wall_mask43:u8,effect_quality:i8,
     objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,retired_workshop_alias25:Option<super::original_retired_workshop::Alias>,retired_preamble_offset21_24:Option<i8>,
     forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_cp_tints:Vec<Option<u8>>,effect_draws:Vec<(usize,effects::Draw,Option<u8>)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,effect_origin:[i16;2],effect_flags:u8,effect_fade:u8,effect_sprite:i16,effect_suppression:u8,bridge_fx:effects::bridge::Raw,last_projection:[i16;2],quiet_blasts:bool,fragments:building_fragments::State,fort_fragments:fort_fragments::State,seasonal_cps:Option<seasonal_game::CpPool>,
 }
 impl State {
-    fn empty() -> Self { Self { trail:Default::default(),trail_draws:vec![],direct_palette:None,trail_main_result:None,trail_scenes:[-1;4],cranes:vec![None;240],crane_frames:vec![],ruin_stamps:Default::default(),alive_stamps:Default::default(),effect_world_suppression:0,effect_world_mask4f:0,effect_wall_mask43:0,effect_quality:0, objects: vec![None;200],retired_workshop_alias25:None,retired_preamble_offset21_24:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],quiet_blasts:false,fragments:Default::default(),fort_fragments:Default::default(),seasonal_cps:None } }
+    fn empty() -> Self { Self { order_object_pointer:0,trail:Default::default(),trail_draws:vec![],direct_palette:None,trail_main_result:None,trail_scenes:[-1;4],cranes:vec![None;240],crane_frames:vec![],bridge_crane_frames:vec![],bridge_repair_ready:false,ruin_stamps:Default::default(),alive_stamps:Default::default(),effect_world_suppression:0,effect_world_mask4f:0,effect_wall_mask43:0,effect_quality:0, objects: vec![None;200],retired_workshop_alias25:None,retired_preamble_offset21_24:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],quiet_blasts:false,fragments:Default::default(),fort_fragments:Default::default(),seasonal_cps:None } }
     fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
     ///43ecf0/43eee0 and58a40 do not write raw+0x26. Only58af0's
     ///destroyed-hardware branches replace this warm byte with RNG&3.
@@ -103,7 +107,7 @@ impl Game {
         //without rewriting any visual or compatibility cell during import.
         for y in 0..self.map.height.min(128){for x in 0..self.map.width.min(128){let cell=y*128+x;let visual=self.map.original_tiles.get(y*self.map.width+x).copied().unwrap_or(0);plane[cell]=(plane[cell]&127)|((visual&256)>>1)as u8;}}
         let initial_plane=plane.clone();self.map.native_terrain_plane=initial_plane.clone();
-        let mut state=State::empty();state.retired_preamble_offset21_24=previous.as_ref().and_then(|w|w.objects[24].as_ref().map(|o|o.sprite_offset21).or(w.retired_preamble_offset21_24));if let Some(old)=&previous{state.trail=old.trail.clone();state.trail.mission_reset();state.direct_palette=old.direct_palette;state.effect_quality=old.effect_quality;state.effects=old.effects.clone();for p in state.effects.iter_mut().flatten(){p.active=false;p.position[0]=-1000;}state.effect_cp_tints=vec![None;state.effects.len()];state.effect_tint=old.effect_tint;state.effect_owner=old.effect_owner;state.effect_maximum=old.effect_maximum;state.effect_origin=old.effect_origin;state.effect_flags=old.effect_flags;state.effect_fade=old.effect_fade;state.effect_sprite=old.effect_sprite;state.effect_suppression=old.effect_suppression;state.effect_world_mask4f=old.effect_world_mask4f;state.effect_wall_mask43=old.effect_wall_mask43;state.effect_world_suppression=old.effect_world_suppression;}state.seasonal_cps=if v.is_null(){previous.as_ref().and_then(|s|s.seasonal_cps.clone())}else{seasonal_game::CpPool::import(v)};state.fragments=building_fragments::State::import(previous.as_ref().map(|s|&s.fragments),v);state.fort_fragments=fort_fragments::State::import(previous.as_ref().map(|s|&s.fort_fragments),v);state.bridge_fx=previous.as_ref().map_or_else(Default::default,|s|s.bridge_fx);let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
+        let mut state=State::empty();state.order_object_pointer=previous.as_ref().map_or(0,|s|s.order_object_pointer);state.retired_preamble_offset21_24=previous.as_ref().and_then(|w|w.objects[24].as_ref().map(|o|o.sprite_offset21).or(w.retired_preamble_offset21_24));if let Some(old)=&previous{state.trail=old.trail.clone();state.trail.mission_reset();state.direct_palette=old.direct_palette;state.effect_quality=old.effect_quality;state.effects=old.effects.clone();for p in state.effects.iter_mut().flatten(){p.active=false;p.position[0]=-1000;}state.effect_cp_tints=vec![None;state.effects.len()];state.effect_tint=old.effect_tint;state.effect_owner=old.effect_owner;state.effect_maximum=old.effect_maximum;state.effect_origin=old.effect_origin;state.effect_flags=old.effect_flags;state.effect_fade=old.effect_fade;state.effect_sprite=old.effect_sprite;state.effect_suppression=old.effect_suppression;state.effect_world_mask4f=old.effect_world_mask4f;state.effect_wall_mask43=old.effect_wall_mask43;state.effect_world_suppression=old.effect_world_suppression;}state.seasonal_cps=if v.is_null(){previous.as_ref().and_then(|s|s.seasonal_cps.clone())}else{seasonal_game::CpPool::import(v)};state.fragments=building_fragments::State::import(previous.as_ref().map(|s|&s.fragments),v);state.fort_fragments=fort_fragments::State::import(previous.as_ref().map(|s|&s.fort_fragments),v);state.bridge_fx=previous.as_ref().map_or_else(Default::default,|s|s.bridge_fx);let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
         //460430 retires X only. Preserve raw inactive fields across missions;
         //Web render/unit bindings belong to the incoming mission instead.
         if let Some(old)=&previous{for(slot,object)in old.objects.iter().enumerate(){if let Some(mut o)=object.clone(){o.active=false;o.record.position[0]=-1;o.unit=None;o.pickup=None;o.render=None;o.fire=None;o.flag_sector=None;state.objects[slot]=Some(o);}}}
@@ -158,13 +162,14 @@ impl Game {
         }
         state.forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|Fort{binding:b.id,base:b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y))}).collect();state.forts.sort_by_key(|f|(f.base[1],f.base[0]));state.forts.truncate(2);
         for b in v["bridges"].as_array().into_iter().flatten() { let id=number(b,"id",-1);if id<0{continue;}let hp=number(b,"hp",0)as i16;let flags=number(b,"nativeFlags15",if hp<=0{2}else{0})as u8;
-            state.bridges.push(BridgeSlot{record:native::Bridge{position:native_point(b["x"].as_f64().unwrap_or(0.),b["y"].as_f64().unwrap_or(0.)),size:native_point(b["w"].as_f64().unwrap_or(0.),b["h"].as_f64().unwrap_or(0.)),hp:if hp<=0{-1}else{hp},maximum:number(b,"maxHp",600)as i16,flags15:flags},binding:id as usize,native_slot:number(b,"nativeSlot",number(b,"sourceOffset",id*26)/26)as usize,orientation:number(b,"nativeOrientation",0)as i16,retired_road:None,restored_terrain:Vec::new()}); }
+            state.bridges.push(BridgeSlot{record:native::Bridge{position:native_point(b["x"].as_f64().unwrap_or(0.),b["y"].as_f64().unwrap_or(0.)),size:native_point(b["w"].as_f64().unwrap_or(0.),b["h"].as_f64().unwrap_or(0.)),hp:if hp<=0{-1}else{hp},maximum:number(b,"maxHp",600)as i16,flags15:flags},binding:id as usize,native_slot:number(b,"nativeSlot",number(b,"sourceOffset",id*26)/26)as usize,orientation:number(b,"nativeOrientation",0)as i16,retired_road:None,restored_terrain:Vec::new(),raw_tail:[0;32],native_work_owned:false}); }
         state.bridges.sort_by_key(|b|b.native_slot);
+        state.load_native_bridge_records(previous.as_ref(),v);
         //Only actual native OBJECT writes change the planes. Synthetic fixtures
         //can intentionally have compatibility collision classes without codes.
         for (cell,code) in plane.into_iter().enumerate(){if code!=initial_plane[cell]{self.set_world_code(cell as i16,code);}}
         //4097b0 initializes already-destroyed bridges before live groups spawn.
-        for bridge in &mut state.bridges{if bridge.record.flags15&2!=0{self.collapse_native_bridge_terrain(bridge);for(cell,&owner)in self.map.bridge_base.iter().enumerate(){if owner==bridge.binding as i32{if let Some(tile)=self.map.tiles.get_mut(cell){*tile=3;}}}}}
+        for bridge in &mut state.bridges{if bridge.record.position[0]!=-1&&bridge.record.flags15&2!=0{self.collapse_native_bridge_terrain(bridge);for(cell,&owner)in self.map.bridge_base.iter().enumerate(){if owner==bridge.binding as i32{if let Some(tile)=self.map.tiles.get_mut(cell){*tile=3;}}}}}
         self.native_world=Some(state);self.import_native_trail_buildings(v);self.import_native_crane_data(v);let forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|b.id).collect::<Vec<_>>();for id in forts{self.copy_native_fort_producer_health(id,true);}self.sync_native_world();self.initialize_native_fort_fragments();
     }
     pub(crate) fn sync_native_world(&mut self) {
@@ -183,7 +188,7 @@ impl Game {
         }
         for (id,c) in self.crates.iter().enumerate().filter(|(_,c)|!c.taken){if state.objects.iter().flatten().any(|o|o.active&&o.pickup==Some(id)){continue;}let Some(slot)=state.free()else{break;};if let Some(mut object)=self.make_object(10,native_point(c.x,c.y),0){object.pickup=Some(id);state.put_object(slot,object);}}
         for record in &mut state.buildings { if !record.fort_proxy {if let Some(b)=record.binding.and_then(|id|self.buildings.iter().find(|b|b.id==id)){record.record.hp=b.hp as i16;record.record.position=native_point(b.x,b.y);}} }
-        for record in &mut state.bridges {if let Some(&hp)=self.map.bridge_hp.get(record.binding){let hp=hp as i16;
+        for record in &mut state.bridges {if record.native_work_owned{continue;}if let Some(&hp)=self.map.bridge_hp.get(record.binding){let hp=hp as i16;
             if record.record.flags15&2!=0 {if hp>=record.record.maximum {
                 record.record.hp=hp;record.record.flags15&=!(2|32);
                 for &(cell,code)in &record.restored_terrain{self.set_world_code(cell,code);}
@@ -214,6 +219,18 @@ impl Game {
     ///Ordinary41c600 query (6a=6b=0); blast-specific overrides remain explicit
     ///arguments at their callers and do not leak into a later UNIT callback.
     pub(crate) fn native_first_object_contact(&self,point:[i16;2])->Option<u8>{let state=self.native_world.as_ref()?;let objects=state.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::first_object(&objects,point,false,false).map(|slot|slot as u8)}
+    ///45f070's B3 projection after classification. Missing raw world input is
+    ///unavailable, not a fabricated43ea80 miss.8/9 preserve the old marker.
+    pub(crate) fn native_order_object_marker(&mut self,event:super::original_orders_game::Event)->Option<i8>{
+        if matches!(event.opcode,8|9){return None;}
+        if !matches!(event.dispatched_opcode,2|5){return Some(-1);}
+        let state=self.native_world.as_mut()?;
+        let objects=state.objects.iter().map(|o|o.as_ref().map(|o|o.record).unwrap_or(native::Object{position:[-1,0],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();
+        let point=if event.dispatched_opcode==5{[event.waypoint[1],event.metadata]}else{event.waypoint};
+        let hit=native::order_object(&objects,point);
+        if let Some(slot)=hit{state.order_object_pointer=0x612f80+slot as u32*44;}
+        Some(if hit.is_some(){1}else{-1})
+    }
     pub(crate) fn native_world_scan_objects(&self)->Vec<ScanObject>{self.native_world.as_ref().map(|s|s.objects.iter().enumerate().filter_map(|(slot,o)|o.as_ref().filter(|o|o.active).map(|o|ScanObject{slot:slot as u8,position:o.record.position,bucket12:o.bucket12,flags13:o.record.flags13,flags19:o.flags19,flags26:o.flags26,definition:o.kind,sprite:o.sprite,template_flags18:o.record.metadata_flags18,extent20:o.record.metadata_extent20,extent21:o.extent21,unit:o.unit,flag_sector:o.flag_sector,flag_delay1f:o.flag_delay1f})).collect()).unwrap_or_default()}
     ///Readonly43f260 projection, in the actual200-slot insertion order.
     ///Template19 is depth; ObjectSlot.flags19 is a different runtime byte.
@@ -411,7 +428,7 @@ impl Game {
         for y in 0..self.map.height{for x in 0..self.map.width{let j=y*self.map.width+x;let code=(self.map.terrain_codes[j]&127)|(((self.map.original_tiles[j]&256)>>1)as u8);if let Some(v)=self.map.native_terrain_plane.get_mut(y*128+x){*v=code;}}}
     }
     fn collapse_native_bridge_terrain(&mut self,bridge:&mut BridgeSlot){
-        let(changes,_state14)=native::collapse_bridge_terrain(bridge.record,bridge.orientation,|cell|self.world_code(cell));
+        let(changes,state14)=native::collapse_bridge_terrain(bridge.record,bridge.orientation,|cell|self.world_code(cell));bridge.raw_tail[14]=state14;
         for(cell,code)in changes{if !bridge.restored_terrain.iter().any(|&(old,_)|old==cell){bridge.restored_terrain.push((cell,self.world_code(cell)));}self.set_world_code(cell,code);}
         if let Some((index,bounds))=self.map.native_road_graph.as_ref().and_then(|g|g.region_at((bridge.record.position[0],bridge.record.position[1])).map(|slot|(usize::from(slot),g.regions[usize::from(slot)].bounds))){
             let changes=native::collapsed_road_terrain(bounds,|cell|self.world_code(cell));for(cell,code)in changes{if !bridge.restored_terrain.iter().any(|&(old,_)|old==cell){bridge.restored_terrain.push((cell,self.world_code(cell)));}self.set_world_code(cell,code);}
@@ -553,6 +570,51 @@ mod tests {
         g.map.tiles=vec![0;w*h];g.map.original_tiles=vec![0;w*h];g.map.terrain_codes=vec![0;w*h];g.map.native_terrain_plane=vec![0;16384];g.map.territory=vec![0;w*h];g.map.bridge_base=vec![-1;w*h];g.map.bridge_hp.clear();g.map.bridge_max_hp.clear();g.map.native_road_graph=None;g.map.native_level_record=0;
         g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.fires.clear();g.blasts.clear();g.events.clear();g.native_strategy=None;g.native_world=None;g.native_group_rosters=original_group_game::State::default();g.winner=None;g.next_id=1;
         g.sectors=vec![Sector{id:0,x:32.,y:32.,owner:0,home:true,counts_for_production:true}];g
+    }
+    #[test]
+    fn classified_attack_uses_stale_argument_y_for_the_source_object_marker() {
+        let mut g=field();g.spawn("grunt",0,640.,640.,1,None);g.maintain_native_group_rosters();
+        g.native_world=Some(State::empty());
+        let mut object=g.make_object(28,[300,100],0).unwrap();
+        object.active=false;object.record.flags13=0;object.record.metadata_flags18=16;
+        g.native_world.as_mut().unwrap().objects[7]=Some(object);
+        let rng=g.original_rng.words;
+        let event=super::super::original_orders_game::Event::classified(5,[200,305],105);
+        assert!(g.record_native_order_event(0,event));
+        assert_eq!(g.units[0].native_fieldb3,1,"43ea80 uses old eventY/metadata, not the enemy UNIT position, active bit or flags13");
+        assert_eq!(g.original_rng.words,rng);
+    }
+    #[test]
+    fn order_markers_match_512_actual_classified_native_callers() {
+        use super::super::original_orders_game::Event;
+        let offsets=[-1i16,0,7,8,15,16,23,24,32767,-32768];
+        let mut signature=2166136261u32;
+        for seed in 0usize..512 {
+            let mut g=field();g.spawn("grunt",0,640.,640.,1,None);g.maintain_native_group_rosters();
+            g.native_world=Some(State::empty());g.units[0].native_fieldb3=99;
+            g.native_world.as_mut().unwrap().order_object_pointer=0x12340000+seed as u32;
+            for (i,p) in [[300,100],[301,101],[-2,-2],[32760,32760]].into_iter().enumerate() {
+                let mut o=g.make_object(28,p,0).unwrap();o.active=seed&1!=0;o.hp=0;
+                o.record.flags13=(seed*37)as u8;
+                o.record.metadata_flags18=if i==0{(seed*13)as u8}else{16+((seed+i)%4)as u8};
+                g.native_world.as_mut().unwrap().objects[i]=Some(o);
+            }
+            let op=[2,5,4,8,9,11,12,13][seed%8];
+            let q=[300i16.wrapping_add(offsets[seed/8%10]),100i16.wrapping_add(offsets[seed/80%6])];
+            let event=Event::classified(op,if op==5{[200,q[0]]}else{q},q[1]);
+            let rng=g.original_rng.words;assert!(g.record_native_order_event(0,event));
+            assert_eq!(g.original_rng.words,rng);
+            let pointer=g.native_world.as_ref().unwrap().order_object_pointer;
+            for n in [seed as u32,op as u32,u32::from(g.units[0].native_fieldb3 as u8),pointer] {
+                signature=(signature^n).wrapping_mul(16777619);
+            }
+            //A query miss preserves the pointer even across a real world import.
+            g.objects.clear();g.import_native_world(&Value::Null);
+            assert_eq!(g.native_world.as_ref().unwrap().order_object_pointer,pointer);
+            assert_eq!(g.native_order_object_marker(Event::classified(2,[-100,-100],0)),Some(-1));
+            assert_eq!(g.native_world.as_ref().unwrap().order_object_pointer,pointer);
+        }
+        assert_eq!(signature,3488280415,"512 actual45f070 C3=1 callers through43ea80; B3/pointer projection, not whole router");
     }
     fn building(id:usize,kind:&str,x:f64,y:f64,hp:f64)->Building{
         Building{id,x,y,w:128.,h:160.,kind:kind.into(),team:0,sector:0,stars:0,hp,max_hp:hp,product:None,progress:0.,ready_guns:vec![],gate:None,orientation:String::new(),remaining_work:None,completion_ticks:0,raw_base:None}

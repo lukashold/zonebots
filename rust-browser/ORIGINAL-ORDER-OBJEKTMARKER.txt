@@ -1,0 +1,26 @@
+Originale Objektmarkierung nach angenommenen Befehlen
+
+Der klassifizierte45f070-Schreibpfad setzt UNIT+B3 durch die eigene43ea80-
+Abfrage. Opcode5 prüft den erhaltenen eventY/metadata-Punkt; Opcode2 prüftXY.
+Das ist weder die Position einer gegnerischen Einheit noch41c600. Die Abfrage
+verwendet200 Raw-OBJECTs, X>=0, Template18-Bit10 und die native Ausdehnung.
+Linke/obere Kanten sind inklusive, rechte/untere strikt. Flags13, Browser-
+active und HP sind keine Eingaben.8/9 erhalten B3; andere Befehle setzen es
+zunächstFF. Ein Treffer setzt1 und den bestehenden Raw-Objektpointer.
+
+512 tatsächliche klassifizierte Originalaufrufe durch43ea80 ergeben45 Treffer,
+Signatur3488280415 für opcode/B3/Pointer. Derselbe Vergleich besteht am echten
+Game-Auftragsschreibpfad. Der neue Regressionstest scheitert vor der Korrektur.
+Der eigene Ghidra-Generator tools/ghidra/ZNativeOrderObjectOracle.java benötigt
+nur eine lokale Z.exe; Originalcode und rohe Emulatorausgaben bleiben privat.
+
+Ein Miss erhält den Pointer.32 tatsächliche460430-Poolresets und anschließende
+4340c0..43416b-Präfixe erhalten ihn ebenfalls. Der weitere Missionsinitializer
+liegt außerhalb dieses engen Nachweises. Der eigene Worldimport erhält diese
+Autorität zusammen mit seinen übrigen warmen Feldern. Fehlt der Raw-Weltpool,
+wird bei2/5 keine erfundene Missantwort eingesetzt; der Marker ist dort nicht
+durch diesen Adapter bestimmt. Normale Originalkarten besitzen den Pool.
+
+Die Prüfung belegt diese Ergebnisprojektion nach der Befehlsklassifikation.
+Vollständige Auswahlreaktionen,45ef00-Routing, native Netzwerkadmission,
+alle Pointeralias-Leser und identische Gesamtpartien bleiben eigene Aufgaben.

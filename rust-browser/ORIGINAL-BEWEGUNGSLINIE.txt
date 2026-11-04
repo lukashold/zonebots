@@ -1,0 +1,60 @@
+Z: Erhalt der laufenden nativen Bewegungslinie
+
+In nov04-r47 beseitigen drei getrennte Korrekturen denselben Zustandsbruch:
+Die vorhandene Inlinebewegung wurde gelöscht, obwohl UNIT48 und die endlichen
+Wegköpfe weiter existierten. Der neue Hardware-Common meldete folgerichtig
+MissingLine. Eine erfundene Ersatzlinie oder remaining=0 würde diesen Fehler
+nur verbergen. Die Korrekturen erhalten stattdessen den vorhandenen Zustand.
+
+52960 / ANKUNFTSPRÜFUNG
+Der verwaltete Adapter löscht original_motion nicht mehr nach jedem Aufruf.
+192 tatsächliche Originalaufrufe ergeben96 Rückgaben1,48 Rückgaben2 und48
+Rückgaben3. Alle20 Actorbytes UNIT40..53 einschließlich48 bleiben unverändert;
+Signatur2161731909. Die wirklichen Kopf-/Umwegänderungen bleiben erhalten.
+Der Game-Regressionsfall prüft denselben vorhandenen Linieninhalt, Position,
+Reststrecke und die jeweils veränderten Köpfe. Der konkrete M14-Brückenfehler
+entstand beim Rückzug mit work254, HP601 und117 restlichen Schritten.
+
+43e190 / ERFOLGREICHE WEGÜBERNAHME
+Nur drei weitere unbelegte Inline-Löschungen entfallen: erfolgreicher
+einzelner Ersatzknoten, Straßenersetzung und Konturübernahme. Preise,
+Geometrie, Allokation, Köpfe, W17, Flags, Scratch und Scheduler bleiben bei
+ihren bestehenden Schreibern.20 vollständige Originalaufrufe umfassen14
+Kontur-,2 Straßen- und4 Ersatzknotenfälle; alle20 Actor-Linebytes bleiben
+gleich, Signatur1460244305. Die32 tatsächlichen525a0-Aufrufe in dieser
+Preis-/Raykette betreffen den geteilten Dummy633950. Kein525a0/52810 betrifft
+den Actor. Die beiden Straßenfälle führen ihr echtes52500 weiterhin aus.
+
+Der erste M13-Schreiber ist separat erfasst: Konturcommit bei Tick2861,
+Slot27, Phase55, XY618/3072 und48=89. Die vorher vorhandene Linie wurde dort
+gelöscht; der nächste Callback meldete MissingLine. Mit ausschließlich den
+drei Adoptionskorrekturen erreicht derselbe Diagnoseaufbau denselben Commit
+mit denselben Eingaben und läuft danach3000 Schritte ohne Boundary weiter.
+Das ist kein identischer Originalpartievergleich; den aktuellen vollständig
+warmen Kampagnenlauf nennt TESTERGEBNIS.txt.
+
+REGISTRIERTER STOPPAUFTRAG4
+Nur eine durch den aktuellen record_native_order_event-Aufruf erfolgreich
+registrierte4 mit verwaltetem Originalweg umgeht den allgemeinen Browser-
+Cleanup. Die sichtbare Befehlsanzeige kann Guard/kein Ziel zeigen. Native
+Linie,48, Köpfe, W, Kranarbeit und Ausweichzustand bleiben zunächst erhalten.
+54160/52d90 laufen weiterhin einmal im nächsten nativen Callback.
+GraphNone, nativeEventfalse und unverwaltete Eingaben behalten ihren Adapter.
+
+32 Originalfälle mit160 Snapshots und96 tatsächlichen Commoncallbacks prüfen
+52d90 sowie54160->52d90, gültigen Medium-Konstruktor, echte Linie und acht
+Richtungen. Beide Varianten liefern identische Ausgaben, Signatur4216724439.
+52d90 schreibt9c&DF, W12FF,31&EF,5c0,3d0,61=2; die Linienfelder und Köpfe
+bleiben erhalten. In den geprüften W17=1-Fällen bewegt der folgende Common
+die Einheit weiter. Opcode4 verspricht daher keinen sofortigen physischen
+Halt. Fünf Game-/C-ABI-Fälle und acht tatsächliche Wasmfälle reproduzieren den
+Browserfehler vor der Korrektur und bestehen danach.
+
+GRENZEN
+Die Stop-Originalkette verwendet explizit MP1 und flaches Gelände; sie beweist
+keine vollständige SP-CRT-, UI- oder Netzadmission. Die Adoptionsprojektion
+beweist die beschriebenen erfolgreichen Commitzweige und Actorbytes, keine
+beliebige ganze Straßen-/Scratch-/Mainpartie. Allgemeine Kran-UI-Abbrüche,
+APC56, aktive Ausweichblätter und weitere Rawaliasfolgen bleiben separat.
+Rohe Originalausgaben bleiben lokal. Eigene Regressionen prüfen den konkreten
+gebauten Umfang; vollständige1:1-Gleichheit wird daraus nicht abgeleitet.

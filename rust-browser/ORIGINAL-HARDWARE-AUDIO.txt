@@ -1,0 +1,49 @@
+Lokale Schuss-Audiochance aus4648a0/464e80
+=======================================
+Nur diese beiden belegten Aufrufpunkte verwenden eigene Hoerfenster. Ihre
+Warnreaktion und finite Projektilallokation bleiben jeweils einmalig. Dazwischen
+prueft der Host je Hoerer dessen letztes angenommenes Kamerafenster: signierte
+16-Bit-Subtraktion, inklusive-48 bis Breite/Hoehe+32, Aufrufer-Master und Direct-
+Descriptor. Ein erfolgreicher Descriptor erhoeht den lokalen Effektzaehler&3,
+auch wenn der importierte Original-Mixer danach einen Fehler meldet. Ein voller
+Projektilpool verhindert die vorher liegende Audiochance nicht. Gleicher Start/
+Zielpunkt und Geschwindigkeit0 erreichen die Chance nicht.
+
+Die bestehende Hoererautoritaet erhaelt Kamera/Groesse ueber validierte eigene
+Settings mit Spiel-Epoche und monotoner Sequenz. Der Gast simuliert nicht. Bis
+ein gueltiges Gastfenster eingetroffen ist, ist diese Audiochance dort nicht
+verfuegbar; es gibt keinen Host-/Nullkamera-Ersatz. Fuer bestehende lokale
+Master-only-API-Aufrufe bleibt nur das zuvor bekannte eigene Fenster erhalten.
+Ungueltige Drahtdaten werden abgewiesen. Die gemeinsame Welt-/Partikelkamera
+wird niemals durch diese Daten ersetzt.
+
+Der Gast fragt Aenderungen im tatsaechlichen App-draw mit17Hz ohne Aufholschleife
+ab; der Host liest seine lokalen Settings vor seinem Callback. Netzwerkverzug
+bedeutet das letzte am Host angenommene Fenster. Die Quelle laesst sich damit
+nicht nachtraeglich auf eine exakt gleichzeitige entfernte Kamera zuruecksetzen.
+Spaet eintreffende Chancen alter Settingsgenerationen werden vor dem Laden und
+nach Await verworfen, nicht erneut eingereicht. Ihre bereits erfolgte Quell-
+Descriptorbuchung wird nicht zurueckgerollt. Neue Kamera/Settings stoppen weder
+laufende Sources noch fremde nichtspatiale Sprache/Effekte. Audiositzungswechsel
+invalidieren unabhaengig davon weiterhin wartende nativeVoice/nativeSample.
+
+Pruefung:
+ NATIVE_HARDWARE_AUDIO_PREFIX=<privaterOriginalvergleich> cargo test hardware_audio -- --nocapture
+ ORIGINAL_PRIVATE_ROOT=<privateRessourcen> node tools/check-native-hardware-audio.cjs
+ NATIVE_MP_AUDIO_WASM kann einen expliziten abweichenden Wasmpfad fuer den
+Endpointvergleich benennen; ohne Angabe gilt dist/independent/engine.wasm.
+tools/check-native-audio-session.cjs und check-native-mp-audio.cjs pruefen die
+benachbarten Sitzungs-/Master-/Voice-/Radar-/Werkstattpfade ohne pauschale
+Kamera-Gleichheit zu behaupten. Der Native-Prefixvergleich umfasst1024 reale
+Aufrufe; Warnung ist dort eine aufgezeichnete uebersprungene Leaf und der Lauf
+endet vor der Allokation. Zusaetzliche echte Gamefaelle pruefen die Einbindung.
+WebAudio ist instrumentiert: Original-WAV-Bytes werden gelesen, PCM wird nicht
+tatsaechlich dekodiert. Kein Browserdecoder-/Lautsprecher-/Device-Mixerbeweis.
+
+Ausdrueckliche weitere Grenzen: Legacy-nativeEffectSound und dessen browserseitige
+Kompatibilitaetsdistanz/Throttle, Explosion-/Owner4-Gates4d18ee und Zyklus4a6f4e,
+Radarword0A, Unterangriff-GROUP64, weitere Original-Audiocaller und kanonische
+Welt-/FX-Offscreenablaufe.4a6f42/4a6f4f bleiben Welt-/Reentrykontext. Dieser Block
+legt keinen zweiten Gate-/Zyklus-/Cooldown-Owner an und portiert kein gesamtes
+Original-Multiplayerprotokoll. Signed16/Groesse ausserhalb des akzeptierten
+Metadatabereichs bleiben eine Eingabegrenze, keine still geklemmte Kamera.

@@ -1,17 +1,19 @@
 //! Two host-authoritative listening contexts for the proven local audio callers.
 //! The world/BUILD/physics handlers still run once. Only local admission and
 //! portrait state are selected here; the UI word remains one shared host clock.
-//! Camera-dependent sound/under-attack admission still uses canonical nativeView:
-//! this module does not claim a per-client viewport or original MP wire protocol.
+//! Only4648a0/464e80 use admitted listener views. Other spatial sound/underattack
+//! still uses canonical nativeView; no original MP wire protocol is claimed.
 use crate::{Game,Value,json,original_audio,original_feedback,original_building_display::Radar};
+#[path="original_hardware_audio.rs"]pub(crate) mod hardware;
 pub(crate) struct State {
  pub guest_feedback:original_feedback::State,
  pub guest_audio:original_audio::State,
  pub guest_radars:[Option<Radar>;35],
+ pub hardware_views:[Option<hardware::Context>;2],
  active:Option<u8>,
  sequence:u64,
 }
-impl Default for State{fn default()->Self{let mut feedback=original_feedback::State::default();feedback.local_team=1;Self{guest_feedback:feedback,guest_audio:Default::default(),guest_radars:[None;35],active:None,sequence:0}}}
+impl Default for State{fn default()->Self{let mut feedback=original_feedback::State::default();feedback.local_team=1;Self{guest_feedback:feedback,guest_audio:Default::default(),guest_radars:[None;35],hardware_views:[None,None],active:None,sequence:0}}}
 impl Game{
  ///Select audio-only state, never a second world callback or RNG stream.
  pub(crate) fn for_native_listeners(&mut self,mut f:impl FnMut(&mut Self)){
@@ -26,6 +28,7 @@ impl Game{
   self.native_listener_audio.active=None;
  }
  pub(crate) fn initialize_native_listener_mission(&mut self){if !self.multiplayer{return;}
+  self.native_listener_audio.hardware_views=[None,None];
   self.native_listener_audio.guest_feedback.local_team=1;
   self.native_listener_audio.guest_feedback.ui_clock=self.native_feedback.ui_clock;
   self.native_listener_audio.guest_feedback.initialize_for_mission();
@@ -36,7 +39,7 @@ impl Game{
  pub(crate) fn set_native_listener_settings(&mut self,value:&Value){
   if !self.multiplayer{return;}
   for(team,feedback)in [(0,&mut self.native_feedback),(1,&mut self.native_listener_audio.guest_feedback)]{
-   if let Some(enabled)=value.get(team.to_string()).and_then(|v|v["soundEnabled"].as_bool()){feedback.sound_enabled=u8::from(enabled);}
+   if let Some(settings)=value.get(team.to_string()){if let Some(enabled)=settings["soundEnabled"].as_bool(){feedback.sound_enabled=u8::from(enabled);}self.native_listener_audio.hardware_views[team]=hardware::Context::from_settings(settings);}
   }
  }
  pub(crate) fn tag_native_audio_event(&mut self,event:&mut Value,actor:Option<i32>){

@@ -14,10 +14,12 @@
  MissingIdleTarget(u8),RecipientChanged(usize),
 }
 #[derive(Clone,Copy,Debug)]struct Retired{generation:u64,value:Result<Source,Boundary>}
-pub(crate) struct State{generation:[u64;240],retired:[Option<Retired>;240]}
-impl Default for State{fn default()->Self{Self{generation:[0;240],retired:[None;240]}}}
+pub(crate) struct State{mission_unit_reset:bool,generation:[u64;240],retired:[Option<Retired>;240]}
+impl Default for State{fn default()->Self{Self{mission_unit_reset:false,generation:[0;240],retired:[None;240]}}}
 impl State{
- pub fn clear_for_mission(&mut self){*self=Self::default();}
+ pub fn clear_for_mission(&mut self){*self=Self{mission_unit_reset:true,..Self::default()};}
+ ///60430 REP STOSD proves only this activity bit until the first constructor.
+ pub fn unconstructed_inactive(&self,slot:usize)->bool{self.mission_unit_reset&&self.generation.get(slot)==Some(&0)}
  pub fn constructed(&mut self,slot:usize){if slot<240{self.generation[slot]=self.generation[slot].wrapping_add(1);self.retired[slot]=None;}}
  pub fn generation(&self,slot:usize)->Option<u64>{self.generation.get(slot).copied()}
  pub fn removed(&mut self,slot:usize,generation:u64,value:Result<Source,Boundary>){if self.generation.get(slot)==Some(&generation){self.retired[slot]=Some(Retired{generation,value});}}

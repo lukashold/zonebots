@@ -349,7 +349,15 @@ impl Game{
  ///59c60→52810 for14bd0/14c60/13740. This never creates a45ef00 event.
  ///The linked primary/local paths currently share the Web path vector; that
  ///representation cannot reproduce exhausted native path-pool allocations.
- fn replace_original_ai_path(&mut self,index:usize,waypoint:[i16;2],append:bool){
+ pub(crate) fn replace_original_ai_path(&mut self,index:usize,waypoint:[i16;2],append:bool){
+  if self.native_route_mode{
+   let Some(slot)=self.units[index].native_slot else{return;};let Some(m)=self.native_group_rosters.members[slot].as_mut()else{return;};m.flags31&=!64;let role=m.role;
+   let active=self.native_path_active_slots();let paths=self.native_routes.get_mut();paths.scheduler.cancel(slot);let success=paths.pool.direct(slot,waypoint,!append,&active,role).is_some();paths.managed[slot]=true;
+   if success{if !append&&(active[slot]||role!= -1){if let Some(w)=self.units[index].native_hardware_slot{let mut o=self.native_hardware_pool[w].order;o.field17&=!1;self.native_hardware_pool[w].set_order(o);}else{self.native_hardware_dummy.field17&=!1;self.native_hardware_dummy_attributes.bytes[23]=self.native_hardware_dummy.field17;}}
+    if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags31&=!32;m.primary_path=true;m.secondary_path=false;}self.units[index].native_secondary_route.set(false);let head=self.native_routes.borrow().pool.links[slot].primary;let Some(view)=self.native_owned_route_view(index)else{self.native_route_boundary=Some(super::original_path_contact::game::Boundary::MissingNode(head));return;};self.units[index].path=view;
+   }
+   self.resume_native_reset_path(index);let u=&mut self.units[index];u.order="move".into();u.target=None;u.dest=Some((f64::from(waypoint[0].wrapping_sub(8))*2.,f64::from(waypoint[1].wrapping_sub(8))*2.));u.hold_position=false;u.explicit_stop=false;return;
+  }
   let Some(slot)=self.units[index].native_slot else{return;};self.native_group_rosters.record_physical_contact(slot,false);self.native_group_rosters.record_secondary_path(slot,false);self.units[index].native_secondary_route.set(false);
   let goal=(f64::from(waypoint[0].wrapping_sub(8))*2.,f64::from(waypoint[1].wrapping_sub(8))*2.);let mut start=self.units[index].clone();if append{if let Some(p)=start.path.back(){start.x=p.0;start.y=p.1;}}
   let path=self.route_unit(&start,goal.0,goal.1);if append{self.units[index].path.extend(path);}else{self.units[index].path=path;}
@@ -378,7 +386,7 @@ impl Game{
    let fort=self.original_cpu_fort(team);let runtime=self.original_capture_runtime(team,&groups,fort);
    for request in task::tactical_fort_captures(&mut groups,&sectors,&runtime,fort){let sid=groups.iter().find(|g|g.id==request.group).and_then(|g|g.current_sector).unwrap_or(0);self.issue_original_personal_capture(team,&request,sid);}
    let mut counters=self.original_task_counters(team,&groups,19);
-   for goal in task::tactical_vehicle_goals(&groups,&sectors,&mut counters){if let Some(index)=groups.iter().find(|g|g.id==goal.group).and_then(|g|g.leader.as_ref()).and_then(|l|self.units.iter().position(|u|u.team==team&&u.native_slot.unwrap_or(u.id)==l.native_slot&&!super::workshops::hidden(u)&&u.transport_carrier.is_none()&&u.workshop.is_none())){let path=self.route_unit(&self.units[index],f64::from(goal.position[0])*2.,f64::from(goal.position[1])*2.);self.units[index].path=path;self.units[index].original_motion=None;}}
+   for goal in task::tactical_vehicle_goals(&groups,&sectors,&mut counters){if let Some(index)=groups.iter().find(|g|g.id==goal.group).and_then(|g|g.leader.as_ref()).and_then(|l|self.units.iter().position(|u|u.team==team&&u.native_slot.unwrap_or(u.id)==l.native_slot&&!super::workshops::hidden(u)&&u.transport_carrier.is_none()&&u.workshop.is_none())){if self.native_route_mode{self.start_native_walking_direct(index,goal.position);}else{let path=self.route_unit(&self.units[index],f64::from(goal.position[0])*2.,f64::from(goal.position[1])*2.);self.units[index].path=path;self.units[index].original_motion=None;}}}
    self.store_original_task_counters(team,&groups,19,&counters);self.native_group_rosters.store_task_groups(team,&groups,&sectors);
    state.groups.insert(team,groups);
   }

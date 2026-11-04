@@ -9,6 +9,26 @@ mimetypes.add_type('audio/wav', '.wav')
 mimetypes.add_type('audio/ogg', '.ogg')
 mimetypes.add_type('audio/mpeg', '.mp3')
 
+def has_bridge80_inputs(campaign):
+    """Older v8 packs are valid, but need this specific local enrichment."""
+    try:return _bridge80_inputs_valid(campaign)
+    except (AttributeError,TypeError,ValueError):return False
+
+def _bridge80_inputs_valid(campaign):
+    missions=campaign.get('missions',[])
+    byte=lambda n:isinstance(n,int) and not isinstance(n,bool) and 0<=n<=255
+    pointers=[0x647210,0x63d1f8,0x6421f8,0x63aa18,0x649a48,0x63f9e0,0x638238,0x6449f0]
+    if len(missions)!=20:return False
+    for mission in missions:
+        disk=mission.get('nativeBridgeDisk26',[]);headers=mission.get('nativeBridgePlaybackHeaders',[]);frames=mission.get('nativeCraneBridgeFrames',[])
+        if len(disk)!=12 or any(len(r)!=26 or not all(map(byte,r)) for r in disk):return False
+        if len(headers)!=8 or any(r.get('pointer')!=p or len(r.get('bytes',[]))!=1280 or not all(map(byte,r['bytes'])) for r,p in zip(headers,pointers)):return False
+        if len(frames)!=4:return False
+        for direction,sequence in enumerate(frames):
+            if len(sequence)!=12:return False
+            if any(len(rows)!=(6 if direction%2==0 else 4) or any(len(r)!=4 or any(not isinstance(n,int) or isinstance(n,bool) or not -32768<=n<=32767 for n in r)for r in rows)for rows in sequence):return False
+    return True
+
 def ensure_original_pack(game):
     """Create missing private data locally; no original files enter the repository."""
     repo = Path(__file__).resolve().parents[1]
@@ -16,12 +36,17 @@ def ensure_original_pack(game):
     jobs = []
     campaign_path = private / 'campaign.json'
     try:
-        campaign_current = json.loads(campaign_path.read_text(encoding='utf-8')).get('version', 0) >= 8
+        campaign = json.loads(campaign_path.read_text(encoding='utf-8'))
+        campaign_current = campaign.get('version', 0) >= 8
+        bridge_current = campaign_current and has_bridge80_inputs(campaign)
     except (OSError, ValueError, AttributeError, TypeError):
         campaign_current = False
     if not campaign_current:
         jobs.append(('campaign', repo / 'tools' / 'extract-original-campaign.py',
                      ['--game', str(game), '--output', str(private)]))
+    elif not bridge_current:
+        jobs.append(('bridge repair inputs', repo / 'tools' / 'extract-original-campaign.py',
+                     ['--game', str(game), '--output', str(private), '--enrich-bridge80']))
     if not all((private / name).is_file() for name in ('sprites.png', 'sprites.json', 'tiles.png')):
         jobs.append(('artwork', repo / 'tools' / 'extract-original-art.py',
                      ['--source', str(game), '--out', str(private)]))

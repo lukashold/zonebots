@@ -26,6 +26,18 @@ pub fn first_object(objects: &[Object], point: [i16; 2], all_objects: bool, meta
     objects.iter().take(200).position(|&object| object_contains(object, point, all_objects, metadata_extent))
 }
 
+///43ea80's order marker is a different query from41c600. It reads raw
+///coordinates and template18 only, with strict right/bottom32-bit bounds.
+///Neither object flags13 nor a browser active/HP predicate participates.
+pub fn order_object(objects: &[Object], point: [i16; 2]) -> Option<usize> {
+    objects.iter().take(200).position(|object| {
+        if object.position[0]<0 || object.metadata_flags18&16==0 {return false;}
+        let extent=((i16::from(object.metadata_flags18 as i8)+1)*8)&24;
+        (0..2).all(|axis| i32::from(object.position[axis])<=i32::from(point[axis])
+            && i32::from(point[axis])<i32::from(object.position[axis])+i32::from(extent))
+    })
+}
+
 ///0041eb90 searches these four points, stopping after the first matching pool
 ///slot. A metadata-extent override applies only to the first of these searches.
 pub fn blast_object(objects: &[Object], origin: [i16; 2], all_objects: bool, metadata_extent: bool) -> Option<(usize, usize)> {

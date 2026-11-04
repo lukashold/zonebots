@@ -1,0 +1,84 @@
+Original hardware common caller - bounded implementation
+
+The shared owner handles native table phases9/10/53/54/55/58. Phase60 keeps
+the default RET. Crane59 delegates only its common body; its separate work
+machine/Bridge80 remain separately owned. APC56 stays with the existing
+coupled passenger caller. Active64:40 with an existing Dodge segment stays
+once with its existing caller; managed hardware completion now uses the
+actual51170/52960/52810 handoff, not an estimated Vec remaining distance.
+
+Ordered body:76=0,4d02be=0,5b470,W4,5b610,5c210,5bf90,signed wrappingDEC68.
+Positive roles run4502f0 with06=62+16 and restore shared58697b, then616f0,
+44d570,low32 sign-extension/3c restore. The selectedW remains stable.17:2
+obeys31:40 without inventing69:8;17:1 obeys69:8 without inventing31:40.
+No extra generic contact/hatch/movement pass follows an owned callback.
+
+W/Dummy,pools,cached raw generation,paths and both RNG streams keep existing
+owners. The three shared bytes58697b/4d02be/58592b survive mission creation.
+Main resets58592b before UNIT. Common changes an initially0 visible byte;
+terminal44fa40 writes6 through that same owner after its queue/audio prefix.
+No SFX meaning is inferred.58687b has an explicit main0-to-each-rawslot-to240
+owner and a known-main guard. Its surviving byte is separate from context
+validity. Outside known main this suffix keeps a named boundary.44a900's
+temporary source change is restored before this common suffix; complete
+propagation inside every other leaf is not claimed.
+
+Private proof:128 executed common/wrappers,108 complete original returns,
+20 explicit external CRT-rand prefixes. Only memcpy/sqrt intrinsics are
+materialized; gameplay,path,contact,allocator and gameplay RNG are not stubbed.
+The32 follow cases now execute44b740. The old uninitialized formation-buffer
+dataset is excluded; actual masks were not adjusted to fit it. Extra cases
+couple58500,mode0/255,49bc0,5b880,448e50,foot/vehicle/Jeep targets,aim signedness,
+MP,AA/no-target/range. Comparison covers both192-byte projections,roster72,
+W44/dummy44,primary64,available complete pool/cosmetic hashes,shared bytes,
+and all5 gameplay RNG words. Aggregate source signature2746621060.
+Separate58592b proof:96 Common returns,72 complete44fa40 returns(AL0/1),
+24 honest46e660 audio prefixes. Those24 do not prove a whole audio chain.
+Runtime CRT reuses its independently verified kernel/stream.
+
+Existing live15fb0 broadcast and5b210 secondary backend are reached exactly
+once, explicitly marked nativeCommonLegacy, and excluded from new whole
+return counts. Their wider coupled selector/scatter/sound/allocator gaps
+remain. Active Dodge and APC56 also remain explicitly legacy. A real main
+AI71:10 near-enemy regression reaches primary projectiles; a separate hatch
+regression emits exactly one secondary bullet after the known counter writes.
+
+Concrete integration corrections discovered in real callbacks:
+-52810 writes axis81 at actual nonzero525a0.
+-58660 clears B5 immediately before W-free.
+-58500 uses raw38, not recalculated XY bucket origin.
+-Cosmetic movement uses raw32. The old renderer mirror retains its own bounds.
+-197d0 uses direct525a0 at signed flag*16 and preserves the finite heads.
+-13740/14bd0/14c60 use first240 direct records and real52810; no synthetic MOVE.
+ Finite exhaustion preserves known prefixes and the retained old head.
+
+Object side reads only31:4 at actual actor+2/+4 first.60430's executed REP STOSD
+proves inactivity after mission reset and before the first constructor. The
+existing generation authority stores that narrow fact; it does not create a
+complete Source header. Constructed,removed,reused slots use their actual
+owners. Only active slots require phase35. An actual phase18 follower keeps
+known XY/64 prefix writes then reports the still-unimplemented578b0/5b380
+handoff. Missing raw/context data never becomes NoTarget,Web-ID/HP fallback,
+or a fabricated group. Explicit boundaries remain for those contexts.
+
+This is not a whole5a080/Main/all-world/Dodge/APC proof or full1:1 claim.
+Use NATIVE_COMMON_CALLER_DIRECTORY with cargo test original_hardware_common.
+NATIVE_COMMON_RPC_OUTPUT writes seven actual main snapshots; the required-file
+replay-native-hardware-common-rpc.cjs executes real guest RPC and OriginalDisplay.
+The existing first_three_missions_keep_real_cached_removal_readers test is
+run unchanged with NATIVE_SOAK_CAMPAIGN. The private frozen handoff records
+final observed tests,failures if any,delta/base hashes and remaining scopes.
+
+The449470 NIL-W case now reads the existing shared Dummy, overlaid with the
+canonical order record at byte offsets14/16/18/19/20/23. Writes return to that
+same owner, so the next Common read observes fresh targets/counters. An invalid
+Some(poolslot) is not reinterpreted as Dummy. No B3/Bridge/audio dependency patch
+was applied in this candidate; later root integrations require a hunk merge.
+
+Final focused verification:90 hardware tests;66 neighboring route/friendly/
+death/crane/transport/APC tests; unchanged warm M1/M2/M3 test passes in68.39s.
+Three private-neighbor tests remain ignored in that filter, with the warm test
+run separately. Seven actual Rust Main snapshots pass14 guest RPC and14
+OriginalDisplay callbacks. No fullsuite,Wasm build or publication was performed
+for this candidate. These observations do not convert Legacy leafs into whole
+original-caller proofs.

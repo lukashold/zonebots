@@ -3,7 +3,9 @@ use super::{State,Action};
 use crate::{Game,original_combat,original_path_contact::game::Boundary};
 impl Game{
  pub(crate) fn restore_native_contact_facing(&mut self,index:usize,changed:bool){let Some(u)=self.units.get_mut(index)else{return;};let mut facing=original_combat::facing(u.angle);super::restore_contact_facing(&mut u.native_directiona2,&mut u.native_directiona3,&mut facing,changed);u.angle=crate::native_math::angle(facing);}
- pub(crate) fn update_native_hardware_point(&mut self,index:usize)->Result<bool,Boundary>{
+ pub(crate) fn update_native_hardware_point(&mut self,index:usize)->Result<bool,Boundary>{self.update_native_hardware_point_inner(index,None)}
+ pub(crate) fn update_native_hardware_point_common(&mut self,index:usize)->Result<bool,Boundary>{let gate=self.native_hardware_common.gate!=0;self.update_native_hardware_point_inner(index,Some(gate))}
+ fn update_native_hardware_point_inner(&mut self,index:usize,common_gate:Option<bool>)->Result<bool,Boundary>{
   let u=self.units.get(index).ok_or(Boundary::MissingActor)?.clone();let slot=u.native_slot.ok_or(Boundary::MissingActor)?;let m=self.native_group_rosters.members[slot].as_ref().ok_or(Boundary::MissingMember)?.clone();if m.flags69&32==0||u.native_class7c!=1||!matches!(u.native_phase35,9|10|53|54|55|56|58|59){return Ok(false);}let hardware=u.native_hardware_slot.ok_or(Boundary::MissingHardwareProfile)?;let attributes=self.native_hardware_pool.get(hardware).ok_or(Boundary::MissingHardwareProfile)?.attributes;
   let mut state=State{family:original_combat::animation_family(&u.kind),flags69:m.flags69,reload7b:u.native_reload7b,timer3d:m.promotion.timer3d,position:[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16],point:[m.promotion.target_x as i16,m.promotion.target_y],body:original_combat::facing(u.angle),turret:attributes.byte(21),rate:attributes.byte(32),speed:u.original_combat.as_ref().and_then(|c|c.projectile_speed).ok_or(Boundary::MissingHardwareProfile)?as i8,w22:attributes.byte(34)};
   let action=super::select(&mut state);self.native_hardware_pool[hardware].attributes.bytes[34]=state.w22;self.native_group_rosters.members[slot].as_mut().unwrap().promotion.timer3d=state.timer3d;
@@ -12,7 +14,7 @@ impl Game{
    Action::AimTarget=>{self.update_native_hardware_unit_target(index)?;return Ok(true);},
    Action::FireApc=>{if u.crew.is_none(){return Err(Boundary::MissingHardwareProfile);}self.fire_native_apc_point(index,(i32::from(state.point[0]),i32::from(state.point[1])),usize::MAX);},
    Action::Fire=>{self.native_hardware_pool[hardware].attributes.bytes[21]=state.turret;self.ensure_native_hardware(index);self.units[index].native_hardware.as_mut().unwrap().turret=state.turret;self.units[index].aim=crate::native_math::angle(state.turret);for shot in super::shots(state){self.emit_native_hardware_point_projectile(index,shot)?;}self.set_native_hardware_reload(index,state.reload7b as u8);self.sync_native_group_order(index);},
-  }if action==Action::FireApc||attributes.byte(23)&3==0{self.sync_native_group_order(index);}Ok(true)
+  }if action==Action::FireApc{self.native_hardware_common.gate=1;}if common_gate.map_or(action==Action::FireApc||attributes.byte(23)&3==0,|g|g||action==Action::FireApc){self.sync_native_group_order(index);}Ok(true)
  }
 }
 #[cfg(test)]mod tests{

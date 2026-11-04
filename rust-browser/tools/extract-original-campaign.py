@@ -119,6 +119,46 @@ def extract_bridges(data,w,h,tiles):
    if destroyed:tiles[j]=3
  return bridgebase,bridgehp,bridgecaps,bridges
 
+BRIDGE80_FIELDS=('nativeBridgeDisk26','nativeBridgePlaybackHeaders','nativeCraneBridgeFrames')
+
+def bridge80_metadata(root,exe,number):
+ """Only the private inputs of45fef0/45fff0/44fa40; no runtime guesses."""
+ disk=(root/f'BRIDGE{number:02}.DAT').read_bytes()
+ if len(disk)!=12*26:raise ValueError(f'BRIDGE{number:02}.DAT: expected12 disk26 records')
+ headers=[]
+ for prefix,pointers in [('V',[0x647210,0x63d1f8,0x6421f8,0x63aa18]),('H',[0x649a48,0x63f9e0,0x638238,0x6449f0])]:
+  for i,p in enumerate(pointers):
+   resource=(root/f'{prefix}SHWING{i}.DAT').read_bytes()
+   if len(resource)!=1280:raise ValueError(f'{prefix}SHWING{i}.DAT: expected1280 bytes')
+   headers.append({'pointer':p,'bytes':list(resource)})
+ frames=[]
+ for direction in range(4):
+  heads=exe.ptr(0x496210+direction*4);parts=[]
+  for i in range(16):
+   p=exe.ptr(heads+i*4)
+   if p==0xffffffff:break
+   parts.append(p)
+  if len(parts)!=(6 if direction%2==0 else 4):raise ValueError('Unexpected44fa40 bridge layer list')
+  frames.append([[list(struct.unpack('<4h',exe.read(p+f*8,8)))for p in parts]for f in range(12)])
+ return dict(zip(BRIDGE80_FIELDS,([[*disk[i*26:(i+1)*26]]for i in range(12)],headers,frames)))
+
+def enrich_bridge80(root,out):
+ """Upgrade existing local/LAN v8 packs without replacing unrelated fields."""
+ path=out/'campaign.json';campaign=json.loads(path.read_text(encoding='utf-8'))
+ missions=campaign.get('missions',[])
+ if campaign.get('version',0)<8 or len(missions)!=20 or sorted(m.get('number',-1)for m in missions)!=list(range(1,21)):
+  raise ValueError('Bridge80 enrichment requires an existing20-mission v8 campaign')
+ exe=Exe(root/'Z.exe')
+ expected=campaign.get('sourceExeSha256')
+ if expected and expected!=hashlib.sha256(exe.d).hexdigest():raise ValueError('Existing campaign and local Z.exe differ; keep the matching original installation')
+ # Read/validate every source before the first write. Missing assets leave the
+ # installed campaign intact rather than mixing partial versions.
+ updates=[bridge80_metadata(root,exe,m['number'])for m in missions]
+ for mission,metadata in zip(missions,updates):mission.update(metadata)
+ temporary=path.with_suffix('.bridge80.tmp')
+ temporary.write_text(json.dumps(campaign,separators=(',',':')),encoding='utf-8');os.replace(temporary,path)
+ print(f'Enriched bridge80 inputs for {len(missions)} missions in {path}')
+
 def extract(root,out):
  robot=(root/'robots.dat').read_bytes();levels=(root/'levels.dat').read_bytes();exe=Exe(root/'Z.exe')
  groups=[]
@@ -281,6 +321,7 @@ def extract(root,out):
    crane_ptrs.append(p)
   assert len(crane_ptrs)==6
   data['nativeCraneBuildFrames']=[[list(struct.unpack('<4h',exe.read(p+f*8,8)))for p in crane_ptrs]for f in range(12)]
+  data.update(bridge80_metadata(root,exe,number))
   data['nativeBuildingRuinStamps']={}
   data['nativeBuildingAliveStamps']={}
   for kind,aliveptr in [(0,0x47828c),(1,0x47826c),(4,0x4781f4),(8,0x478580)]:
@@ -323,4 +364,5 @@ if __name__=='__main__':
  p=argparse.ArgumentParser(description='Extract private campaign data from your local GOG installation. Output is ignored by Git.')
  p.add_argument('--game','--source',dest='game',type=Path,default=Path(os.environ.get('Z_GAME_DIR',r'C:\GOG Games\Z')),help='Game directory; defaults to Z_GAME_DIR or C:\\GOG Games\\Z')
  p.add_argument('--output','--out',dest='output',type=Path,default=Path(__file__).resolve().parents[1]/'dist'/'original',help='Private output directory, default: repository dist/original')
- a=p.parse_args();extract(a.game.expanduser().resolve(),a.output.expanduser().resolve())
+ p.add_argument('--enrich-bridge80',action='store_true',help='Only add native bridge repair inputs to an existing v8 campaign; preserve every other field')
+ a=p.parse_args();(enrich_bridge80 if a.enrich_bridge80 else extract)(a.game.expanduser().resolve(),a.output.expanduser().resolve())

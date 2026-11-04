@@ -18,6 +18,8 @@ pub struct State {
     #[serde(skip)] pub(crate) passenger_phase:[u8;21],
 }
 impl State {
+    pub(crate)fn mirror_common_hatch(&mut self,body:u8,frame:i8,motion:i8,timer:i8,debounce:i8){self.hatch_body=body&15;self.hatch_frame=frame;self.hatch_motion=motion;self.hatch_timer=timer;self.debounce=debounce;}
+
     ///The native target is a stable UNIT slot; the Web renderer ID can change
     ///when that same actor enters or leaves a neutral hardware descriptor.
     pub(crate) fn remap_target(&mut self,previous:usize,current:usize){if self.apc_target==Some(previous){self.apc_target=Some(current);}}
@@ -267,7 +269,7 @@ impl Game {
         let close=first&&{let adjusted=(b-30).max(0);adjusted+(adjusted>>2)>=(self.native_random()&127)as i32};
         let h=self.units[t].native_hardware.as_mut().unwrap();if close{h.close();}else{h.open();}
     }
-    fn fire_native_secondary(&mut self,index:usize,target:&Unit){
+    pub(crate) fn fire_native_secondary(&mut self,index:usize,target:&Unit){
         self.activate_native_combat_groups(index,target.id);
         let mut shooter=self.units[index].clone();
         if let Some(s)=shooter.original_combat.as_mut(){s.aim_skill>>=2;}

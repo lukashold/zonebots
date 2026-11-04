@@ -110,6 +110,7 @@ impl Game{
   let result=self.move_native_local(index,&mut dodge.segment,first_tick,ticks,stats(&self.units[index].kind).cls==0);
   if result==original_motion::LocalResult::Moving{self.units[index].native_dodge=Some(dodge);}
   else{
+   if self.owns_native_route(index)&&self.units[index].native_class7c==1{self.finish_native_walk_line(index);return true;}
    //51170 removes40 on arrival or a blocked local attempt.50db0/52810
    //reload the unchanged route; no spare pixels are spent in the new line.
    let p=&mut self.units[index];p.original_motion=None;p.native_flags64&=!64;if let Some(&goal)=p.path.front(){p.native_remaining48=original_motion::Segment::new(p.x,p.y,goal).remaining();}if stats(&p.kind).cls==0{p.native_phase35=if p.path.is_empty(){0}else{2};}
@@ -262,4 +263,8 @@ impl Game{
   let mut g=field();g.spawn("grunt",0,1000.,1000.,1,None);g.units[1].original_combat.as_mut().unwrap().movement_control=70;g.units[1].hold_position=true;g.react_native_dodge(Some(0),1,[500,500],[508,508]);
   let before=(g.units[1].x,g.units[1].y);g.step(0.059);assert!(g.units[1].native_dodge.is_some());assert_ne!((g.units[1].x,g.units[1].y),before);assert!(g.units[1].native_idle.is_none());assert!(g.units[1].native_fire.is_none());
  }
+}
+
+#[cfg(test)]mod common_dodge_handoff_tests{use super::*;
+ #[test]fn managed_hardware_dodge_keeps_exclusive_line_then_resumes_the_real_primary(){let mut g=Game::new(0,1,0x51170);g.map.original=true;g.map.native_road_graph=Some(crate::original_route::RoadGraph{regions:vec![]});g.map.terrain_codes=vec![0;g.map.width*g.map.height];g.map.native_terrain_plane=vec![0;16384];g.units.clear();g.buildings.clear();g.objects.clear();g.walls.clear();g.crates.clear();g.sectors.clear();g.ai_teams.clear();g.native_group_rosters.clear();g.spawn("jeep",0,640.,640.,1,None);g.spawn("medium",1,2000.,1800.,2,None);g.maintain_native_group_rosters();g.import_native_world(&crate::Value::Null);g.prepare_native_ambient_queries();let slot=g.units[0].native_slot.unwrap();g.native_group_rosters.observe_unit_context(slot);let head=g.native_routes.get_mut().pool.allocate_goal([408,328]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=head;g.native_routes.get_mut().managed[slot]=true;g.units[0].path=g.native_owned_route_view(0).unwrap();g.native_route_mode=true;g.units[0].native_phase35=58;g.units[0].native_flags64|=64;g.units[0].original_motion=None;let segment=original_motion::Segment::new(640.,640.,(644.,640.));g.units[0].native_remaining48=segment.remaining();g.units[0].native_dodge=Some(Dodge{segment,counter8c:2});assert!(!g.dispatch_native_hardware_common(0));assert_eq!(g.native_common_legacy.last(),Some(&(slot as u8,crate::original_hardware_common::LegacyCall::Dodge44f730)));for tick in 1..=10{assert!(g.update_native_dodge(0,tick,1));if g.units[0].native_dodge.is_none(){break;}}assert!(g.units[0].native_dodge.is_none());assert_eq!(g.units[0].x,644.);assert_eq!(g.units[0].native_flags64&64,0);assert_eq!(g.native_routes.borrow().pool.links[slot].primary,head);assert!(g.units[0].original_motion.is_some(),"actual52810ownsresumedinlinefields");assert_eq!(g.units[0].native_remaining48,78);}
 }

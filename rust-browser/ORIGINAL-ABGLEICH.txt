@@ -342,6 +342,51 @@ OriginalArt-/Gast-RPC-Vergleich prüft49 RPCs und644 Art-Aufrufe über vier
 native Frames und fünf Welten. Vollständige GPU- oder Originalnetzwerk-
 Gleichheit folgt daraus nicht. Details: ORIGINAL-FORTFAHNEN.txt.
 
+WEITERER ABGLEICHSBLOCK NOV04-R47
+Die gemeinsame Hardwarebewegung für Phasen9/10/53/54/55/58 läuft einmal am
+Originalpunkt; Phase60 behält RET. Positive Gruppenrollen, die verschiedenen
+W17-Start-/Warteflags, gespeicherte Steuerbytes und der feste Main-Slotindex
+verwenden gemeinsame Zustände. Direkte KI-Aufträge erhalten die Original-
+Zielkoordinaten und endlichen Pfadköpfe. Fehlende Daten werden weiterhin
+ausdrücklich gemeldet.128 ausgeführte Originalfälle umfassen108 vollständige
+Rückgaben und20 klar begrenzte CRT-Präfixe. Die32 Folgerfälle konstruieren die
+Originalformationen tatsächlich. Alte uninitialisierte Proben zählen nicht.
+APC56, aktives Ausweichen sowie die bestehenden Broadcast-/Sekundärfeuer-
+Backends bleiben benannte Legacyteile. Details: ORIGINAL-HARDWARE-COMMON.txt.
+
+52960 und die drei erfolgreichen43e190-Wegübernahmen erhalten jetzt ihre
+bereits laufende Inlinebewegung. Ein neu registrierter Stopp4 umgeht den
+vorzeitigen Browsercleanup;54160/52d90 behalten ihren Callbackpunkt.192
+Ankunfts-,20 Commit- und32 gekoppelte Stopp-Originalfälle trennen diese
+Schreiber. Der konkrete M13-Verlust ist am tatsächlichen Konturcommit erfasst.
+Dies ersetzt keine Linie aus einer Vec und unterdrückt keine Boundary.
+Details und Grenzen: ORIGINAL-BEWEGUNGSLINIE.txt.
+
+Die Brückenreparatur nach angenommenem Browserauftrag verwendet jetzt die
+originalen Bridge32-/SHWING-Daten, Arbeitsschritte, den endlichen Rückzug und
+den gemeinsamen64-Jobpool. Erst dessen letzter später Job schließt die
+Reparatur ab.5.728 vollständige Originalpuffer und die Arbeits-/Zeichenzeilen
+sind verglichen.19 authored zerstörte Brücken besitzen einen isolierten
+Game-Reparaturtest in SP und Browser-MP. Originale UI-Annahme, Netzverzögerung
+und allgemeine Abbruchregeln sind dadurch nicht übernommen.
+Details: ORIGINAL-BRUECKEN-KRAN.txt.
+
+Frische Kräne und die tatsächliche Übernahme der Definition35 schreiben den
+nachgewiesenen2084-Marker in die vorhandene Auswahlautorität. Warme9a-Werte
+werden dabei weder auf0 gesetzt noch als bekannt erfunden.64 vollständige
+Originalkonstruktoren und64 enge Gameprojektionen unterscheiden diese Grenzen.
+Der Auftragsobjekt-MarkerB3 und sein warm erhaltener Trefferpointer folgen
+512 Originalfällen; der vollständige native UI-/Netzrouter bleibt offen.
+Details: ORIGINAL-ORDER-OBJEKTMARKER.txt.
+
+Direkte Hardware-Schüsse bewerten die Tonchance pro lokalem Zuhörer am
+Originalaufrufpunkt. Master, Kamera, Deskriptorstempel und Effektzähler gehören
+zum jeweiligen Zuhörer.1.024 Originalpräfixe enden bewusst vor der einmaligen
+Projektilallokation. Wartende Audioladevorgänge einer alten Sitzung oder
+überholten Hardwareperspektive werden verworfen. Allgemeine Explosionen,
+spätere Gebäudetöne, Geräteausgabe und native Kanalverwaltung bleiben separat
+offen. Details: ORIGINAL-HARDWARE-AUDIO.txt und ORIGINAL-AUDIO-SITZUNG.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -357,8 +402,10 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    Weiterläufe sind damit nicht allgemein implementiert.
    Die gewöhnlichen BUILD-/Fortschadenstabellen sind angebunden; Owner4-
    Verlaufspuffer und die normale Kran-Wiederherstellung sind im neuen Block
-   angebunden. Bridge80, positive5e-Hardware-Commonzweige, unbekannte warme
-   Kranbytes und weitere420200-Audio-/Global-/Poolaliasfolgen bleiben offen.
+   angebunden. Die neuen Bridge80-/positiven5e-Commonvergleiche schließen
+   ihre beschriebenen Teilpfade. Allgemeine Kranauftragsabbrüche, unbekannte
+   warme Kranbytes, weitere Common-/APC-/Ausweichblätter und420200-Audio-/
+   Global-/Poolaliasfolgen bleiben offen.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten
