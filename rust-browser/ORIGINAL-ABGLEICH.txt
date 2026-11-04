@@ -383,9 +383,23 @@ Direkte Hardware-Schüsse bewerten die Tonchance pro lokalem Zuhörer am
 Originalaufrufpunkt. Master, Kamera, Deskriptorstempel und Effektzähler gehören
 zum jeweiligen Zuhörer.1.024 Originalpräfixe enden bewusst vor der einmaligen
 Projektilallokation. Wartende Audioladevorgänge einer alten Sitzung oder
-überholten Hardwareperspektive werden verworfen. Allgemeine Explosionen,
-spätere Gebäudetöne, Geräteausgabe und native Kanalverwaltung bleiben separat
-offen. Details: ORIGINAL-HARDWARE-AUDIO.txt und ORIGINAL-AUDIO-SITZUNG.txt.
+überholten Hardwareperspektive werden verworfen. Die normalen Explosions-
+chancen folgen im BlockR48; spätere Gebäudetöne, Geräteausgabe und native
+Kanalverwaltung bleiben separat offen. Details: ORIGINAL-HARDWARE-AUDIO.txt und ORIGINAL-AUDIO-SITZUNG.txt.
+
+WEITERER ABGLEICHSBLOCK NOV04-R48
+Normale Explosions-,Brückeneinsturz-,Owner4-,Entfernungs-,Kisten-,Wasser- und
+Metalltonchancen werten lokale Audiozustände aus.4d18ee und4a6f4e besitzen keine
+parallele Game-/Worldautorität mehr. Die erreichte Weltaktion, Kontakte, Kinder
+und RNG laufen weiterhin einmal.1.536+128 Originalpräfixe und18 tatsächliche
+Host-/Gast-Appfälle belegen diesen Schnitt. Unterbrochene Audioladevorgänge
+werden bei veralteter Perspektive verworfen; Stempel und Zyklen werden dafür
+nicht zurückgerollt. Es gibt keine Gast-Simulation oder Hostkamera als Ersatz
+für fehlende Gastmetadaten. Details: ORIGINAL-SPATIAL-AUDIO.txt.
+Die vollständige sichtabhängige FX-Lebensdauer einzelner Originalclients,
+späte BUILD-/Bridge584968-Töne und weitere Audiocaller bleiben getrennt offen.
+Der frühere Medium-Konstruktorbeleg der Stopp-Probe ist durch korrigierte
+Originaldaten ersetzt; die Ergebnisse zum Linienerhalt bleiben bestätigt.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
@@ -411,8 +425,8 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten
    Sprachaufrufer sind nicht vollständig übernommen. Die normale Pausen-UIuhr
    ist getrennt angebunden; weitere Menü-/Lade-/Abbruchzweige, Banklade-/SDL-
-   Kanalverhalten, lokale Mehrspielerkameras/Explosionsgates und weitere
-   allgemeine Funkereignisse sind damit nicht durchgehend
+   Kanalverhalten, weitere lokale Audiocaller/FX-Lebensdauern und allgemeine
+   Funkereignisse sind damit nicht durchgehend
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
    maschinenanimationen und der globale Sieg-/Zwischensequenzcontroller sind

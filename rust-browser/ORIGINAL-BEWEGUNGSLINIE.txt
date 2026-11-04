@@ -43,12 +43,23 @@ GraphNone, nativeEventfalse und unverwaltete Eingaben behalten ihren Adapter.
 
 32 Originalfälle mit160 Snapshots und96 tatsächlichen Commoncallbacks prüfen
 52d90 sowie54160->52d90, gültigen Medium-Konstruktor, echte Linie und acht
-Richtungen. Beide Varianten liefern identische Ausgaben, Signatur4216724439.
+Richtungen. Beide Varianten liefern identische Ausgaben, korrigierte Signatur2807951149.
 52d90 schreibt9c&DF, W12FF,31&EF,5c0,3d0,61=2; die Linienfelder und Köpfe
 bleiben erhalten. In den geprüften W17=1-Fällen bewegt der folgende Common
 die Einheit weiter. Opcode4 verspricht daher keinen sofortigen physischen
 Halt. Fünf Game-/C-ABI-Fälle und acht tatsächliche Wasmfälle reproduzieren den
 Browserfehler vor der Korrektur und bestehen danach.
+
+KORREKTUR DER KONSTRUKTORPROBE NOV04-R48
+Die erste Stopp-Probe verwendete vor1ba00 einen Robotgruppen-Zeiger statt des
+Medium-EQUIPMENT-Records. Ihre frühere Signatur4216724439 zählt deshalb nicht
+als Beleg eines gültig geladenen Mediumprofils. Zwei neu ausgeführte korrekte
+Originalketten ergeben wieder32 Fälle/160 Snapshots und96 Commoncallbacks;
+beide80-Snapshot-Streams sind bytegleich. Die oben genannte neue Signatur
+bezieht sich ausschließlich auf diese korrigierten Daten. Das Ergebnis zum
+Linienerhalt bleibt bestätigt. Die Runtimekorrektur und ihre Game-/Wasmtests
+benötigten keine Änderung. Kran9a-,Konstruktormarker- und Unterbrechungsproben
+wurden auf dieselbe Verwechslung geprüft und sind davon nicht betroffen.
 
 GRENZEN
 Die Stop-Originalkette verwendet explizit MP1 und flaches Gelände; sie beweist

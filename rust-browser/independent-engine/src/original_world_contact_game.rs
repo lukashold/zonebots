@@ -25,6 +25,7 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_bridge_sound_game.rs"] mod bridge_sound;
 #[path="original_bridge_effects_game.rs"]mod bridge_effects;
 #[path="original_seasonal_game.rs"]mod seasonal_game;
+#[cfg(test)]#[path="original_spatial_audio_game_tests.rs"]mod spatial_audio_tests;
 
 #[derive(Clone)]
 struct ObjectSlot {
@@ -452,7 +453,8 @@ impl Game {
     pub(crate) fn native_removal_emission(&mut self,kind:super::original_death::EmitterKind,origin:[i16;2],count:u8,sprite:i16,maximum:i8,owner:u8){
         if self.native_world.is_none(){self.sync_native_world();}let kind=match kind{super::original_death::EmitterKind::Destroyed=>effects::Kind::Destroyed,super::original_death::EmitterKind::Fragment=>effects::Kind::Fragment{sprite,maximum},super::original_death::EmitterKind::Poof=>effects::Kind::Poof{sprite,maximum}};self.spawn_native_owned_particles(kind,origin,count,owner);
     }
-    pub(crate) fn native_removal_sound(&mut self,point:[i16;2],id:u8){if self.native_world.is_none()||self.native_blast_sound_gate{return;}self.native_blast_sound_gate=true;if id==6{self.events.push(json!({"kind":"nativeEffectSound","sound":6,"sample":"GYRO5","x":i32::from(point[0])*2,"y":i32::from(point[1])*2}));}}
+    pub(crate) fn native_removal_sound(&mut self,point:[i16;2],id:u8){if self.native_world.is_none(){return;}if id==6{self.emit_native_spatial_audio(crate::original_audio::spatial::Chance::Removal6{point});}}
+
     ///58af0/58a40 convert the released hardware into the same first-free
     ///OBJECT pool as authored hardware, flags, fires and pickups.
     pub(crate) fn native_removed_hardware(&mut self,index:usize,before:&super::Unit,suppressed:bool,crew_only:bool){
@@ -510,7 +512,7 @@ impl Game {
         for slot in 0..length{let mut resume=false;loop{
             let Some(state)=&mut self.native_world else{return;};let Some(p)=state.effects[slot].as_mut().filter(|p|p.active)else{break;};
             let step=if resume{p.resume_native_trail(view,&mut state.last_projection,&mut state.trail)}else{p.advance_native_trail(view,&mut state.last_projection,&mut state.trail)};
-            if let Some(draw)=step.draw{if draw.primitive.is_none()&&!draw.inherited_palette{state.direct_palette=Some(draw.owner&3);}state.effect_draws.push((slot,draw,state.effect_cp_tints.get(slot).copied().flatten()));}let Some(mode)=step.expiry else{break;};let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];let actions=effects::expiry_prefix_with_sprite(mode,point,p.sprite,view,self.native_blast_sound_gate);
+            if let Some(draw)=step.draw{if draw.primitive.is_none()&&!draw.inherited_palette{state.direct_palette=Some(draw.owner&3);}state.effect_draws.push((slot,draw,state.effect_cp_tints.get(slot).copied().flatten()));}let Some(mode)=step.expiry else{break;};let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];let actions=effects::source_expiry_prefix(mode,point,p.sprite);
             if matches!(mode,5|8){self.retire_native_fragment_water_particle(slot);break;}
             if mode==3{self.finish_native_building_part_expiry(slot,view);break;}
             if mode==11{self.finish_native_bridge_expiry(slot);break;}
@@ -518,20 +520,25 @@ impl Game {
             resume=self.native_world.as_ref().and_then(|s|s.effects[slot].as_ref()).is_some_and(|p|p.active&&p.position[2]>=0);if !resume{break;}
         }}
     }
-    fn execute_native_effect_actions(&mut self,slot:usize,actions:Vec<effects::Action>,view:effects::View){
+    ///Source pointers intentionally see the current record after reentry/reuse.
+    ///Inactive records remain valid; never use the earlier Vec action point.
+    fn native_effect_stage_point(&mut self,slot:usize)->Option<([i16;2],i16)>{
+        let result=self.native_world.as_ref().and_then(|s|s.effects.get(slot).and_then(Option::as_ref).map(|p|([p.origin[0].wrapping_add(s.last_projection[0]),p.origin[1].wrapping_add(s.last_projection[1])],p.sprite)));
+        if result.is_none(){self.record_native_audio_boundary(crate::original_audio::spatial::Boundary::MissingEffectRecord(slot));}result
+    }
+    fn execute_native_effect_actions(&mut self,slot:usize,actions:Vec<effects::Action>,_view:effects::View){
         let mut pending=VecDeque::from(actions);while let Some(action)=pending.pop_front(){match action{
-            effects::Action::Blast{point,strength,suppress_visual}=>{if suppress_visual{self.native_blast_environment(i32::from(point[0]),i32::from(point[1]),strength,255,false);}else{let before=self.events.len();let quiet=self.native_world.as_ref().is_some_and(|s|s.quiet_blasts);self.spawn_native_blast(i32::from(point[0]),i32::from(point[1]),Attack{target:0,damage:strength,aim:0,facing:0,bullet:false},255,None);if quiet{for event in self.events.iter_mut().skip(before).filter(|e|e["kind"]=="explosion"){event["silent"]=json!(true);}}}}
+            effects::Action::Blast{point,strength,suppress_visual}=>{if suppress_visual{self.native_blast_sound_prefix(point);self.native_blast_environment(i32::from(point[0]),i32::from(point[1]),strength,255,false);}else{let before=self.events.len();let quiet=self.native_world.as_ref().is_some_and(|s|s.quiet_blasts);self.spawn_native_blast(i32::from(point[0]),i32::from(point[1]),Attack{target:0,damage:strength,aim:0,facing:0,bullet:false},255,None);if quiet{for event in self.events.iter_mut().skip(before).filter(|e|e["kind"]=="explosion"){event["silent"]=json!(true);}}}}
             effects::Action::DirectUnits{rect,strength}=>self.native_direct_environment_contact(rect,strength),
             effects::Action::Spawn{kind,origin,count}=>self.spawn_native_world_particles(kind,origin,count),
             effects::Action::RandomDestroyedBurst{origin}=>{let count=(self.original_rng.next_u32()as u8&3)+5;self.spawn_native_world_particles(effects::Kind::Destroyed,origin,count);}
             effects::Action::RandomHitBurst{origin}=>{let count=(self.original_rng.next_u32()as u8&3)+4;self.spawn_native_world_particles(effects::Kind::Hit,origin,count);}
-            effects::Action::Sound{point,id}=>{let sample=match id{30=>"GRENADE",11=>"METGRND",8=>match self.map.world{1=>"VOLCGLG2",3=>"MUDPLOP1",_=>"SPLASH1"},_=>continue};self.events.push(json!({"kind":"nativeEffectSound","sound":id,"sample":sample,"x":i32::from(point[0])*2,"y":i32::from(point[1])*2}));}
-            effects::Action::SetCrateSoundGate=>{self.native_blast_sound_gate=true;}
+            effects::Action::Audio(chance)=>self.emit_native_spatial_audio(chance),
             effects::Action::QuietBlasts=>{if let Some(state)=&mut self.native_world{state.quiet_blasts=true;}}
             effects::Action::ClearQuietBlasts=>{if let Some(state)=&mut self.native_world{state.quiet_blasts=false;}}
-            effects::Action::ProbeFalling{point}|effects::Action::ProbeCrate{point}=>{let mode=if matches!(action,effects::Action::ProbeFalling{..}){7}else{6};let terrain=self.world_code(Self::world_cell(point));let suffix=effects::expiry_suffix(mode,point,terrain,view);for a in suffix.into_iter().rev(){pending.push_front(a);}}
-            effects::Action::ProbeAmbient{point}=>{let terrain=self.world_code(Self::world_cell(point));for a in effects::ambient_suffix(point,terrain).into_iter().rev(){pending.push_front(a);}}
-            effects::Action::ProbeFragment{point,sprite}=>{let terrain=self.world_code(Self::world_cell(point));let gate=self.native_blast_sound_gate;for a in effects::fragment_suffix(point,terrain,sprite,view,gate).into_iter().rev(){pending.push_front(a);}}
+            effects::Action::ProbeFalling{..}|effects::Action::ProbeCrate{..}=>{let mode=if matches!(action,effects::Action::ProbeFalling{..}){7}else{6};let Some((point,_))=self.native_effect_stage_point(slot)else{continue;};let terrain=self.world_code(Self::world_cell(point));for a in effects::source_expiry_suffix(mode,point,terrain).into_iter().rev(){pending.push_front(a);}}
+            effects::Action::ProbeAmbient{..}=>{let Some((point,_))=self.native_effect_stage_point(slot)else{continue;};let terrain=self.world_code(Self::world_cell(point));for a in effects::ambient_suffix(point,terrain).into_iter().rev(){pending.push_front(a);}}
+            effects::Action::ProbeFragment{..}=>{let Some((point,sprite))=self.native_effect_stage_point(slot)else{continue;};let terrain=self.world_code(Self::world_cell(point));for a in effects::source_fragment_suffix(point,terrain,sprite).into_iter().rev(){pending.push_front(a);}}
             effects::Action::Retire{..}|effects::Action::InvalidCrate|effects::Action::ResidualCrate=>{if let Some(p)=self.native_world.as_mut().and_then(|s|s.effects[slot].as_mut()){effects::apply_particle_action(p,&action);}}
         }}
     }

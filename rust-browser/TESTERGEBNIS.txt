@@ -1,12 +1,12 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.009 Rusttests bestanden;11 Privatdiagnostiken separat erfolgreich ausgeführt
+1.021 Rusttests bestanden;11 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen10 Programme anschließend).
-Doctests bestanden (0 vorhanden).87/87 Node-Prüfprogramme im aktuellen
-nov04-r47 bestanden, einschließlich aller20 privaten Missionen.
+Doctests bestanden (0 vorhanden).88/88 Node-Prüfprogramme im aktuellen
+nov04-r48 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 46a716b3f38bfd65b65ab2f4ba2e3a7fb8c0669f7a28dca8f8e15df36cf505e8
+Wasm SHA256: 0d71b8f2db7f62c12160796b923709aa7aece4fbd51ab6b162a6ef12ffea5b37
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,28 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV04-R48
+- Das frühere globale Explosionsgate4d18ee und der Zyklus4a6f4e gehören jetzt
+  ausschließlich zum vorhandenen AudioState des jeweiligen Zuhörers. Die alten
+  Gamefelder und die World-SetGate-Aktion sind vollständig entfernt. Main setzt
+  nur die Gatebytes zurück; UI/Settings setzen weder Zyklus noch Stempel zurück.
+- 1.536 Original-Audiopräfixe und128 zusätzliche expiry1/7->420200-Präfixe
+  sind feldweise verglichen. Die erste Tonchance unter4a6f42=1 läuft am
+  richtigen Punkt vor dem vorhandenen Weltaufruf; sie erzeugt keine zweite Welt.
+- Zwölf neue Rusttests und18 tatsächliche App-/Host-/Gastfälle prüfen lokale
+  Kamera/Master-Kombinationen, unabhängige EXP1/EXP2-Folgen, verspätete Decoder-
+  Antworten nach echtem Pan-/Settings-RPC und einmalige World-/RNG-/Poolabläufe.
+  Die bestehenden24 Hardware- und14 Sitzungsaudiofälle bleiben grün.
+- Der aktuelle20-Missionen-Soak, alle38 Brückenreparaturen und sämtliche21
+  Werkstattfälle bestehen unverändert mit dem neuen Release. Sie belegen keine
+  vollständig identische Originalpartie oder reale PCM-/Geräteausgabe.
+- Der Medium-Datenzeiger einer älteren Stopp-Oracle wurde korrigiert.32 erneut
+  ausgeführte Originalfälle bestätigen das Ergebnis; die alte benannte Profil-
+  Signatur wird nicht weiter verwendet. Details: ORIGINAL-BEWEGUNGSLINIE.txt.
+Weitere Grenzen: späte BUILD-/Brückentöne, fehlender Fortdestruktor-Hook,
+Lava122, weitere Funk-/Kranaufrufer und originale per-client FX-Lebensdauer.
+Details: ORIGINAL-SPATIAL-AUDIO.txt.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV04-R47
 - Gemeinsamer Hardware-Common für9/10/53/54/55/58, unverändertes RET60 und
@@ -346,6 +368,10 @@ bis HUD0:10. Keine erfassten Seitenkonsolenwarnungen/-fehler. Der eigene Tab
 ist geschlossen; die laufende Benutzerpartie wurde nicht bedient. Die bekannte
 Browseraufnahme-Zeitüberschreitung verhindert einen neuen GPU-/Pixelbeleg;
 aus diesem Starttest folgt keine neue Frameratenzusage.
+nov04-r48 wurde zusätzlich im eigenen versteckten Prüftab frisch gestartet:
+Originalgrafik, M20 Z, Normal, HUD0:07 und keine erfassten Konsolenwarnungen/-
+fehler. Der eigene Tab ist geschlossen. Dieser Starttest ersetzt keinen
+akustischen Geräte-/Decodervergleich; die laufende Benutzerpartie blieb offen.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
 öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
 und zwei physische LAN-Rechner wurden nicht separat geprüft.

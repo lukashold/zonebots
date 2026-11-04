@@ -1,11 +1,12 @@
 //!46e660's per-bank descriptor admission and its46e6d0/46f650 wrappers.
 //!Playback uses private PCM assets; source filenames are metadata only.
 use crate::{Game,json};
+#[path="original_spatial_audio.rs"]pub(crate) mod spatial;
 #[derive(Clone,Copy,Debug)]pub struct Descriptor{pub id:i16,pub clip:&'static str,pub minimum:i16,pub initial:i16}
 include!("native_sound_data.rs");
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Gate{Direct,Enabled,Notice(bool)}
-#[derive(Clone,Debug)]pub struct State{pub last:[Vec<i16>;5],pub effect_counter:i16,pub notice_counter:i16}
-impl Default for State{fn default()->Self{Self{last:std::array::from_fn(|bank|BANKS[bank].iter().map(|d|d.initial).collect()),effect_counter:0,notice_counter:0}}}
+#[derive(Clone,Debug)]pub struct State{pub last:[Vec<i16>;5],pub effect_counter:i16,pub notice_counter:i16,pub opportunity_gate:u8,pub explosion_cycle:u8,pub(crate) opportunity_boundary:Option<spatial::Boundary>}
+impl Default for State{fn default()->Self{Self{last:std::array::from_fn(|bank|BANKS[bank].iter().map(|d|d.initial).collect()),effect_counter:0,notice_counter:0,opportunity_gate:0,explosion_cycle:0,opportunity_boundary:None}}}
 impl State{
  pub fn admit(&mut self,bank:usize,mut id:i16,clock:i16,gate:Gate,enabled:bool)->Option<Descriptor>{
   if matches!(gate,Gate::Enabled|Gate::Notice(_))&&!enabled{return None;}if let Gate::Notice(fort_alive)=gate{if !fort_alive{return None;}id=196;}
@@ -20,7 +21,8 @@ impl Game{
  ///own nativeVoice event and needs admission without a second playback event.
  pub(crate) fn admit_native_sample(&mut self,id:i16,gate:Gate)->Option<Descriptor>{let bank=self.native_audio_bank();let enabled=self.native_feedback.sound_enabled!=0;self.native_audio.admit(bank,id,self.native_feedback.ui_clock,gate,enabled)}
  pub(crate) fn emit_native_sample(&mut self,id:i16,gate:Gate)->bool{self.emit_native_sample_for_actor(id,gate,None)}
- pub(crate) fn emit_native_sample_for_actor(&mut self,id:i16,gate:Gate,actor:Option<i32>)->bool{let mut any=false;self.for_native_listeners(|g|{let Some(sample)=g.admit_native_sample(id,gate)else{return;};let mut event=json!({"kind":"nativeSample","sampleId":sample.id,"clip":sample.clip,"lane":if is_voice(sample.clip){"voice"}else{"effects"},"playAudio":true,"team":g.native_feedback.local_team});g.tag_native_audio_event(&mut event,actor);g.events.push(event);any=true;});any}
+ pub(crate) fn emit_admitted_native_sample(&mut self,sample:Descriptor,actor:Option<i32>,spatial:Option<&str>){let mut event=json!({"kind":"nativeSample","sampleId":sample.id,"clip":sample.clip,"lane":if is_voice(sample.clip){"voice"}else{"effects"},"playAudio":true,"team":self.native_feedback.local_team});self.tag_native_audio_event(&mut event,actor);if let Some(context)=spatial{event["nativeHardwareAudioContext"]=json!(context);}self.events.push(event);}
+ pub(crate) fn emit_native_sample_for_actor(&mut self,id:i16,gate:Gate,actor:Option<i32>)->bool{let mut any=false;self.for_native_listeners(|g|{let Some(sample)=g.admit_native_sample(id,gate)else{return;};g.emit_admitted_native_sample(sample,actor,None);any=true;});any}
 }
 #[cfg(test)]mod tests{
  use super::*;

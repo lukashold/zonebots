@@ -11,10 +11,11 @@ pub fn sample(point:[i16;2])->i16 {
 pub fn admitted(point:[i16;2],world:[i16;2])->bool {
     point[1]>=-32&&point[0]<=world[0]&&point[1]<=world[1]
 }
+pub(crate) const SAMPLES:[i16;8]=[1,2,3,4,5,1,2,3];
 pub fn sound(point:[i16;2],camera:[i16;2],size:[i16;2],gate:bool,quiet:bool,cycle:u8)->Option<i16>{
     let p=[point[0].wrapping_sub(camera[0]),point[1].wrapping_sub(camera[1])];
     (!gate&&!quiet&&p[0]>=-48&&p[1]>=-48&&i32::from(p[0])<=i32::from(size[0])+32&&i32::from(p[1])<=i32::from(size[1])+32)
-        .then(||[1,2,3,4,5,1,2,3][usize::from(cycle&7)])
+        .then(||SAMPLES[usize::from(cycle&7)])
 }
 /// 420200 first probes the centre and four neighbours for bridge/wall contact.
 /// When all miss, EDX still points SOUTH of the initial sample. Its subsequent

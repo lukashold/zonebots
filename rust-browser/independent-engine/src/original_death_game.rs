@@ -41,8 +41,7 @@ impl Game{
  pub(crate) fn native_contact_removal(&mut self,index:usize,before:&Unit,source:RemovalSource,crew_only:bool){
   if !self.map.original||index>=self.units.len(){return;}
   let class=before.native_class7c;let family=original_combat::animation_family(&before.kind);let point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];let owner=before.native_flags64;
-  let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let audible=original_death::sound_visible(point,camera,size);
-  let actions=original_death::removal_actions(source,class,family,point,owner,crew_only,audible);let mut removed=false;
+  let actions=original_death::removal_actions(source,class,family,point,owner,crew_only,true);let mut removed=false;
   for action in actions{match action{
    Action::Remove{suppressed}=>{if removed{continue;}removed=true;
     self.native_remove_actor_from(index,before,suppressed,false,crew_only);

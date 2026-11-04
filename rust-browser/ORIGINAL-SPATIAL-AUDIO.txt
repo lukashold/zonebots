@@ -1,0 +1,95 @@
+ISOLATED SOURCE CANDIDATE: SPATIAL EXPLOSION AUDIO
+================================================
+This is a bounded successor to ORIGINAL-HARDWARE-AUDIO.txt and the historical
+Owner4 paragraph in ORIGINAL-MP-AUDIO.txt. It is not deployment provenance.
+
+ONE OWNER PER EXISTING LISTENER
+The two former Game fields native_blast_sound_gate/native_blast_sound_cycle
+and the World SetCrateSoundGate action are removed together. The sole runtime
+4d18ee/4a6f4e owner is now original_audio::State.opportunity_gate:u8 and
+explosion_cycle:u8, inside the already existing listener AudioState. Descriptor
+stamps, effect_counter, master and listener view/generation retain their prior
+owners. No extra camera state, clock, emitter, world pass or sound channel is
+introduced. The historical nativeHardwareAudioContext event field is reused
+for these newly converted spatial effects; audio.js is unchanged.
+
+At the existing Main reset point both listeners' gate bytes are cleared. UI-only
+callbacks, settings changes, camera changes and mission initialization do not
+reset them. The cycle remains warm with the existing AudioState transfer. Cold
+values are zero. A cycle outside0..7 produces InvalidCycle, not a masked guess.
+The listener last accepted remote camera is a browser transport contract, not
+an original network or device timing claim. Before a ready listener supplies
+its view, MissingListenerView is recorded and no host camera is substituted.
+
+TYPED, IMMEDIATE OPPORTUNITIES
+The original action sequence emits Chance values immediately at these existing
+callpoints; the evaluator has no access to World, contact, RNG or allocation:
+
+*420200: bounds/4a6f4f/quiet/gate/viewport, Enabled cycle sample, then cycle+1
+ &7 and gate1 even if master or descriptor admission rejected playback.
+*41f870 bridge collapse: viewport, caller master+Direct cycle sample; successful
+ descriptor increments the lowword effect counter; cycle advances independently
+ of playback. No4d18ee/quiet/4f gate is invented here.
+*401640 expiry3 and reached hardware-removal sample6: viewport and gate0,
+ caller master+Direct/counter, then gate1 even when muted/rejected.
+*402dd0 expiry6: the actual doubled-camera expression; visible always writes
+ gate1, including a priorFF byte. Only the priorzero case requests Direct30.
+*401800 water8: gate0+viewport, caller master+Direct/counter, no gate write.
+*4012c0 water8: viewport, caller master+Direct/counter, no gate read or write.
+*The metal11 paths use Enabled46e6d0, whose counter write occurs exactly once.
+
+Every request passes the real shared descriptor admission once; building the
+nativeSample event does not admit it a second time. Signed16 subtraction and
+the inclusive-48/+32 viewport endpoints retain their existing source helper.
+The typed opportunity may yield different gates/cycles/events to two listeners;
+the source world/contact/emitter work that led to it still runs once.
+
+REENTRY AND THE FIRST SUPPRESSED420200 PREFIX
+After the existing synchronous world calls, falling/crate/fragment suffix probes
+reload the current Raw44 record's origin, current projection and, where read,
+current sprite. Inactive or reused records are not filtered. No earlier action
+Vec position or Web-ID fallback substitutes for the source pointer. A missing
+record yields MissingEffectRecord and leaves that unavailable suffix explicit.
+
+The first420200 audio prefix reached by expiry1/7 is now called even while its
+caller has4a6f42=1. The new128 native executions establish this audio prefix
+before the existing environment-only world leaf. This addition does NOT prove
+or implement that leaf's full420200 microFX/terrain/tail parity.4a6f42/4a6f4f,
+quiet, strength, owner, terrain and the canonical World view remain one shared
+World authority. Nothing reruns them for a listener. The actual Owner4/bridge
+reentry Game test is distinct from the deliberately seeded current-record
+suffix test; the latter does not claim a new native slot-reuse writer.
+
+CHECKS
+Private original oracles remain external inputs. The two new adapter checks
+compare1536+128 executed source prefixes field by field. Their projected-state
+FNV signatures are3102958722 and1031114429; they are not full raw-memory hashes.
+The1536 proof includes a recorded fort-prefix policy case but does not wire an
+unported fort destructor. Existing recorded-leaf FX wrappers are cfg(test) only;
+they observe the source's intercepted audio requests without a second mixer.
+
+The targeted Game checks cover asymmetric Owner4/bridge/crate order, source
+RNG/terrain/HP/full500-record pool equality, missing/current-inactive stage
+owners, warm cycle, Main-only reset and unavailable view. The actual App/Host/
+Guest/private-Wasm test checks16 camera/master combinations, stale pending
+decode after a real pan, and two actual wall-impact callbacks: HostEXP1 then
+HostEXP2, while the guest moves near and receives its firstEXP1. It also checks
+unchanged world output and that the guest never simulates. Existing24 hardware,
+14 audio-session and20 listener endpoints remain checked.
+
+These programs read the private original WAV bytes and exercise actual Audio.js
+selection, loading, gain and BufferSource.start through instrumented WebAudio.
+decodeAudioData returns a placeholder URL/duration; no PCM decoder, physical
+device/mixer, speaker, SDK or GPU/raster equivalence is asserted. Source/private
+Wasm and raw source oracle data are not part of the public code delta.
+
+EXPLICIT REMAINING BOUNDARIES
+Bridge80/584968 (including its final46), the missing fort-destructor caller,
+Lava122/nativeEffectSound, Radar/GROUP64, Common58592b and Crane12 remain outside
+this block. They do not acquire a second4d18ee/cycle authority here. In particular
+nativeEffectSound now remains only on the unrelated Lava122 path. Earlier docs'
+canonical-view limit still applies to those families. No complete original
+per-camera world-culling or lifetime guarantee is implied: audio sees the once
+reached canonical World trace. Full source initial-world/quiet lifecycle, all
+reentrant FX-prefix leaves, browser transport latency and device sound behavior
+remain separately bounded. Missing inputs are diagnostics, not invented values.

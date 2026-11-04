@@ -2,6 +2,7 @@
 //!The viewport is explicit because native sprite phases advance only on draw.
 #[path="original_water_spray.rs"]pub(crate) mod spray;
 #[path="original_bridge_effects.rs"]pub(crate) mod bridge;
+use crate::original_audio::spatial::Chance;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Kind{Hit,DirectHit,Destroyed,FallingObject(i16),CrateBurst,Poof{sprite:i16,maximum:i8},Fragment{sprite:i16,maximum:i8},AmbientFragment(i16)}
 #[derive(Clone,Debug)]
@@ -25,8 +26,7 @@ pub enum Action{
     DirectUnits{rect:[i16;4],strength:u8},
     Spawn{kind:Kind,origin:[i16;2],count:u8},
     RandomDestroyedBurst{origin:[i16;2]},
-    Sound{point:[i16;2],id:u8},
-    SetCrateSoundGate,QuietBlasts,ClearQuietBlasts,
+    Audio(Chance),QuietBlasts,ClearQuietBlasts,
     ProbeFalling{point:[i16;2]},ProbeCrate{point:[i16;2]},
     ProbeAmbient{point:[i16;2]},ProbeFragment{point:[i16;2],sprite:i16},
     RandomHitBurst{origin:[i16;2]},
@@ -119,15 +119,11 @@ impl Particle{
     }
 }
 
-fn on_screen(point:[i16;2],view:View,double_camera:bool)->bool{let n=if double_camera{2}else{1};let x=point[0].wrapping_sub(view.camera[0].wrapping_mul(n));let y=point[1].wrapping_sub(view.camera[1].wrapping_mul(n));x> -49&&i32::from(x)<=i32::from(view.clip[2])+32&&y> -49&&i32::from(y)<=i32::from(view.clip[3])+32}
-pub fn expiry_prefix(mode:i16,point:[i16;2],view:View,crate_sound_played:bool)->Vec<Action>{
-    expiry_prefix_with_sprite(mode,point,0,view,crate_sound_played)
-}
-pub fn expiry_prefix_with_sprite(mode:i16,point:[i16;2],sprite:i16,view:View,crate_sound_played:bool)->Vec<Action>{
+pub fn source_expiry_prefix(mode:i16,point:[i16;2],sprite:i16)->Vec<Action>{
     if mode==1{let mut actions=Vec::new();if point[0]>-33{actions.push(Action::Blast{point,strength:10,suppress_visual:true});}actions.push(Action::DirectUnits{rect:[point[0].wrapping_sub(10),point[1].wrapping_sub(5),point[0].wrapping_add(54),point[1].wrapping_add(41)],strength:10});actions.push(Action::ProbeAmbient{point});return actions;}
     if mode==10{return vec![Action::ProbeFragment{point,sprite}];}
     let mut out=Vec::new();if mode==7{if point[0]> -33{out.push(Action::Blast{point,strength:0,suppress_visual:true});}out.push(Action::DirectUnits{rect:[point[0].wrapping_sub(10),point[1].wrapping_sub(5),point[0].wrapping_add(54),point[1].wrapping_add(41)],strength:0});out.push(Action::ProbeFalling{point});}
-    else if mode==6{if on_screen(point,view,true){if !crate_sound_played{out.push(Action::Sound{point,id:30});}out.push(Action::SetCrateSoundGate);}out.push(Action::ProbeCrate{point});}out
+    else if mode==6{out.push(Action::Audio(Chance::Crate6{point}));out.push(Action::ProbeCrate{point});}out
 }
 pub fn ambient_suffix(point:[i16;2],terrain:u8)->Vec<Action>{
     let cell=((point[1]as u16).wrapping_mul(8)&0xff80).wrapping_add((point[0]>>4)as u16);
@@ -135,21 +131,21 @@ pub fn ambient_suffix(point:[i16;2],terrain:u8)->Vec<Action>{
     if matches!(terrain&127,9|42|38|40|39){let mut out=vec![Action::Retire{clear_expiry:true}];if point[0]>-33{out.push(Action::Blast{point,strength:0,suppress_visual:false});}out}
     else{vec![Action::RandomHitBurst{origin:[point[0].wrapping_sub(154),point[1].wrapping_sub(80)]},Action::Retire{clear_expiry:false}]}
 }
-pub fn fragment_suffix(point:[i16;2],terrain:u8,sprite:i16,view:View,sound_played:bool)->Vec<Action>{
+pub fn source_fragment_suffix(point:[i16;2],terrain:u8,sprite:i16)->Vec<Action>{
     //401800 uses Y&fff0, unlike the shorter cell expression in401af0.
     let cell=(point[1]as u16&0xfff0).wrapping_mul(8).wrapping_add((point[0]>>4)as u16);
     if cell>0x3fff{return vec![Action::Retire{clear_expiry:true}];}
-    let mut out=Vec::new();if matches!(terrain&127,9|42|38|40|39){out.push(Action::Retire{clear_expiry:true});if on_screen(point,view,false)&&!sound_played{out.push(Action::Sound{point,id:8});}out.push(Action::QuietBlasts);if point[0]>-33{out.push(Action::Blast{point,strength:16,suppress_visual:false});}out.push(Action::ClearQuietBlasts);return out;}
-    if matches!(sprite,0x166b|0x616|0x162f|0x16ba|0x74d|0x14d9|0x1637|0x200|0x14c5|0x735|0x1638|0x1640|0x163c){out.push(Action::QuietBlasts);if on_screen(point,view,false){out.push(Action::Sound{point,id:11});}}
+    let mut out=Vec::new();if matches!(terrain&127,9|42|38|40|39){out.push(Action::Retire{clear_expiry:true});out.push(Action::Audio(Chance::FragmentWater10{point}));out.push(Action::QuietBlasts);if point[0]>-33{out.push(Action::Blast{point,strength:16,suppress_visual:false});}out.push(Action::ClearQuietBlasts);return out;}
+    if matches!(sprite,0x166b|0x616|0x162f|0x16ba|0x74d|0x14d9|0x1637|0x200|0x14c5|0x735|0x1638|0x1640|0x163c){out.push(Action::QuietBlasts);out.push(Action::Audio(Chance::FragmentMetal10{point}));}
     if point[0]>-33{out.push(Action::Blast{point,strength:127,suppress_visual:false});}
     out.push(Action::ResidualCrate);out.push(Action::ClearQuietBlasts);let origin=[point[0].wrapping_sub(152),point[1].wrapping_sub(100)];out.push(Action::Spawn{kind:Kind::Destroyed,origin,count:8});out.push(Action::Spawn{kind:Kind::Hit,origin,count:8});out
 }
-pub fn expiry_suffix(mode:i16,point:[i16;2],terrain:u8,view:View)->Vec<Action>{
+pub fn source_expiry_suffix(mode:i16,point:[i16;2],terrain:u8)->Vec<Action>{
     let cell=((point[1]as u16).wrapping_mul(8)&0xff80).wrapping_add((point[0]>>4)as u16);let mut out=Vec::new();
     if cell>0x3fff{return vec![if mode==6{Action::InvalidCrate}else{Action::Retire{clear_expiry:true}}];}
     let wet=matches!(terrain&127,9|42|38|40|39);
-    if mode==7{if wet{out.push(Action::Retire{clear_expiry:true});if on_screen(point,view,false){out.push(Action::Sound{point,id:8});}}
-        else if on_screen(point,view,false){out.push(Action::Sound{point,id:11});}
+    if mode==7{if wet{out.push(Action::Retire{clear_expiry:true});out.push(Action::Audio(Chance::FallingWater7{point}));}
+        else{out.push(Action::Audio(Chance::FallingMetal7{point}));}
         out.push(Action::QuietBlasts);
         if point[0]> -33{out.push(Action::Blast{point,strength:0,suppress_visual:false});}
         if !wet{out.push(Action::Spawn{kind:Kind::Hit,origin:[point[0].wrapping_sub(154),point[1].wrapping_sub(80)],count:8});out.push(Action::Retire{clear_expiry:false});}
@@ -158,6 +154,13 @@ pub fn expiry_suffix(mode:i16,point:[i16;2],terrain:u8,view:View)->Vec<Action>{
     }out
 }
 pub fn apply_particle_action(p:&mut Particle,action:&Action){match action{Action::Retire{clear_expiry}=>{p.active=false;if *clear_expiry{p.expiry=0;}},Action::InvalidCrate=>{p.position[0]=-1;p.expiry=0;},Action::ResidualCrate=>{p.sprite=473;p.spin=0;p.position[2]=-1;p.lifetime=21;p.expiry=0;p.phase=0;p.maximum_phase=7;p.fade_left=2;p.fade_interval=2;p.velocity[2]=-5;},_=>{}}}
+//Recorded-leaf fixtures observe requests to46e660/46e6d0, not a simulated
+//second descriptor admission. These adapters are absent from production.
+#[cfg(test)]fn expiry_prefix(mode:i16,p:[i16;2],_v:View,_gate:bool)->Vec<Action>{source_expiry_prefix(mode,p,0)}
+#[cfg(test)]fn expiry_prefix_with_sprite(mode:i16,p:[i16;2],sprite:i16,_v:View,_gate:bool)->Vec<Action>{source_expiry_prefix(mode,p,sprite)}
+#[cfg(test)]fn fragment_suffix(p:[i16;2],terrain:u8,sprite:i16,_v:View,_gate:bool)->Vec<Action>{source_fragment_suffix(p,terrain,sprite)}
+#[cfg(test)]fn expiry_suffix(mode:i16,p:[i16;2],terrain:u8,_v:View)->Vec<Action>{source_expiry_suffix(mode,p,terrain)}
+#[cfg(test)]fn recorded_audio_request(chance:Chance,view:View,gate:&mut bool)->Option<Vec<i32>>{let mut s=crate::original_audio::State::default();s.opportunity_gate=u8::from(*gate);let p=s.opportunity_plan(chance,view.camera,[view.clip[2],view.clip[3]]).unwrap();s.finish_opportunity(p);*gate=s.opportunity_gate!=0;p.request.map(|r|vec![1,i32::from(r.sample)])}
 ///4565a0: inclusive UNIT center geometry; hardware class1 uses16, all other
 ///classes8. The caller retains native bucket/slot order and32-per-bucket cap.
 pub fn direct_unit_contains(position:[i16;2],class:u8,rect:[i16;4])->bool{let offset=if class==1{16}else{8};let x=position[0].wrapping_add(offset);let y=position[1].wrapping_add(offset);x>=rect[0]&&x<=rect[2]&&y>=rect[1]&&y<=rect[3]}
@@ -173,11 +176,11 @@ pub fn direct_unit_contains(position:[i16;2],class:u8,rect:[i16;4])->bool{let of
     #[test]fn ambient_and_hardware_fragment_expiry_contacts_match_512_executed_native_records(){let mut h=2166136261;let mut maximum=0;
         let sprites=[0x166b,0x616,0x162f,0x16ba,0x74d,0x14d9,0x1637,0x200,0x14c5,0x735,0x1638,0x1640,0x163c,0,250];let codes=[0,7,9,42,38,40,39,29,127];let points=[[-40i16,512],[-33,512],[-32,512],[-1,512],[0,0],[16,16],[512,512],[2032,2032],[2048,2048],[32767,32767],[-32768,-32768],[320,180],[160,100],[48,48],[-48,-48],[-49,-49]];let projections=[[0i16,0],[160,100],[-160,-100],[32767,-32768]];
         for kind in 0..2{for seed in 0..256{let sprite=if kind==0{1234}else{sprites[seed as usize%sprites.len()]};let variant=if kind==0{Kind::AmbientFragment(sprite)}else{Kind::Fragment{sprite,maximum:(seed%8)as i8}};let mut calls=0;let mut p=initialize(variant,[346,420],37,||{let r=seed*7919^calls*2027^0x7731a5c9;calls+=1;r as u32});if kind==0{p.maximum_phase=(seed%8)as i8;}p.owner=(seed&3)as u8;calls=0;
-            let point=points[seed as usize%16];let projection=projections[seed as usize/16%4];p.position=[7,-13,if seed&1!=0{-1}else{0}];p.origin=[point[0].wrapping_sub(projection[0]),point[1].wrapping_sub(projection[1])];p.lifetime=(400-seed)as i16;let view=View{camera:[(seed%3*12)as i16,(seed%5*8)as i16],clip:[0,0,320,200],world:[2048,2048],sine:0,cosine:0};let gate=seed&1!=0;let mut quiet=seed>>1&1!=0;let mut events=0;let mut event_hash=2166136261;let mode=if kind==0{1}else{10};let mut pending=std::collections::VecDeque::from(expiry_prefix_with_sprite(mode,point,p.sprite,view,gate));
+            let point=points[seed as usize%16];let projection=projections[seed as usize/16%4];p.position=[7,-13,if seed&1!=0{-1}else{0}];p.origin=[point[0].wrapping_sub(projection[0]),point[1].wrapping_sub(projection[1])];p.lifetime=(400-seed)as i16;let view=View{camera:[(seed%3*12)as i16,(seed%5*8)as i16],clip:[0,0,320,200],world:[2048,2048],sine:0,cosine:0};let mut gate=seed&1!=0;let mut quiet=seed>>1&1!=0;let mut events=0;let mut event_hash=2166136261;let mode=if kind==0{1}else{10};let mut pending=std::collections::VecDeque::from(expiry_prefix_with_sprite(mode,point,p.sprite,view,gate));
             while let Some(action)=pending.pop_front(){let mut event=None;match action{
                 Action::Blast{point,strength,suppress_visual}=>event=Some(vec![2,i32::from(point[0]),i32::from(point[1]),i32::from(strength),i32::from(suppress_visual),i32::from(quiet)]),
                 Action::DirectUnits{rect,strength}=>event=Some(vec![3,i32::from(rect[0]),i32::from(rect[1]),i32::from(rect[2]),i32::from(rect[3]),i32::from(strength)]),
-                Action::Sound{id,..}=>event=Some(vec![1,i32::from(id)]),Action::QuietBlasts=>quiet=true,Action::ClearQuietBlasts=>quiet=false,
+                Action::Audio(chance)=>event=recorded_audio_request(chance,view,&mut gate),Action::QuietBlasts=>quiet=true,Action::ClearQuietBlasts=>quiet=false,
                 Action::RandomHitBurst{origin}=>{let count=((seed*7919^calls*2027^0x7731a5c9)as u8&3)+4;calls+=1;event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),4,250,maximum,0x402770]);},
                 Action::Spawn{kind,origin,count}=>{let(flags,sprite,constructor)=if kind==Kind::Destroyed{maximum=5;(12,557,0x4017b0)}else{(4,250,0x402770)};event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),flags,sprite,maximum,constructor]);},
                 Action::ProbeAmbient{point}=>for a in ambient_suffix(point,codes[seed as usize%9]).into_iter().rev(){pending.push_front(a);},
@@ -203,7 +206,7 @@ pub fn direct_unit_contains(position:[i16;2],class:u8,rect:[i16;4])->bool{let of
             while let Some(action)=actions.pop_front(){let mut event=None;match action{
                 Action::Blast{point,strength,suppress_visual}=>event=Some(vec![2,i32::from(point[0]),i32::from(point[1]),i32::from(strength),i32::from(suppress_visual),i32::from(quiet)]),
                 Action::DirectUnits{rect,strength}=>event=Some(vec![3,i32::from(rect[0]),i32::from(rect[1]),i32::from(rect[2]),i32::from(rect[3]),i32::from(strength)]),
-                Action::Sound{id,..}=>event=Some(vec![1,i32::from(id)]),Action::SetCrateSoundGate=>gate=true,Action::QuietBlasts=>quiet=true,
+                Action::Audio(chance)=>event=recorded_audio_request(chance,view,&mut gate),Action::QuietBlasts=>quiet=true,
                 Action::Spawn{kind,origin,count}=>{let(flags,sprite,constructor)=if kind==Kind::Hit{(4,250,0x402770)}else{unreachable!()};event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),flags,sprite,shared_maximum,constructor]);},
                 Action::RandomDestroyedBurst{origin}=>{let count=((seed*7919^calls*2027^0x7731a5c9)as u8&3)+5;calls+=1;shared_maximum=5;event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),12,557,5,0x4017b0]);},
                 Action::ProbeFalling{point}|Action::ProbeCrate{point}=>{let suffix=expiry_suffix(mode,point,codes[seed as usize%9],view);for a in suffix.into_iter().rev(){actions.push_front(a);}},
@@ -219,7 +222,7 @@ pub fn direct_unit_contains(position:[i16;2],class:u8,rect:[i16;4])->bool{let of
                     while let Some(action)=pending.pop_front(){let mut event=None;match action{
                         Action::Blast{point,strength,suppress_visual}=>event=Some(vec![2,i32::from(point[0]),i32::from(point[1]),i32::from(strength),i32::from(suppress_visual),i32::from(quiet)]),
                         Action::DirectUnits{rect,strength}=>event=Some(vec![3,i32::from(rect[0]),i32::from(rect[1]),i32::from(rect[2]),i32::from(rect[3]),i32::from(strength)]),
-                        Action::Sound{id,..}=>event=Some(vec![1,i32::from(id)]),Action::SetCrateSoundGate=>gate=true,Action::QuietBlasts=>quiet=true,
+                        Action::Audio(chance)=>event=recorded_audio_request(chance,view,&mut gate),Action::QuietBlasts=>quiet=true,
                         Action::Spawn{kind,origin,count}=>{assert_eq!(kind,Kind::Hit);event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),4,250,maximum,0x402770]);},
                         Action::RandomDestroyedBurst{origin}=>{let count=((seed*7919^calls*2027^0x7731a5c9)as u8&3)+5;calls+=1;maximum=5;event=Some(vec![4,i32::from(count),i32::from(origin[0]),i32::from(origin[1]),12,557,5,0x4017b0]);},
                         Action::ProbeFalling{point}|Action::ProbeCrate{point}=>{for a in expiry_suffix(mode,point,code,view).into_iter().rev(){pending.push_front(a);}},
