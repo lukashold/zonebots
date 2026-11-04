@@ -110,6 +110,21 @@ numerischen Sprite-, Positions-, Paletten- und Maskenwerte geprüft.
 512 Queue-/Palettenfolgen:131070041;
 4480 normale UNIT-Records:3040814069;
 9984 OBJECT-Primärrecords:3811278845;
+919 vollständige OBJECT-Wrack-Aufrufe einschließlich aller119 früher offenen
+Matrixfälle:3946595247.892 Eingaben liefern sechs8-Byte-Records. Die eigene
+Queue-/Sparkpool-Projektion prüft dieselben919 Fälle mit2353676312. Reale
+43f200/41dbf0/41d4b0 liefen mit; C-rand ist expliziter Eingang. Leerer, voller
+und duplizierter150er-Pool sowie SP-/MP-Ziehfolgen sind getrennt geprüft.
+Die Wrackvariante steht im getrennten OBJECT+0x26-Byte, nicht im Kontaktflag
+OBJECT+0x1a.58af0 schreibt den einen RNG&3-Wert jetzt an das richtige Feld;
+Konstruktion, Wiederverwendung und Missionsfreigabe erhalten dessen Warmwert.
+Der0..5-Takt622dd6 ist von622dd7/0..7 und622d40/0..3 getrennt.16 tatsächlich
+ausgeführte Schreiberpräfixe und18 Clockaufrufe:3358296531; ein Gamevergleich
+prüft dieselben18 Maincallbacks und die exakte==6-Bedingung bei Warmwerten.
+Die fünf zusätzlichen normalen Queueeinträge und der gelegentliche Spark
+entstehen am tatsächlichen OBJECT-Callback. Spätere Snapshots verwenden die
+gespeicherten Bilder ohne erneute Zufallsziehung. Ihre ausdrücklich gesetzte
+Palette0 bleibt auch in der Gastperspektive literal0 statt Besitzerfarbe.
 800 UNIT-Callback-Enden/Sicht-/Viewport-/Retirementfälle:2839048781;
 4096 Radaraufrufe:262484407;
 8192 Fahnen-/Fortbanneraufrufe:1122415333;
@@ -133,8 +148,10 @@ Crane-Ruinenabfragen und weitere Hardwarefamilien bleiben explizite Grenzen.
 Bei fehlendem ursprünglichem BUILD-/Fortpool wird keine
 Maske aus Browser-Gebäuderechtecken erfunden. Der UNIT97-Geländeprefix ist
 in ORIGINAL-INFANTERIEGELAENDE.txt mit8192 Originalaufrufen und132 tatsächlichen
-Rasterausgaben separat nachgewiesen.119 zusätzliche OBJECT-Wrack-Overlayfälle
-bleiben weiterhin offen.
+Rasterausgaben separat nachgewiesen. Der separate OBJECT-Weihnachtszweig für
+Basissprite5960/Global4a8c06 gehört nicht zu den119 nun angeschlossenen
+Wrackfällen. Unbekannte+0x26-Varianten außerhalb der vier belegten Zeilen
+bleiben explizite Grenzen und werden nicht durch Maskierung geraten.
 Die Operand98-Inventarliste enthält auch fremde Strukturen:
 4460c0 gehört einem Bilddecoder und ist ausdrücklich kein UNIT98-Schreiber.
 Die HD-Fortdarstellung verwendet die tatsächlichen fortId-Zuordnungen und

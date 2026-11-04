@@ -5,12 +5,13 @@
 #[path="original_display_hardware.rs"]pub(crate) mod hardware;
 #[path="original_display_terrain.rs"]pub(crate) mod terrain;
 #[path="original_display_terrain_game.rs"]mod terrain_game;
+#[path="original_display_objects.rs"]pub(crate) mod objects;
 ///UNIT submissions are retained from their own callback. A later OBJECT,
 ///ambient hit or slot retirement must not rewrite the already queued record.
 #[derive(Clone,Copy)]pub(crate) struct FlagSeed{pub sector:usize,pub position:[i16;2]}
-pub struct State{pub(crate) units:Option<Vec<(Record,serde_json::Value)>>,pub(crate) buildings_before:Option<Vec<serde_json::Value>>,pub(crate) entry69:[u8;240],pub(crate) flags:crate::original_flag_display::Pool,pub(crate) flag_seeds:Vec<FlagSeed>,pub(crate) flags_initialized:bool,pub(crate) flags_before:Option<Vec<(Record,serde_json::Value)>>,pub(crate) radar_before:Option<Vec<(Record,serde_json::Value)>>,pub(crate) fort_visible:[u8;2],pub(crate) scene_mode:i32}
-impl Default for State{fn default()->Self{Self{units:None,buildings_before:None,entry69:[0;240],flags:Default::default(),flag_seeds:vec![],flags_initialized:false,flags_before:None,radar_before:None,fort_visible:[255;2],scene_mode:0}}}
-impl State{pub fn clear_for_mission(&mut self){self.units=None;self.buildings_before=None;self.entry69.fill(0);self.flags.retire();self.flag_seeds.clear();self.flags_initialized=false;self.flags_before=None;self.radar_before=None;self.fort_visible=[255;2];self.scene_mode=0;}}
+pub struct State{pub(crate) units:Option<Vec<(Record,serde_json::Value)>>,pub(crate) objects:Option<Vec<(Record,serde_json::Value)>>,pub(crate) buildings_before:Option<Vec<serde_json::Value>>,pub(crate) entry69:[u8;240],pub(crate) flags:crate::original_flag_display::Pool,pub(crate) flag_seeds:Vec<FlagSeed>,pub(crate) flags_initialized:bool,pub(crate) flags_before:Option<Vec<(Record,serde_json::Value)>>,pub(crate) radar_before:Option<Vec<(Record,serde_json::Value)>>,pub(crate) fort_visible:[u8;2],pub(crate) scene_mode:i32}
+impl Default for State{fn default()->Self{Self{units:None,objects:None,buildings_before:None,entry69:[0;240],flags:Default::default(),flag_seeds:vec![],flags_initialized:false,flags_before:None,radar_before:None,fort_visible:[255;2],scene_mode:0}}}
+impl State{pub fn clear_for_mission(&mut self){self.units=None;self.objects=None;self.buildings_before=None;self.entry69.fill(0);self.flags.retire();self.flag_seeds.clear();self.flags_initialized=false;self.flags_before=None;self.radar_before=None;self.fort_visible=[255;2];self.scene_mode=0;}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Record{pub x:i16,pub y:i16,pub sprite:i16,pub palette:u8,pub offset:i8}
 impl Record{pub fn bytes(self)->[u8;8]{let mut b=[0;8];b[..2].copy_from_slice(&self.x.to_le_bytes());b[2..4].copy_from_slice(&self.y.to_le_bytes());b[4..6].copy_from_slice(&self.sprite.to_le_bytes());b[6]=self.palette;b[7]=self.offset as u8;b}}
 ///The final slot is compared to every earlier slot, then the boundary moves
@@ -46,7 +47,7 @@ pub fn infantry(position:[i16;2],phase:u8,frame:i16,heading:i8,elevation:i8,flag
  #[test]fn all_9984_executed_object_primary_queue_records_match_signed_offsets_and_palettes(){
   let mut hash=2166136261u32;let mut scenario=0u32;
   for kind in 0..78u16{let base=crate::original_world_contact::object_metadata(kind).unwrap().0 as i16;let depth=OBJECT_DEPTH[usize::from(kind)];for animation in[-1,0,4,127i8]{for offset in[-128,0,30,127i8]{for flags in[0,32,34,38,40,48,62,112u8]{let record=object(ObjectInput{position:[500,600],base,animation,sprite_offset:offset,flags,depth});let mut bytes=2166136261u32;if let Some(r)=record{mix(&mut bytes,r.bytes().map(u32::from));}mix(&mut hash,[scenario,u32::from(kind),base as u32,depth as u32,animation as u32,offset as u32,u32::from(flags),if record.is_some(){8}else{0},bytes]);scenario+=1;}}}}
-  assert_eq!(scenario,9984);assert_eq!(hash,3811278845,"actual43f260 primary rows; shadow submission, lifetime admission and119 extra wreck-overlay cases are explicit boundaries");
+  assert_eq!(scenario,9984);assert_eq!(hash,3811278845,"actual43f260 primary rows; shadow/lifetime are separate, objects module verifies all119 extra wreck cases");
  }
  #[test]fn queue_elevation_moves_only_depth_and_cancels_at_actual_draw_position(){let r=infantry([500,600],23,0,0,-32,16).unwrap();assert_eq!((r.y,r.offset,r.y+i16::from(r.offset)),(568,32,600));let r=object(ObjectInput{position:[500,600],base:352,animation:0,sprite_offset:0,flags:112,depth:-18}).unwrap();assert_eq!((r.y,r.palette,r.offset),(600,8,0));}
 }

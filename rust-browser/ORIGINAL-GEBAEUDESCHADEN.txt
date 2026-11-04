@@ -72,15 +72,31 @@ Zusätzliche Nachweise:
  Blastpool, normalen/gemischten Soundprefix mit Folgetickreset und RNG bei
  vollem Wasserpartikelpool. Die drei Oraclezahlen sind getrennte FNV-Nachweise.
 
-GRENZEN
-Das ist kein vollständiger420200-Gesamtport.41f870 schreibt denselben Soundzyklus
-und ist noch nicht angeschlossen. Weitere globale Eingangsgates und Scratch-
+41f870-BRUECKENSOUND (enger Folgeabgleich)
+Der eigene Brückensound ist jetzt am tatsächlichen409c50-Tod-Aufrufpunkt vor
+dem UNIT-Kollaps angeschlossen. Er teilt den Soundzyklus, ignoriert aber das
+420200-Callbackgate und Quiet-Flag. Sichtbare Aufrufe erhöhen den Zyklus auch
+bei abgeschaltetem Ton oder verworfenem Descriptor. Der Viewtest besitzt keine
+MAP-Grenzprüfung. Eine Explosion kann deshalb im selben Callback ihren Prefix-
+Sound und anschließend einen anderen Brückensound ausgeben. Half-Health,
+vorher zerstörte und nicht gefundene Brücken lösen41f870 nicht aus.
+2.048 ausgeführte41f870/46e660-Aufrufe stimmen mit allen17 Ergebnisfeldern im
+Rusttest überein:1134249563.256 reale409c50-Caller mit echter Partikelallokation,
+RNG und Terrain zeigen Partikel vor Sound vor UNIT/OBJECT/Terrain/Road;90199521.
+UNIT-/OBJECT-Teardown und SDL sind dort aufgezeichnete Blätter. Die vorgelagerten
+09a60/09870/403370-Partikel und deren RNG sind im Liveadapter weiterhin offen;
+der neue Soundhelper ersetzt sie ausdrücklich nicht. Sechs gezielte Soundtests
+prüfen die gemeinsame Cycle-/Descriptorwirkung und den tatsächlichen Brückentod.
+
+GRENZEN DES GESAMTABGLEICHS
+Das ist kein vollständiger420200-/Brückencaller-Gesamtport. Weitere globale
+Eingangsgates und Scratch-
 Aliase62b39c/62d5d0/62d5d4 sowie gekoppelte ganze Partien bleiben offen. Der
-Wasser-Expiry8/5-Callback retiriert den Ausgangsslot quellengetreu; sein zuvor
-aufgerufener42230(count12,tint9)-Emitter ist noch eine explizite kosmetische
-Blattgrenze. Dessen Folgeallokationen und RNG-Verbrauch fehlen weiterhin; es
-werden keine erfundenen Ersatzpartikel erzeugt. Der Slot darf künftig erst NACH
-diesem Emitter frei werden. Allgemeine Projektile benutzen weiter ihren eigenen
+Wasser-Expiry8/5-Callback führt jetzt den separat geprüften42230-Emitter mit
+count12/tint9 im gemeinsamen Effektepool aus und retiriert den Ausgangsslot
+erst danach. Konstruktor, Recyclebytes, Slotreihenfolge, RNG, Farbpunkt-Ausgabe
+und deren GPU-Rastergrenzen stehen in ORIGINAL-WASSERPARTIKEL.txt. Allgemeine
+Projektile benutzen weiter ihren eigenen
 Umwelt-/Terrainadapter; die neuen Kraterregeln gelten gezielt für41f610/Stärke0.
 Weitere Fabrik-/Radar-/Fort-Fragmenttabellen und deren vollständige ursprüngliche
 Maschinenaufrufer sind noch nicht angebunden.41f2d0 und die vollständige Kopplung

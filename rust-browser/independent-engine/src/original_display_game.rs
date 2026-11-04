@@ -79,7 +79,7 @@ impl Game{
   //Insertion order matters even at equal depth because545b0 is unstable.
   queue.extend(self.native_display.flags_before.clone().unwrap_or_else(||self.project_native_flag_display()));
   for d in &self.native_deaths.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:d.color,offset:0};queue.push((r,plain(r,"death",usize::from(d.slot))));}
-  for o in objects{if let Some(r)=o.record{queue.push((r,plain(r,"object",usize::from(o.slot))));}}
+  if let Some(rows)=&self.native_display.objects{queue.extend(rows.iter().cloned());}else{for o in objects{if let Some(r)=o.record{queue.push((r,plain(r,"object",usize::from(o.slot))));}}}
   for d in &self.native_smoke20.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};queue.push((r,plain(r,"smoke",usize::from(d.slot))));}
   effect_rows(&mut queue,"chunk",self.native_ambient_animation_visuals());effect_rows(&mut queue,"ambient",self.native_ambient_visuals());effect_rows(&mut queue,"lava",self.native_lava_visuals());
   for d in &self.native_bullet_impacts20.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};queue.push((r,plain(r,"groundImpact",usize::from(d.slot))));}

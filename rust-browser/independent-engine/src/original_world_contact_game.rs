@@ -11,11 +11,14 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_workshop_game.rs"] mod workshop_game;
 #[path="original_building_fragments_game.rs"] mod building_fragments;
 #[path="original_fragment_blast_game.rs"] mod fragment_blast;
+#[cfg(test)]#[path="original_display_objects_game_tests.rs"]mod object_display_tests;
+#[path="original_water_spray_game.rs"] mod water_spray;
+#[path="original_bridge_sound_game.rs"] mod bridge_sound;
 
 #[derive(Clone)]
 struct ObjectSlot {
     active: bool, record: native::Object, hp: u8, maximum: u8, kind: u16, sprite: u16,extent21:i8,
-    bucket12:u8,flags19:u8,flags26: u8,lifetime24:i16,animation18:u8,sprite_offset21:i8,motion22:i8,hardware:Option<super::original_entry::ObjectHardware>, flag_sector:Option<usize>,flag_delay1f:u8,saved: [u8;4], unit: Option<usize>, pickup: Option<usize>, render: Option<usize>, fire: Option<usize>,
+    bucket12:u8,flags19:u8,flags26: u8,variant26:i8,lifetime24:i16,animation18:u8,sprite_offset21:i8,motion22:i8,hardware:Option<super::original_entry::ObjectHardware>, flag_sector:Option<usize>,flag_delay1f:u8,saved: [u8;4], unit: Option<usize>, pickup: Option<usize>, render: Option<usize>, fire: Option<usize>,
 }
 
 #[derive(Clone)]
@@ -29,11 +32,14 @@ pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pu
 
 pub struct State {
     objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,
-    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_draws:Vec<(usize,effects::Draw)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,fragments:building_fragments::State,
+    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_draws:Vec<(usize,effects::Draw)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,effect_origin:[i16;2],effect_flags:u8,effect_fade:u8,effect_sprite:i16,effect_suppression:u8,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,fragments:building_fragments::State,
 }
 impl State {
-    fn empty() -> Self { Self { objects: vec![None;200], buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,last_projection:[0,0],crate_sound_played:false,quiet_blasts:false,fragments:Default::default() } }
+    fn empty() -> Self { Self { objects: vec![None;200], buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,last_projection:[0,0],crate_sound_played:false,quiet_blasts:false,fragments:Default::default() } }
     fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
+    ///43ecf0/43eee0 and58a40 do not write raw+0x26. Only58af0's
+    ///destroyed-hardware branches replace this warm byte with RNG&3.
+    fn put_object(&mut self,slot:usize,mut object:ObjectSlot){object.variant26=self.objects[slot].as_ref().map_or(0,|old|old.variant26);self.objects[slot]=Some(object);}
 }
 
 fn number(v:&Value,key:&str,default:i64)->i64 { v[key].as_i64().unwrap_or(default) }
@@ -73,7 +79,7 @@ impl Game {
     }
     fn make_object(&self,kind:u16,point:[i16;2],hp:u8)->Option<ObjectSlot> {
         let(sprite,flags,extent)=native::object_metadata(kind)?;
-        Some(ObjectSlot { active:true,record:native::Object{position:point,flags13:native::initial_object_flags(kind,flags),metadata_flags18:flags,metadata_extent20:extent},hp,maximum:hp,kind,sprite,extent21:native::object_height(kind)?,bucket12:native_bucket(point),flags19:native::initial_object_scan_flags(kind),flags26:self.world_restriction(point),lifetime24:0,animation18:0,sprite_offset21:0,motion22:0,hardware:None,flag_sector:None,flag_delay1f:0,saved:self.world_saved(point),unit:None,pickup:None,render:None,fire:None })
+        Some(ObjectSlot { active:true,record:native::Object{position:point,flags13:native::initial_object_flags(kind,flags),metadata_flags18:flags,metadata_extent20:extent},hp,maximum:hp,kind,sprite,extent21:native::object_height(kind)?,bucket12:native_bucket(point),flags19:native::initial_object_scan_flags(kind),flags26:self.world_restriction(point),variant26:0,lifetime24:0,animation18:0,sprite_offset21:0,motion22:0,hardware:None,flag_sector:None,flag_delay1f:0,saved:self.world_saved(point),unit:None,pickup:None,render:None,fire:None })
     }
     pub(crate) fn import_native_world(&mut self,v:&Value) {
         let previous=self.native_world.take();
@@ -95,7 +101,7 @@ impl Game {
         let mut forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|(b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y)),b.sector)).collect::<Vec<_>>();forts.sort_by_key(|(p,_)|(p[1],p[0]));let fort_sectors=forts.iter().take(2).map(|(p,fallback)|self.world_sector(*p).unwrap_or(*fallback)).collect::<BTreeSet<_>>();
         let mut flag_sectors=v["sectors"].as_array().into_iter().flatten().filter(|s|s["nativeSlot"].as_u64().is_some_and(|n|n<64)&&s["rawFlagTile"].as_array().is_some_and(|p|p.len()==2)&&!s["countsForProduction"].as_bool().is_some_and(|b|!b)).collect::<Vec<_>>();flag_sectors.sort_by_key(|s|s["nativeSlot"].as_u64());
         for sector in flag_sectors{let id=number(sector,"id",-1);if id<0||fort_sectors.contains(&(id as usize)){continue;}let point=[(sector["rawFlagTile"][0].as_i64().unwrap_or(0)as i8 as i16).wrapping_shl(4),(sector["rawFlagTile"][1].as_i64().unwrap_or(0)as i8 as i16).wrapping_shl(4)];let cell=Self::world_cell(point);if cell>=0{if let Some(c)=plane.get_mut(cell as usize){*c=(*c&0xa3)|35;}}
-            let Some(slot)=state.free()else{continue;};if let Some(mut flag)=self.make_object(28,point,50){flag.record.flags13=0;flag.flag_sector=Some(id as usize);flag.saved=old_saved[slot];flag.flags26=u8::from(super::native_ai_scoring::enclosed_object_area(&plane,point,|x,y|self.world_sector([x,y])));state.objects[slot]=Some(flag);}
+            let Some(slot)=state.free()else{continue;};if let Some(mut flag)=self.make_object(28,point,50){flag.record.flags13=0;flag.flag_sector=Some(id as usize);flag.saved=old_saved[slot];flag.flags26=u8::from(super::native_ai_scoring::enclosed_object_area(&plane,point,|x,y|self.world_sector([x,y])));state.put_object(slot,flag);}
         }
         for (index,raw) in self.objects.iter().enumerate() {
             let kind=number(raw,"type",-1);if !(0..78).contains(&kind)||kind==37{continue;}
@@ -127,7 +133,7 @@ impl Game {
                     let p=[point[0],point[1].wrapping_add(if flags&6==6{16}else{0})];let cell=Self::world_cell(p);
                     if cell>=0{if let Some(code)=plane.get_mut(cell as usize){object.saved[0]=*code;if !(71..=77).contains(&(kind as u16)){*code=if flags&4!=0{(*code&0xae)|46}else{(*code&0xa4)|36};}}}
                 }
-                state.objects[slot]=Some(object);
+                state.put_object(slot,object);if let Some(value)=raw["nativeWreckVariant26"].as_i64(){state.objects[slot].as_mut().unwrap().variant26=value as i8;}
             }
         }
         if let Some(records)=v["nativeWorldBuildings"].as_array() {
@@ -160,9 +166,9 @@ impl Game {
         for object in state.objects.iter().flatten().filter(|o|!o.active){if let Some(index)=object.render{if let Some(v)=self.objects.get_mut(index){v["nativeActive"]=json!(false);}}}
         for u in self.units.iter().filter(|u|u.team<0&&u.crew.is_none()&&original_combat::alive(true,u.hp)) {
             if state.objects.iter().flatten().any(|o|o.active&&o.unit==Some(u.id)){continue;}let Some(kind)=object_kind(&u.kind)else{continue;};let Some(slot)=state.free()else{break;};
-            if let Some(mut object)=self.make_object(kind,native_point(u.x,u.y),(u.hp as i16/25)as u8){object.unit=Some(u.id);object.hardware=(0..19u8).find(|&eq|equipment_kind(u16::from(eq))==Some(u.kind.as_str())).and_then(super::original_entry::equipment_attributes);if let Some(h)=object.hardware{object.maximum=h.byte(40);}object.saved=state.objects[slot].as_ref().map(|o|o.saved).unwrap_or([0;4]);state.objects[slot]=Some(object);}
+            if let Some(mut object)=self.make_object(kind,native_point(u.x,u.y),(u.hp as i16/25)as u8){object.unit=Some(u.id);object.hardware=(0..19u8).find(|&eq|equipment_kind(u16::from(eq))==Some(u.kind.as_str())).and_then(super::original_entry::equipment_attributes);if let Some(h)=object.hardware{object.maximum=h.byte(40);}object.saved=state.objects[slot].as_ref().map(|o|o.saved).unwrap_or([0;4]);state.put_object(slot,object);}
         }
-        for (id,c) in self.crates.iter().enumerate().filter(|(_,c)|!c.taken){if state.objects.iter().flatten().any(|o|o.active&&o.pickup==Some(id)){continue;}let Some(slot)=state.free()else{break;};if let Some(mut object)=self.make_object(10,native_point(c.x,c.y),0){object.pickup=Some(id);state.objects[slot]=Some(object);}}
+        for (id,c) in self.crates.iter().enumerate().filter(|(_,c)|!c.taken){if state.objects.iter().flatten().any(|o|o.active&&o.pickup==Some(id)){continue;}let Some(slot)=state.free()else{break;};if let Some(mut object)=self.make_object(10,native_point(c.x,c.y),0){object.pickup=Some(id);state.put_object(slot,object);}}
         for record in &mut state.buildings { if !record.fort_proxy {if let Some(b)=record.binding.and_then(|id|self.buildings.iter().find(|b|b.id==id)){record.record.hp=b.hp as i16;record.record.position=native_point(b.x,b.y);}} }
         for record in &mut state.bridges {if let Some(&hp)=self.map.bridge_hp.get(record.binding){let hp=hp as i16;
             if record.record.flags15&2!=0 {if hp>=record.record.maximum {
@@ -199,6 +205,15 @@ impl Game {
     ///Readonly43f260 projection, in the actual200-slot insertion order.
     ///Template19 is depth; ObjectSlot.flags19 is a different runtime byte.
     pub(crate) fn native_display_objects(&self)->Vec<super::original_display::ObjectBinding>{use super::original_display as display;self.native_world.as_ref().map(|s|s.objects.iter().enumerate().filter_map(|(slot,o)|{let o=o.as_ref().filter(|o|o.active&&o.record.position[0]>0)?;let depth=*display::OBJECT_DEPTH.get(usize::from(o.kind))?;Some(display::ObjectBinding{slot:slot as u8,position:o.record.position,record:display::object(display::ObjectInput{position:o.record.position,base:o.sprite as i16,animation:o.animation18 as i8,sprite_offset:o.sprite_offset21,flags:o.record.flags13,depth}),unit:o.unit,object:o.render,flag:o.flag_sector,pickup:o.pickup,fire:o.fire})}).collect()).unwrap_or_default()}
+    ///43f260 submits after this slot's lifetime admission, never from a
+    ///snapshot. Later callbacks cannot rewrite these rows or repeat CRT draws.
+    fn capture_native_object_display(&mut self,slot:usize){
+        use super::original_display as display;
+        let Some(o)=self.native_world.as_ref().and_then(|s|s.objects.get(slot)).and_then(Option::as_ref).filter(|o|o.active&&o.record.position[0]>0).cloned()else{return;};let Some(&depth)=display::OBJECT_DEPTH.get(usize::from(o.kind))else{return;};let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));
+        let input=display::ObjectInput{position:o.record.position,base:o.sprite as i16,animation:o.animation18 as i8,sprite_offset:o.sprite_offset21,flags:o.record.flags13,depth};let draw=match display::objects::project(input,o.variant26,i16::from(self.native_flag_frame),self.native_object_frame,camera,size){Ok(draw)=>draw,Err(value)=>{self.native_route_boundary=Some(super::original_path_contact::game::Boundary::ObjectOverlayVariant(slot,value));return;}};
+        if let Some(rows)=&mut self.native_display.objects{for(part,r)in draw.records.into_iter().enumerate(){let mut row=json!({"kind":"sprite","source":if part==0{"object"}else{"wreckOverlay"},"id":slot,"nativeSlot":slot,"queueY":i32::from(r.y)*2,"palette":r.palette,"sprite":r.sprite,"x":i32::from(r.x)*2,"y":i32::from(r.y.wrapping_add(i16::from(r.offset)))*2,"scale":1.,"rotation":0.});if part!=0{row["nativeLiteralPalette"]=json!(true);}rows.push((r,row));}}
+        if let Some(point)=draw.spark{let probe=if self.multiplayer{0}else{self.native_cosmetic_random()};if display::objects::spark_probe(probe){let random=if self.multiplayer{0}else{self.native_cosmetic_random()};self.native_ambient_animations.spawn_spark(point,random);}}
+    }
     pub(crate) fn native_display_building_order(&self)->Vec<usize>{self.native_world.as_ref().map(|s|s.buildings.iter().filter(|b|b.record.kind!=-1).filter_map(|b|b.binding).collect()).unwrap_or_default()}
     pub(crate) fn native_radar_building_ids(&self)->Vec<usize>{self.native_world.as_ref().map(|s|s.buildings.iter().filter(|b|b.record.kind==8).filter_map(|b|b.binding).collect()).unwrap_or_default()}
     fn native_radar_inputs(&self)->Vec<(usize,Option<usize>,super::original_building_display::Radar,super::original_building_display::Input)>{let Some(world)=&self.native_world else{return vec![];};let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));world.buildings.iter().enumerate().filter(|(_,b)|b.record.kind==8).map(|(slot,b)|{let owner=b.binding.and_then(|id|self.buildings.iter().find(|v|v.id==id)).map(|b|b.team).or_else(||self.world_sector(b.record.position).and_then(|id|self.sectors.iter().find(|s|s.id==id)).map(|s|s.owner)).unwrap_or(-1);(slot,b.binding,b.display,super::original_building_display::Input{position:b.record.position,maximum:b.maximum,hp:b.record.hp,owner:if owner<0{4}else{owner as i8},local_team:self.native_feedback.local_team as i8,pulse:self.native_callback_mode!=0,camera,size})}).collect()}
@@ -236,6 +251,7 @@ impl Game {
     ///delay, fire/door animation, then lifetime. Contacts may allocate later slots.
     pub(crate) fn update_native_world_objects(&mut self){
         self.sync_native_world();
+        self.native_display.objects=Some(Vec::new());
         for slot in 0..200{
             let base=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut).filter(|o|o.active&&o.record.position[0]>0).map(|o|{if (o.flag_delay1f as i8)>0{o.flag_delay1f-=1;}o.sprite});
             let Some(base)=base else{continue;};if base==5215{continue;}
@@ -245,6 +261,7 @@ impl Game {
             }
             let expired=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut).filter(|o|o.active).and_then(|o|super::original_death::advance_object_lifetime(&mut o.lifetime24).then_some(o.record.position));
             if let Some(point)=expired{let origin=point.map(|c|c.wrapping_add(1));let selected=self.native_world.as_ref().and_then(|s|{let objects=s.objects.iter().map(|o|o.as_ref().filter(|o|o.active).map(|o|o.record).unwrap_or(native::Object{position:[-1,-1],flags13:0,metadata_flags18:0,metadata_extent20:0})).collect::<Vec<_>>();native::blast_object(&objects,origin,false,false)});if let Some((hit,sample))=selected{let d=[[4,16],[20,16],[20,32],[4,32]][sample];self.damage_native_world_object_mode(hit,80,[origin[0].wrapping_add(d[0]),origin[1].wrapping_add(d[1])],true);}if let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(slot)).and_then(Option::as_mut){o.active=false;o.record.position[0]=-1;if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeActive"]=json!(false);}}}
+            self.capture_native_object_display(slot);
             if let Some(o)=self.native_world.as_ref().and_then(|s|s.objects[slot].as_ref()){if let Some(raw)=o.render.and_then(|i|self.objects.get_mut(i)){raw["nativeAnimation18"]=json!(o.animation18);raw["nativeSpriteOffset21"]=json!(o.sprite_offset21);}}
         }
     }
@@ -268,7 +285,7 @@ impl Game {
     ///does not participate:612f92 is OBJECT+12h and612fa2 is OBJECT+22h.
     pub(crate) fn clear_native_apc_object_contact(&mut self,slot:u8)->bool{let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut).filter(|o|o.active&&o.kind==31&&o.sprite==5173&&o.animation18!=0)else{return false;};o.motion22=-1;true}
     pub(crate) fn clear_native_hardware_restrictions(&mut self,sector:usize){let Some(mut objects)=self.native_ai_world_objects()else{return;};task::clear_hardware_capture_restrictions(&mut objects,sector,self.map.native_level_record);if let Some(state)=&mut self.native_world{for o in objects{if let Some(Some(slot))=state.objects.get_mut(o.id){slot.flags26=o.flags26;}}}}
-    pub(crate) fn reserve_native_world_fire_slot(&mut self)->Option<usize>{self.sync_native_world();let mut state=self.native_world.take()?;let slot=state.free();if let Some(slot)=slot{if let Some(mut object)=self.make_object(71,[0,0],0){object.fire=Some(slot);object.flags26=0;state.objects[slot]=Some(object);}}self.native_world=Some(state);slot}
+    pub(crate) fn reserve_native_world_fire_slot(&mut self)->Option<usize>{self.sync_native_world();let mut state=self.native_world.take()?;let slot=state.free();if let Some(slot)=slot{if let Some(mut object)=self.make_object(71,[0,0],0){object.fire=Some(slot);object.flags26=0;state.put_object(slot,object);}}self.native_world=Some(state);slot}
     pub(crate) fn release_native_world_fire_slot(&mut self,id:usize){if let Some(state)=&mut self.native_world{if let Some(Some(object))=state.objects.get_mut(id){if object.fire==Some(id){object.active=false;}}}}
     pub(crate) fn native_fire_strength(&self,x:i32,y:i32,base:u8)->u8 {
         let point=[x as i16,y as i16];let hit=self.native_world.as_ref().is_some_and(|s|native::first_building(&s.buildings.iter().map(|b|b.record).collect::<Vec<_>>(),point,true,false).is_some()||s.bridges.iter().take(12).any(|b|native::bridge_contains(b.record,point)));
@@ -336,7 +353,7 @@ impl Game {
         if let Some(index)=state.bridges.iter().position(|b|b.native_slot<12&&native::bridge_contains(b.record,point)){let bridge=&mut state.bridges[index];let(hp,flags,dead,half)=native::bridge_damage(bridge.record,i16::from(strength));bridge.record.hp=hp;bridge.record.flags15=flags;
             if let Some(value)=self.map.bridge_hp.get_mut(bridge.binding){*value=f64::from(hp.max(0));}
             if half{self.events.push(json!({"kind":"bridgeDamaged","id":bridge.binding}));}
-            if dead{let rect=native::bridge_collapse_rectangle(bridge.record,bridge.orientation);self.native_world=Some(state);self.collapse_native_units(rect,true);let Some(updated)=self.native_world.take()else{return;};state=updated;
+            if dead{self.native_bridge_collapse_sound(bridge.record.position);let rect=native::bridge_collapse_rectangle(bridge.record,bridge.orientation);self.native_world=Some(state);self.collapse_native_units(rect,true);let Some(updated)=self.native_world.take()else{return;};state=updated;
                 for object in state.objects.iter_mut().flatten().filter(|o|o.active&&native::collapse_object(o.kind,o.record.position,rect)){
                     let base=Self::world_cell(object.record.position);for(i,delta)in[0,1,128,129].into_iter().enumerate(){let cell=base.wrapping_add(delta);let old=self.world_code(cell);self.set_world_code(cell,(old&128)|native::restored_wreck_terrain(object.saved[i]));}
                     object.active=false;if let Some(id)=object.unit{if let Some(u)=self.units.iter_mut().find(|u|u.id==id){u.hp=-1.;}}
@@ -416,8 +433,8 @@ impl Game {
         }
         let Some(mut state)=self.native_world.take()else{return;};let Some(slot)=state.free()else{self.native_world=Some(state);self.units[index].hp=-1.;return;};
         if let Some(render)=state.objects[slot].as_ref().and_then(|o|o.render).and_then(|i|self.objects.get_mut(i)){render["nativeActive"]=json!(false);}
-        let old=state.objects[slot].as_ref();let old_flags26=old.map_or(0,|o|o.flags26);let old_saved=old.map_or([0;4],|o|o.saved);
-        let hp=death::object_hull(hull);let Some(mut object)=self.make_object(wreck.kind,wreck.position,hp)else{self.native_world=Some(state);return;};object.maximum=(before.max_hp as i16/25)as u8;object.record.flags13=wreck.flags13;object.flags19=if wreck.wreck{0}else{15};object.flags26=if wreck.wreck{(self.original_rng.next_u32()&3)as u8}else{old_flags26};object.lifetime24=if wreck.wreck{288}else{0};object.saved=old_saved;object.unit=(!wreck.wreck).then_some(before.id);object.bucket12=native_bucket(wreck.position);
+        let old=state.objects[slot].as_ref();let old_flags26=old.map_or(0,|o|o.flags26);let old_variant26=old.map_or(0,|o|o.variant26);let old_saved=old.map_or([0;4],|o|o.saved);
+        let hp=death::object_hull(hull);let Some(mut object)=self.make_object(wreck.kind,wreck.position,hp)else{self.native_world=Some(state);return;};object.maximum=(before.max_hp as i16/25)as u8;object.record.flags13=wreck.flags13;object.flags19=if wreck.wreck{0}else{15};object.flags26=old_flags26;object.variant26=if wreck.wreck{(self.original_rng.next_u32()&3)as i8}else{old_variant26};object.lifetime24=if wreck.wreck{288}else{0};object.saved=old_saved;object.unit=(!wreck.wreck).then_some(before.id);object.bucket12=native_bucket(wreck.position);
         let equipment=(0..19u8).find(|&eq|equipment_kind(u16::from(eq))==Some(before.kind.as_str()));object.hardware=equipment.and_then(super::original_entry::equipment_attributes);
         if let Some(h)=self.units[index].native_hardware_slot.and_then(|s|self.native_hardware_pool.get(usize::from(s))).map(|s|s.attributes){let mut payload=super::original_entry::ObjectHardware::default();for(to,from)in[(14,5),(17,6),(16,7),(24,32),(25,33),(27,35),(28,36),(29,37),(30,38)]{payload.set_byte(to,h.byte(from));}if wreck.kind==31{payload.set_byte(17,0);}object.maximum=(h.word(10)/25)as u8;object.hardware=Some(payload);}
         else if let Some(payload)=&mut object.hardware{if let Some(c)=&self.units[index].original_combat{payload.set_byte(16,c.movement_control);payload.set_byte(24,c.fire_rate);if let Some(speed)=c.projectile_speed{payload.set_byte(25,speed);}}}
@@ -489,7 +506,7 @@ impl Game {
         }
     }
     pub(crate) fn native_world_effects(&self)->Vec<Value>{
-        self.native_world.as_ref().map(|s|s.effect_draws.iter().map(|&(id,d)|json!({"id":id,"sprite":d.sprite,"team":d.owner&3,"x":i32::from(d.point[0])*2,"y":i32::from(d.point[1])*2,"nativeDrawX":d.screen[0],"nativeDrawY":d.screen[1],"scale":if d.transformed{f64::from((f32::from(d.height)+16.)*0.03125)}else{1.},"rotation":if d.transformed{f64::from((f32::from(d.angle)*2.*3.1415925f32)*0.00390625)}else{0.}})).collect()).unwrap_or_default()
+        self.native_world.as_ref().map(|s|s.effect_draws.iter().map(|&(id,d)|if let Some(effects::Primitive::ColorPoint{color})=d.primitive{json!({"id":id,"primitive":"colorPoint","colorIndex":color,"x":i32::from(d.point[0])*2,"y":i32::from(d.point[1])*2,"nativeDrawX":d.screen[0],"nativeDrawY":d.screen[1]})}else{json!({"id":id,"sprite":d.sprite,"team":d.owner&3,"x":i32::from(d.point[0])*2,"y":i32::from(d.point[1])*2,"nativeDrawX":d.screen[0],"nativeDrawY":d.screen[1],"scale":if d.transformed{f64::from((f32::from(d.height)+16.)*0.03125)}else{1.},"rotation":if d.transformed{f64::from((f32::from(d.angle)*2.*3.1415925f32)*0.00390625)}else{0.}})}).collect()).unwrap_or_default()
     }
     pub(crate) fn native_blast_quiet(&self)->bool{self.native_world.as_ref().is_some_and(|s|s.quiet_blasts)}
 }
@@ -498,7 +515,7 @@ impl Game {
 mod tests {
     use super::*;
     use super::super::{Sector,Crate,original_group_game,original_route};
-    fn field()->Game{
+    pub(super) fn field()->Game{
         let mut g=Game::new(0,1,5271);let(w,h)=(64,64);g.map.width=w;g.map.height=h;g.map.original=true;
         g.map.tiles=vec![0;w*h];g.map.original_tiles=vec![0;w*h];g.map.terrain_codes=vec![0;w*h];g.map.native_terrain_plane=vec![0;16384];g.map.territory=vec![0;w*h];g.map.bridge_base=vec![-1;w*h];g.map.bridge_hp.clear();g.map.bridge_max_hp.clear();g.map.native_road_graph=None;g.map.native_level_record=0;
         g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.fires.clear();g.blasts.clear();g.events.clear();g.native_strategy=None;g.native_world=None;g.native_group_rosters=original_group_game::State::default();g.winner=None;g.next_id=1;

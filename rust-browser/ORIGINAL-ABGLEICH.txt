@@ -133,6 +133,29 @@ Callbackgate. Weitere Brücken-/Folgeemitter bleiben weiterhin abgegrenzt.
 Details und Abgrenzungen: ORIGINAL-INFANTERIEGELAENDE.txt und
 ORIGINAL-ZEICHENQUEUE.txt. Diese Teilvergleiche sind keine Gesamtsimulation.
 
+WEITERER ABGLEICHSBLOCK nov04-r39
+Die119 vormals offenen Wrack-Overlayfälle erzeugen jetzt die fünf zusätzlichen
+Originalrecords.919 tatsächliche43f260-Aufrufe bestätigen Queue, CRT und
+Funkenpool. Die Zufallsvariante wird im korrekten OBJECT+0x26 abgelegt; das
+Kontaktflag+0x1a bleibt erhalten. Der separate0..5-Maintakt ist angebunden.
+OBJECT-Bilder stammen aus ihrem tatsächlichen Callback und werden für weitere
+Snapshots erhalten. Hartcodierte Palette0 bleibt beim Gast eine Literalpalette.
+
+Der Wasser-Emitter402230 verarbeitet den gemeinsamen500er-Partikelpool und
+bewahrt Recyclingbytes. Expiry8/5 erzeugt zwölf Kinder VOR der Freigabe des
+Quellslots; volle oder gesperrte Pools verbrauchen keine Constructor-RNG-Werte.
+Farbpunkte werden als eigene Primitive übertragen und dargestellt.1.280 echte
+Constructor-/Callerfälle,6.144 Ablaufprüfungen sowie gezielte Game-, Grafik-
+und Gast-RPC-Prüfungen belegen den engen Wasserpfad. GPU-Linienraster bleibt
+eine ausdrückliche Adaptergrenze. Details: ORIGINAL-WASSERPARTIKEL.txt.
+
+41f870-Brückensound teilt jetzt den Originalzyklus, hat aber sein eigenes
+Sicht-/Enabled-Verhalten. Eine Explosion und ein Brückenkollaps im selben
+Callback werden damit nicht pauschal durch dieselbe Tonsperre unterdrückt.2.048 direkte Originalaufrufe
+und tatsächliche Game-Brückentode sind geprüft. Die vorgelagerten Brücken-
+partikel und deren Expiry11 sind weiterhin nicht implementiert. Der neue
+Transportbuild lehnt alte Clients vor dem Start ab, deren Effektformat fehlt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

@@ -1,5 +1,6 @@
 //!402160/402770/4017b0 cosmetic particles. Separate from the OBJECT pool.
 //!The viewport is explicit because native sprite phases advance only on draw.
+#[path="original_water_spray.rs"]pub(crate) mod spray;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Kind{Hit,DirectHit,Destroyed,FallingObject(i16),CrateBurst,Poof{sprite:i16,maximum:i8},Fragment{sprite:i16,maximum:i8},AmbientFragment(i16)}
 #[derive(Clone,Debug)]
@@ -8,13 +9,15 @@ pub struct Particle{
     pub deceleration:i8,pub deceleration_left:i8,pub tint:u8,
     pub fade_left:i8,pub fade_interval:i8,pub lifetime:i16,pub flags:u8,
     pub phase:i8,pub maximum_phase:i8,pub sprite:i16,pub angle:i16,pub spin:i16,
-    pub active:bool,pub expiry:i16,pub owner:u8,
+    pub active:bool,pub expiry:i16,pub owner:u8,pub raw_tail:[u8;12],
 }
 
 #[derive(Clone,Copy,Debug)]
 pub struct View{pub camera:[i16;2],pub clip:[i16;4],pub world:[i16;2],pub sine:i32,pub cosine:i32}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub struct Draw{pub point:[i16;2],pub screen:[i16;2],pub sprite:i16,pub height:i16,pub angle:u8,pub transformed:bool,pub owner:u8}
+pub enum Primitive{ColorPoint{color:u8}}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub struct Draw{pub point:[i16;2],pub screen:[i16;2],pub sprite:i16,pub height:i16,pub angle:u8,pub transformed:bool,pub owner:u8,pub primitive:Option<Primitive>}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum Action{
     Blast{point:[i16;2],strength:u8,suppress_visual:bool},
@@ -35,12 +38,12 @@ pub struct Step{pub draw:Option<Draw>,pub expiry:Option<i16>}
 pub fn initialize(kind:Kind,origin:[i16;2],tint:u8,mut random:impl FnMut()->u32)->Particle{
     if let Kind::Fragment{sprite,maximum}=kind{
         let x=((random()&31)as i8-16)>>1;let y=((random()&31)as i8-16)>>1;random();let spin=(random()&63)as i16-32;
-        return Particle{position:[0;3],origin,velocity:[x,y,-13],deceleration:1,deceleration_left:1,tint,fade_left:0,fade_interval:0,lifetime:60,flags:60,phase:0,maximum_phase:maximum,sprite,angle:0,spin,active:true,expiry:10,owner:0};
+        return Particle{position:[0;3],origin,velocity:[x,y,-13],deceleration:1,deceleration_left:1,tint,fade_left:0,fade_interval:0,lifetime:60,flags:60,phase:0,maximum_phase:maximum,sprite,angle:0,spin,active:true,expiry:10,owner:0,raw_tail:[0;12]};
     }
     if matches!(kind,Kind::FallingObject(_)|Kind::CrateBurst|Kind::AmbientFragment(_)){
         let x=(random()&31)as i8-16;let y=(random()&31)as i8-16;let z=(if kind==Kind::CrateBurst{-5i8}else{-4i8}).wrapping_sub((random()&3)as i8);let spin=(random()&63)as i16-32;
         let velocity=if kind==Kind::CrateBurst{[(random()&6)as i8-3,(random()&7)as i8-3,z]}else{[x,y,z]};
-        return Particle{position:[0;3],origin,velocity,deceleration:4,deceleration_left:4,tint,fade_left:0,fade_interval:0,lifetime:400,flags:if kind==Kind::CrateBurst{60}else{12},phase:0,maximum_phase:0,sprite:match kind{Kind::FallingObject(sprite)|Kind::AmbientFragment(sprite)=>sprite,_=>1336},angle:0,spin,active:true,expiry:match kind{Kind::CrateBurst=>6,Kind::AmbientFragment(_)=>1,_=>7},owner:0};
+        return Particle{position:[0;3],origin,velocity,deceleration:4,deceleration_left:4,tint,fade_left:0,fade_interval:0,lifetime:400,flags:if kind==Kind::CrateBurst{60}else{12},phase:0,maximum_phase:0,sprite:match kind{Kind::FallingObject(sprite)|Kind::AmbientFragment(sprite)=>sprite,_=>1336},angle:0,spin,active:true,expiry:match kind{Kind::CrateBurst=>6,Kind::AmbientFragment(_)=>1,_=>7},owner:0,raw_tail:[0;12]};
     }
     let(phase,velocity,deceleration,flags,sprite,maximum_phase)=match kind{
         Kind::Hit|Kind::Poof{..}=>{let phase=(random()&3)as i8;let x=(random()&15)as i8;let x=x.wrapping_add((random()&7)as i8).wrapping_sub(12);let y=(random()&15)as i8;let y=y.wrapping_add((random()&7)as i8).wrapping_sub(12);let z=(-4i8).wrapping_sub((random()&7)as i8);let(sprite,flags,maximum)=if let Kind::Poof{sprite,maximum}=kind{(sprite,12,maximum)}else{(250,4,0)};(phase,[x,y,z],2,flags,sprite,maximum)},
@@ -48,7 +51,7 @@ pub fn initialize(kind:Kind,origin:[i16;2],tint:u8,mut random:impl FnMut()->u32)
         Kind::Destroyed=>{let x=(random()&31)as i8-16;let y=(random()&31)as i8-16;let z=(-2i8).wrapping_sub((random()&3)as i8);(0,[x,y,z],3,12,557,5)},
         _=>unreachable!(),
     };
-    Particle{position:[0;3],origin,velocity,deceleration,deceleration_left:if matches!(kind,Kind::Hit|Kind::DirectHit|Kind::Poof{..}){1}else{deceleration},flags,sprite,maximum_phase,phase,tint,fade_left:0,fade_interval:0,lifetime:200,angle:0,spin:0,active:true,expiry:0,owner:0}
+    Particle{position:[0;3],origin,velocity,deceleration,deceleration_left:if matches!(kind,Kind::Hit|Kind::DirectHit|Kind::Poof{..}){1}else{deceleration},flags,sprite,maximum_phase,phase,tint,fade_left:0,fade_interval:0,lifetime:200,angle:0,spin:0,active:true,expiry:0,owner:0,raw_tail:[0;12]}
 }
 ///4027f0 uses the fixed camera471,-256,angle425,height1 installed at435e60.
 pub fn project(position:[i16;3],sine:i32,cosine:i32)->[i16;2]{
@@ -76,14 +79,18 @@ impl Particle{
         *last_projection=projection;
         let world=[self.origin[0].wrapping_add(projection[0]),self.origin[1].wrapping_add(projection[1])];
         let screen=[world[0].wrapping_sub(view.camera[0]),world[1].wrapping_sub(view.camera[1])];
-        let visible=if self.sprite==250{screen[0]>view.clip[0]&&screen[0]<view.clip[2]&&screen[1]>view.clip[1]&&screen[1]<view.clip[3]}
+        let color_point=self.flags&6==0;
+        let visible=if self.flags&4==0||self.sprite==250{screen[0]>view.clip[0]&&screen[0]<view.clip[2]&&screen[1]>view.clip[1]&&screen[1]<view.clip[3]}
             else{screen[0].wrapping_add(200)>view.clip[0]&&screen[0].wrapping_sub(70)<view.clip[2]&&screen[1].wrapping_add(200)>view.clip[1]&&screen[1].wrapping_sub(70)<view.clip[3]};
-        let draw=if visible{if self.sprite==250{
+        let draw=if visible{if color_point{
+            Some(Draw{point:world,screen,sprite:0,height:0,angle:0,transformed:false,owner:self.owner,primitive:Some(Primitive::ColorPoint{color:self.tint})})
+        }else if self.flags&4==0{None //467e90's different shape is outside this water-point port.
+        }else if self.sprite==250{
             let height=((-i32::from(self.position[2]))>>5).min(4)as i16;let sprite=250i16.wrapping_add(height.wrapping_mul(4)).wrapping_add(i16::from(self.phase));self.phase=self.phase.wrapping_add(1)&3;
-            Some(Draw{point:world,screen,sprite,height:0,angle:0,transformed:false,owner:self.owner})
+            Some(Draw{point:world,screen,sprite,height:0,angle:0,transformed:false,owner:self.owner,primitive:None})
         }else{let sprite=self.sprite.wrapping_add(i16::from(self.phase));let transformed=self.flags&8!=0;let angle=self.angle.wrapping_add(self.spin)as u8;
             if transformed{self.angle=i16::from(angle);}if self.fade_left==0{self.phase=self.phase.wrapping_add(1);if self.maximum_phase<self.phase{self.phase=0;}}
-            Some(Draw{point:world,screen,sprite,height:((-i32::from(self.position[2]))>>3)as i16,angle,transformed,owner:self.owner})
+            Some(Draw{point:world,screen,sprite,height:((-i32::from(self.position[2]))>>3)as i16,angle,transformed,owner:self.owner,primitive:None})
         }}else{None};
         self.position[0]=self.position[0].wrapping_add(i16::from(self.velocity[0]));self.position[1]=self.position[1].wrapping_add(i16::from(self.velocity[1]));
         if world[0]< -32||world[0]>view.world[0]||world[1]< -32||world[1]>view.world[1]{self.active=false;return Step{draw,expiry:None};}
@@ -97,7 +104,8 @@ impl Particle{
         self.fade_left=self.fade_left.wrapping_sub(1);if self.fade_left<0{self.fade_left=self.fade_interval;self.tint=self.tint.wrapping_sub(1);if self.tint==63{self.tint=64;}}
         Step{draw,expiry:None}
     }
-    pub fn bytes(&self)->[u8;44]{let mut out=[0;44];for(i,v)in self.position.iter().enumerate(){out[i*2..i*2+2].copy_from_slice(&v.to_le_bytes());}if !self.active{out[0..2].copy_from_slice(&(-1000i16).to_le_bytes());}
+    pub fn from_bytes(b:[u8;44])->Self{let word=|at|i16::from_le_bytes([b[at],b[at+1]]);Self{position:[word(0),word(2),word(4)],origin:[word(6),word(8)],velocity:[b[10]as i8,b[11]as i8,b[12]as i8],deceleration:b[13]as i8,deceleration_left:b[14]as i8,tint:b[15],fade_left:b[16]as i8,fade_interval:b[17]as i8,lifetime:word(18),expiry:word(20),flags:b[22],phase:b[23]as i8,maximum_phase:b[24]as i8,owner:b[25],sprite:word(26),angle:word(28),spin:word(30),active:word(0)!=-1000,raw_tail:b[32..44].try_into().unwrap()}}
+    pub fn bytes(&self)->[u8;44]{let mut out=[0;44];out[32..44].copy_from_slice(&self.raw_tail);for(i,v)in self.position.iter().enumerate(){out[i*2..i*2+2].copy_from_slice(&v.to_le_bytes());}if !self.active{out[0..2].copy_from_slice(&(-1000i16).to_le_bytes());}
         for(i,v)in self.origin.iter().enumerate(){out[6+i*2..8+i*2].copy_from_slice(&v.to_le_bytes());}for(i,v)in self.velocity.iter().enumerate(){out[10+i]=*v as u8;}out[13]=self.deceleration as u8;out[14]=self.deceleration_left as u8;out[15]=self.tint;out[16]=self.fade_left as u8;out[17]=self.fade_interval as u8;out[18..20].copy_from_slice(&self.lifetime.to_le_bytes());out[20..22].copy_from_slice(&self.expiry.to_le_bytes());out[22]=self.flags;out[23]=self.phase as u8;out[24]=self.maximum_phase as u8;out[25]=self.owner;out[26..28].copy_from_slice(&self.sprite.to_le_bytes());out[28..30].copy_from_slice(&self.angle.to_le_bytes());out[30..32].copy_from_slice(&self.spin.to_le_bytes());out
     }
 }

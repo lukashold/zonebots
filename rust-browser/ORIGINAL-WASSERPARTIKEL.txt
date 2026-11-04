@@ -1,0 +1,81 @@
+WASSERPARTIKEL – abgegrenzter Originalvergleich
+
+401560 (Expiry8) und402ce0 (Expiry5) setzen den Ursprung aus dem gespeicherten
+Partikelursprung plus der letzten Projektion minus160/92. Sie wählen Tint9,
+Flags128, Fade128, Besitzer0, Sprite0 und fordern über402230 zwölf Partikel an.
+Erst danach wird der auslaufende Quellslot freigegeben. Neue Wasserpunkte
+verwenden denselben bestehenden Effektepool; es gibt keinen zweiten Pool.
+
+KONSTRUKTOR UND ZUFALL
+402230 prüft zuerst das globale Sperrbyte4d18fa und den signed16-Anzahlwert.
+401170 sucht je Versuch den ersten Slot mit X==-1000. X==-1 und0 sind belegt.
+Erst nach erfolgreicher Suche folgen exakt fünf460910-Aufrufe:
+Phase=random&3, VX=(random&15)-8, VY=(random&15)-8,
+VZ=4-(random&7), Lebensdauer=47+(random&15).
+Bei vollem oder gesperrtem Pool wird kein Zufallswert verbraucht. Im nativen
+Multiplayermodus erfolgen weiterhin fünf Aufrufe je Erstellung; deren Wert
+ist0 und der ursprüngliche Fünfwort-RNG-Zustand bleibt unverändert.
+
+Der44-Byte-Konstruktor überschreibt nur seine belegten Felder. Maximumphase,
+Winkel, Spin und die zwölf Bytes ab32 bleiben bei Wiederverwendung erhalten.
+Der Gameadapter besitzt dafür einen vollständigen44-Byte-Roundtrip samt
+raw_tail. Für noch nie repräsentierte leere Browser-Slots gilt der explizite
+kalte Nullzustand; daraus folgt kein Nachweis sämtlicher früherer Original-
+Missionswechsel oder unbelegter Pointer-Schreiber anderer FX-Konstruktoren.
+
+Das Wasser-Callback schreibt seine globalen Ursprungs-, Tint-, Flags-, Fade-,
+Besitzer- und Spritewerte auch bei gesperrtem oder vollem Pool. Die Maximumphase
+bleibt unverändert. Die weiteren Originalschreiber der FX-Globals, insbesondere
+sämtliche4d18fa-Schachtelungen, sind nicht allein durch diesen Callback portiert.
+Das Rohsperrbyte wird getrennt von Tonunterdrückung geführt.
+
+ZEICHNEN UND CALLBACKREIHENFOLGE
+Flags128 besitzt weder Bit4 noch Bit2.4028a0 verwendet deshalb den belegten
+Farbpunktpfad467c70/467d60, keine Sprite0-/Phasenbilder. Der Punkt erscheint
+vor Bewegung und Boden-Retirement. Die Sichtprüfung besitzt die strikten
+Punktgrenzen statt des großzügigen Sprite-Randes. Die Phase wird dabei nicht
+animiert. Fade128 ist signed-128 und läuft beim ersten Dekrement nach127 über.
+
+Die Ausgabe ist ein untexturiertes Rechteck von einem nativen Pixel mit
+GL_LINE_LOOP und Farbindex9. Renderer0/1 benutzt Command-9, Renderer2 Command
+-521 und die ursprünglichen Viewport-Skalierungen.40bb50 wird nicht aufgerufen:
+der aktuelle Sprite-/Faktionspalettenzustand bleibt unverändert.
+
+Der Browser erhält einen typisierten colorPoint im vorhandenen nativeEffects-
+Array, ohne Sprite, Team oder Sprite-Transformation. Er bleibt im späten FX-Pass.
+Der Canvasadapter zeichnet die belegte Outline-Geometrie mit zwei Browserpixeln
+je nativer Einheit und liest den Farbindex direkt aus der Weltpalette. Er erhält
+Canvaszustand und die geerbte Spritepalette. Das ist ein geometrischer Adapter;
+identische OpenGL-Linienrasterung, halbe Pixel, geerbter GPU-Scissor und der
+ursprüngliche Batchüberlauf werden ausdrücklich nicht behauptet.
+
+Der bestehende Slotloop entscheidet, ob ein neu belegter Slot noch im selben
+Callback gezeichnet wird. Bereits besuchte Slots warten auf den nächsten
+Callback. Auch ein anschließend am Boden retirierter Punkt bleibt für das
+aktuelle Frame gespeichert. Gastperspektiven verändern die Farbindizes nicht.
+Die MP-Prüfung trennt Punkt- und Spriteformate, begrenzt Farbindex/Koordinaten/
+Anzahl und weist gemischte, fehlerhafte oder als Queue-Sprite getarnte Punkte ab.
+
+NATIVE NACHWEISE
+1280 reale402230/401170/460910-Aufrufe einschließlich beider Expiry-Caller:
+Signatur1659648248. Alle500×44 Poolbytes, Wiederverwendungsbytes, Slotreihenfolge,
+volle/kleine/Nullpools, positive/negative Anzahlen, Sperrbyte, MP-RNG und23210
+Zufallsrückgaben sind geprüft. Dieselben1280 Vektoren stimmen im typisierten
+Gamepool einschließlich Source-Retirement und globalen Nachzuständen überein.
+6144 reale Physik-/Projektions-/Retirement-/Batchwriter-Schritte:
+Signatur2425523601.192 Partikel, drei Renderermodi,426 sichtbare Primitive,
+alle192 Retirements, gesamte44-Byte-Zustände sowie sämtliche Vertexfloats.
+Die endgültige GPU-Rasterisierung ist die benannte Grenze dieses Nachweises.
+
+Gezielte Gamefälle prüfen Quellslotbelegung, Wiederverwendung, späte/ frühe
+Allokationen im laufenden Callback, volle/gesperrte Pools, MP=0-Zufallswerte und
+den tatsächlichen Main-Callback. Die Frontendprüfung verwendet OriginalArt und
+Graphics in beiden Grafikmodi, alle256 Paletteneinträge in fünf Welten sowie die
+426 nativen Geometrie-Vektoren. Eigenständige echte Gast-RPC-Fälle prüfen das
+neue Format und die unveränderte Autorität.
+
+ABGRENZUNG
+Der Weihnachts-Caller402c80 verwendet denselben Konstruktor mit Flags2 und
+einer anderen Farbquelle. Er gehört zum separaten467e90-Shape-Zweig und wird
+nicht zu einem Wasserpunkt umklassifiziert. Weitere nicht belegte Nicht-Sprite-
+Formen bleiben getrennt. Die Gesamtpartie ist weiterhin kein1:1-Nachweis.

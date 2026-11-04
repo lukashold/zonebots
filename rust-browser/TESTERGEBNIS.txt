@@ -1,10 +1,10 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-799/799 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-71/71 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+821/821 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
+73/73 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: ba2a05dc904cd0d321595e894cb5fe6416b73ae5e58d2b986f9f80d3363d6c7b
+Wasm SHA256: 7559bfad8b2692dbb3f18a534c3d3dd0ba6c33e4fe62d706db19cbf6af5562e1
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -112,18 +112,34 @@ NEUER ABGLEICHSBLOCK nov04-r38
 - Enge41f610/Stärke0-Blastintegration: verzögerte Frame3-Kontakte, Soundprefix,
   Krater/Terrainmerge, Wasserconstructoren sowie volle Blast-/Partikelpools.
   1.024 Terrainconstructor-/Mergefälle, 1.024 Nachbarwahl- und512 Wasserfälle.
-- Der eigenständige42230-Folgeemitter und41f870 bleiben ausdrücklich offen.
+- Wasser-Emitter42230 und Brückensound41f870 sind im folgendenBlock separat
+  ergänzt; deren vollständige alten Global-/GPU-/Callerketten bleiben abgegrenzt.
+
+NEUER ABGLEICHSBLOCK nov04-r39
+- 919 native OBJECT-Calls, darunter alle119 zusätzlichen Wrackfälle; vollständige
+  sechs Records, echter150er-Sparkpool, CRT, Writer-/Clock-/Warmrecyclingtests.
+- 1.280 Wasser-Constructor-/Callerfälle,6.144 Physics-/Primitive-Abläufe sowie
+  2.986 tatsächliche OriginalArt/Graphics-Fälle mit426 nativen Farbprimitiven.
+  Dazu35 tatsächliche Gast-RPC-Fälle; Literalindizes werden nicht umgefärbt.
+- Gemeinsamer44-Byte-Poolroundtrip, occupiedSource während zwölf Emissionen,
+  verzögerte Slotverarbeitung und unveränderte native MP-RNG-Zustände.
+- 2.04841f870-Soundaufrufe, sechs neue Gamefälle und27 verwandte Brückenchecks.
+- Alte Multiplayerclients werden vor Spielbeginn abgewiesen, weil sie die neuen
+  colorPoint-/Literalpaletten-Daten nicht verstehen. Der konkrete Regressionstest
+  scheiterte vor dem Buildwechsel und besteht mit zonebots-mp-4-native-effects.
 
 BROWSER
-Aktuellen Release in Edge mit Originalgrafik (Mission4) und HD-Remake (Mission20)
-gestartet. Menü/Grafikwechsel und laufende Darstellung sind am tatsächlichen
-DOM und an Browseraufnahmen geprüft. Keine erfassten Browserwarnungen/-fehler.
-Beobachtete Bild-/Kern-p95: Original6,4/5,8ms bei56FPS, HD12,3/10,6ms bei54FPS.
-Das sind Beobachtungen einzelner Browserläufe, kein allgemeiner Frameratenvergleich.
-Browseraufnahmen wurden lokal gespeichert; sie werden nicht öffentlich
-mitveröffentlicht, weil sie Originalmedien enthalten.
-macOS-Hardware, tatsächliche Lautsprecherausgabe und zwei physische LAN-Rechner
-wurden nicht separat geprüft.
+AktuellenRelease in Edge in einer laufenden Originalgrafik-Partie(Mission20)
+bei rund einer Spielminute nur lesend geprüft; die Bedienung wurde unverändert
+gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
+und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
+Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
+kein allgemeiner Frameratenvergleich. Der HD-Delegationspfad ist zusätzlich
+mit den tatsächlichen Graphics-Adaptertests geprüft, keine neue HD-Browser-
+Sichtprüfung wird für diesen Build behauptet.
+Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
+öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
+und zwei physische LAN-Rechner wurden nicht separat geprüft.
 
 DATEN UND VERÖFFENTLICHUNG
 20 Missionen,218.000 Kacheln,275 Gebäude,795 Startspawns,99 Kisten,49 Brücken

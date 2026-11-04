@@ -1,0 +1,24 @@
+//Read-only numeric402230/401170/460910, plus real401560/402ce0 callers.
+//Nothing in this constructor oracle is stubbed. Pool bytes are synthetic;
+//the complete500x44 output is hashed, including preserved stale bytes.
+import ghidra.app.script.GhidraScript;import ghidra.app.emulator.EmulatorHelper;import java.io.PrintWriter;
+public class ZNativeWaterSprayOracle extends GhidraScript{
+ static final long P=0x5c9a88L,S=0x7fff0000L,RET=0x12345000L;
+ static final long[]AFTER={0x40226c,0x40228c,0x402298,0x4022a4,0x4022d8};
+ long read(EmulatorHelper e,long a,int n){byte[]b=e.readMemory(toAddr(a),n);long v=0;for(int i=0;i<n;i++)v|=(b[i]&255L)<<(8*i);return v;}
+ void put(EmulatorHelper e,long a,int n,long v)throws Exception{e.writeMemoryValue(toAddr(a),n,v);}
+ int mix(int h,long n){return(h^(int)n)*16777619;}
+ int hash(EmulatorHelper e){int h=0x811c9dc5;for(byte b:e.readMemory(toAddr(P),500*44))h=mix(h,b&255);return h;}
+ String hex(EmulatorHelper e,long a){StringBuilder s=new StringBuilder();for(byte b:e.readMemory(toAddr(a),44))s.append(String.format("%02x",b&255));return s.toString();}
+ boolean free(int slot,int cap,int pattern){switch(pattern){case 0:return false;case 1:return true;case 2:return slot==0;case 3:return slot==cap-1;case 4:return slot%2==0;case 5:return slot==1||slot==7||slot==31||slot==99||slot==499;case 6:return slot<11;default:return slot<13;}}
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){EmulatorHelper e=new EmulatorHelper(currentProgram);try{
+  e.setBreakpoint(toAddr(RET));for(long pc:AFTER)e.setBreakpoint(toAddr(pc));
+  for(int scenario=0;scenario<1280;scenario++){int mode=scenario<1024?0:1+(scenario-1024)/128,s=mode==0?scenario:(scenario-1024)%128,cap=mode==0?new int[]{0,1,12,500}[s%4]:500,pattern=mode==0?s/4%8:s%8,count=mode==0?new int[]{-1,0,1,12,13,500,501,-32768}[s/32%8]:12,gate=mode==0?s/256%2:s/8%2,mp=mode==0?s/512%2:s/16%2,source=mode==0?-1:new int[]{0,17,499,239}[s/32%4];
+   byte[]pool=new byte[500*44];for(int slot=0;slot<500;slot++){for(int j=0;j<44;j++)pool[slot*44+j]=(byte)(scenario*17+slot*13+j*19);int x=free(slot,cap,pattern)?-1000:new int[]{0,-1,999}[slot%3];pool[slot*44]=(byte)x;pool[slot*44+1]=(byte)(x>>8);}e.writeMemory(toAddr(P),pool);int ox=new int[]{346,-32768,32767,0}[s/7%4],oy=new int[]{420,32767,-32768,-1}[s/11%4],px=new int[]{160,0,-200,32767}[s/3%4],py=new int[]{92,0,32767,-200}[s/5%4];if(source>=0){put(e,P+source*44,2,0);put(e,P+source*44+6,2,ox);put(e,P+source*44+8,2,oy);}
+   put(e,0x622e1c,4,cap);put(e,0x622dc4,1,mp);put(e,0x4d18fa,1,gate);put(e,0x622d80,2,ox);put(e,0x622d82,2,oy);put(e,0x4a6520,2,px);put(e,0x4a6530,2,py);put(e,0x4d18f2,1,mode==0?9:99);put(e,0x4d18fb,1,mode==0?128:12);put(e,0x4d18ef,1,mode==0?128:3);put(e,0x4d18e3,1,mode==0?0:3);put(e,0x586a7c,2,mode==0?0:557);for(int i=0;i<5;i++)put(e,0x622cdc+i*4,4,(0x173510a7L+scenario*7919L+i*0x9e3779b9L)&0xffffffffL);
+   int before=hash(e),calls=0,trace=0x811c9dc5,alloc=0,allocTrace=0x811c9dc5,first=-1,last=-1;put(e,S,4,RET);e.writeRegister("ESP",S);e.writeRegister("ECX",mode==0?count:P+source*44);long entry=mode==0?0x402230:mode==1?0x401560:0x402ce0;if(!e.run(toAddr(entry),null,monitor))throw new Exception(e.getLastError());
+   while(e.readRegister("EIP").longValue()!=RET){long pc=e.readRegister("EIP").longValue();int site=-1;for(int i=0;i<5;i++)if(pc==AFTER[i])site=i;if(site<0)throw new Exception("unexpected stop");long ptr=e.readRegister("ESI").longValue();int slot=(int)((ptr-P)/44);if(slot<0||slot>=500)throw new Exception("bad slot");long value=e.readRegister("EAX").longValue()&0xffffffffL;trace=mix(mix(mix(trace,site),slot),value);calls++;if(site==0){alloc++;allocTrace=mix(allocTrace,slot);if(first<0)first=slot;last=slot;}if(calls>2500)throw new Exception("too many RNG calls");if(!e.step(monitor)||!e.run(monitor))throw new Exception(e.getLastError());}
+   StringBuilder json=new StringBuilder("{\"scenario\":"+scenario+",\"mode\":"+mode+",\"capacity\":"+cap+",\"pattern\":"+pattern+",\"count\":"+count+",\"gate\":"+gate+",\"mp\":"+mp+",\"source\":"+source+",\"ox\":"+ox+",\"oy\":"+oy+",\"px\":"+px+",\"py\":"+py+",\"before\":"+(before&0xffffffffL)+",\"hash\":"+(hash(e)&0xffffffffL)+",\"calls\":"+calls+",\"trace\":"+(trace&0xffffffffL)+",\"allocations\":"+alloc+",\"slots\":"+(allocTrace&0xffffffffL)+",\"first\":"+first+",\"last\":"+last+",\"originX\":"+(short)read(e,0x622d80,2)+",\"originY\":"+(short)read(e,0x622d82,2)+",\"tint\":"+read(e,0x4d18f2,1)+",\"flags\":"+read(e,0x4d18fb,1)+",\"fade\":"+read(e,0x4d18ef,1)+",\"owner\":"+read(e,0x4d18e3,1)+",\"sprite\":"+read(e,0x586a7c,2));for(int i=0;i<5;i++)json.append(",\"r"+i+"\":"+read(e,0x622cdc+i*4,4));if(first>=0)json.append(",\"firstBytes\":\""+hex(e,P+first*44)+"\",\"lastBytes\":\""+hex(e,P+last*44)+"\"");if(source>=0)json.append(",\"sourceBytes\":\""+hex(e,P+source*44)+"\"");json.append("}");out.println(json);
+  }
+ }finally{e.dispose();}}}
+}
