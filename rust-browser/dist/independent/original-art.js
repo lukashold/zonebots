@@ -63,7 +63,7 @@ window.OriginalArt=(()=>{
   parts.push({id:p.weapon+aim*2+(u.cooldown>0?1:0),x:x+(p.weaponAnchor[0]+p.bodyOffsets[d][0]+p.aimOffsets[aim][0])*2,y:y+(p.weaponAnchor[1]+p.bodyOffsets[d][1]+p.aimOffsets[aim][1]-bodyPhase)*2});
   return parts;
  }
- function unit(ctx,u,time,map){if(!ready||!map.original)return false;selectNativePalette(ctx,paletteForUnit(u));if(u.nativeTransport?.visible===false)return true;if(Array.isArray(u.nativeDrawLayers)){for(const l of u.nativeDrawLayers){const request=l.palette&15,p=l.palette===255?(nativePalettes.get(ctx)??0):request<=3?request:request<=7?255:-1;native(ctx,l.sprite,l.x,l.y,map,p);}return true;}const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?(u.nativeMoveFrame??Math.floor(time*8)%3):0;
+ function unit(ctx,u,time,map){if(!ready||!map.original)return false;selectNativePalette(ctx,paletteForUnit(u));if(u.nativeTransport?.visible===false)return true;if(Array.isArray(u.nativeDrawLayers)){for(const l of u.nativeDrawLayers){const request=l.palette&15,p=l.palette===255?(nativePalettes.get(ctx)??0):request<=3?request:request<=7?255:-1;if(l.clip){ctx.save();ctx.beginPath();ctx.rect(...l.clip);ctx.clip();}native(ctx,l.sprite,l.x,l.y,map,p);if(l.clip)ctx.restore();}return true;}const d=dir(u.angle),aim=dir(u.aim),walking=u.moving?(u.nativeMoveFrame??Math.floor(time*8)%3):0;
   if(u.type==='jeep'){for(const p of jeepLayers(u,time,map))native(ctx,p.id,p.x,p.y,map,paletteForUnit(u));return true;}
   if(u.team<0&&neutralSprite(u)!==undefined)return native(ctx,neutralSprite(u),u.x,u.y,map,paletteForUnit(u));
   if(guns.has(u.type))return native(ctx,gunFrame(u),u.x,u.y,map,paletteForUnit(u));

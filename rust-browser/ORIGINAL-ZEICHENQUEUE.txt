@@ -76,6 +76,20 @@ Signatur3583215544. Alle achtbyteHeader,16byteLayer und Paletten-/Zeichenfolgen
 sind einzeln verglichen. Varianten umfassen beide Richtungen, Kettenframe,
 HP-Schwelle, Luken-/Crewzustand, Masken0/1/3/7, Trefferweiß und Geschütz84.
 97 ist für diese Hardwarefamilien unverändert:454d90 behandelt family4.
+8192 tatsächliche55f10→41c290/4544d0→Tankhelfer→454630-Aufrufe:
+Signatur2503140282. Der erste lebende BUILD-Treffer aus35 Originalslots,
+HP0/positiv/negativ, Typ2-Override, alle acht Clip-Terraincodes sowie beide
+Fortmasken werden geprüft. Header,16byteLayer, Clipmode/Welt-Y,64/98 und
+Rasterargumente werden einzeln verglichen. Der isolierte Prüfeingang setzt
+das unbenutzte Clip-Y-Scratchwort vor jedem Fall auf0; dessen späterer Wert
+bei deaktivierter Maske ist kein behaupteter bytegleicher Framepufferzustand.
+454630 setzt pro Lage eine256nativePixel breite Scissor-Maske und deaktiviert
+sie danach über Breite−1. Die Canvas-Ausgabe erhält dieselben Masken pro
+gespeicherter Lage, einschließlich Rohr, Turm, Luke und Besatzung.
+8092 tatsächliche Frontend-Kompositionen stimmen mit den numerischen Fällen
+überein; weitere110 Fälle liefern negative OpenGL-Maskenhöhen und bleiben
+ausdrücklich beim bestehenden Artwork-Adapter. Native GPU-Endpunkte sowie
+deren Fehlerzustände sind nicht durch diesen Rasterargument-Nachweis ersetzt.
 512 Queue-/Palettenfolgen:131070041;
 4480 normale UNIT-Records:3040814069;
 9984 OBJECT-Primärrecords:3811278845;
@@ -95,10 +109,15 @@ Bestand, erhält bestehende Produkte und konsumiert vorhandenes Arbeitsguthaben
 einmal. Der separate Abbau des Budgets zerstörter Gebäude über40acf0/+4c und
 vollständige Fabrik-Rasternebenwirkungen gehören nicht zum Worknachweis.
 Weitere Fabrik-/Radarmaschinenteile verwenden weiterhin den Artwork-Zeitadapter.
-Spezielle UNIT97-Infanteriefades, BUILD-/Terrainclips bei Codes30/31/44/62..66
-und119 zusätzliche OBJECT-Wrack-Overlayfälle sind nicht durch die normalen
-Records abgedeckt. Der98=1-Schreiber im separaten Eingabedecoder4460c0 ist
-nicht Teil dieses Hardware-Drawnachweises; die Grafik verarbeitet diesen Wert.
+Für reguläre class1-Panzerfamilien6/25/30 sind BUILD-/Fortclips der Codes
+30/31/44/62..66 mit positiven oder leeren Masken jetzt im gespeicherten
+Zeichenpfad enthalten. Negative OpenGL-Maskenhöhen, der einzelne Cliprecord
+für class2-Geschütze, Crane-Ruinenabfragen und weitere Hardwarefamilien bleiben
+explizite Grenzen. Bei fehlendem ursprünglichem BUILD-/Fortpool wird keine
+Maske aus Browser-Gebäuderechtecken erfunden. Spezielle UNIT97-Infanteriefades
+und119 zusätzliche OBJECT-Wrack-Overlayfälle sind ebenfalls nicht abgedeckt.
+Die Operand98-Inventarliste enthält auch fremde Strukturen:
+4460c0 gehört einem Bilddecoder und ist ausdrücklich kein UNIT98-Schreiber.
 Die HD-Fortdarstellung verwendet die tatsächlichen fortId-Zuordnungen und
 Originalkoordinaten. Bodenpanzer neben dem Fort sind keine Dachgeschütze.
 Die neue HD-Geometrie ist kein Pixelgleichheitsnachweis der Originalgrafik.

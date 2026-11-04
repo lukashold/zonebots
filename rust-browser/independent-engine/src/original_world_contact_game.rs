@@ -9,6 +9,7 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_pickups.rs"] pub(crate) mod pickups;
 #[path="original_workshop.rs"] pub(crate) mod workshop;
 #[path="original_workshop_game.rs"] mod workshop_game;
+#[path="original_building_fragments_game.rs"] mod building_fragments;
 
 #[derive(Clone)]
 struct ObjectSlot {
@@ -27,10 +28,10 @@ pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pu
 
 pub struct State {
     objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,
-    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_draws:Vec<(usize,effects::Draw)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,
+    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_draws:Vec<(usize,effects::Draw)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,fragments:building_fragments::State,
 }
 impl State {
-    fn empty() -> Self { Self { objects: vec![None;200], buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,last_projection:[0,0],crate_sound_played:false,quiet_blasts:false } }
+    fn empty() -> Self { Self { objects: vec![None;200], buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,last_projection:[0,0],crate_sound_played:false,quiet_blasts:false,fragments:Default::default() } }
     fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
 }
 
@@ -82,7 +83,7 @@ impl Game {
         //without rewriting any visual or compatibility cell during import.
         for y in 0..self.map.height.min(128){for x in 0..self.map.width.min(128){let cell=y*128+x;let visual=self.map.original_tiles.get(y*self.map.width+x).copied().unwrap_or(0);plane[cell]=(plane[cell]&127)|((visual&256)>>1)as u8;}}
         let initial_plane=plane.clone();self.map.native_terrain_plane=initial_plane.clone();
-        let mut state=State::empty();let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
+        let mut state=State::empty();state.fragments=building_fragments::State::import(previous.as_ref().map(|s|&s.fragments),v);let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
         //460430 retires X only. Preserve raw inactive fields across missions;
         //Web render/unit bindings belong to the incoming mission instead.
         if let Some(old)=&previous{for(slot,object)in old.objects.iter().enumerate(){if let Some(mut o)=object.clone(){o.active=false;o.record.position[0]=-1;o.unit=None;o.pickup=None;o.render=None;o.fire=None;o.flag_sector=None;state.objects[slot]=Some(o);}}}
@@ -206,7 +207,7 @@ impl Game {
     pub(crate) fn native_world_buildings(&self)->Option<Vec<native::Building>>{Some(self.native_world.as_ref()?.buildings.iter().map(|b|b.record).collect())}
     ///The constructor delta records only source-written fields; None bytes
     ///retain their imported value and are not fabricated from cold defaults.
-    pub(crate) fn set_native_building_constructor(&mut self,slot:usize,fields:super::original_factory::ConstructorFields){let repair=if let Some(b)=self.native_world.as_mut().and_then(|s|s.buildings.get_mut(slot)){if let Some(maximum)=fields.maximum1c{b.maximum=maximum;}b.display.flags6=fields.flags6;if b.record.kind==8{b.display.construct();}if b.record.kind==0{let mut r=b.repair.unwrap_or_default();r.set_word(0,b.record.position[0]);r.set_word(2,b.record.position[1]);r.set_word(30,b.record.hp);r.construct(fields.flags6,b.maximum,fields.field11);b.repair=Some(r);}b.constructor=Some(fields);b.record.kind==0}else{false};if repair{self.initialize_native_workshop_terrain(slot);}}
+    pub(crate) fn set_native_building_constructor(&mut self,slot:usize,fields:super::original_factory::ConstructorFields){let repair=if let Some(b)=self.native_world.as_mut().and_then(|s|s.buildings.get_mut(slot)){if let Some(maximum)=fields.maximum1c{b.maximum=maximum;}b.display.flags6=fields.flags6;if b.record.kind==8{b.display.construct();}if b.record.kind==0{let mut r=b.repair.unwrap_or_default();r.set_word(0,b.record.position[0]);r.set_word(2,b.record.position[1]);r.set_word(30,b.record.hp);r.construct(fields.flags6,b.maximum,fields.field11);b.repair=Some(r);}b.constructor=Some(fields);b.record.kind==0}else{false};self.initialize_native_building_fragments(slot);if repair{self.initialize_native_workshop_terrain(slot);}}
 
     pub(crate) fn native_building_constructor(&self,slot:usize)->Option<super::original_factory::ConstructorFields>{self.native_world.as_ref()?.buildings.get(slot)?.constructor}
     pub(crate) fn native_hardware_building_owner_at(&self,slot:Option<usize>)->Option<u8>{let b=self.native_world.as_ref()?.buildings.get(slot?)?;let b=self.buildings.iter().find(|v|Some(v.id)==b.binding)?;u8::try_from(b.team).ok()}

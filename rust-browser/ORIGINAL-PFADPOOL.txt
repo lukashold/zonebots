@@ -86,11 +86,22 @@ und vorgeschlagene globale Position sind tatsächlich verschiedene Werte.
 63 kommt aus footprint18[terrain10&127], signednegative wird0. W17:1 markiert
 einen tatsächlichen Linienstart, sodass spätere61d10-Parked-Gates ihn sehen.
 
+NATUERLICHE FREUNDLICHE KONTAKTE
+5bf90/5bbc0:1.024 vollständige Originalcaller, Signatur1718715776. Die echten
+44cd60-Buckets,432250-Strahlen,59c60/52810/525a0-Pfade und Strategy21-Writes
+sind feldweise verglichen. Die erste Rayabfrage überschreibt gemeinsame
+Intervallglobals mit Deltawerten; folgende Corners dürfen nicht gegen die
+unveränderte Anfangsbox geprüft werden. Der Primary-Rest bleibt nach Prepend
+erhalten. Kontaktphasen und eingefrorene UNIT-Callbacks werden nicht erweitert.
+512 Original-Teamgatefälle:1814112557.5c210 filtert ungleiche Teams,5bec0
+fordert danach gleiche Teams. Der natürliche Caller erreicht5bd30 daher nicht;
+ein direkter Aufruf wird dadurch nicht als vollständig implementiert gewertet.
+
 WEITER BESTEHENDE GRENZEN
 Die gekoppelten globalen Straßen-/Konturabschlussfälle und alle Überlauf-
 wechselwirkungen einer vollständigen Partie sind noch nicht vollständig als
 identische Original-Eingabespur verglichen. Scratch-/Globalaliasing, weitere
-freundliche Ausweichcaller, entfernte Werkstattinsassen, sämtliche UI-Globals
+direkte Ausweichcaller, außergewöhnliche entfernte UNIT-Folgen, sämtliche UI-Globals
 und die Originaluhr in Menüs/Pause bleiben konkrete Vergleichsgrenzen.
 Die globale Zeichenfolge hat einen eigenen Bericht ORIGINAL-ZEICHENQUEUE.txt.
 Einzelne bestandene Funktionstests schließen diese verbleibenden Punkte nicht.

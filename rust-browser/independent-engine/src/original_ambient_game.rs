@@ -144,7 +144,11 @@ impl Game{
  ///456a90/4064f0 build capped native spatial buckets before the UNIT loop.
  ///Ambient records deliberately use their stored42 from the preceding tick.
  pub(crate) fn prepare_native_ambient_queries(&mut self){
-  let Some(mut state)=self.native_ambient.take()else{return;};for bucket in &mut state.unit_buckets{bucket.clear();}for bucket in &mut state.target_buckets{bucket.clear();}state.unit_ids.clear();
+  //456a90 rebuilds the global UNIT buckets independently of4060f0's
+  //ambient scene setup. Native support worlds can own no ambient records;
+  //allocating their cache here performs no scene scan, RNG or UNIT callback.
+  if self.native_ambient.is_none()&&(!self.map.original||self.map.native_road_graph.is_none()){return;}
+  let mut state=self.native_ambient.take().unwrap_or_default();for bucket in &mut state.unit_buckets{bucket.clear();}for bucket in &mut state.target_buckets{bucket.clear();}state.unit_ids.clear();
   let mut units=self.units.iter().filter_map(|u|u.native_slot.map(|slot|(slot,u))).collect::<Vec<_>>();units.sort_by_key(|&(slot,_)|slot);
   for(slot,u)in units{if let Some(target)=state.point_targets.get_mut(slot){*target=super::original_point_fire::FlameTarget{position:[if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16],class:u.native_class7c};}let Some(m)=self.native_group_rosters.members.get(slot).and_then(Option::as_ref)else{continue;};if m.flags31&4==0||m.group==255||self.native_group_rosters.pool[usize::from(m.group)].roster[9]&32!=0{continue;}
    let bucket=u.native_bucket38;let ids=&mut state.unit_buckets[usize::from(bucket)];if ids.len()<32{ids.push(slot);state.unit_ids.insert(slot,u.id);}

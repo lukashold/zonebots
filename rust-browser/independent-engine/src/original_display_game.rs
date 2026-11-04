@@ -14,14 +14,25 @@ impl Game{
   self.native_display.entry69[slot]=m.flags69;
   (m.flags31&4!=0&&m.flags69&64==0).then_some(slot)
  }
- pub(crate) fn begin_native_display_frame(&mut self){if self.map.original{self.native_display.units=Some(Vec::new());}}
+ pub(crate) fn begin_native_display_frame(&mut self){if self.map.original{self.clear_native_building_fragment_draws();self.native_display.units=Some(Vec::new());}}
  fn native_regular_hardware_picture(&self,u:&Unit)->Option<super::hardware::Draw>{
   let cell=u.native_cell10 as u16 as usize;let(x,y)=(cell&127,cell>>7);let terrain=if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x).copied().unwrap_or(127)}else{self.map.native_terrain_plane.get(cell).copied().unwrap_or(127)}&127;
-  //55f10's BUILD clipping path is a separate query/caller boundary. Do not
-  //silently claim those clipped compositions as the ordinary layer branch.
-  if matches!(terrain,30|31|44|62|63|64|65|66)||u.native_flags64&u.native_mask98>=128{return None;}
+  if u.native_flags64&u.native_mask98>=128{return None;}
+  let clip=if super::hardware::special_terrain(terrain){
+   //55f10's class2 single-extra-header path and crane ruin probes remain
+   //separate boundaries. Regular tanks use the live35-record BUILD pool.
+   if u.native_class7c!=1||!matches!(original_combat::animation_family(&u.kind),6|25|30){return None;}
+   let buildings=self.native_world_buildings()?;let p=point(u.x,u.y);
+   //4a69f7 is cold0; its actual callers restore the saved flag or0 before
+   //returning.55f10 does not enable the type2 query override itself.
+   if let Some(c)=super::hardware::building_clip(p,&buildings,false){Some(c)}else{super::hardware::select_clip(terrain,p,&buildings,self.native_fort_bases()?,false)}
+  }else{None};
   let w=u.native_hardware_slot.and_then(|slot|self.native_hardware_pool.get(slot)).map(|s|s.attributes);let h=u.native_hardware.as_ref();
-  super::hardware::draw(super::hardware::Input{position:point(u.x,u.y),family:original_combat::animation_family(&u.kind),class:u.native_class7c,phase:u.native_phase35,frame:u.native_frame32,heading:original_combat::facing(u.angle),turret:h.map_or(original_combat::facing(u.aim),|h|h.turret),hp:w.map_or(u.hp as i16,|w|w.word(8)),maximum:w.map_or(u.max_hp as i16,|w|w.word(10)),hatch_body:h.map_or_else(||w.map_or(0,|w|w.byte(4)),|h|h.hatch_body),hatch_frame:h.map_or_else(||u.original_combat.as_ref().map_or(-1,|c|c.secondary_state),|h|h.hatch_frame),flags64:u.native_flags64,mask98:u.native_mask98,elevation:u.native_elevation76,counter84:u.native_counter84})
+  let draw=super::hardware::draw_clipped(super::hardware::Input{position:point(u.x,u.y),family:original_combat::animation_family(&u.kind),class:u.native_class7c,phase:u.native_phase35,frame:u.native_frame32,heading:original_combat::facing(u.angle),turret:h.map_or(original_combat::facing(u.aim),|h|h.turret),hp:w.map_or(u.hp as i16,|w|w.word(8)),maximum:w.map_or(u.max_hp as i16,|w|w.word(10)),hatch_body:h.map_or_else(||w.map_or(0,|w|w.byte(4)),|h|h.hatch_body),hatch_frame:h.map_or_else(||u.original_combat.as_ref().map_or(-1,|c|c.secondary_state),|h|h.hatch_frame),flags64:u.native_flags64,mask98:u.native_mask98,elevation:u.native_elevation76,counter84:u.native_counter84},clip)?;
+  //Negative glScissor height is an API error that can retain an earlier GPU
+  //mask. That cross-draw GPU-state case is not replaced by an inverted Canvas
+  //rectangle. Keep the existing art adapter until that state is represented.
+  if draw.layers.iter().any(|l|l.rectangle(0).is_some_and(|r|r[3]<0)){return None;}Some(draw)
  }
  fn native_unit_display_row(&self,u:&Unit,slot:usize)->Option<(Record,Value)>{
   if workshops::hidden(u)||matches!(u.native_phase35,18|68){return None;}let p=point(u.x,u.y);if p[0]==10000{return None;}
@@ -31,7 +42,7 @@ impl Game{
   if flags69&4==0{return None;}let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let screen=[p[0].wrapping_sub(camera[0]),p[1].wrapping_sub(camera[1])];if screen[0]<=-32||screen[0]>=size[0]||screen[1]<=-48||screen[1]>=size[1]{return None;}
   let hardware=matches!(u.native_class7c,1|2);let native=if hardware{self.native_regular_hardware_picture(u)}else{None};let header=if let Some(n)=&native{n.header}else if u.native_class7c==1{Record{x:p[0],y:p[1].wrapping_add(i16::from(u.native_elevation76)).wrapping_add(8),sprite:0,palette:u.native_flags64&7,offset:0}}else{infantry(p,u.native_phase35,u.native_frame32,original_combat::facing(u.angle)as i8,u.native_elevation76,u.native_flags64)?};let plain_hardware=native.as_ref().is_some_and(|n|n.layers.is_empty());
   let mut row=json!({"kind":"unit","id":u.id,"nativeSlot":slot,"queueY":i32::from(header.y)*2,"palette":header.palette,"sprite":if hardware&&!plain_hardware{None}else{Some(header.sprite)},"x":i32::from(if plain_hardware{header.x}else{p[0]})*2,"y":i32::from(if plain_hardware{header.y.wrapping_add(i16::from(header.offset))}else{p[1]})*2});
-  if let Some(native)=&native{if !native.layers.is_empty(){row["nativeLayers"]=json!(native.layers.iter().map(|l|json!({"sprite":l.sprite,"x":i32::from(l.position[0])*2,"y":i32::from(l.position[1])*2,"palette":l.palette,"flags":l.flags})).collect::<Vec<_>>());}}
+  if let Some(native)=&native{if !native.layers.is_empty(){row["nativeLayers"]=json!(native.layers.iter().map(|l|{let mut v=json!({"sprite":l.sprite,"x":i32::from(l.position[0])*2,"y":i32::from(l.position[1])*2,"palette":l.palette,"flags":l.flags});if let Some(r)=l.rectangle(0){v["clip"]=json!(r.map(|n|n*2));}v}).collect::<Vec<_>>());}}
   if hardware{
    //Only fields consumed by the existing hardware artwork adapter are kept.
    //No path, roster, passenger, target, fire state or complete UNIT is copied.
@@ -54,7 +65,10 @@ impl Game{
   //marks use different paths even though they share the500x6 allocator.
   for d in &self.native_smoke20.tracks.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};if d.queued{queue.push((r,plain(r,"track",d.slot)));}else{let mut v=plain(r,"track",d.slot);v["stage"]=json!("pre");pre.push(v);}}
   pre.extend(self.native_display.buildings_before.clone().unwrap_or_else(||self.project_native_building_display()));
-  queue.extend(self.native_display.radar_before.clone().unwrap_or_else(||self.project_native_radar_display()));
+  let mut build_queue=self.native_display.radar_before.clone().unwrap_or_else(||self.project_native_radar_display());
+  for(r,id,slot)in self.native_building_fragment_draws(){let mut v=plain(r,"buildingFragment",id);v["nativeSlot"]=json!(slot);build_queue.push((r,v));}
+  //BUILD callbacks append in native slot order, before any UNIT submission.
+  build_queue.sort_by_key(|(_,v)|v["nativeSlot"].as_u64().unwrap_or(u64::MAX));queue.extend(build_queue);
   let objects=self.native_display_objects();
   if let Some(rows)=&self.native_display.units{queue.extend(rows.iter().cloned());}else{
    //Before the first UNIT callback only, expose the imported initial picture.
@@ -102,7 +116,20 @@ impl Game{
  #[test]fn gun_source_pose_uses_phase_frame_and_84_offsets_instead_of_weapon_cooldown(){
   let mut g=field();g.spawn("gatling",1,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_class7c=2;g.units[0].native_phase35=51;g.units[0].native_frame32=1;g.units[0].native_counter84=-1;g.units[0].angle=crate::native_math::angle(0);g.units[0].cooldown=999.;g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);let row=g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap();assert_eq!(row["sprite"],1660);assert_eq!((row["x"].as_i64(),row["y"].as_i64()),(Some(1002),Some(996)));g.units[0].native_counter84=3;g.units[0].cooldown=0.;g.begin_native_display_frame();let token=g.native_unit_display_slot(0);g.capture_native_unit_display(0,token);assert_eq!(g.native_display_queue().into_iter().find(|v|v["kind"]=="unit").unwrap()["sprite"],2419);
  }
- #[test]fn special_build_clipping_stays_an_explicit_artwork_boundary(){let mut g=field();g.spawn("medium",0,640.,640.,1,None);g.maintain_native_group_rosters();g.units[0].native_cell10=0;g.map.terrain_codes[0]=31;let rows=g.native_display_queue();let row=rows.iter().find(|r|r["kind"]=="unit").unwrap();assert!(row.get("nativeLayers").is_none());assert!(row.get("art").is_some());}
+ #[test]fn special_build_clipping_without_raw_world_query_data_keeps_the_art_boundary(){let mut g=field();g.spawn("medium",0,640.,640.,1,None);g.maintain_native_group_rosters();g.units[0].native_cell10=0;g.map.terrain_codes[0]=31;let rows=g.native_display_queue();let row=rows.iter().find(|r|r["kind"]=="unit").unwrap();assert!(row.get("nativeLayers").is_none());assert!(row.get("art").is_some());}
+ #[test]fn tank_build_clip_uses_raw_pool_first_hit_and_retains_all_layer_masks_at_submission(){
+  let mut g=field();g.spawn("medium",0,1000.,1200.,1,None);g.maintain_native_group_rosters();g.units[0].native_phase35=9;g.units[0].native_cell10=0;g.map.terrain_codes[0]=31;g.native_view=Some(([40,60],[1024,1024]));g.units[0].angle=crate::native_math::angle(0);g.units[0].native_hardware=Some(crate::original_hardware::State::new(0,-1));g.import_native_world(&json!({"nativeWorldBuildings":[{"nativeSlot":0,"kind":1,"x":480,"y":580,"hp":100},{"nativeSlot":1,"kind":4,"x":480,"y":590,"hp":100}]}));g.begin_native_display_frame();let slot=g.native_unit_display_slot(0);g.capture_native_unit_display(0,slot);let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();let layers=row["nativeLayers"].as_array().unwrap();assert!(layers.len()>=3);for(l,n)in layers.iter().zip(0..){let flags=l["flags"].as_u64().unwrap();assert_eq!(flags,if n==layers.len()-1{5}else{4});let clip=l["clip"].as_array().unwrap();assert_eq!(clip[0],l["x"]);assert_eq!(&clip[1..],&[json!(1294),json!(512),json!(512)]);}
+  g.import_native_world(&json!({"nativeWorldBuildings":[]}));g.units[0].x=1800.;assert_eq!(g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap(),row,"later BUILD retirement or movement cannot rewrite an already queued tank clip");g.begin_native_display_frame();let slot=g.native_unit_display_slot(0);g.capture_native_unit_display(0,slot);assert!(g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap().get("nativeLayers").is_none(),"missing raw fort fallback is an explicit query boundary");
+ }
+ #[test]fn tank_bottom_clip_has_source_plus_two_height_and_negative_gpu_height_remains_a_boundary(){
+  let mut g=field();g.spawn("medium",0,1000.,1200.,1,None);g.maintain_native_group_rosters();g.units[0].native_phase35=9;g.units[0].native_cell10=0;g.units[0].angle=crate::native_math::angle(0);g.units[0].native_hardware=Some(crate::original_hardware::State::new(0,-1));g.map.terrain_codes[0]=62;g.import_native_world(&json!({"nativeWorldBuildings":[{"nativeSlot":0,"kind":4,"x":480,"y":600,"hp":100}]}));let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();let layers=row["nativeLayers"].as_array().unwrap();for l in layers{assert_eq!(l["flags"].as_u64().unwrap()&8,8);assert_eq!(l["clip"][1],l["y"]);assert_eq!(l["clip"][3].as_i64().unwrap(),1204-l["y"].as_i64().unwrap());}assert_eq!(layers[0]["clip"][3],4);g.units[0].native_elevation76=7;assert!(g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap().get("nativeLayers").is_none());
+ }
+ #[test]fn tank_fort_clip_uses_native_fort_bases_when_type_two_build_query_is_disabled(){
+  let template=Game::new(0,1,3).buildings[0].clone();let mut g=field();for(id,base)in[(90,[500.,600.]),(91,[1500.,1600.])]{let mut b=template.clone();b.id=id;b.kind="fort".into();b.raw_base=Some((base[0],base[1]));b.x=base[0]*2.;b.y=base[1]*2.;b.hp=100.;g.buildings.push(b);}g.spawn("light",0,1000.,1200.,1,None);g.maintain_native_group_rosters();g.units[0].native_cell10=0;g.map.terrain_codes[0]=66;g.import_native_world(&Value::Null);let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();for l in row["nativeLayers"].as_array().unwrap(){assert_eq!(l["flags"].as_u64().unwrap()&4,4);assert_eq!(l["clip"][1],1494);assert_eq!(l["clip"][3],512);}
+ }
+ #[test]fn real_unit_callback_submits_build_clip_before_later_build_changes(){
+  let mut g=field();g.ai_teams.clear();g.spawn("medium",0,1000.,1200.,1,None);g.maintain_native_group_rosters();g.units[0].native_phase35=9;g.units[0].native_cell10=38*128+31;g.map.terrain_codes[38*64+31]=31;g.map.native_terrain_plane[38*128+31]=31;g.import_native_world(&json!({"nativeWorldBuildings":[{"nativeSlot":0,"kind":1,"x":480,"y":580,"hp":100}]}));g.step(0.059);let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert!(!row["nativeLayers"].as_array().unwrap().is_empty());assert_eq!(row["nativeLayers"][0]["clip"][1],1294,"row={row}, xy=({},{}),cell={},phase={},BUILD={:?}",g.units[0].x,g.units[0].y,g.units[0].native_cell10,g.units[0].native_phase35,g.native_world_buildings());g.import_native_world(&json!({"nativeWorldBuildings":[]}));assert_eq!(g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap(),row);
+ }
  #[test]fn real_unit_loop_captures_after_an_early_handler_break_and_does_not_clear_flash_on_snapshot(){
   let mut g=field();g.ai_teams.clear();g.spawn("grunt",0,1000.,1000.,1,None);g.maintain_native_group_rosters();g.units[0].native_flags64|=4;g.units[0].native_phase35=33;g.units[0].native_frame32=0;g.units[0].native_timer3c=5;g.step(0.059);let row=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(row["palette"],4);assert_eq!(g.units[0].native_flags64&4,0);g.units[0].native_flags64|=4;let again=g.native_display_queue().into_iter().find(|r|r["kind"]=="unit").unwrap();assert_eq!(row,again);assert_eq!(g.units[0].native_flags64&4,4);
  }

@@ -88,6 +88,26 @@ fälle vergleichen sämtliche14.400 Records, fragmentierte/fast volle Pools,
 den inklusiven4800-Rand, Teilwrites und fehlgeschlagene letzte Anhänge.
 Diese Nachweise ersetzen keinen vollständigen Originalpartievergleich.
 
+WEITERER ABGLEICH: KONTAKTE, VERDECKUNG UND GEBAEUDESCHADEN
+Der natürliche freundliche Kontaktpfad5bf90/5bbc0 ist mit echten Buckets,
+RNG, Sichtstrahlen, endlichen Pfadlinks und Strategy21-Schreibungen verbunden.
+1.024 vollständige Originalaufrufe stimmen feldweise überein.512 weitere
+Originalfälle bestätigen die gegensätzlichen Team-Gates von5c210/5bec0;
+deren normaler Gegnercaller erreicht5bd30 tatsächlich nicht.
+Mittlere, schwere und leichte Panzer erhalten ihre BUILD-/Fortverdeckung aus
+den ursprünglichen Abfragen.8.192 Originalfälle prüfen die Clipauswahl und
+Rasterargumente; gültige Masken werden in allen gespeicherten Bildlagen sowie
+im Multiplayer mitgeführt. Negative OpenGL-Maskenhöhen bleiben abgegrenzt.
+Werkstätten können nach Entfernung ihres Insassen dessen erhaltene UNIT31-/W-
+Referenz lesen. Dabei werden die aktuellen gemeinsamen W-Felder verwendet,
+einschließlich späterer Slotwiederverwendung.2.048 Original-Entfernungsfolgen
+sowie gezielte tatsächliche Gamefälle prüfen diese Schreibreihenfolge.
+41f8f0/41f610 besitzen einen eigenen Schadensanimationspool.5.120 originale
+Konstruktor-/Callbackzeilen stimmen in Pool, Queue, RNG und Blattaufrufen überein.
+Die25 Vorlagen aller21 Werkstätten sind privat importiert. Der40d050-Adapter
+führt Blattwirkungen vor den nachfolgenden UNIT-/W-Lesezugriffen aus.
+Umfang und verbleibende Grenzen: ORIGINAL-GEBAEUDESCHADEN.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -95,11 +115,12 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    temporäre Straßenliste überlappt ab Record44 mit Originalglobals. Lokale
    Kontur-zu-Straße-Ersetzung und vollständiges Scratch-/Globalaliasing bleiben
    getrennt von der jetzt geprüften primären Straßenassemblierung.
-2. Weitere freundliche Kollisions-/Ausweichcaller, räumliche Zielauflöser und
+2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
-   Speicher bleiben Grenzen. Werkstätten brauchen nach Entfernung ihres Insassen
-   noch dessen alte UNIT/W-Felder. Der BUILD18-Schadensfragmentpool41f610 samt
-   420200-/Terrainfolgen ist ebenfalls noch offen.
+   Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung auf
+   einem kalten/entfernten UNIT benötigt weitere GroupFF-/Rawglobal-Folgen.
+   Andere BUILD-/Fortschadenstabellen und die vollständigen gekoppelten420200-
+   Audio-/Global-/Poolaliasfolgen gehören nicht zum neuen Fragmentkernelnachweis.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten

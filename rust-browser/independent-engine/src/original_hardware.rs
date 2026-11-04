@@ -237,6 +237,7 @@ impl Game {
         self.ensure_native_hardware(index);
         if self.units[index].native_phase35==9{self.units[index].native_elevation76=0;}
         self.update_native_vehicle_contacts(index);
+        if let Err(e)=self.update_native_friendly_contacts(index){self.native_route_boundary=Some(e);}
         if self.units[index].kind=="apc"{let point=self.units[index].native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref()).is_some_and(|m|m.flags69&32!=0);if !point{self.update_native_apc(index);}return;}
         if !has_hatch(&self.units[index].kind){return;}
         let u=self.units[index].clone();

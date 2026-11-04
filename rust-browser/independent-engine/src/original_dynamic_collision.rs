@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use crate::original_collision::Contact;
 #[path="original_dynamic_collision_game.rs"]pub mod game;
+#[path="original_friendly_contact.rs"]pub mod friendly;
 include!("original_dynamic_collision_data.rs");
 
 #[derive(Clone,Debug,PartialEq,Eq)]pub enum Error{MissingMaskByte(u32),MissingTerrain(i16)}

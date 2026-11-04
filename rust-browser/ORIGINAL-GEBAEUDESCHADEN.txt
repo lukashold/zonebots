@@ -1,0 +1,45 @@
+GEBAEUDESCHADEN – abgegrenzter Originalvergleich
+
+41f8f0 konstruiert animierte Schadensrecords aus sechs signed16-Werten pro
+Vorlage.41f610 verarbeitet bis zu50 Records mit jeweils18 Bytes. Beide
+Funktionen wurden auf der unveränderten lokalen GOG-EXE ausgeführt.
+
+NACHWEIS
+1.024 Konstruktoraufrufe und4.096 aufeinanderfolgende Animationscallbacks:
+Alle900 Poolbytes, Queuebytes, Callbackreihenfolge, CRT-Aufrufe und Kontakt-
+modus stimmen in5.120 Einzelzeilen überein; Signatur1413238458.
+Nur die DLL-rand-Rückgabe sowie420200 und41dbf0 sind im Kerneloracle
+aufgezeichnete Blattaufrufe. Das ist kein vollständiger420200-Partienachweis.
+
+Originaleigenschaften bleiben erhalten:
+-40b070 setzt beim Missionswechsel nur das erste Wort jedes Records auf-1.
+  Andere alte Bytes bleiben erhalten. Die Pools werden den aktiven BUILD-Slots
+  kompakt zugewiesen, nicht nach einer Browser-Gebäude-ID adressiert.
+-41f8f0 verwendet für sämtliche Vorlagen die Framelänge und Verzögerung der
+  ERSTEN Tabellenzeile. Die individuellen Werte späterer Zeilen ersetzen diese
+  Quellwirkung nicht. Negative Spritewerte markieren wiederholte Animationen.
+-Aktivierung und Zeichnen erfolgen in getrennten Callbackdurchläufen.
+  Die Queueposition liegt100 native Pixel über dem sichtbaren Bild; der Offset
+  hebt dies beim Rasteraufruf wieder auf. Dadurch bleibt die Sortierung erhalten.
+-Schwellen, Zeit- und Framebytes behalten signed16-/signed8-/u8-Überläufe.
+  Position und Kamera werden an den ursprünglichen Abgabezeitpunkten gelesen.
+-Umweltkontakte erfolgen mit Stärke0 unter4a6e72=1 und danach wieder0.
+  Sie dürfen nicht durch erfundene Schadensexplosionen ersetzt werden.
+
+AKTUELLE GAME-ANBINDUNG
+Die25 Originalvorlagen aller21 authored Werkstätten sind im genehmigten
+privaten Kampagnenpaket enthalten. Der eigene öffentliche Extraktor liest sie
+nur aus der lokalen EXE; das öffentliche Git enthält diese Ressourcendatei nicht.
+Werkstattfragmente werden an ihrem tatsächlichen40d050-Aufrufpunkt verarbeitet.
+Die Zeichenqueue führt sie mit Radarrecords in BUILD-Slotreihenfolge vor den
+UNIT-Records zusammen. Schon abgegebene Bilder bleiben für diesen Frame erhalten.
+Funken verwenden den eigenen belegten41dbf0-Konstruktor mit demselben CRT-Strom.
+
+GRENZEN
+Weitere Fabrik-/Radar-/Fort-Fragmenttabellen und deren vollständige ursprüngliche
+Maschinenaufrufer sind noch nicht angebunden. Der allgemeine420200-Adapter
+übernimmt die bestehenden nativen OBJECT-/Geländekontakte; vollständige
+gekoppelte Audio-/Global-/Poolalias-Nebenwirkungen dieses Aufrufers bleiben
+gesondert gegen das Original zu prüfen.41f2d0 und weitere Schreiber außerhalb
+der beiden Kernel gehören nicht zu diesem Nachweis.
+Die Gebäudeschadensroutinen sind damit kein Beleg vollständiger1:1-Gleichheit.

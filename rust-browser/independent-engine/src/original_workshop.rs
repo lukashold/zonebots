@@ -1,9 +1,10 @@
 //! BUILD type0:40cd20/40d050 and44ebf0 repair admission. Coordinates and
 //! arithmetic retain the native signed byte/word widths. Drawing, damage
 //! fragments and command dispatch are explicit effects of the callback.
-//! The41f610 leaf is not implemented here: its50x18 damage-fragment pool also
-//! performs CRT random draws and420200(point,0) environment callbacks. The
-//! callback oracle isolates that leaf and does not prove its terrain effects.
+//! The41f610 leaf lives in its separate50x18-pool module. World executes it
+//! at the real callsite before later UNIT/W reads, including its environment
+//! callbacks. Numeric callback oracles isolate that leaf; its own oracles and
+//! explicit remaining environment boundaries are documented in that module.
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct State{pub bytes:[u8;88]}
 impl Default for State{fn default()->Self{Self{bytes:[0;88]}}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Fault{ZeroMaximum,ZeroFactor,MissingOccupant(i16)}
@@ -11,6 +12,15 @@ impl Default for State{fn default()->Self{Self{bytes:[0;88]}}}
 #[derive(Clone,Copy,Debug)]pub struct Unit{pub flags31:u8,pub hp:i16,pub maximum:i16}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Effect{OpenTerrain,OwnerOverlay,Draw{offset:[i16;2],sprite:i16},Spark([i16;2]),Clock(Option<i32>),Fragments(i16),Complete{slot:i16,full_heal:bool}}
 #[derive(Clone,Debug,Default)]pub struct Output{pub effects:Vec<Effect>,pub unit_hp:Option<i16>,pub rate:Option<u8>}
+pub trait World{
+ fn random(&mut self)->u32;
+ fn unit(&mut self,slot:i16)->Option<Unit>;
+ fn set_hull(&mut self,_slot:i16,_hp:i16){}
+ ///Source leaves execute at their actual callsite, before later UNIT/W reads.
+ fn effect(&mut self,_effect:Effect,_state:&mut State,_input:&mut Input){}
+}
+struct FixedWorld<F>{unit:Option<Unit>,random:F}
+impl<F:FnMut()->u32> World for FixedWorld<F>{fn random(&mut self)->u32{(self.random)()}fn unit(&mut self,_slot:i16)->Option<Unit>{self.unit}}
 impl State{
  pub fn word(&self,o:usize)->i16{i16::from_le_bytes([self.bytes[o],self.bytes[o+1]])}
  pub fn dword(&self,o:usize)->i32{i32::from_le_bytes(self.bytes[o..o+4].try_into().unwrap())}
@@ -27,37 +37,39 @@ impl State{
  ///44ebf0: quotient zero alone becomes1; negative missing hull is not
  ///clamped. Factor is signed622dba and supplied by its real caller.
  pub fn enter(&mut self,slot:i16,flags64:u8,hp:i16,maximum:i16,factor:i16)->Result<i32,Fault>{if factor==0{return Err(Fault::ZeroFactor);}let mut q=maximum.wrapping_sub(hp)/5;if q==0{q=1;}let work=(i32::from(q)+1)*884/i32::from(factor);self.set_word(8,slot);self.bytes[5]=flags64&3;self.bytes[62]=0;self.set_dword(36,work);self.set_word(10,0);Ok(work)}
- pub fn advance(&mut self,i:Input,unit:Option<Unit>,mut random:impl FnMut()->u32)->Result<Output,Fault>{
-  let mut out=Output::default();let p=self.position();let hp=self.word(30);let maximum=self.word(28);let owned=i.owner<4;
-  if owned&&self.bytes[69]==5{self.bytes[69]=4;out.effects.push(Effect::OpenTerrain);}
+ pub fn advance(&mut self,i:Input,unit:Option<Unit>,random:impl FnMut()->u32)->Result<Output,Fault>{self.advance_with(i,&mut FixedWorld{unit,random})}
+ pub fn advance_with(&mut self,mut i:Input,world:&mut impl World)->Result<Output,Fault>{
+  let mut out=Output::default();
+  macro_rules! emit{($effect:expr)=>{{let e=$effect;out.effects.push(e);world.effect(e,self,&mut i);}}}let p=self.position();let hp=self.word(30);let maximum=self.word(28);let owned=i.owner<4;
+  if owned&&self.bytes[69]==5{self.bytes[69]=4;emit!(Effect::OpenTerrain);}
   self.bytes[62]=self.bytes[62].wrapping_add(1);
   let screen=[p[0].wrapping_sub(i.camera[0]),p[1].wrapping_sub(i.camera[1])];let visible=screen[0]<=i.size[0]&&screen[1]<=i.size[1]&&screen[0]>-80&&screen[1]>-64;
   if visible{
    //40d050's visible ruin path returns immediately, including owned ruins.
    if hp==0{return Ok(out);}
    let threshold=maximum.wrapping_sub((maximum/5).wrapping_mul(3));
-   for(o,offset,base)in[(18,[18,5],0xb59i16),(19,[16,32],0xb5b),(20,[6,16],0xb5e)]{out.effects.push(Effect::Draw{offset,sprite:base.wrapping_add(i16::from(self.bytes[o]))});}
+   for(o,offset,base)in[(18,[18,5],0xb59i16),(19,[16,32],0xb5b),(20,[6,16],0xb5e)]{emit!(Effect::Draw{offset,sprite:base.wrapping_add(i16::from(self.bytes[o]))});}
    self.bytes[18]=u8::from(owned&&hp>threshold);
    if hp<=threshold{self.bytes[19]=0;}else if i.mode!=0{self.bytes[19]=self.bytes[19].wrapping_add(1);if self.bytes[19]==3{self.bytes[19]=0;}}
    self.bytes[20]=u8::from(owned&&hp>threshold);
-   if self.bytes[20]!=0&&self.bytes[69]==5{self.bytes[69]=4;out.effects.push(Effect::OpenTerrain);}
-   if owned{out.effects.push(Effect::OwnerOverlay);}
-   let stage=self.bytes[69]as i8;if stage!=0{if stage!=1{out.effects.push(Effect::Draw{offset:[16,49],sprite:0x767i16.wrapping_sub(i16::from(stage))});}if stage!=5&&i.mode==0{self.bytes[69]=self.bytes[69].wrapping_sub(1);}}
+   if self.bytes[20]!=0&&self.bytes[69]==5{self.bytes[69]=4;emit!(Effect::OpenTerrain);}
+   if owned{emit!(Effect::OwnerOverlay);}
+   let stage=self.bytes[69]as i8;if stage!=0{if stage!=1{emit!(Effect::Draw{offset:[16,49],sprite:0x767i16.wrapping_sub(i16::from(stage))});}if stage!=5&&i.mode==0{self.bytes[69]=self.bytes[69].wrapping_sub(1);}}
   }
-  if hp==0{out.effects.push(Effect::Fragments(-2));return Ok(out);}
-  out.effects.push(Effect::Fragments(maximum.wrapping_sub(hp)));
-  if !owned||self.remaining()==0{return Ok(out);}
-  let rate=self.rate(i.team_rate)?;out.effects.push(Effect::Clock(if rate==0{None}else{Some(self.remaining()/(i32::from(rate)*17))}));
+  if hp==0{emit!(Effect::Fragments(-2));return Ok(out);}
+  emit!(Effect::Fragments(maximum.wrapping_sub(hp)));
+  if i.owner>=4||self.remaining()==0{return Ok(out);}
+  let rate=self.rate(i.team_rate)?;emit!(Effect::Clock(if rate==0{None}else{Some(self.remaining()/(i32::from(rate)*17))}));
   //40cf70 runs even offscreen; its spark ctor consumes the separate C rand.
-  if i.mode==0{let mut b=self.bytes[17];if b&15==0{out.effects.push(Effect::Spark([p[0].wrapping_add(58),p[1].wrapping_sub(1)]));b=((random()as u8&3).wrapping_add(b&240)).wrapping_add(8);}else{b=b.wrapping_sub(1);}self.bytes[17]=b;if b&240!=0{self.bytes[17]=b.wrapping_sub(16);}else{out.effects.push(Effect::Spark([p[0].wrapping_add(56),p[1].wrapping_add(7)]));self.bytes[17]=(random()as u8&3).wrapping_add(8).wrapping_mul(16).wrapping_add(self.bytes[17]&240);}}
-  out.effects.push(Effect::Draw{offset:[32,0],sprite:0xb60i16.wrapping_add(i16::from(self.bytes[21]))});if i.mode!=0{self.bytes[21]=self.bytes[21].wrapping_sub(1)&1;}
+  if i.mode==0{let mut b=self.bytes[17];if b&15==0{emit!(Effect::Spark([p[0].wrapping_add(58),p[1].wrapping_sub(1)]));b=((world.random()as u8&3).wrapping_add(b&240)).wrapping_add(8);}else{b=b.wrapping_sub(1);}self.bytes[17]=b;if b&240!=0{self.bytes[17]=b.wrapping_sub(16);}else{emit!(Effect::Spark([p[0].wrapping_add(56),p[1].wrapping_add(7)]));self.bytes[17]=(world.random()as u8&3).wrapping_add(8).wrapping_mul(16).wrapping_add(self.bytes[17]&240);}}
+  emit!(Effect::Draw{offset:[32,0],sprite:0xb60i16.wrapping_add(i16::from(self.bytes[21]))});if i.mode!=0{self.bytes[21]=self.bytes[21].wrapping_sub(1)&1;}
   out.rate=Some(rate);if rate==0{return Ok(out);}let mut cancel=false;
-  if (self.bytes[62]as i8)>=17{self.bytes[62]=0;let slot=self.occupant();if slot== -1{self.set_word(8,-1);self.set_dword(36,0);return Ok(out);}let u=unit.ok_or(Fault::MissingOccupant(slot))?;
-   if(i.owner as u8^u.flags31)&3==0{if u.flags31&4==0{self.set_word(8,-1);self.set_dword(36,0);return Ok(out);}let eta=self.eta(i.team_rate)?;if u.hp<u.maximum&&eta!=0{let addition=((i32::from(u.maximum.wrapping_sub(u.hp))/eta)+1)as i16;out.unit_hp=Some(u.hp.wrapping_add(addition.max(1)));}}
+  if (self.bytes[62]as i8)>=17{self.bytes[62]=0;let slot=self.occupant();if slot== -1{self.set_word(8,-1);self.set_dword(36,0);return Ok(out);}let u=world.unit(slot).ok_or(Fault::MissingOccupant(slot))?;
+   if(i.owner as u8^u.flags31)&3==0{if u.flags31&4==0{self.set_word(8,-1);self.set_dword(36,0);return Ok(out);}let eta=self.eta(i.team_rate)?;if u.hp<u.maximum&&eta!=0{let addition=((i32::from(u.maximum.wrapping_sub(u.hp))/eta)+1)as i16;let hp=u.hp.wrapping_add(addition.max(1));out.unit_hp=Some(hp);world.set_hull(slot,hp);}}
    else{cancel=true;}
   }
   if !cancel{self.set_dword(36,self.remaining().wrapping_sub(i32::from(rate)));if self.remaining()>0{return Ok(out);}}
-  let slot=self.occupant();let u=unit.ok_or(Fault::MissingOccupant(slot))?;self.set_dword(36,0);self.set_word(8,-1);if !cancel{out.unit_hp=Some(u.maximum);}out.effects.push(Effect::Complete{slot,full_heal:!cancel});out.effects.push(Effect::Fragments(-2));Ok(out)
+  let slot=self.occupant();let u=world.unit(slot).ok_or(Fault::MissingOccupant(slot))?;self.set_dword(36,0);self.set_word(8,-1);if !cancel{out.unit_hp=Some(u.maximum);world.set_hull(slot,u.maximum);}emit!(Effect::Complete{slot,full_heal:!cancel});emit!(Effect::Fragments(-2));Ok(out)
  }
 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Admission{Absent,Redirect{hold:[i16;2],goal:[i16;2]},Repair}
@@ -82,4 +94,30 @@ pub fn entry_building(positions:&[[i16;2]],unit_cell:i32)->Option<usize>{positio
  #[test]fn production_factor_matches_all8_native_initializer_branches(){for(mode,factor)in[(-32768,16),(-1,16),(0,16),(1,16),(2,12),(3,15),(4,16),(32767,16)]{assert_eq!(initialized_factor(mode),factor);}assert_eq!(crate::Game::new(0,1,8).native_work_factor,8,"462300 cold initialization precedes17b30 campaignmode2");}
  #[test]fn admission_preserves_negative_missing_hull_and_wraps_difference_before_dividing(){let mut b=State::default();assert_eq!(b.enter(3,255,99,100,12),Ok(147));assert_eq!(b.enter(3,3,150,100,12),Ok(-663));assert_eq!(b.enter(3,0,-32768,32767,12),Ok(147));assert_eq!(b.enter(3,0,99,100,0),Err(Fault::ZeroFactor));}
  #[test]fn occupied_and_invalidated_slots_wait_for_the_signed17_tick_test(){let mut b=fixture(0);b.set_word(28,100);b.set_word(30,100);b.set_dword(36,10000);b.bytes[62]=127;b.set_word(8,-1);let i=Input{owner:0,team_rate:26,camera:[1000,1000],size:[800,600],mode:1};let o=b.advance(i,None,||0).unwrap();assert_eq!(b.remaining(),9974);assert_eq!(b.bytes[62],128);assert!(!o.effects.iter().any(|a|matches!(a,Effect::Complete{..})));b.bytes[62]=16;b.advance(i,None,||0).unwrap();assert_eq!(b.remaining(),0);assert_eq!(b.occupant(),-1);}
+}
+
+///Only UNIT31 and UNIT8 are retained here.60430 zeroes all240UNIT records;
+///41b210 clears a chosen slot before setting31/8. W8/W10 remain in the one
+///shared hardware pool and are deliberately not copied into a tombstone.
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Default)]pub enum HardwareRef{#[default] Dummy,Slot(usize)}
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct UnitProjection{pub flags31:u8,pub hardware:HardwareRef,pub retired:bool}
+#[derive(Clone,Debug)]pub struct UnitSlots{pub slots:[UnitProjection;240]}
+impl Default for UnitSlots{fn default()->Self{Self{slots:[UnitProjection::default();240]}}}
+impl UnitSlots{
+ pub fn clear_for_mission(&mut self){self.slots.fill(UnitProjection::default());}
+ pub fn construct(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:false};}}
+ ///Only the low3bits read by40d050 are projected, not the whole rawbyte.
+ ///Snapshot occurs after actual58660 and after successful58af0 can have
+ ///cleared UNIT8.4bba0 subsequently clears31:8, leaving owner/active bits.
+ pub fn retired(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:true};}}
+}
+
+#[cfg(test)]mod retained_unit_tests{
+ use super::*;
+ fn hash(bytes:&[u8])->u32{bytes.iter().fold(2166136261u32,|h,n|(h^u32::from(*n)).wrapping_mul(16777619))}
+ fn mix(h:&mut u32,ns:&[u32]){for &n in ns{*h=(*h^n).wrapping_mul(16777619);}}
+ #[test]fn retained_and_reused_unit_references_match_all2048_actual58ec0_then40d050_calls(){let mut hash_all=2166136261u32;for s in 0..2048usize{let team=(s/5%4)as u8;let active=s%13!=0;let flags=team|if active{4}else{0};let initial=if s/3%3==2{HardwareRef::Slot(0)}else{HardwareRef::Dummy};let family=[6,32,255,4][s%4];let alloc=if active&&[6,32].contains(&family)&&s/17%2==0{1}else{0};let success=alloc!=0&&s/7%2==0;let mut slots=UnitSlots::default();slots.construct(0,flags,initial);if active{slots.retired(0,flags&!4,if success{HardwareRef::Dummy}else{initial});}if s/19%3==1&&active{slots.construct(0,((team+1)&3)|4,HardwareRef::Dummy);}let slot=slots.slots[0];let(hw,before,maximum)=match slot.hardware{HardwareRef::Dummy=>(0,10,80),HardwareRef::Slot(_)=>if s/19%3==2{(1,17,400)}else{(1,[-1,0,50,201][s/11%4],200)}};let mut b=State::default();b.set_word(0,400);b.set_word(2,500);b.set_word(8,0);b.set_word(28,500);b.set_word(30,500);b.set_dword(32,0x1910000);b.set_dword(36,[1,26,27,1000,100000][s/23%5]);b.bytes[62]=[0,15,16,17,127,255][s/31%6];let out=b.advance(Input{owner:if s/37%2==0{team}else{(team+1)&3}as i8,team_rate:26,camera:[0,0],size:[800,600],mode:1},Some(Unit{flags31:slot.flags31,hp:before,maximum}),||panic!("odd callback never draws60910")).unwrap();let complete=out.effects.iter().filter(|e|matches!(e,Effect::Complete{..})).count()as u32;mix(&mut hash_all,&[s as u32,u32::from(slot.flags31),hw,before as u32,maximum as u32,out.unit_hp.unwrap_or(before)as u32,hash(&b.bytes),complete,alloc,active as u32]);}assert_eq!(hash_all,3467532780,"ZNativeWorkshopRemovalOracle2048actual58ec0/58af0/58660/40d050 calls; group/placement/route/audio leaves isolated");}
+ #[test]fn fragment_world_runs_after_opening_before_the_actual_unit31_read(){struct Env{flags:u8,trace:Vec<u8>};impl World for Env{fn random(&mut self)->u32{0}fn unit(&mut self,_:i16)->Option<Unit>{self.trace.push(3);Some(Unit{flags31:self.flags,hp:10,maximum:100})}fn set_hull(&mut self,_:i16,_:i16){panic!("inactive post-fragment UNIT cannot be healed")}fn effect(&mut self,e:Effect,_:&mut State,_:&mut Input){match e{Effect::OpenTerrain=>self.trace.push(1),Effect::Fragments(_)=>{self.trace.push(2);self.flags&=!4;},_=>{}}}}let mut b=State::default();b.set_word(28,100);b.set_word(30,100);b.set_word(8,0);b.set_dword(36,1000);b.bytes[62]=16;b.bytes[69]=5;let mut w=Env{flags:4,trace:vec![]};let out=b.advance_with(Input{owner:0,team_rate:26,camera:[0,0],size:[800,600],mode:1},&mut w).unwrap();assert_eq!(w.trace,[1,2,3]);assert_eq!((b.occupant(),b.remaining()),(-1,0));assert!(out.unit_hp.is_none());}
+ #[test]fn fragment_world_refreshes_build_health_and_cp_owner_before_rate_and_hull_reads(){struct Env{hp:i16};impl World for Env{fn random(&mut self)->u32{0}fn unit(&mut self,_:i16)->Option<Unit>{Some(Unit{flags31:5,hp:self.hp,maximum:100})}fn set_hull(&mut self,_:i16,hp:i16){self.hp=hp;}fn effect(&mut self,e:Effect,b:&mut State,i:&mut Input){if matches!(e,Effect::Fragments(_)){b.set_word(30,20);i.owner=1;i.team_rate=51;}}}let mut b=State::default();b.set_word(28,100);b.set_word(30,100);b.set_word(8,0);b.set_dword(36,1000);b.bytes[62]=16;let mut w=Env{hp:10};let out=b.advance_with(Input{owner:0,team_rate:26,camera:[0,0],size:[800,600],mode:1},&mut w).unwrap();assert_eq!(out.rate,Some(10));assert_eq!(w.hp,29);assert_eq!(b.remaining(),990);assert!(out.effects.contains(&Effect::Clock(Some(5))));}
+ #[test]fn mission_clear_is_the60430_zero_pool_and_ctor_discards_retired_references(){let mut slots=UnitSlots::default();slots.retired(17,3,HardwareRef::Slot(8));slots.clear_for_mission();assert!(slots.slots.iter().all(|s|*s==UnitProjection::default()));slots.retired(17,3,HardwareRef::Slot(8));slots.construct(17,5,HardwareRef::Dummy);assert_eq!(slots.slots[17],UnitProjection{flags31:5,hardware:HardwareRef::Dummy,retired:false});}
 }
