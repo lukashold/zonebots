@@ -1,0 +1,88 @@
+Retired UNIT, derselbe 5a080-Callback, nov04-r44
+
+Umfang und tatsächliche Anbindung
+Der phase61/deletedOBJECT-Caller sichert vor 59d80/59e60 und echtem58ec0
+einen lokalen Callbackkontext. Die bereits ausgeführte Entfernung bleibt
+gültig: UNIT31:4=0, native_slot=None, Member entfernt, kein neuer Actor.
+5a080 darf trotzdem seinen bereits begonnenen Callback fortsetzen.
+Das Main-Match behandelt das Ergebnis Retired getrennt von Removed und
+führt keinen zweiten allgemeinen Handler/Footer/Draw auf dem Actor aus.
+
+Belegte Envelope: vorher gültige reale Gruppe, nach Entfernung FamilieFF,
+Fußklasse0/3, Rolle0/GruppeFF, raw5c0, raw8a0, keine primären/sekundären
+Pfadköpfe und kein Slotreuse während dieses Callbacks. Nicht eingefrorene
+Fortsetzung ist derzeit auf terrain0 und bekannte echte Patternpointer
+begrenzt. Andere Familien/Orders/Transportflags/Pfade/Pattern/Terrain oder
+unbekannter Current-Roster-Kontext liefern benannte RetiredUnitContinuation-
+Grenzen; bekannte Präfixwrites bleiben erhalten. Keine HP-Heuristik.
+
+Getrennte Owner
+Der alte globale632194-Kontext bleibt die ursprüngliche Gruppe120 im
+kontrollierten Fall. OwnGROUPFF+9 ist dagegen Adresse6133c1, also
+OBJECT24+0x21 (dezimal33, spriteOffset21). AA1->0 und9cFF->EB erfolgen
+vor dem Frozen-Gate; der Aliasbyte wird mitDF maskiert. Ein vorhandenes
+reales OBJECT24 oder ein bereits bekannter warmer Byteowner wird benutzt.
+Kalt unbekannt bedeutet AliasByte24-Grenze, niemals geratenes Nullbyte.
+Der Write konstruiert/aktiviert kein OBJECT und betrifft weder OO25 noch
+flags26/saved/lifetime. Ein echter neuer OBJECT-Konstruktor ersetzt seinen
+spriteOffset; bekannter warmer Zustand überlebt den X-only Missionsreset.
+
+Die sourcegebundene Gruppenpromotion4b990@44bad7 ruft52500 auf dem neuen
+Leader auf, BEVOR dessen RolleFF/Ordervererbung. Dieser zuvor ausgelassene
+Reset ist eng ergänzt: tatsächliche verwaltete Pfadköpfe,31:20 und W17:1
+bzw. der gemeinsame Dummy werden am realen Promotionereignis bereinigt.
+Die hier geprüfte Envelope hat leere Köpfe; dies ist kein neuer Nachweis
+der gesamten alten Leader-Pointerübertragung bei nichtleeren Pfaden.
+
+Fortsetzung und letzter Draw
+Frame100->0 gilt auch eingefroren;69:40 beendet dann nach dem Präfix ohne
+zusätzliche RNG/Draw. Sonst laufen der bekannte4f1e0/451d40-Teil,7b3->2,
+54160(5c0) und der echte44dd00-Konstruktor:35=1,32=1,3d=8,3c=r&3,
+41=0,40=39,7d=(r&FFFF)%53+12. Genau zwei zusätzliche RNG-Aufrufe.
+55f10 liefert einen echten Sprite185-Queueeintrag auch nach Entfernung.
+Seine Palette ist UNIT64&7, NICHT Literal0. Die neue retiredUnit-Quelle
+benutzt entsprechend die normalen Gast-/Weißpalettenregeln; strenge
+MP-Validierung fordert Slot0..239, queue/sprite und Rawpalette0..7 ohne
+nativeLiteralPalette. Ein folgender Callback zeichnet den inaktiven Slot
+nicht nochmals; echte neue Konstruktion desselben Slots erhält neue Identität.
+
+Patternkorrektur
+41b210@41b34d schreibt8bFF vor dem ersten4f1e0. Das ist als unabhängiger
+Konstruktorwriter eingebunden.451d40 überschreibt8b und20/ac/b8 nur beim
+Indexwechsel; ein unveränderter Index erhält den tatsächlichen warmen
+Patternpointer. Der Liveadapter führt den numerischen20-Owner, die reine
+Raw192-Projektion prüft alle drei belegten Pointerwrites. Keine Vecadresse.
+Die übrigen Live-Pointerleser von ac/b8 sind damit nicht global geschlossen.
+Die ursprüngliche V42-Oracle mit20=0/8b0 ist nur Präfix-/Idle-/RNG-Beleg:
+der unveränderte Index ließ einen Nullpointer stehen. Ihre virtuelle
+Nullspeicher-Auswertung wird ausdrücklich NICHT als kompletter Callerbeleg
+verwendet. Die neuen32 Callerfälle setzen den tatsächlichen Tabellenpointer.
+
+Ausgeführte Originalfälle und Grenzen des Nachweises
+ZV43RetiredUnitPreamblePatternsOracle:16 vollständige echte5a080-Callbacks,
+Leader/Follower x Klasse0/3 x Frozen/normal x echtesW/Dummy. Keine Death-,
+Gruppen-,Routen-,Order-,Handler- oder RNG-Returnstubs.55f10 schreibt seine
+echte Queue; bewachte Rasterendpunkte werden in diesen Fällen nicht erreicht.
+56 Snapshots, Signatur1672440905 über alle192 Bytes/Queue/Kontext/5RNG.
+ZV43RetiredUnitPreambleMpOracle: dieselben16 mit tatsächlichem622dc4=1,
+56 Snapshots, Signatur1057529485. Dieselben1/3 RNG-Aufrufe; alle fünf
+RNG-Wörter bleiben im MP-Fall unverändert. Keine zusätzliche MP-Leafgrenze.
+ZV43RetiredPatternSelectorOracle:128 tatsächliche4f1e0/451d40-Aufrufe,
+Steuerbyte0/10/60/255, signed8c -1/0/3/127,71:20,alterIndex/FF und zwei
+echte warme Patternpointer; alle192 Bytes vor/nach, Signatur2170189549.
+
+Die Game-Replays vergleichen zusätzlich reale72 Gruppenbytes,120 Bytes
+Leichenpool,volle44 W- und44 Dummybytes,alle bekannten OO24-Aliasdeltas
+und die fünf RNG-Wörter. Die192-Byte-Projektion bewahrt unveränderte
+Fixturebytes und ersetzt die explizit modellierten sourcegeschriebenen
+Felder; sie behauptet keinen allgemeinen Raw192-Owner im Browser.
+Separate Main-/Frozen-/Folgetick-/Slotreuse-Tests laufen SP und MP.
+Eine tatsächlich von Rust erzeugte Zeile dient20 Gast-RPC-/Schema-/
+OriginalDisplay-Fällen ohne lebenden Actor. Der RPC-Test verwendet Wasm
+ausschließlich als gültige Zustandshülle. Die neuen Retired-Callbacks werden
+separat direkt im tatsächlichen Rust-Game geprüft; die Hülle allein beweist sie nicht.
+
+Gezielte Prüfungen:20 retired,33 original_group,18 original_transport_game,
+11 original_unit_preamble,50 original_display,1 Pattern-Konstruktortest;
+zusätzlich neuer20-Fälle-RPC-Test und vorhandener Multiplayer-RPC-Test grün.
+Abschließender Gesamtlauf, Release-Wasm und Bereitstellung: TESTERGEBNIS.txt.

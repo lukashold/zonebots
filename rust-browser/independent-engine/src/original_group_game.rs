@@ -170,6 +170,21 @@ impl State{
             //Only membership/field transfer is consumed here. Web VecDeque
             //ownership is explicit; it is never encoded as a fake pool pointer.
             let mut raw_paths=[0u32;240];
+            //4b990@44bad7 calls52500 on the first follower BEFORE setting its
+            //role toFF and inheriting the removed leader's order/path. Even
+            //empty paths clear that follower's actual W17:1 (or shared dummy).
+            if let Some(promoted_slot)=(1..21).find_map(|role|source_group.member(role)){
+                if let Some(member)=members.iter_mut().find(|m|m.slot==promoted_slot){
+                    let promoted_slot=usize::from(promoted_slot);
+                    if let Some(index)=g.units.iter().position(|u|u.native_slot==Some(promoted_slot)){
+                        let clear_hardware=if g.native_routes.borrow().managed[promoted_slot]{g.native_routes.get_mut().pool.clear(promoted_slot,member.flags31&4!=0,member.role)}else{member.flags31&4!=0||member.role!= -1};
+                        member.flags31&=!32;member.secondary_path=false;if clear_hardware{member.primary_path=false;}
+                        let unit=&mut g.units[index];if clear_hardware{unit.path.clear();unit.native_route_pending.set(None);unit.pursuit=None;}
+                        unit.native_secondary_route.set(false);
+                        if clear_hardware{if let Some(w)=unit.native_hardware_slot.and_then(|s|g.native_hardware_pool.get_mut(s)){let mut order=w.order;order.field17&=!1;w.set_order(order);}else{g.native_hardware_dummy.field17&=!1;}}
+                    }
+                }
+            }
             let promoted=life::promote_first_follower(source_group,&mut members,slot as u8,&mut raw_paths,||g.original_rng.next_u32());
             for member in members{if usize::from(member.slot)!=slot{let id=usize::from(member.slot);self.members[id]=Some(member);}}
             if let Some(p)=promoted{

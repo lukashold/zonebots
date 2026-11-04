@@ -41,6 +41,7 @@ mod original_hardware_point;
 mod original_audio;
 mod original_listener_audio;
 mod original_unit_preamble;
+mod original_retired_unit_preamble;
 mod original_vehicle_spacing;
 mod original_building_display;
 mod original_building_fragments;
@@ -251,6 +252,8 @@ pub struct Unit {
     #[serde(default,skip_serializing_if="Option::is_none")] pub native_walk:Option<original_motion::Walk>,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub native_slot: Option<usize>,
+    #[serde(skip)] pub native_pattern20:Option<u32>,
+    #[serde(skip)] pub native_word90:i16,
     /// Present only for a gun initialized in an original fort's gun socket.
     /// Ownership and crew changes do not detach the hardware from its fort.
     #[serde(default)]
@@ -690,7 +693,7 @@ impl Game {
             moving: false,
             squad,
             formation:None,motion_bonus:0,formation_layout:0,group_bonus_ticks:0,group_activity_ticks:0,native_group_order_pending:false,native_group_motion_bonus:0,native_hardware:None,native_contact:None,native_idle:None,native_cover:None,native_move_frame:0,native_walk:None,native_transport:None,native_transport_slot:None,transport_carrier:None,transport_actor:None,
-            native_slot,native_route_flip:std::cell::Cell::new(false),native_route_road_replaced:std::cell::Cell::new(false),native_secondary_route:std::cell::Cell::new(false),native_route_pending:std::cell::Cell::new(None),native_factory_exit:None,native_dodge:None,native_initiative_scan:Default::default(),native_counter6e:0,native_contact6f:if native_slot.is_some(){255}else{0},native_contact70:0,native_wait72:0,native_contact_pausebc:0,native_terrain_tag63:0,native_frame32:0,native_timer3c:if team>=0&&d.cls>0{15}else{0},native_remaining48:0,native_order5c:0,native_range4:None,native_counter97:0,native_mask98:if native_slot.is_some(){7}else{0},native_target46:0,native_counter68:0,native_flags9c:0,native_protectionaa:0,native_control06:native_ai_scoring::default_input(k).map_or(0,|v|v.traits[3]),native_trait7a:native_ai_scoring::default_input(k).map_or(0,|v|v.traits[6]),native_field62:0,native_cyclea0:0,native_axis81:0,native_speed8b:0,native_counter9f:0,native_cell10:0,native_target42:0,native_target44:0,native_elevation76:0,native_bucket38:0,native_counter67:0,native_counter66:0,native_reload7b:0,native_directiona2:0,native_directiona3:0,native_counter84:0,native_pose82:0,native_direction34:0,native_field9e:0,native_fieldb3:if native_slot.is_some(){-1}else{0},native_footprint18:0,native_permission1c:0,native_pose7e:0,native_pose80:0,native_transition88:0,native_hardware_slot:None,native_class7c:original_combat::runtime_class(k) as u8,native_phase35:if team>=0{original_animation_game::initial_phase(k)}else{0},native_flags64:if team>=0{(team as u8&3)|16}else{0},
+            native_slot,native_route_flip:std::cell::Cell::new(false),native_route_road_replaced:std::cell::Cell::new(false),native_secondary_route:std::cell::Cell::new(false),native_route_pending:std::cell::Cell::new(None),native_factory_exit:None,native_dodge:None,native_initiative_scan:Default::default(),native_counter6e:0,native_contact6f:if native_slot.is_some(){255}else{0},native_contact70:0,native_wait72:0,native_contact_pausebc:0,native_terrain_tag63:0,native_frame32:0,native_timer3c:if team>=0&&d.cls>0{15}else{0},native_remaining48:0,native_order5c:0,native_range4:None,native_counter97:0,native_mask98:if native_slot.is_some(){7}else{0},native_target46:0,native_counter68:0,native_flags9c:0,native_protectionaa:0,native_control06:native_ai_scoring::default_input(k).map_or(0,|v|v.traits[3]),native_trait7a:native_ai_scoring::default_input(k).map_or(0,|v|v.traits[6]),native_field62:0,native_cyclea0:0,native_axis81:0,native_speed8b:0,native_pattern20:None,native_word90:0,native_counter9f:0,native_cell10:0,native_target42:0,native_target44:0,native_elevation76:0,native_bucket38:0,native_counter67:0,native_counter66:0,native_reload7b:0,native_directiona2:0,native_directiona3:0,native_counter84:0,native_pose82:0,native_direction34:0,native_field9e:0,native_fieldb3:if native_slot.is_some(){-1}else{0},native_footprint18:0,native_permission1c:0,native_pose7e:0,native_pose80:0,native_transition88:0,native_hardware_slot:None,native_class7c:original_combat::runtime_class(k) as u8,native_phase35:if team>=0{original_animation_game::initial_phase(k)}else{0},native_flags64:if team>=0{(team as u8&3)|16}else{0},
             fort_id: None,
             grenades: 0,
             crew,
@@ -1112,7 +1115,8 @@ impl Game {
             match self.advance_native_unit_preamble(i){
                 original_unit_preamble::game::Outcome::Continue=>{},
                 original_unit_preamble::game::Outcome::Frozen=>continue 'native_units,
-                original_unit_preamble::game::Outcome::Removed=>{if self.native_route_mode{self.native_route_boundary=Some(original_path_contact::game::Boundary::RetiredUnitPreamble(address));}continue 'native_units;},
+                original_unit_preamble::game::Outcome::Retired(_)=>continue 'native_units,
+                original_unit_preamble::game::Outcome::Removed=>{if self.native_route_mode&&self.native_route_boundary.is_none(){self.native_route_boundary=Some(original_path_contact::game::Boundary::RetiredUnitPreamble(address));}continue 'native_units;},
                 original_unit_preamble::game::Outcome::Unavailable=>{
                     if self.native_route_mode&&native_slot_callback&&self.units[i].team>=0&&original_combat::alive(true,self.units[i].hp){self.native_route_boundary=Some(original_path_contact::game::Boundary::UnitPreamble(address,self.units[i].native_phase35));continue 'native_units;}
                     if self.map.original{if let Some(slot)=self.units[i].native_slot{self.native_group_rosters.observe_unit_context(slot);}}

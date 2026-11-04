@@ -67,7 +67,7 @@ pub(crate) enum LocalResult{Moving,Arrived,Blocked}
 
 impl Game {
     ///41b3bd stores the initial bucket before the first4f1e0 contextupdate.
-    pub(crate) fn initialize_native_walk_fields(&mut self,i:usize){let Some(u)=self.units.get_mut(i)else{return;};if self.map.original&&u.native_slot.is_some(){u.native_directiona2=-1;u.native_directiona3=0;u.native_bucket38=(((coordinate(u.y)>>3)as u8)&240).wrapping_add((coordinate(u.x)>>7)as u8);}}
+    pub(crate) fn initialize_native_walk_fields(&mut self,i:usize){let Some(u)=self.units.get_mut(i)else{return;};if self.map.original&&u.native_slot.is_some(){u.native_directiona2=-1;u.native_directiona3=0;u.native_speed8b=-1;u.native_bucket38=(((coordinate(u.y)>>3)as u8)&240).wrapping_add((coordinate(u.x)>>7)as u8);}}
     ///4f572 copies the selected global movement pattern's current step to62.
     ///Call at the existing4f1e0 constructor/5a080 position-context boundary.
     pub(crate) fn refresh_native_pattern_step(&mut self,i:usize,tick:u64){
@@ -75,7 +75,7 @@ impl Game {
         let control=u.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||original_combat::CombatState::new(&u.kind).movement_control);
         let code=self.native_terrain(coordinate(u.x)+8,coordinate(u.y)+8);
         let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;
-        let pattern=STEPS[motion_index];self.units[i].native_speed8b=motion_index as i8;self.units[i].native_field62=pattern[tick as usize%pattern.len()];
+        if self.units[i].native_speed8b!=motion_index as i8{self.units[i].native_pattern20=Some(crate::original_retired_unit_preamble::PATTERNS[motion_index]);}self.units[i].native_speed8b=motion_index as i8;let actual=self.units[i].native_pattern20.and_then(|p|crate::original_retired_unit_preamble::PATTERNS.iter().position(|&token|token==p)).unwrap_or(motion_index);let pattern=STEPS[actual];self.units[i].native_field62=pattern[tick as usize%pattern.len()];
     }
     ///Directional movement leaf only.452200/48060 own their counter update
     ///and subsequent acquisition, so neither is repeated here. Contact and
@@ -268,4 +268,12 @@ mod tests {
             assert_eq!(s.remaining,0);
         }}
     }
+}
+
+///Known globalpattern step; the native pointerdomain is checked by itscaller.
+pub(crate) fn known_pattern_step(index:usize,tick:u64)->Option<u8>{let p=STEPS.get(index)?;Some(p[tick as usize%p.len()])}
+
+#[cfg(test)]mod pattern_pointer_tests{
+ use super::*;
+ #[test]fn source_constructor_speed_ff_initializes_real_pointer_and_unchanged_speed_retains_it(){let mut g=Game::new(0,1,1);g.map.original=true;g.units.clear();g.native_group_rosters.clear();g.spawn("grunt",0,640.,640.,1,None);assert!(g.units[0].native_pattern20.is_some());if let Some(c)=&mut g.units[0].original_combat{c.movement_control=0;}g.initialize_native_walk_fields(0);assert_eq!(g.units[0].native_speed8b,-1,"41b34d writesFF before first4f1e0");g.units[0].native_pattern20=None;g.refresh_native_pattern_step(0,0);assert_eq!(g.units[0].native_pattern20,Some(crate::original_retired_unit_preamble::PATTERNS[0]));assert_eq!(g.units[0].native_field62,1);g.units[0].native_pattern20=Some(crate::original_retired_unit_preamble::PATTERNS[1]);g.refresh_native_pattern_step(0,4);assert_eq!(g.units[0].native_pattern20,Some(crate::original_retired_unit_preamble::PATTERNS[1]),"451d40 does not rewrite the pointer when speed stays0");assert_eq!(g.units[0].native_field62,1,"the actual savedpattern1 cursor4%4 is used, not recomputedpattern0 cursor4%5");}
 }

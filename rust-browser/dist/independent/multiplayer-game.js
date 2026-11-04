@@ -48,6 +48,7 @@
   if(state.nativeDisplayQueue!==undefined&&(!Array.isArray(state.nativeDisplayQueue)||state.nativeDisplayQueue.length>4000||!state.nativeDisplayQueue.every(r=>{
    if(!object(r)||!['building','unit','sprite','effect','repairClock','repairOverlay'].includes(r.kind)||!['pre','queue'].includes(r.stage))return false;
    if(r.nativeLiteralPalette!==undefined&&(typeof r.nativeLiteralPalette!=='boolean'||r.nativeLiteralPalette&&(r.kind!=='sprite'||!['wreckOverlay','seasonalOverlay','buildingFragment','fortFragment'].includes(r.source)||r.palette!==0)))return false;
+   if(r.source==='retiredUnit'&&(r.kind!=='sprite'||r.stage!=='queue'||!integer(r.nativeSlot,239)||r.nativeLiteralPalette!==undefined||!integer(r.palette,7)))return false;
    if(['buildingFragment','fortFragment'].includes(r.source)){const last=r.source==='fortFragment'?3:34;if(r.kind!=='sprite'||r.stage!=='queue'||r.nativeLiteralPalette!==true||r.palette!==0||!integer(r.nativeSlot,last)||!integer(r.id,last*50+49)||Math.floor(r.id/50)!==r.nativeSlot)return false;}
    if(r.kind==='repairOverlay')return r.stage==='pre'&&integer(r.id)&&integer(r.nativeSlot,34)&&integer(r.team,3)&&[r.x,r.y].every(Number.isSafeInteger);
    if(r.kind==='repairClock')return r.stage==='pre'&&integer(r.id)&&integer(r.nativeSlot,34)&&[r.x,r.y].every(Number.isSafeInteger)&&(r.seconds==null||Number.isInteger(r.seconds)&&r.seconds>=-2147483648&&r.seconds<=2147483647);

@@ -256,6 +256,31 @@ Settingsintervalle bleiben ausdrücklich abgegrenzt. Instrumentiertes WebAudio
 belegt den Lade-/Auswahl-/Startpfad, keinen echten PCM-Decoder oder Lautsprecher.
 Details: ORIGINAL-MP-AUDIO.txt.
 
+WEITERER ABGLEICHSBLOCK nov04-r44
+Eine durch phase61-Transportbereinigung entfernte Fuß-UNIT führt im Original
+ihren begonnenen45a080-Callback noch zu Ende. Der enge belegte Pfad behält
+Raw-GroupFF, alten gültigen632194-Kontext, Warmbytealias und deaktivierten
+Actor; er erzeugt sein letztes55f10-Bild ohne Reaktivierung oder nächsten Tick.
+16 korrigierte SP- und16 echte MP-Gesamtcaller sowie128 Patternselectoren sind
+feldweise geprüft. Vollständige192-Byte-Projektionen,72 Gruppenbytes,
+120 Leichenpoolbytes,44 W-/Dummybytes und alle fünf RNG-Wörter werden verglichen.
+Die früheren Nullpatternfixtures belegen ausschließlich ihre engeren Präfixe.
+
+Der Source41b34d-Konstruktor erzwingt8bFF vor der ersten Patternauswahl.44b990
+setzt den beförderten Fußfolger tatsächlich über52500 zurück; dieser bislang
+fehlende Gameaufruf ist ergänzt. Unbekannte Aliasbytes, andere Orders/Familien,
+Pfad-/Terrainkontexte oder Wiederverwendungen bleiben benannte Grenzen.
+20 tatsächliche Gast-RPC-/OriginalDisplay-Fälle erhalten das letzte Bild und
+UNIT64&7-Paletten einschließlich Team-/Weißdarstellung. Kein Literal0-Ersatz.
+
+64 zusätzliche vollständige Original-Audioketten zeigen den fehlenden46a610-
+Noticewriter. Die neue64-Fall-Gameprojektion scheitert davor genau am fehlenden
+Zählerdelta und besteht nach dem Fix. Direct-Sprachzulassung erhöht nur ihren
+lokalen Notice-Lowwordzähler; abgelehnte/mute/busy/view/cooldown-Fälle nicht.
+Keine erfundene Fortbedingung. Die Gameprojektion ist ausdrücklich kein erneuter
+vollständiger Reaktions-/Rawmemoryvergleich des gesamten Sourcecallers.
+Details: ORIGINAL-RETIRED-UNIT.txt und ORIGINAL-MP-AUDIO.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

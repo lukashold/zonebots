@@ -107,3 +107,24 @@ output is asserted. Private
 resource input is external; optional Cargo campaign-file tests in this asset-free
 candidate return without reading a missing local campaign. These candidate checks precede integration; final integrated release checks
 and publication provenance are recorded in TESTERGEBNIS.txt.
+
+ADDITIONAL ORIGINAL CALLER CHECK — nov04-r44
+The actual44a3a0/449bc0→46e890→421700→421620/46a650/46a610→46e660
+chain is executed in64 source cases, intercepting only the imported mixer.
+The source result signature is2746308081. At clock500, bank0,last0,min1,
+MP1 and portraits1 it varies master, busy state, group cooldown, local team,
+and camera. Two successful calls update NOTICE681580 from23450003hex to
+23450000hex, preserving the high word.46a610 has no fort-visible gate.
+Mixer returns are foot-1 and hardware3; this block does not cross both
+returns for each class or replace the existing12560 descriptor tests.
+
+The live feedback adapter had missed that successful-call NOTICE write.
+A new64-case Game projection comparison failed before the fix at row8:
+play/cooldown/speaker/portrait/message agreed, NOTICE was3 instead of0.
+The caller now increments its listener's lowword only after successful
+Direct voice admission. Muted/busy/cooldown/viewport rejections preserve it.
+The Game projection signature is2074623945; it checks play, cooldown,
+speaker, portrait, message and notice with unchanged native/CRT RNG.
+It is explicitly not a whole Game reaction/cleanup raw-memory comparison.
+The Source64 whole-chain raw hashes are separate from this adapter proof.
+Final build/publication status remains recorded in TESTERGEBNIS.txt.

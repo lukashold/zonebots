@@ -1,11 +1,11 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-889 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
-zuletzt separat im Vorgängerrelease nov04-r42 erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-78/78 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+901 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
+separat im aktuellen nov04-r44 erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
+79/79 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 3c306d1155766a071c35a5f4dd934185f7e1c3b244f2d698e1283be42fcb044c
+Wasm SHA256: d28de41fb61203f41b2f29193bbd4922354d3389968c1d40e00f6cbc6902298b
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -214,6 +214,30 @@ Gain und BufferSource.start; sie dekodiert PCM nicht mit einem echten Browsercod
 Lokale Kameras, gemeinsame Explosions-/Quiet-/Cyclegates, in-flight alte Settings
 und das Originalnetzwerk bleiben offen. Details: ORIGINAL-MP-AUDIO.txt.
 
+NEUER ABGLEICHSBLOCK nov04-r44
+- Aktuelle Callbackfortsetzung auf tatsächlich entfernten UNITs:16 korrigierte
+ native SP- und16 native MP-Gesamtcaller,128 echte Patternselectoren.20 gezielte
+ Retired-Prüfungen wurden im Hauptstand mit allen drei privaten Originaldatasets
+ feldweise wiederholt; kein Gruppen-/Actor-Revival und kein vorzeitiger Folgetick.
+- Originaler8bFF-Konstruktorwriter und13 tatsächliche Pattern20-Tokens. Der
+ beförderte Fußfolger führt den fehlenden52500-Reset aus; private Vergleiche
+ prüfen sämtliche44 W-/Dummybytes,72 Gruppenbytes und120 Corpsepoolbytes.
+- Eine tatsächlich neu erzeugte Rust-Zeichenzeile wurde explizit für20 Gast-RPC-
+ /Schema-/OriginalDisplay-Fälle übergeben. Der automatische Node-Gesamtlauf prüft mit
+ derselben numerischen Zeilenform das Schema und den Rasterendpunkt; seine
+ Wasm-Instanz erzeugt lediglich die gültige Hülle und behauptet keinen neuen
+ Retired-Gamecallback. Rust prüft den tatsächlichen Callback/Main/Nexttick.
+- Fehlender46a610-Noticewriter nach erfolgreicher Direct-Sprachzulassung ergänzt.
+ 64 ganze Originalketten und64 echte Gameprojektionen; vorFix row8 genau
+ Notice3 statt0, danach18 Feedback- und6 Listenerregressionen grün. Kein Fortgate.
+-901 Rustprüfungen plus separat ausgeführter sequenzieller M1/M2/M3-Diagnostik;
+ 79 Nodeprogramme einschließlich aller20 Kampagnen-Soaks bestehen.
+- zonebots-mp-9-native-retired-unit weist frühere Builds3/4/5/6/7/8 zurück.
+Owner4-Verläufe, native Kranwiederherstellung und neue vorgelagerte
+Explosions-/Idle-Angriffsreaktionen sind getrennte laufende Arbeitsblöcke;
+sie gehören ausdrücklich noch nicht zu diesem Release. Konkrete Grenzen:
+ORIGINAL-RETIRED-UNIT.txt, ORIGINAL-MP-AUDIO.txt und ORIGINAL-ABGLEICH.txt.
+
 BROWSER
 Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
 bei rund einer Spielminute nur lesend geprüft; die Bedienung wurde unverändert
@@ -221,7 +245,7 @@ gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
 und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
 Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
 kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
-nov04-r40/r41/r42/r43 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
+nov04-r40/r41/r42/r43/r44 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
 Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
 Graphics-Adaptertests geprüft.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
