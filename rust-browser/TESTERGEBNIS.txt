@@ -1,11 +1,11 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-901 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
-separat im aktuellen nov04-r44 erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-79/79 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+951 Rust-Tests bestanden;9 Privatdiagnostiken standardmäßig ignoriert und
+im aktuellen nov04-r45 separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
+82/82 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: d28de41fb61203f41b2f29193bbd4922354d3389968c1d40e00f6cbc6902298b
+Wasm SHA256: c19b27767f3c84cd9ce42bd54fa1b86e0e0d042b3a62e61ed6ba1e56896f7f27
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -238,16 +238,52 @@ Explosions-/Idle-Angriffsreaktionen sind getrennte laufende Arbeitsblöcke;
 sie gehören ausdrücklich noch nicht zu diesem Release. Konkrete Grenzen:
 ORIGINAL-RETIRED-UNIT.txt, ORIGINAL-MP-AUDIO.txt und ORIGINAL-ABGLEICH.txt.
 
+NEUER ABGLEICHSBLOCK nov04-r45
+-4208f0-Reaktion/Report/Broadcast vor Schaden und44a540-Reaktion vor Zielerwerb:
+ 104 Originalpräfixe,15 gezielte State-/Game-/Fixturetests. Ein schmaler,
+ generationsgebundener Schützenheader ersetzt weder vollständiges UNIT-RAM
+ noch unbekannte Rawgruppen. Source.cell10 bleibt tatsächlich gespeichert.
+-64 Entfernungs-/Besatzungscaller samt128 Snapshots, gemeinsamer58af0-
+ Familienentscheidung und12 echten Gamekontexten; kein zweiter RNG-Durchlauf.
+-Owner4, vier feste Verlaufspuffer,64 Jobs und späte BUILD-Wiederherstellung:
+ gezielte private Feldvergleiche,147 Worldprüfungen vor dem letzten Grafikblock,
+ acht explizite Assetdiagnostiken. Keine per-Gebäude neu erfundenen Arenen.
+-Native Kranarbeit und Rückzug/Ankunft/Job sind in injiziertem M1 und authored
+ M14 mit kontrolliert daneben gestelltem Übernahmeroboter geprüft. Die normale
+ Krangrafik erhält drei Layer aus W21/raw32/bekanntem9a und64&98 neben sechs
+ Arbeitsbildern.2048 Source-Zeichenketten;85 negative Scissorhöhen bleiben Grenze.
+-Die tatsächlichen finalen Rustzeilen für1472 Trailbilder,250-Inherit und
+ M14-Vorwärts-/Rücklauf sowie12 Besitzer-/Flashfälle werden den echten
+ Node-Art-/Guest-RPC-Prüfungen übergeben. Deren Wasm erzeugt nur die gültige
+ Statehülle; dieser Test behauptet keinen zweiten Wasm-Kranreparaturcallback.
+-56 echte Angriffs-/Wegcaller feldweise im Hauptstand wiederholt: voller
+ 4800-Primärpool, echter Roadcommit, Phase38 direkt/queued, tatsächlicher
+ Death/cache/574c0-Fall. Fünf neue Rustzustände passieren zehn Gast-RPCs und
+ fünf OriginalDisplay-Aufrufe. Keine frei erfundene allgemeine Retargetregel.
+-Zwei neue Audio-Caller scheitern vor dem Listenerfix bei stummem Host und
+ hörendem Gast, danach grün. Welt/500-Pool/RNG und Sharedgate bleiben einmalig.
+-Der neue BUILD-Kranhandler fing irrtümlich Brückenaufträge ab: die tatsächliche
+ Wasmprüfung reproduzierte0 statt600HP. Der Handler nimmt repairBridge jetzt
+ nicht an; der bisherige Brückenadapter bleibt aktiv.88 Geschwindigkeitsfälle,
+ beide600HP-Synthetikteams und alle19 zerstörten Originalbrücken bestehen wieder.
+ Dies ist keine Schließung des noch offenen nativen Headerbit80-Bridgeautomaten.
+-Gesamter finaler Stand:951 Rustprüfungen, separat9 Privatdiagnostiken inkl.
+ M1/M2/M3-Langlauf98,83s,82 Nodeprogramme. All20-Kampagnen-Soak158,77s.
+ zonebots-mp-10-native-repair-reaction weist frühere Builds3..9 zurück.
+ Offene Source-Common-/Bridge-/Broadcast-/Warm-/GPU-/Audiokontexte stehen in
+ ORIGINAL-ABGLEICH.txt; vollständige1:1-Gleichheit wird weiterhin nicht behauptet.
+
 BROWSER
-Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
-bei rund einer Spielminute nur lesend geprüft; die Bedienung wurde unverändert
-gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
-und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
-Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
-kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
-nov04-r40/r41/r42/r43/r44 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
-Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
-Graphics-Adaptertests geprüft.
+Frühere Aufnahme: nov04-r39 in Edge, laufende Originalgrafik-Partie(M20),
+59FPS und einzelne Bild-/Kern-p95-Werte10,4/7,9ms. Diese Messung wird nicht auf
+spätere Builds übertragen. Die laufende Benutzerpartie blieb unverändert.
+
+nov04-r45 wurde in einem getrennten versteckten In-App-Browsertab frisch
+geöffnet und nach dem Brückenfix neu geladen: Originalgrafik, M14 Restoration,
+Normal, tatsächlich gestartete Partie bis zur Aufnahme0:16 mit Fort/HUD/
+Produktionsuhr. Keine erfassten Seitenkonsolenwarnungen/-fehler. Der eigene
+Prüftab wurde geschlossen; die Benutzerpartie in Edge nicht bedient. Diese
+Sichtprüfung ist kein Kranreparaturrepro oder neuer Frameratenbenchmark.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
 öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
 und zwei physische LAN-Rechner wurden nicht separat geprüft.

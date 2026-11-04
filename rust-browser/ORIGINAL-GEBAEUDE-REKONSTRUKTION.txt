@@ -1,0 +1,112 @@
+ORIGINALABGLEICH BUILD-REKONSTRUKTION, OWNER4 UND KRAN59
+
+Portierter Ablauf
+40e790 erzeugt je nach BUILD-Typ den belegten Zerfallspraefix. Vier feste,
+gemeinsame Arena-Bloecke bleiben ueber mehrere Zerstoerungen erhalten.
+Alte Partikel behalten ihre urspruenglichen Pointer, auch wenn ein zweites
+Gebaeude desselben Typs denselben Header neu beschreibt. Der gemeinsame
+500er-Raw44-Pool wird vor jedem Konstruktor und dessen RNG abgefragt.
+
+4028a0/4027f0 schreiben Owner4-Spuren alternierend auch ausserhalb des
+Sichtfensters. Der Footer steht vor dem Expiry3-Aufruf.401640 fuehrt die
+bestehenden Umwelt- und direkten Kontaktadapter genau einmal live aus.
+Der420200-Praefix erzeugt zwoelf42230-Farbpunkte vor dem Terrainzweig;
+6f4f kann diesen Spray und Bodenschaden unterdruecken.6f42 unterdrueckt den
+spaeten50er-Blast-/Heil-/Visualtail, NICHT die vorgelagerten Kontaktabfragen.
+Nach beiden Kontakten liest der Caller die dann aktuellen Emittierglobals
+und die aktuelle Projektion. Erst nach vier402770-Kindanforderungen wird
+der Quellslot freigegeben. Alle Effekte teilen denselben Raw44-Allokator.
+
+4d18ee hat eine einzige Autoritaet und wird vor dem gesamten Maincallback
+435b07 zurueckgesetzt. Der500er-Pass setzt es nicht noch einmal zurueck.
+4a6f4f und4a6f43 sind getrennte warme Weltkontexte, keine Audioquiet-Aliase.
+Die belegten Fire-Writer setzen4f FF ->0 sowie43 1 ->0; sie stellen einen
+vorherigen Wert nicht wieder her. Missionimport bewahrt diese Rohwerte.
+
+Der spaete40e9d0-Reader verwendet64 warme24-Byte-Jobs nach FX/Bullets und
+dem423140-Gate.450260 stellt den Raw88-BUILD aus seinem erhaltenen
+Fragmentbasis-Pointer wieder her; von den50 Fragmenten wird anschliessend
+nur X freigegeben. Frueher im Callback gespeicherte BUILD-Bilder bleiben
+unveraendert. Ein normaler64x23-Durchlauf liefert1472 spaete Zeichnungen.
+
+Live-Kranpfad
+438cf0 bindet einen zerstoerten eigenen BUILD und leitet den echten MOVE
+ein. Die importierten Originalstempel liefern56/58 fuer Arbeits- und
+Eingangskontakt.44fcc0 behandelt Arbeitszyklen, Originalframes, Mund,
+Fortschritt und Fragmentretirement. Der belegte5c5c0-Praefix schreibtW4,
+68 und76 und fuehrt vorhandene Bewegungs-/Kontaktadapter einmal aus.
+Die86-Ruecklaufentscheidung verwendet den echten622dc0-Wert aus
+native_callback_mode; das96-Mundgate verwendet622dd7/native_wait_clock.
+Beide stammen aus434a70 und haben keinen FPS-/Zeitersatz.
+Fertigstellung ERSETZT die primaere Rueckzugsroute. Erst9aFE und ein
+fertiges52960 erzeugen den Job. Der spaete Reader restauriert das Gebaeude.
+Weder ein UI-Klick noch ein Abstands-/HP-Zeittimer erzeugt einen solchen Job.
+44fa40 liefert sechs gespeicherte craneWork-Queuerecords mit Actor-Slot und
+Originaloffsets. Vorwaerts und86-Ruecklauf werden als konkrete Sprites bis
+OriginalDisplay/OriginalArt und Gast-RPC geprueft. Der normale nachfolgende
+55f10/455820-Chassis-/Armrecord fuer family36 bleibt jedoch der bestehende
+Artworkadapter mit manifest.unitLayouts.crane, teilweise nativeMoveFrame,
+ansonsten walking-Zeitfallback und armPhase0. Diese Layerkomposition wird
+nicht als vollstaendige Krangrafik rekonstruiert ausgegeben. Im HD-Modus ist
+die native44fa40-Queueausgabe noch kein gesondert belegter Renderingpfad.
+
+Nachweise
+7168 native Owner4/Mehrfachzerstoerungs-/Reader-/Job-Callbacks,64 ganze
+Loaderpools,3072 native Kran59-Callbacks und6144 Common-Praefixe sind
+abgeglichen. Dazu256 echte401640 ->420200 ->42230/402160/402770-Ketten,
+32 davon mit dem tatsaechlichen Game-500er-Pool. Die veroeffentlichten
+Kerneltests verwenden generierte Eingaben und numerische FNV-Goldens.
+Z_NATIVE_TRACE_DIR fuegt die privaten Feldvergleiche hinzu. Eigene
+Java-Oracles und Checker stehen in tools/ghidra; Rawtraces und Spielmedien
+sind nicht Bestandteil dieses Quellpakets.
+
+Private, explizit markierte Assetdiagnostik prueft zwei Zerstoerungen,
+Reentry, vollen Pool, warmen Missionswechsel, spaetes Restore und1472 Rows.
+Mission1 nutzt einen injizierten Kran. Mission14 verwendet den dort
+vorhandenen neutralen Kran und die Originalfabrik624/192; nur ein vorhandener
+Humanroboter wird fuer die isolierte Uebernahme daneben platziert. Das ist
+kein unveraenderter kompletter Missionsstart.
+
+Darstellung und Mehrspieler
+nativeTrailEffects hat source=buildingTrail,stage=late,scale=0.5 und
+nativeInheritedPalette=true. Die Ausgabe erbt den vorhandenen JS-Zeichen-
+kontext. Bei unbekannter Palette wird kein Team0 erfunden. Der belegte Sprite250/4666c0-Zweig speichert eine
+eigene source-Marke und nativeInheritedPalette; er waehlt keine Palette.
+Die echte JS-Kontextfolge ordinaryFX ->250 ->Trail ist auch nach dem
+Gast-Fraktionswechsel geprueft. Andere FX behalten40bb50 ->466ac0.
+Owner4-DirectFX
+verwenden eine Literalpalette und werden beim Gast nicht als Fraktion
+umgefaerbt. Normale Fraktionseffekte behalten ihren Perspektivwechsel.
+RPC validiert Typ, Identitaet, signedKoordinaten, Anzahl und Pass getrennt.
+
+Konkrete verbleibende Grenzen
+- Positive Gruppenrolle5e im vollstaendigen5c5c0-Common, Bridge80 sowie
+  vollstaendige40e6a0-Maschinerie,UI-/Speichern-Laden-/aktive423140-Cutscenecaller sind offen.
+- Die vorhandenen Umwelt-/UNIT-Kontaktadapter sind kein vollstaendiger
+ 420200-/41f2d0-Port; getrennte Upstream-Reaktionspatches muessen uebernommen
+ werden. Dieser Block wiederholt weder ihre Worldcallbacks noch deren RNG.
+- Der gesamte GPU-Palettenzustand am435fde, Original-Texture-/Raster-/Batch-
+  und Scissorparitaet sowie das globale Direct-/Queue-Interleaving sind
+  nicht als vollstaendig gleich belegt. Canvas ist ein Darstellungsadapter.
+- Per-Listener-Viewport/Gateautoritaet ist getrennte Folgearbeit;6f42/4f sind
+ Weltzustand und duerfen nicht pro Audioempfaenger erneut ausgefuehrt werden.
+- Gelesene Adressen ausserhalb der vier Arena-Bloecke bleiben eine gepruefte
+  Memoryboundary nach erhaltenem Ausfuehrungspraefix. Weder falsche Frame-
+  Clamps noch erfundene Nullen oder sofortiges Reparieren ersetzen sie.
+- Die Quelleninitialisierung aller2000 Raw44-Slots und Qualitaetswechsel
+  ueber nicht mehr dargestellte Slots bleiben vom bestehenden FX-Lifecycle
+  begrenzt; innerhalb des vorhandenen Pools bleiben Recyclebytes erhalten.
+
+Vollstaendige1:1-Gleichheit des gesamten Spiels wird damit nicht behauptet.
+
+Zusaetzliche normale Krangrafik in nov04-r45:
+Der bekannte55f10/455820-Pfad verwendet nun3nativeLayers aus W21,frame32,
+Crane.work9a und64&98 mit ruin-first Clipping. Dies ergaenzt die hier belegten
+sechs44fa40-Arbeitsbilder. Unbekanntes warmes9a und negatives GL-Scissor
+bleiben explizite Grenzen; siehe ORIGINAL-KRANGRAFIK.txt.
+
+Bridge80 bleibt getrennt: Der neue BUILD-Handler nimmt repairBridge nicht an;
+der bestehende Bruecken-Reparaturadapter bleibt erreichbar. Ein Wasmtest hat
+den versehentlichen Abfang reproduziert (0 statt600HP), daher werden alle19
+Originalbruecken erneut geprueft. Der Adapter wird nicht als Original80-Port
+beworben; seine9a-Darstellung bleibt ausdruecklich unbekannt.

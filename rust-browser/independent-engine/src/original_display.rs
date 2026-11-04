@@ -3,6 +3,7 @@
 #[path="original_display_game.rs"]mod game;
 #[path="original_scene_display_game.rs"]mod scene;
 #[path="original_display_hardware.rs"]pub(crate) mod hardware;
+#[path="original_display_crane.rs"]pub(crate) mod crane;
 #[path="original_display_terrain.rs"]pub(crate) mod terrain;
 #[path="original_display_terrain_game.rs"]mod terrain_game;
 #[path="original_display_objects.rs"]pub(crate) mod objects;

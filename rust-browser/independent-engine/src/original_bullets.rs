@@ -50,6 +50,10 @@ impl Game {
             if !original_combat::aim_roll_hits(aim as i8,flags69&128!=0,self.native_random()) {
                 missed=true;
                 let point=self.native_scatter(&shooter,target,mode);
+                //448c20 stores its already-computed native point and39 even
+                //when later negating slot0 cannot retain a frozen target.
+                let u=&mut self.units[index];u.native_target42=point.0 as i16;u.native_target44=point.1 as i16;
+                u.angle=native_math::angle(native_math::direction(point.0-(shooter.x/2.).floor()as i32,point.1-(shooter.y/2.).floor()as i32));
                 // Native negation of target slot0 remains nonnegative, so its
                 // release does the second current-position scatter as well.
                 if target.native_slot!=Some(0){frozen=Some(point);}

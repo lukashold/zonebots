@@ -1,0 +1,36 @@
+//Actual candidate Rust rows -> real Display/Art and real guest controller.
+//Required inputs: actual targeted/M14 Rust logs and schema-valid Wasm envelope.
+//Optional Z_PRIVATE_ART_ROOT / Z_NATIVE_TRACE_DIR use read-only local assets.
+//Instrumented Canvas/WebAssembly controllers; no GPU raster parity claim.
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto'),clone=x=>JSON.parse(JSON.stringify(x)),root=path.resolve(__dirname,'..');
+const targetLog=process.argv[2]||process.env.Z_NATIVE_CRANE_DISPLAY_ROWS_LOG,m14Log=process.argv[3]||process.env.Z_NATIVE_CRANE_DISPLAY_M14_LOG,envelopeWasm=process.argv[4]||process.env.Z_NATIVE_CRANE_DISPLAY_WASM;assert(targetLog&&m14Log&&envelopeWasm,'supply Rust targeted/M14 logs and Wasm fixture, or Z_NATIVE_CRANE_DISPLAY_ROWS_LOG/Z_NATIVE_CRANE_DISPLAY_M14_LOG/Z_NATIVE_CRANE_DISPLAY_WASM');
+const read=(file,prefix)=>{const l=fs.readFileSync(file,'utf8').split(/\r?\n/).find(l=>l.startsWith(prefix+' '));assert(l,prefix);return JSON.parse(l.slice(prefix.length+1));};
+const owners=read(targetLog,'CRANE_OWNER_FLASH_ROWS'),work=read(m14Log,'CRANE_WORK_QUEUE'),reverse=read(m14Log,'CRANE_REVERSE_QUEUE');assert.equal(owners.length,12);for(const rows of[work,reverse]){assert.equal(rows.filter(r=>r.source==='craneWork').length,6);assert.equal(rows.filter(r=>r.kind==='unit'&&r.nativeLayers?.length===3).length,1);}
+const assets=process.env.Z_PRIVATE_ART_ROOT||path.join(root,'dist/original'),metadata=JSON.parse(fs.readFileSync(path.join(assets,'sprites.json'),'utf8')),pixels=new Proxy({},{get:(_o,k)=>Number(k)%4===3?255:16});function canvas(){const c={};c.getContext=()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:d=>c.color=Array.from(d.data.slice(0,4)),drawImage(){},getImageData:()=>({data:pixels})});return c;}class Image{set src(_){this.width=2048;this.height=4526;queueMicrotask(()=>this.onload());}}
+const window={addEventListener(){},dispatchEvent(){}},env={window,URL,Image,Event:class{},localStorage:{getItem:()=>null,setItem(){}},document:{currentScript:{src:'http://local/independent/original-art.js'},documentElement:{dataset:{}},querySelectorAll:()=>[],querySelector:()=>null,createElement:canvas},fetch:async()=>({ok:true,json:async()=>metadata}),setTimeout,clearTimeout};vm.createContext(env);for(const name of['original-art','graphics','original-display','multiplayer-game'])vm.runInContext(fs.readFileSync(path.join(root,'dist/independent',name+'.js'),'utf8'),env);
+(async()=>{
+ assert(await window.OriginalArt.load());window.GameGraphics.setMode('original');let artDraws=0,rpc=0,guestRuns=0;const map={original:true,world:0};
+ function draw(rows){const got=[],want=[];for(const row of rows){if(row.kind==='unit')for(const l of row.nativeLayers)want.push({x:l.x,y:l.y,palette:l.palette<=3?l.palette:255});else want.push({x:row.x,y:row.y,palette:row.palette<=3?row.palette:255});}
+  const ctx={drawImage(im,x,y){got.push({x,y,color:im.color});},save(){},beginPath(){},rect(){},clip(){},restore(){}};
+  assert(window.OriginalDisplay.draw(ctx,{map,units:[],buildings:[],nativeDisplayQueue:rows},{sprite:r=>window.OriginalArt.nativeEffects(ctx,[r],map),unit:u=>{assert(Array.isArray(u.nativeDrawLayers),'must bypass manifest/time/aim/arm fallback');window.OriginalArt.unit(ctx,u,999,map);}}));assert.equal(got.length,want.length);
+  for(let i=0;i<want.length;i++){assert.equal(got[i].x,want[i].x);assert.equal(got[i].y,want[i].y);const p=want[i].palette,at=(16+p*16)*3;assert.deepEqual(got[i].color,p===255?[255,255,255,255]:[...metadata.palettes[0].slice(at,at+3),255]);}artDraws+=got.length;
+ }
+ const baseline=fs.readFileSync(envelopeWasm),{instance}=await WebAssembly.instantiate(baseline,{}),e=instance.exports,request=new TextEncoder().encode(JSON.stringify({op:'init',mission:0,seed:4359,difficulty:1})),ptr=e.alloc(request.length);new Uint8Array(e.memory.buffer,ptr,request.length).set(request);let count;try{count=e.run(ptr,request.length);}finally{e.free(ptr,request.length);}const base=JSON.parse(new TextDecoder().decode(new Uint8Array(e.memory.buffer,e.output(),count)));assert(!base.error,base.error);
+ const guest=window.MultiplayerGame.create({run(){guestRuns++;assert.fail('guest may never simulate');}});guest.bind({connected:true,send:()=>true},'guest');base.nativeDisplayQueue=work;assert(guest.handle({type:'game:init',payload:{epoch:1,seq:0,meta:{name:'Crane native rows'},state:base}}));rpc++;let seq=0;
+ function frame(rows,ok=true){const event={type:'game:frame',payload:{epoch:1,seq:++seq,state:{...base,nativeDisplayQueue:rows}}};assert.equal(guest.handle(event),ok);rpc++;if(ok)return clone(guest.viewState.nativeDisplayQueue);}
+ const flip=n=>n===0?1:n===1?0:n;
+ function remapped(rows){return rows.map(r=>({...r,...(Number.isInteger(r.palette)?{palette:flip(r.palette)}:{}),...(r.art?{art:{...r.art,team:flip(r.art.team)}}:{}),...(r.nativeLayers?{nativeLayers:r.nativeLayers.map(l=>({...l,palette:flip(l.palette)}))}:{})}));}
+ for(const rows of[work,reverse,...owners.map(r=>[r])]){draw(rows);const view=frame(rows);assert.deepEqual(view,remapped(rows));draw(view);}
+ const privateDir=process.env.Z_NATIVE_TRACE_DIR;let matrix=0,negativeBoundaries=0;
+ if(privateDir){const source=fs.readFileSync(path.join(privateDir,'V45-crane-display.jsonl'),'utf8').trim().split(/\r?\n/).map(JSON.parse);
+  for(const r of source){if(!r.layers)continue;const b=Buffer.from(r.layers,'hex'),ls=[];for(let o=0;o<b.length;o+=16){const x=b.readInt16LE(o)+r.camera[0],y=b.readInt16LE(o+2)+r.camera[1],flags=b[o+7],l={sprite:b.readInt16LE(o+4),x:x*2,y:y*2,palette:b[o+6],flags};if(flags&4)l.clip=[x*2,(b.readInt16LE(o+10)+2)*2,512,512];else if(flags&8)l.clip=[x*2,y*2,512,(b.readInt16LE(o+12)-y+2)*2];ls.push(l);}
+   const row={...clone(owners[0]),nativeLayers:ls};
+   if(ls.some(l=>l.clip?.[3]<0)){frame([row],false);negativeBoundaries++;continue;}
+   const view=frame([row]);assert.deepEqual(view,remapped([row]));draw([row]);draw(view);matrix++;
+  }assert.equal(matrix,1220);assert.equal(negativeBoundaries,85);
+ }
+ for(const delta of[{nativeCraneBoundary:'missingWork9a'},{nativeCraneBoundary:'invalidW21'},{nativeCraneBoundary:'negativeScissor'}]){const row={...clone(owners[0]),...delta};delete row.nativeLayers;frame([row]);}
+ for(const delta of[{nativeCraneBoundary:'invented'},{nativeCraneBoundary:'missingWork9a',nativeLayers:owners[0].nativeLayers}])frame([{...clone(owners[0]),...delta}],false);
+ frame([{...clone(owners[0]),nativeLayers:[{...owners[0].nativeLayers[0],palette:8}]}],false);
+ assert.equal(guestRuns,0);guest.close();console.log(JSON.stringify({actualGameOwnerFlashRows:owners.length,actualM14Queues:2,nativeMatrixSupported:matrix,negativeScissorBoundaries:negativeBoundaries,actualArtDrawSubmissions:artDraws,actualGuestRPCs:rpc,guestSimulationCalls:guestRuns,baselineWasmSha256:crypto.createHash('sha256').update(baseline).digest('hex'),scope:'Wasm supplies only a schema-valid fixture. Changed backend rows come from candidate native Rust tests. Actual JS selection/Canvas submissions and guest validation/perspective; no GPU pixel/negative-scissor or changed-Wasm claim.'},null,2));
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -10,6 +10,7 @@ mod original_grenades;
 mod original_initiative;
 mod original_terrain;
 mod original_motion;
+mod original_upstream_reactions;
 mod original_clock;
 mod native_math;
 mod original_fire;
@@ -74,6 +75,7 @@ mod original_attack_click;
 mod original_attack_click_game;
 mod original_attack_command_game;
 mod original_attack_order;
+mod original_attack_approach;
 mod original_feedback;
 mod original_ground_fire;
 mod original_walk;
@@ -420,6 +422,7 @@ pub struct Game {
     #[serde(skip)] native_frame16:i16,
     #[serde(skip)] native_seasonal_mode:u8,
     #[serde(skip)] native_path_contact:original_path_contact::State,
+    #[serde(skip)] native_upstream_reactions:original_upstream_reactions::State,
     #[serde(skip)] native_routes:std::cell::RefCell<original_route_pool::State>,
     #[serde(skip)] native_route_boundary:Option<original_path_contact::game::Boundary>,
     #[serde(skip)] native_route_mode:bool,
@@ -484,7 +487,7 @@ impl Game {
             ai_clock: 3.,original_ai:None,native_strategy:None,native_group_rosters:Default::default(),native_world:None,
             rng: seed.max(1),
             original_rng:original_combat::OriginalRng::seeded(seed),
-            ai_teams: vec![1], production_clock:0.,native_factory_work:Default::default(),native_production_limit:50,native_blast_sound_gate:false,native_blast_sound_cycle:0,native_blast_terrain_class:0,native_factory_placement:Default::default(),native_deaths:Default::default(),native_view:None,native_ambient:None,native_ambient_animations:Default::default(),native_lava:Default::default(),native_cosmetic_rng:1,native_lava_sound_tick:0,native_hardware_pool:(0..240).map(|_|original_orders_game::HardwarePoolSlot{live_marker:-1,..Default::default()}).collect(),native_fire_base_strength:0,native_smoke20:Default::default(),native_bullet_impacts20:Default::default(),native_order_arguments:[0;3],native_attack_reports:vec![],native_attack_ray_building:false,native_attack_walk_marked:false,native_feedback:Default::default(),native_callback_mode:0,native_wait_clock:0,native_flag_frame:0,native_object_frame:0,native_frame16:0,native_seasonal_mode:0,native_path_contact:Default::default(),native_routes:Default::default(),native_route_boundary:None,native_route_mode:false,native_display:Default::default(),native_query_shape:0,native_audio:Default::default(),native_listener_audio:Default::default(),native_protected_order_seen:false,native_group_descriptors48:[0;19],native_collision_masks:Default::default(),native_work_factor:8,native_team_rates:[0;4],native_workshop_units:Default::default(),native_selected_slot:None,native_selection:Default::default(),native_hardware_dummy:Default::default(),native_hardware_dummy_attributes:Default::default(),native_factory_flags6:Default::default(),native_flag_capture:Default::default(),native_pressure:Default::default(), initiative_clock:0.,motion_clock:0.,motion_tick:0,native_vehicle_positions:Vec::new(),native_transports:Vec::new(),native_transport_commands:Vec::new(),
+            ai_teams: vec![1], production_clock:0.,native_factory_work:Default::default(),native_production_limit:50,native_blast_sound_gate:false,native_blast_sound_cycle:0,native_blast_terrain_class:0,native_factory_placement:Default::default(),native_deaths:Default::default(),native_view:None,native_ambient:None,native_ambient_animations:Default::default(),native_lava:Default::default(),native_cosmetic_rng:1,native_lava_sound_tick:0,native_hardware_pool:(0..240).map(|_|original_orders_game::HardwarePoolSlot{live_marker:-1,..Default::default()}).collect(),native_fire_base_strength:0,native_smoke20:Default::default(),native_bullet_impacts20:Default::default(),native_order_arguments:[0;3],native_attack_reports:vec![],native_attack_ray_building:false,native_attack_walk_marked:false,native_feedback:Default::default(),native_callback_mode:0,native_wait_clock:0,native_flag_frame:0,native_object_frame:0,native_frame16:0,native_seasonal_mode:0,native_path_contact:Default::default(),native_upstream_reactions:Default::default(),native_routes:Default::default(),native_route_boundary:None,native_route_mode:false,native_display:Default::default(),native_query_shape:0,native_audio:Default::default(),native_listener_audio:Default::default(),native_protected_order_seen:false,native_group_descriptors48:[0;19],native_collision_masks:Default::default(),native_work_factor:8,native_team_rates:[0;4],native_workshop_units:Default::default(),native_selected_slot:None,native_selection:Default::default(),native_hardware_dummy:Default::default(),native_hardware_dummy_attributes:Default::default(),native_factory_flags6:Default::default(),native_flag_capture:Default::default(),native_pressure:Default::default(), initiative_clock:0.,motion_clock:0.,motion_tick:0,native_vehicle_positions:Vec::new(),native_transports:Vec::new(),native_transport_commands:Vec::new(),
         };
         // Own nine-territory layout. Voronoi edges and a meandering river avoid a square sector grid.
         let sites = [
@@ -717,7 +720,7 @@ impl Game {
         if self.map.original&&team>=0&&d.cls>0{self.allocate_native_hardware_record(self.units.len()-1,d.cls==1);if d.cls==2&&native_slot.is_some(){let u=self.units.last_mut().unwrap();u.native_counter84=-1;u.angle=native_math::angle(6);}}
         if self.map.original&&d.cls>0{if let Some(slot)=native_slot{self.native_selection.contexts[slot].link28=if k=="jeep"{Some(0x2084)}else{None};}}
         if self.map.original&&native_slot.is_some(){self.initialize_native_collision_tables(self.units.len()-1);if let Err(e)=self.initialize_native_terrain_tag(self.units.len()-1){self.native_route_boundary=Some(e);}}
-        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(self.units.len()-1);}
+        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(self.units.len()-1);self.record_native_upstream_ctor(self.units.len()-1);self.record_native_crane_ctor(self.units.len()-1);}
     }
     pub fn products(&self,b:&Building)->Vec<&'static str>{
       if !b.alive(self.map.original){return vec![];}
@@ -760,7 +763,7 @@ impl Game {
       let crates:Vec<Crate>=serde_json::from_value(v["crates"].clone()).map_err(|e|format!("Invalid original crates: {e}"))?;
       self.native_group_descriptors48=v["nativeGroupDescriptors48"].as_array().filter(|a|a.len()==19).and_then(|a|a.iter().map(|n|n.as_u64().and_then(|n|u8::try_from(n).ok())).collect::<Option<Vec<_>>>()).and_then(|a|a.try_into().ok()).unwrap_or([0;19]);
       self.native_work_factor=v["nativeProduction"]["factor"].as_i64().and_then(|n|i16::try_from(n).ok()).filter(|&n|n!=0).unwrap_or(12); //Existing browser normal-mode adapter until raw17b30 settings are transported.
-      self.map=map;self.native_collision_masks.initialize(self.map.world as u8);self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.bullets.clear();self.projectiles.clear();self.blasts.clear();self.fires.clear();self.native_transports.clear();self.native_transport_commands.clear();self.native_group_rosters.clear_for_mission_preserving_strategy_values();self.motion_clock=0.;self.motion_tick=0;self.native_callback_mode=0;self.native_flag_frame=0;self.native_object_frame=0;self.native_frame16=0;self.native_routes.get_mut().reset_for_mission();self.native_workshop_units.clear_for_mission();self.native_route_boundary=None;self.native_route_mode=false;self.native_display.clear_for_mission();self.production_clock=0.;self.native_factory_work.clear();self.native_factory_placement.clear_for_mission();self.native_deaths=Default::default();self.native_ambient_animations.clear_for_mission();self.native_lava.clear_for_mission();self.native_selection.clear_rows_for_mission();self.native_attack_reports.clear();self.native_selected_slot=None;self.native_smoke20.clear_for_mission();self.native_bullet_impacts20.clear_for_mission();original_orders_game::clear_hardware_pool_for_mission(&mut self.native_hardware_pool);self.native_view=None;self.native_flag_capture=Default::default();self.initiative_clock=0.;self.next_id=1;
+      self.map=map;self.native_collision_masks.initialize(self.map.world as u8);self.objects=v["originalObjects"].as_array().cloned().unwrap_or_default();self.sectors=sectors;self.buildings=buildings;self.units.clear();self.crates=crates;self.effects.clear();self.bullets.clear();self.projectiles.clear();self.blasts.clear();self.fires.clear();self.native_transports.clear();self.native_transport_commands.clear();self.native_group_rosters.clear_for_mission_preserving_strategy_values();self.motion_clock=0.;self.motion_tick=0;self.native_callback_mode=0;self.native_flag_frame=0;self.native_object_frame=0;self.native_frame16=0;self.native_routes.get_mut().reset_for_mission();self.native_workshop_units.clear_for_mission();self.native_upstream_reactions.clear_for_mission();self.native_route_boundary=None;self.native_route_mode=false;self.native_display.clear_for_mission();self.production_clock=0.;self.native_factory_work.clear();self.native_factory_placement.clear_for_mission();self.native_deaths=Default::default();self.native_ambient_animations.clear_for_mission();self.native_lava.clear_for_mission();self.native_selection.clear_rows_for_mission();self.native_attack_reports.clear();self.native_selected_slot=None;self.native_smoke20.clear_for_mission();self.native_bullet_impacts20.clear_for_mission();original_orders_game::clear_hardware_pool_for_mission(&mut self.native_hardware_pool);self.native_view=None;self.native_flag_capture=Default::default();self.initiative_clock=0.;self.next_id=1;
       if !self.map.bridge_max_hp.is_empty() && (self.map.bridge_max_hp.len()!=self.map.bridge_hp.len() || self.map.bridge_max_hp.iter().any(|hp|!hp.is_finite()||*hp<=0.)) {return Err("Invalid bridge capacities".into());}
       for j in 0..self.map.tiles.len(){if let Some(id)=self.map.bridge_base.get(j).copied().filter(|id|*id>=0){if self.map.bridge_hp.get(id as usize).is_some_and(|hp|*hp<=0.){self.map.tiles[j]=3;}}}
       self.import_walls(v)?;
@@ -775,7 +778,7 @@ impl Game {
       for b in v["nativeWorldBuildings"].as_array().into_iter().flatten(){if let Some(id)=b["buildingId"].as_u64(){self.native_factory_flags6.insert(id as usize,b["flags6"].as_u64().unwrap_or(0)as u8);}}
       self.ensure_production();
       self.original_ai=v["nativeAi"]["decisionControl"].as_i64().filter(|n|(0..=255).contains(n)).map(|n|original_ai::Clock::new(n as i8 as i16));
-      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{self.initialize_native_group_descriptor(team as i32,team as usize*100+slot as usize+1,gid as usize);}}}self.initialize_native_feedback();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
+      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_crane_constructors();self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{self.initialize_native_group_descriptor(team as i32,team as usize*100+slot as usize+1,gid as usize);}}}self.initialize_native_feedback();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
       Ok(())
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if (!self.map.original||self.map.native_road_graph.is_none())&&gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let(health,maximum)=self.native_work_health(b);let rate=original_stats::rate(health,maximum,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
@@ -858,6 +861,7 @@ impl Game {
             if !native_ui_move&&(kind=="move"||kind=="attack"&&target.is_none())&&!v["x"].as_f64().zip(v["y"].as_f64()).is_some_and(|(x,y)|x.is_finite()&&y.is_finite()){continue;}
             if kind=="attack"&&target.is_some_and(|id|!self.units.iter().any(|u|u.id==id&&u.team>=0&&u.team!=team&&original_combat::alive(self.map.original,u.hp)&&!workshops::hidden(u))){continue;}
             if self.map.original{let u=&self.units[i];self.native_group_rosters.set_current_roster(u.team,u.squad);}
+            if kind=="repair"{if let Some(target)=target{let click=v["x"].as_f64().zip(v["y"].as_f64()).map(|(x,y)|[(x/2.).floor()as i16,(y/2.).floor()as i16]);if self.begin_native_crane_building(i,target,click).is_some(){continue;}}}
             if self.map.original&&v["nativeEvent"]!=false&&!native_ui_move{
                 let event=match kind{
                     "move"=>Some(original_orders_game::Event::classified(1,[((v["x"].as_f64().unwrap()/2.).floor()as i16).wrapping_add(8),((v["y"].as_f64().unwrap()/2.).floor()as i16).wrapping_add(8)],0)),
@@ -1082,7 +1086,7 @@ impl Game {
         self.effects.retain(|e| e.age < e.life);
         self.advance_original_group_cooldowns();
         self.maintain_native_transports();self.sync_native_world();
-        if self.map.original{self.update_native_track_effects();self.begin_native_display_frame();self.capture_native_building_display();self.native_protected_order_seen=false;}
+        if self.map.original{self.update_native_track_effects();self.begin_native_display_frame();self.begin_native_owner4_main();self.capture_native_building_display();self.native_protected_order_seen=false;}
         self.update_initiative(dt);
         self.ai_clock -= dt;
         if !self.map.original&&self.ai_clock<=0. {
@@ -1145,7 +1149,7 @@ impl Game {
             self.units[i].cooldown = (self.units[i].cooldown-dt).max(0.);
             if self.units[i].cooldown<1e-9 {self.units[i].cooldown=0.;}
             if self.units[i].native_factory_exit.is_none(){self.dispatch_recorded_native_order(i);}
-            if self.map.original&&self.units[i].native_slot.is_some(){match self.dispatch_native_occupancy_state(i){Ok(true)=>break 'unit,Ok(false)=>{},Err(e)=>{self.native_route_boundary=Some(e);break 'unit;}}}
+            if self.map.original&&self.units[i].native_slot.is_some()&&!self.owns_native_crane_handler(i){match self.dispatch_native_occupancy_state(i){Ok(true)=>break 'unit,Ok(false)=>{},Err(e)=>{self.native_route_boundary=Some(e);break 'unit;}}}
             if self.update_native_feedback_pose(i){break 'unit;}
             if self.update_native_idle_pose(i){break 'unit;}
             if self.update_native_ambient_point_fire(i){break 'unit;}
@@ -1156,6 +1160,7 @@ impl Game {
             if self.update_native_hardware_entry(i){break 'unit;}
             if self.update_native_contact_state(i){break 'unit;}
             if self.update_native_cover(i){break 'unit;}
+            if self.update_native_crane_building(i,first_motion_tick,motion_ticks){break 'unit;}
             if self.update_native_route_wait(i)||self.update_native_attack_phase(i)||self.update_native_walk(i)||self.update_native_walk_idle_entry(i){break 'unit;}
             if self.units[i].native_route_pending.get().is_none()&&self.update_native_idle_handler(i){break 'unit;}
             self.update_native_hardware(i);
@@ -1396,7 +1401,7 @@ impl Game {
             self.update_native_lava();
             self.advance_native_fort_fragments();
             self.update_native_world_effects();
-            self.update_native_bullets();self.update_native_projectiles();self.advance_native_feedback_clock();
+            self.update_native_bullets();self.update_native_projectiles();if let Some(result)=self.native_trail_scene_result(){self.update_native_building_trails(result);}self.advance_native_feedback_clock();
         }
         for b in &self.buildings {
             if b.kind == "fort" && (if self.map.original{b.hp>=0.}else{b.alive(self.map.original)}) {
@@ -1518,7 +1523,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     let visible_units=g.units.iter().filter(|u|!g.map.original||original_combat::alive(true,u.hp)).collect::<Vec<_>>();
     let mut value = json!({
         "sectors": &g.sectors, "buildings": &g.buildings, "units":visible_units,
-        "nativeDisplayQueue":g.native_display_queue(),"nativeEffects":g.native_world_effects(),"nativeDeathVisuals":g.native_death_visuals(),"nativeAmbientVisuals":g.native_ambient_visuals(),"nativeAmbientAnimations":g.native_ambient_animation_visuals(),"nativeCosmetic20Visuals":g.native_cosmetic20_visuals(),"nativeLavaVisuals":g.native_lava_visuals(),"nativeTrackVisuals":g.native_track_visuals(),"nativeObjectVisuals":g.native_object_visuals(),"bullets": &g.bullets,"projectiles":&g.projectiles,"blasts":&g.blasts,"fires":&g.fires, "effects": &g.effects, "crates": &g.crates, "events": &g.events, "walls": &g.walls,
+        "nativeDisplayQueue":g.native_display_queue(),"nativeTrailEffects":g.native_building_trail_draws(),"nativeEffects":g.native_world_effects(),"nativeDeathVisuals":g.native_death_visuals(),"nativeAmbientVisuals":g.native_ambient_visuals(),"nativeAmbientAnimations":g.native_ambient_animation_visuals(),"nativeCosmetic20Visuals":g.native_cosmetic20_visuals(),"nativeLavaVisuals":g.native_lava_visuals(),"nativeTrackVisuals":g.native_track_visuals(),"nativeObjectVisuals":g.native_object_visuals(),"bullets": &g.bullets,"projectiles":&g.projectiles,"blasts":&g.blasts,"fires":&g.fires, "effects": &g.effects, "crates": &g.crates, "events": &g.events, "walls": &g.walls,
         "time": g.time, "winner": g.winner, "difficulty": g.difficulty,
         "mission": g.mission, "multiplayer": g.multiplayer,
         "mapSeed": g.map.seed, "mapRevision": g.map.revision,

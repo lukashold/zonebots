@@ -1,0 +1,53 @@
+Z – Beschussreaktion vor Schaden und Zielerwerb,04.11.2026
+
+104 tatsächliche Originalketten prüfen zwei fehlende Aufrufstellen:
+72 Blast-Präfixe4208f0 bis4209ca vor Schaden/FX und32 Idle-Präfixe44a540
+bis574c0 vor Zielerwerb. Reaktion, Report, Broadcast und RNG laufen tatsächlich;
+nur der importierte Mixer ist abgegrenzt. Source-FNV3060100186, sortierte
+Rust-Feldfixture2016281248. Das ist kein vollständiger Schaden-/Mainloopvergleich.
+
+4208f0 liest den gespeicherten Besitzer6 und nativen Schützenplatz7. Ein
+aktiver gegnerischer Empfänger führt449bc0→4160c0→15fb0 vor Schaden aus,
+sofern Besitzer und Schützenplatz nichtFF sind. Die Empfängerklasse wird
+nicht vor dem Präfix gefiltert;449bc0 behält sein eigenes Klasse1/2-Gate.
+HP und Aktivbit des Schützen werden nicht als zusätzliche Zulassung erfunden.
+Dieser direkte Caller setzt nicht den separaten44a3a0-Geschütztimer zurück.
+44a540 liest sein Gruppenziel, führt44a3a0 aus und liest danach den aktuellen
+Zustand für574c0 erneut.
+
+GENERATIONSGEBUNDENER RAW-SCHÜTZENPLATZ
+Ein aktueller nativer Slot samt Gruppenmitglied hat Vorrang. Nach tatsächlicher
+58ec0-/41eb30-Entfernung darf ausschließlich der an diesem Hook erfasste
+schmale Nachzustand derselben Slotgeneration gelesen werden. Eine neue
+Konstruktion verwirft den alten Zustand. Kein HP-Livefilter, Schusszeitbesitzer,
+Web-ID-Ersatz oder erfundenes wiederbelebtes Gruppenmitglied.
+32 tatsächliche58ec0-Ketten mit64 Snapshots prüfen RawXY,31,69,AA,Phase,
+Rolle,Gruppe,Familie,W/Dummy und RNG; FNV1469942389. SP/MP,Hardware/Fuß,
+Hülle+/−,Unterdrückung und vier Inside-Sentinelzustände sind enthalten.
+Die echten Entfernungs-/Gruppen-/Pfadaufrufe laufen; der500-FX-Pool ist
+natürlich voll. Es wird kein folgender Maincallback durch dieses Oracle geprüft.
+Dessen enger phase61-Fußpfad steht separat in ORIGINAL-RETIRED-UNIT.txt.
+
+BESATZUNGSTREFFER UND FAMILIE
+4a6f7e ist im geprüften Trefferpfad der temporäre462a70-Kontext:462c20
+setzt1 vor41e6e0,462c2c danach0.41dd20 setzt die davon unabhängigen
+4a6e77-/5849e7-Werte während58ec0. Das bestehende Game-crew_only wird nun
+auch an den Raw-Capture übergeben. Die gemeinsame58af0-Familienentscheidung
+wird ohne weitere Allokation und ohne zusätzlichen RNG-Aufruf verwendet.
+32 weitere tatsächliche41e6e0-Ketten für Klasse1/Familie6 ergeben zusammen
+mit den32 alten Fällen128 Snapshots,FNV3147375380; der Rust-Familienvergleich
+hat64 Fälle/FNV986074885. Zwölf echte Gameentfernungen prüfen SP/MP,
+Hülle+/−,Unterdrückung/Besatzungskontext und die spätere Blastreaktion.
+Die vorhandenen1664 numerischen58af0-Conversionfälle behalten ihre Goldens.
+Dies ist keine vollständige462a70-Treffererwerbsspur oder allgemeine Rawglobal-
+Autorität. Künstliche crew1/removing0-Reentryeingaben sind verworfen und werden
+nicht als erfolgreiche Sourcefälle gezählt.
+
+VERBLEIBENDE GRENZEN
+Unbekannte Slots/Rawgruppen,71:10-Broadcast nach entfernter Quelle und
+Hardware-Idle nach Entfernung bleiben ausdrückliche Integrationsgrenzen.
+Ein bereits ausgeführter Präfix darf nach einer Grenze nicht nochmals laufen.
+Die Target-/LOS-/W-/Dummyadapter sind durch diesen Block nicht allgemein als
+vollständiges Originalgedächtnis oder vollständige Partiegleichheit bewiesen.
+Lokale Kameras und gemeinsame Audio-/Weltgates bleiben separate Arbeiten.
+Den tatsächlich gebauten und veröffentlichten Stand nennt TESTERGEBNIS.txt.

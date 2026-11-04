@@ -1,4 +1,4 @@
-Z – Kampf, Gruppen, Hardware und KI, Abgleich vom 03.11.2026
+Z – Kampf, Gruppen, Hardware und KI, Abgleich vom 04.11.2026
 
 Geltung: eigener Rust/Wasm-Code gegen die lokale GOG-EXE, schreibgeschützt mit
 Ghidra 12.2 geprüft. Kein Clean Room und keine vollständige 1:1-Gleichheit.
@@ -49,7 +49,14 @@ abgelehnter Klasse-2-Gegenangriff setzt dennoch den Hardwaretimer zurück und
 führt den belegten Reaktionsteil aus. Ausgewählte Gruppenführer behalten ihren
 Auftrag. Der Zielgruppenwert 3e liest das tatsächliche UNIT7a; nach Übernahme
 bleibt der Fahrerwert erhalten, statt das neue Hardwareprofil einzusetzen.
-Die bedingten UI-/Sprachausgaben über 46e890 sind noch nicht angeschlossen.
+Die geprüften bedingten46e890-/Portrait-/Sprachaufrufer sind angeschlossen;
+775 Deskriptoren und die erfolgreichen46a610-Noticewrites besitzen eigene
+Vergleiche. Lokale Kameras, weitere Caller und Mixerzustände bleiben offen.
+4208f0 meldet/reagiert jetzt vor dem Explosionsschaden;44a540 führt seine
+44a3a0-Reaktion vor574c0-Zielerwerb aus.104 ausgeführte Originalpräfixe und
+eine generationsgebundene schmale Raw-Slotprojektion prüfen diese Reihenfolge.
+Sie ersetzt weder den gesamten alten UNIT-Speicher noch fehlende Broadcast-
+und Hardware-Idlepfade nach Entfernung. Details: ORIGINAL-UPSTREAM-REAKTIONEN.txt.
 490b0 und einzelne Sicht-/Wegaufrufe verwenden weiter die vorhandenen Adapter.
 
 WAFFEN, PROJEKTILE UND KONTAKT

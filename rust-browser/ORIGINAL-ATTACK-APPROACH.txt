@@ -1,0 +1,100 @@
+ORIGINAL ATTACK APPROACH / CACHED TARGET QUERY — bounded nov04-r45 integration
+
+Scope
+This slice closes four executed native caller gaps in the managed original-map
+path. It does not establish full-game 1:1 equality. The compatibility adapter
+(native_route_mode=false) remains a separate existing implementation.
+
+Runtime bindings
+1. original_attack_approach::approach models 004490b0 as an ordered void-call
+   transaction: route gate, 452ab0 counter, 452500 cleanup, exactly 4800 primary
+   goal slots, 44d1a0 assignment, existing 43bbe0 assembly, actual 452810 start,
+   then flags71:80 / motion61 and the hardware suffix. A full primary pool keeps
+   the known counter/cleanup prefix and performs no start or success suffix,
+   even when secondary nodes are free. No Vec-length or synthetic MOVE signals
+   allocation success. Source 52810 returns0 for a start and1 otherwise; 490b0
+   ignores that return once its goal exists.
+2. original_route_pool_game shares its existing finite builder with a narrow
+   assigned-goal entry. 490b0 commits the original goal before43bbe0; the prior
+   53730 API retains its original assignment order. A road result sets actual
+   flags9c:80 at the source commit. Fresh group context is read back before the
+   enclosing caller commits, preserving actual525a0 group writes.
+3. Direct and queued phase switches are distinct. Numeric family38 is
+   firetruck, not crane: direct ->9, queued ->60. Families24/25/30/32/34/36
+   select53/54/55/56/58/59. Family24 is launcher, not medium; actual medium
+   family6 is covered by existing ordinary vehicle regressions. Family40 in
+   the oracle is only the typed switch-fallthrough control, not a claimed
+   constructor. Queued goal coordinates enter the node unchanged and52810
+   subtracts8; direct525a0 receives the direct point unchanged. They are not
+   normalized into one invented convention.
+4. 48060's58500 uses the pre-UNIT456a90 membership, reading current raw headers
+   from the SINGLE generation-bound original_upstream_reactions owner. It
+   neither filters HP/active at enumeration nor rebuilds per actor. The later
+   574c0 gate rejects an inactive winner without searching a replacement.
+   Source.cell10 extends that same owner: live UNIT10, pre58ec0 preserved10,
+   then the actual retired4f1e0 writer. It never derives the stale LOS endpoint
+   from current XY. Fresh construction invalidates the old generation.
+
+Two necessary caller dependencies
+The actual negative-five leader reaction now reaches clear_native_attack_paths
+at the proven52500 callpoint: finite heads are freed while old line geometry
+survives. The prior Vec-only clear left a real primary head alive. The existing
+448c20 miss path now stores its already-computed raw42/44 and heading39; it
+consumes no second scatter or RNG draw. These were detected by the wholecaller
+and cached-removal replays rather than changed to fit unrelated tests.
+
+Evidence
+56 controlled native cases are replayed fieldwise in actual Game adapters:
+24 real48060/48250 caller cases,8 finite-pool cases,16 family cases,4 real
+433b30/41b950 profile/road cases,4 actual58ec0/cache/48060 cases. Two192-byte
+UNIT projections, two72-byte rosters,44-byte dummy/availableW, primary nodes,
+full pool hashes where provided, and all five RNG words are compared. Raw
+projections begin with each explicit native input and overlay represented
+fields; this does not claim a general192-byte UNIT backing for other callers.
+The seven-region road graph is controlled numerical input with real source
+permission/cost profiles, not a claim about every authored mission.
+
+Private fieldwise replay:
+  NATIVE_WALK_CALLER_DIRECTORY=<private work/parity-audit>
+  CARGO_TARGET_DIR=<private target>
+  cargo test original_attack_approach -- --nocapture
+The private datasets/signatures are recorded in V44-WALK-CALLER-RESEARCH.txt;
+source data is not shipped with the public tool/code.
+
+Eight focused tests additionally cover first4799/beyond4800 bounds, source
+prefix on exhaustion, direct zero-distance geometry preservation, family38,
+actual live wrapper road/context commits, and one real Main callback chain:
+earlier medium callback crushes an enemy -> real58ec0 -> later foot48060 sees
+the stale cache ->574c0 refuses it. The next456a90 rebuild changes membership.
+A real slot reuse reads the new raw actor; missing new data remains an explicit
+Boundary instead of falling back to the old generation. Normal valid-near
+movement-before-acquisition and finite-contour Main regressions remain enabled.
+
+Actual Rust snapshots can be replayed through the current guest RPC and
+OriginalDisplay without Wasm or guest simulation:
+  Z_WALK_RPC_TRACE=1 (with the Rust test above)
+  node tools/replay-native-walk-cached-rpc.cjs <actual Rust test log>
+It checks four SP/MP cached cases plus Main:10 RPC calls,5 display callbacks,
+no resurrected victim, original host snapshot unchanged. This checks transport
+and drawing; it does not manufacture a second guest gameplay simulation.
+
+Explicit remaining boundaries
+- AttackApproachLine(slot): absent proven old line on direct-zero or queued
+  zero-anchor context. The executed direct-zero callee preserves its old
+  geometry and shifts remaining48 (80 ->5); reachability of that particular
+  zero input from a normal higher caller is not asserted. No synthetic line
+  or success flag is invented.
+- The native road assembly/scratch boundaries remain as existing typed errors,
+  with known allocation/assignment/prefix deltas preserved.
+- Missing or unsupported raw owners from the shared authority remain named
+  UpstreamReaction errors, not HP-based skipping or a fresh scan. The upstream
+  frozen dependency originally retains RemovalFamily for some suppressed
+  hardware; Root's separately proven crew_only/family delta is not duplicated
+  in this patch. Root will combine it with the narrow cell10 addition.
+- The private320+320 real moving-target callbacks are a controlled source
+  observation (GROUP9:20, pattern cursor, restore_group held as documented),
+  not a universal pursuit policy. No invented periodic retarget was added.
+- No general58620/566d0 arbitrary-alias or unknown-order completion is claimed.
+
+The candidate has no fullsuite, Wasm, commit, deployment or publication work.
+Root owns the release-wide validation and merge into its newer source.

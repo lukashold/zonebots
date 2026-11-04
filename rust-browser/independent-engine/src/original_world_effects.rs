@@ -18,7 +18,7 @@ pub struct View{pub camera:[i16;2],pub clip:[i16;4],pub world:[i16;2],pub sine:i
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Primitive{ColorPoint{color:u8}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub struct Draw{pub point:[i16;2],pub screen:[i16;2],pub sprite:i16,pub height:i16,pub angle:u8,pub transformed:bool,pub owner:u8,pub primitive:Option<Primitive>}
+pub struct Draw{pub point:[i16;2],pub screen:[i16;2],pub sprite:i16,pub height:i16,pub angle:u8,pub transformed:bool,pub inherited_palette:bool,pub owner:u8,pub primitive:Option<Primitive>}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum Action{
     Blast{point:[i16;2],strength:u8,suppress_visual:bool},
@@ -70,32 +70,41 @@ impl Particle{
     }
     pub fn advance_native(&mut self,view:View,last_projection:&mut[i16;2])->Step{
         if !self.active{return Step{draw:None,expiry:None};}self.lifetime=self.lifetime.wrapping_sub(1);if self.lifetime<0{return self.dispatch(None);}
-        self.resume_native(view,last_projection)
+        self.resume_native_inner(view,last_projection,None)
     }
+    pub fn advance_native_trail(&mut self,view:View,last_projection:&mut[i16;2],trail:&mut super::trail::State)->Step{
+        if !self.active{return Step{draw:None,expiry:None};}self.lifetime=self.lifetime.wrapping_sub(1);
+        if self.lifetime<0{return self.dispatch_trail(None,Some(trail));}
+        self.resume_native_inner(view,last_projection,Some(trail))
+    }
+    pub fn resume_native_trail(&mut self,view:View,last_projection:&mut[i16;2],trail:&mut super::trail::State)->Step{self.resume_native_inner(view,last_projection,Some(trail))}
+    fn dispatch_trail(&mut self,draw:Option<Draw>,trail:Option<&mut super::trail::State>)->Step{if let Some(t)=trail{if let Err(e)=t.footer(self){t.boundary=Some(e);return Step{draw,expiry:None};}}self.dispatch(draw)}
     fn dispatch(&mut self,draw:Option<Draw>)->Step{if self.expiry==0{self.active=false;Step{draw,expiry:None}}else{Step{draw,expiry:Some(self.expiry)}}}
     ///Called after a native expiry callback that left a nonnegativeZ and an
     ///occupied slot. The source resumes without decrementing lifetime again.
-    pub fn resume_native(&mut self,view:View,last_projection:&mut[i16;2])->Step{
+    pub fn resume_native(&mut self,view:View,last_projection:&mut[i16;2])->Step{self.resume_native_inner(view,last_projection,None)}
+    fn resume_native_inner(&mut self,view:View,last_projection:&mut[i16;2],mut trail:Option<&mut super::trail::State>)->Step{
         let projection=project(self.position,view.sine,view.cosine);
         *last_projection=projection;
         let world=[self.origin[0].wrapping_add(projection[0]),self.origin[1].wrapping_add(projection[1])];
         let screen=[world[0].wrapping_sub(view.camera[0]),world[1].wrapping_sub(view.camera[1])];
+        if let Some(t)=trail.as_deref_mut(){if let Err(e)=t.record(self,world){t.boundary=Some(e);return Step{draw:None,expiry:None};}}
         let color_point=self.flags&4==0;
         let visible=if self.flags&4==0||self.sprite==250{screen[0]>view.clip[0]&&screen[0]<view.clip[2]&&screen[1]>view.clip[1]&&screen[1]<view.clip[3]}
             else{screen[0].wrapping_add(200)>view.clip[0]&&screen[0].wrapping_sub(70)<view.clip[2]&&screen[1].wrapping_add(200)>view.clip[1]&&screen[1].wrapping_sub(70)<view.clip[3]};
         let draw=if visible{if color_point{
-            Some(Draw{point:world,screen,sprite:0,height:0,angle:0,transformed:false,owner:self.owner,primitive:Some(Primitive::ColorPoint{color:self.tint})})
+            Some(Draw{point:world,screen,sprite:0,height:0,angle:0,transformed:false,inherited_palette:false,owner:self.owner,primitive:Some(Primitive::ColorPoint{color:self.tint})})
         }else if self.sprite==250{
             let height=((-i32::from(self.position[2]))>>5).min(4)as i16;let sprite=250i16.wrapping_add(height.wrapping_mul(4)).wrapping_add(i16::from(self.phase));self.phase=self.phase.wrapping_add(1)&3;
-            Some(Draw{point:world,screen,sprite,height:0,angle:0,transformed:false,owner:self.owner,primitive:None})
+            Some(Draw{point:world,screen,sprite,height:0,angle:0,transformed:false,inherited_palette:true,owner:self.owner,primitive:None})
         }else{let sprite=self.sprite.wrapping_add(i16::from(self.phase));let transformed=self.flags&8!=0;let angle=self.angle.wrapping_add(self.spin)as u8;
             if transformed{self.angle=i16::from(angle);}if self.fade_left==0{self.phase=self.phase.wrapping_add(1);if self.maximum_phase<self.phase{self.phase=0;}}
-            Some(Draw{point:world,screen,sprite,height:((-i32::from(self.position[2]))>>3)as i16,angle,transformed,owner:self.owner,primitive:None})
+            Some(Draw{point:world,screen,sprite,height:((-i32::from(self.position[2]))>>3)as i16,angle,transformed,inherited_palette:false,owner:self.owner,primitive:None})
         }}else{None};
         self.position[0]=self.position[0].wrapping_add(i16::from(self.velocity[0]));self.position[1]=self.position[1].wrapping_add(i16::from(self.velocity[1]));
         if world[0]< -32||world[0]>view.world[0]||world[1]< -32||world[1]>view.world[1]{self.active=false;return Step{draw,expiry:None};}
         self.position[2]=self.position[2].wrapping_add(i16::from(self.velocity[2]));
-        if self.position[2]>0{self.position[2]=0;if self.flags&1==0{return self.dispatch(draw);}self.velocity[2]=1i8.wrapping_sub(self.velocity[2]);if self.velocity[2]==0{return self.dispatch(draw);}}
+        if self.position[2]>0{self.position[2]=0;if self.flags&1==0{return self.dispatch_trail(draw,trail);}self.velocity[2]=1i8.wrapping_sub(self.velocity[2]);if self.velocity[2]==0{return self.dispatch_trail(draw,trail);}}
         self.deceleration_left=self.deceleration_left.wrapping_sub(1);if self.deceleration_left<0{self.deceleration_left=self.deceleration;
             if self.flags&16==0{self.velocity[0]=self.velocity[0].wrapping_sub(self.velocity[0].signum());}
             if self.flags&32==0{self.velocity[1]=self.velocity[1].wrapping_sub(self.velocity[1].signum());}

@@ -128,3 +128,17 @@ speaker, portrait, message and notice with unchanged native/CRT RNG.
 It is explicitly not a whole Game reaction/cleanup raw-memory comparison.
 The Source64 whole-chain raw hashes are separate from this adapter proof.
 Final build/publication status remains recorded in TESTERGEBNIS.txt.
+
+INTEGRATED OWNER4 / CRANE CALLERS — nov04-r45 SOURCE
+The new401640 sample1 and44fa40 sample12 callpoints preserve the existing
+per-listener master/descriptor/counter context. Both real Game caller tests
+failed before the merge correction when a muted host also silenced the guest;
+they pass after applying master admission inside for_native_listeners. The
+source world/FX/RNG and4d18ee gate execute once outside that audio selection.
+The expiry test compares the actual500-record pool and RNG against an unmuted
+world. The crane test retains exactly one queue write and no render RNG.
+These two tests do not implement per-camera sample opportunity, generic world
+quiet/cycle cloning, PCM decode, device/channel behavior or full original MP.
+The current handshake source is zonebots-mp-10-native-repair-reaction; peers
+from earlier simulation/render builds are rejected before startup. Actual
+built/deployed provenance is recorded in TESTERGEBNIS.txt.

@@ -266,13 +266,28 @@ def extract(root,out):
   for slot in range(35):
    r=buildingdata[slot*80:(slot+1)*80];assert len(r)==80
    bid=next((b['id']for b in buildings if b.get('sourceOffset')==slot*80),None)
-   native_buildings.append({'nativeSlot':slot,'flags6':r[6],'nativeWord0A':i16(r,10),'nativeByte15':r[21],'kind':-1 if r[4]==255 else r[4],'x':i16(r,0),'y':i16(r,2),'hp':i16(r,28),'maxHp':i16(r,26),'buildingId':bid,'fortProxy':False})
+   native_buildings.append({'nativeSlot':slot,'nativeDisk80':list(r),'flags6':r[6],'nativeWord0A':i16(r,10),'nativeByte15':r[21],'kind':-1 if r[4]==255 else r[4],'x':i16(r,0),'y':i16(r,2),'hp':i16(r,28),'maxHp':i16(r,26),'buildingId':bid,'fortProxy':False})
   #0045fa10 fills the first two unused BUILD slots with fort proxies. These
   #hold the pre-constructor HP;40b250 subsequently copies the global fort HP.
   for ft in forts:
    record=next(b for b in native_buildings if b['kind']==-1)
    record.update({'kind':2,'x':ft['rawBase'][0],'y':ft['rawBase'][1]+16,'buildingId':next(b['id']for b in buildings if b['kind']=='fort'and b['team']==ft['team']),'fortProxy':True})
   data['nativeWorldBuildings']=native_buildings
+  #44fa40's six BUILD crane layers,12 proven frames including its terminal.
+  crane_ptrs=[]
+  for i in range(12):
+   p=exe.ptr(0x495644+i*4)
+   if p==0xffffffff:break
+   crane_ptrs.append(p)
+  assert len(crane_ptrs)==6
+  data['nativeCraneBuildFrames']=[[list(struct.unpack('<4h',exe.read(p+f*8,8)))for p in crane_ptrs]for f in range(12)]
+  data['nativeBuildingRuinStamps']={}
+  data['nativeBuildingAliveStamps']={}
+  for kind,aliveptr in [(0,0x47828c),(1,0x47826c),(4,0x4781f4),(8,0x478580)]:
+   width,height=exe.read(0x498ca8+kind*76,2)
+   for key,p in [('nativeBuildingRuinStamps',exe.ptr(0x4781d0+kind*4)),('nativeBuildingAliveStamps',aliveptr)]:
+    data[key][str(kind)]={'pointer':p,'w':width,'h':height,'codes':list(exe.read(p,width*height))}
+
   #41f8f0 ordinary BUILD tables;420ea0 fort uses separate per-row timing.
   fragment_tables={}
   for kind,address in [(0,0x478420),(1,0x4782a0),(4,0x4785b8),(8,0x478798)]:

@@ -21,12 +21,21 @@ pub struct ConversionInput{pub family:u8,pub class:u8,pub hull:i16,pub position:
 pub struct Conversion{pub family_after:u8,pub object:Option<Wreck>,pub recursive_poof:bool,pub jeep_contact:bool}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub struct Wreck{pub kind:u16,pub position:[i16;2],pub flags13:u8,pub wreck:bool,pub align:bool}
+///58af0 family30 after conversion. crew_only is the actual462a70 context:
+///4a6f7e=1 around41e6e0; it is independent from5849e7 suppression.
+///Sharing this decision keeps the captured removed UNIT and the OBJECT caller
+///on the same branch without a second allocation or RNG pass.
+const CONVERTIBLE_FAMILIES:[u8;12]=[5,6,21,22,23,24,25,30,32,34,36,38];
+pub fn conversion_family(family:u8,class:u8,suppressed:bool,crew_only:bool)->u8{
+ if CONVERTIBLE_FAMILIES.contains(&family)&&suppressed&&!(crew_only&&matches!(class,1|2)){family}else{255}
+}
 ///58af0's own numerical offsets. The extra−4 X precedes both the usable
 ///hardware and destroyed-hardware branches; APC family32 skips both offsets.
 pub fn conversion(input:ConversionInput)->Conversion{
  let mut result=Conversion{family_after:255,object:None,recursive_poof:false,jeep_contact:false};let f=input.family;if f==255{result.family_after=255;return result;}if f==4{return result;}
- let known=[5,6,21,22,23,24,25,30,32,34,36,38].contains(&f);
- if known&&input.suppressed&&!(input.crew_only&&[1,2].contains(&input.class)){result.family_after=f;return result;}
+ let known=CONVERTIBLE_FAMILIES.contains(&f);
+ result.family_after=conversion_family(f,input.class,input.suppressed,input.crew_only);
+ if result.family_after!=255{return result;}
  let offset=match f{6=>[-4,-6],21=>[4,0],22=>[0,-1],23=>[3,-6],25=>[-2,-4],30=>[-7,-7],34=>[0,-7],_=>[0,0]};
  let point=if f==32{input.position}else{[input.position[0].wrapping_add(offset[0]).wrapping_sub(if known{4}else{0}),input.position[1].wrapping_add(offset[1])]};
  let recoverable=known&&!input.forced_wreck&&input.hull>=0;
@@ -118,6 +127,17 @@ impl State{
    let mut object=[0u8;44];object[0..2].copy_from_slice(&plan.position[0].to_le_bytes());object[2..4].copy_from_slice(&plan.position[1].to_le_bytes());object[20..24].copy_from_slice(&plan.saved.unwrap_or([240,241,242,243]));let mut events=0;let mut eh=2166136261u32;if plan.world_probe{events+=1;values(&mut eh,&[0,plan.position[0]as u32,plan.position[1]as u32]);}for &(p,strength)in &plan.contacts{events+=1;values(&mut eh,&[1,p[0]as u32,p[1]as u32,u32::from(strength),1]);}
    values(&mut total,&[s,bytes_hash(&object),bytes_hash(&plan.terrain),events,eh,0]);
   }assert_eq!(total,165218311,"ZNativeWreckPlacementOracle:2048 original44de00 terrain, UNIT and world-probe cases");
+ }
+ #[test]fn captured_family_matches_64_actual_removal_caller_results(){
+  //ZV45RemovedShooterCrewOracle:32 direct58ec0 and32 crew-only41e6e0.
+  //Only family30 is compared here, not the whole native damage/removal world.
+  let mut h=2166136261u32;
+  for s in 0..64u32{let crew=s>=32;let class=if crew||s/2%2!=0{1}else{0};let family=if class==1{6}else{4};let after=conversion_family(family,class,crew||s&8!=0,crew);values(&mut h,&[s,u32::from(after)]);}
+  assert_eq!(h,986074885,"64 real caller final family30 values");
+  if let Some(path)=std::env::var_os("NATIVE_REMOVAL_CREW_ORACLE"){
+   let text=std::fs::read_to_string(path).unwrap();let rows=text.lines().map(|l|serde_json::from_str::<serde_json::Value>(l).unwrap()).collect::<Vec<_>>();assert_eq!(rows.len(),128);
+   for scenario in 0..64u64{let row=|stage:&str|rows.iter().find(|r|r["scenario"].as_u64()==Some(scenario)&&r["stage"]==stage).unwrap();let decode=|v:&serde_json::Value|{let h=v["unit"].as_str().unwrap();(0..h.len()).step_by(2).map(|i|u8::from_str_radix(&h[i..i+2],16).unwrap()).collect::<Vec<_>>()};let before=decode(row("before"));let after=decode(row("after"));let crew=scenario>=32;assert_eq!(after[48],conversion_family(before[48],before[124],crew||scenario&8!=0,crew),"scenario{scenario}");assert_eq!(&before[44..48],&after[44..48]);}
+  }
  }
  #[test]fn conversion_matches_all_1664_executed_native_records(){
   let mut total=2166136261u32;let families=[4,5,6,21,22,23,24,25,30,32,34,36,38];let hulls=[-300,-1,0,1,24,25,125];

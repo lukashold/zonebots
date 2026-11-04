@@ -15,6 +15,17 @@ impl Game{
   (m.flags31&4!=0&&m.flags69&64==0).then_some(slot)
  }
  pub(crate) fn begin_native_display_frame(&mut self){if self.map.original{self.clear_native_building_fragment_draws();self.native_display.units=Some(Vec::new());}}
+ fn native_crane_picture(&self,u:&Unit)->Result<super::hardware::Draw,super::crane::Boundary>{
+  use super::crane::{self,Boundary};
+  let work=self.native_crane_work9a(u.native_slot.ok_or(Boundary::MissingWork9a)?,u.id)?;
+  let w=if let Some(slot)=u.native_hardware_slot{self.native_hardware_pool.get(slot).ok_or(Boundary::MissingHardware)?.attributes}else{self.native_hardware_dummy_attributes};
+  let cell=u.native_cell10 as u16 as usize;let(x,y)=(cell&127,cell>>7);
+  let terrain=if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x)}else{self.map.native_terrain_plane.get(cell)}.copied().ok_or(Boundary::MissingWorld)?&127;
+  let position=point(u.x,u.y);let clip=if crane::special_terrain(terrain){crane::select_clip(terrain,position,&self.native_world_buildings().ok_or(Boundary::MissingWorld)?,self.native_fort_bases(),false)?}else{None};
+  let draw=crane::draw(crane::Input{position,heading:original_combat::facing(u.angle),frame:u.native_frame32,turret:w.byte(21)as i8,work,flags64:u.native_flags64,mask98:u.native_mask98,elevation:u.native_elevation76},clip,0)?;
+  if draw.layers.iter().any(|l|l.palette>7){return Err(Boundary::UnsupportedPalette(u.native_flags64&u.native_mask98));}
+  if draw.layers.iter().any(|l|l.rectangle(0).is_some_and(|r|r[3]<0)){return Err(Boundary::NegativeScissor);}Ok(draw)
+ }
  fn native_regular_hardware_picture(&self,u:&Unit)->Option<super::hardware::Draw>{
   let cell=u.native_cell10 as u16 as usize;let(x,y)=(cell&127,cell>>7);let terrain=if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x).copied().unwrap_or(127)}else{self.map.native_terrain_plane.get(cell).copied().unwrap_or(127)}&127;
   if u.native_flags64&u.native_mask98>=128{return None;}
@@ -40,8 +51,9 @@ impl Game{
   //55f10 checks visibility and signed screen bounds before selecting the
   //normal record or clearing its one-shot64:4 palette flag.
   if flags69&4==0{return None;}let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let screen=[p[0].wrapping_sub(camera[0]),p[1].wrapping_sub(camera[1])];if screen[0]<=-32||screen[0]>=size[0]||screen[1]<=-48||screen[1]>=size[1]{return None;}
-  let hardware=matches!(u.native_class7c,1|2);let native=if hardware{self.native_regular_hardware_picture(u)}else{None};let header=if let Some(n)=&native{n.header.record_for_sort()}else if u.native_class7c==1{Record{x:p[0],y:p[1].wrapping_add(i16::from(u.native_elevation76)).wrapping_add(8),sprite:0,palette:u.native_flags64&7,offset:0}}else{infantry(p,u.native_phase35,u.native_frame32,original_combat::facing(u.angle)as i8,u.native_elevation76,u.native_flags64)?};let plain_hardware=native.as_ref().is_some_and(|n|n.layers.is_empty());
+  let hardware=matches!(u.native_class7c,1|2);let crane=u.native_class7c==1&&original_combat::animation_family(&u.kind)==36;let crane_picture=crane.then(||self.native_crane_picture(u));let crane_boundary=crane_picture.as_ref().and_then(|r|r.as_ref().err()).copied();let native=if let Some(picture)=crane_picture{picture.ok()}else if hardware{self.native_regular_hardware_picture(u)}else{None};let header=if let Some(n)=&native{n.header.record_for_sort()}else if u.native_class7c==1{Record{x:p[0],y:p[1].wrapping_add(i16::from(u.native_elevation76)).wrapping_add(8),sprite:0,palette:u.native_flags64&7,offset:0}}else{infantry(p,u.native_phase35,u.native_frame32,original_combat::facing(u.angle)as i8,u.native_elevation76,u.native_flags64)?};let plain_hardware=native.as_ref().is_some_and(|n|n.layers.is_empty());
   let mut row=json!({"kind":"unit","id":u.id,"nativeSlot":slot,"queueY":i32::from(header.y)*2,"palette":header.palette,"sprite":if hardware&&!plain_hardware{None}else{Some(header.sprite)},"x":i32::from(if plain_hardware{header.x}else{p[0]})*2,"y":i32::from(if plain_hardware{header.y.wrapping_add(i16::from(header.offset))}else{p[1]})*2});
+  if let Some(boundary)=crane_boundary{row["nativeCraneBoundary"]=json!(boundary.label());}
   if let Some(native)=&native{if !native.layers.is_empty(){row["nativeLayers"]=json!(native.layers.iter().map(|l|{let mut v=json!({"sprite":l.sprite,"x":i32::from(l.position[0])*2,"y":i32::from(l.position[1])*2,"palette":l.palette,"flags":l.flags});if let Some(r)=l.rectangle(0){v["clip"]=json!(r.map(|n|n*2));}v}).collect::<Vec<_>>());}}
   if hardware{
    //Only fields consumed by the existing hardware artwork adapter are kept.
@@ -57,7 +69,7 @@ impl Game{
  pub(crate) fn capture_native_unit_display(&mut self,index:usize,original_slot:Option<usize>){
   let Some(slot)=original_slot else{return;};if !self.map.original||self.native_display.units.as_ref().is_some_and(|rows|rows.iter().any(|(_,v)|v["nativeSlot"].as_u64()==Some(slot as u64))){return;}let actor=self.units.iter().rposition(|u|u.native_slot==Some(slot)).unwrap_or(index);let Some(u)=self.units.get(actor)else{return;};
   if let Some(row)=self.capture_native_terrain_display(actor,slot){if let(Some(rows),Some(row))=(&mut self.native_display.units,row){rows.push(row);}return;}
-  let row=self.native_unit_display_row(&self.units[actor],slot);if row.is_some(){let white=self.units[actor].native_flags64&4!=0;self.units[actor].native_flags64&=!4;if white&&self.units[actor].native_class7c==1&&row.as_ref().is_some_and(|(_,v)|v.get("nativeLayers").is_some()){self.units[actor].native_mask98=7;}}
+  let row=self.native_unit_display_row(&self.units[actor],slot);if row.is_some(){let white=self.units[actor].native_flags64&4!=0;self.units[actor].native_flags64&=!4;if white&&self.units[actor].native_class7c==1&&(self.units[actor].kind=="crane"||row.as_ref().is_some_and(|(_,v)|v.get("nativeLayers").is_some())){self.units[actor].native_mask98=7;}}
   if let(Some(rows),Some(row))=(&mut self.native_display.units,row){rows.push(row);}
  }
  pub(crate) fn native_display_queue(&self)->Vec<Value>{

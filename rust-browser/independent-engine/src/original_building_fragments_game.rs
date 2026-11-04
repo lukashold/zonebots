@@ -1,7 +1,7 @@
 //! Per-BUILD bindings for the fragment kernel; only authored templates create
 //! records. A missing old-pack template leaves its existing artwork adapter.
 use crate::{Game,Value,original_building_fragments as native,original_display::Record};
-pub(super) struct State{pools:Vec<native::Pool>,bindings:[Option<usize>;35],starts:[usize;35],templates:Vec<Option<Vec<[i16;6]>>>,draws:Vec<(Record,usize,usize)>}
+pub(super) struct State{pub(super) pools:Vec<native::Pool>,pub(super) bindings:[Option<usize>;35],pub(super) starts:[usize;35],pub(super) templates:Vec<Option<Vec<[i16;6]>>>,draws:Vec<(Record,usize,usize)>}
 impl Default for State{fn default()->Self{Self{pools:vec![native::Pool::default();35],bindings:[None;35],starts:[0;35],templates:vec![None;35],draws:vec![]}}}
 impl State{
  pub(super) fn import(previous:Option<&Self>,v:&Value)->Self{let mut next=Self::default();if let Some(old)=previous{next.pools=old.pools.clone();}for p in &mut next.pools{p.clear();}
@@ -15,8 +15,8 @@ impl Game{
  #[cfg(test)]pub(super)fn native_building_fragment_test_pool(&self,slot:usize)->Option<&native::Pool>{let w=self.native_world.as_ref()?;Some(&w.fragments.pools[w.fragments.bindings[slot]?])}
  pub(crate) fn native_building_fragment_draws(&self)->Vec<(Record,usize,usize)>{self.native_world.as_ref().map_or_else(Vec::new,|w|w.fragments.draws.clone())}
  ///40e790's pointer stage follows its machinery/52/54 writes and precedes
- ///occupant/region removal. Owner4 trail machinery is a separate boundary.
- pub(super) fn retire_native_building_fragment_prefix(world:&mut super::State,slot:usize){if world.buildings.get(slot).is_none_or(|b|b.record.kind==2||b.record.kind<0){return;}let Some(ordinal)=world.fragments.bindings.get(slot).copied().flatten()else{return;};world.fragments.starts[slot]=world.fragments.pools[ordinal].destroyed_start(world.fragments.starts[slot]);}
+ ///occupant/region removal. Owner4 trail machinery has already run when this pointer stage is reached.
+ pub(super) fn retire_native_building_fragment_prefix(world:&mut super::State,slot:usize){if world.buildings.get(slot).is_none_or(|b|b.record.kind==2||b.record.kind<0){return;}let Some(ordinal)=world.fragments.bindings.get(slot).copied().flatten()else{return;};world.fragments.starts[slot]=world.fragments.pools[ordinal].destroyed_start(world.fragments.starts[slot]);if world.trail.known_builds[slot]{let raw=&mut world.trail.builds[slot];raw[82..86].fill(255);let p=0x596b16u32.wrapping_add(ordinal as u32*900).wrapping_add(world.fragments.starts[slot]as u32*18);raw[24..28].copy_from_slice(&p.to_le_bytes());}}
  pub(crate) fn native_building_fragment_tail(&mut self,id:usize){let Some((slot,damage))=self.native_world.as_ref().and_then(|w|w.buildings.iter().enumerate().find(|(_,b)|b.binding==Some(id)&&matches!(b.record.kind,1|4|8)).map(|(slot,b)|(slot,if b.record.hp==0{-2}else{b.maximum.wrapping_sub(b.record.hp)})))else{return;};self.advance_native_building_fragments(slot,damage);}
  pub(crate) fn advance_native_building_fragments(&mut self,slot:usize,damage:i16){let Some(world)=&mut self.native_world else{return;};let Some(ordinal)=world.fragments.bindings.get(slot).copied().flatten()else{return;};if world.fragments.templates[slot].is_none(){return;}let start=world.fragments.starts[slot];let mut pool=world.fragments.pools[ordinal].clone();let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let view=native::View{camera,size,multiplayer:self.multiplayer};let mut env=Env{game:self,camera,slot,record:0,contact_mode:false};pool.advance_from(start,damage,view,&mut env);if let Some(world)=&mut env.game.native_world{world.fragments.pools[ordinal]=pool;}}
 }

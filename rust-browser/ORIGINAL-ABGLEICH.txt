@@ -281,6 +281,57 @@ Keine erfundene Fortbedingung. Die Gameprojektion ist ausdrücklich kein erneute
 vollständiger Reaktions-/Rawmemoryvergleich des gesamten Sourcecallers.
 Details: ORIGINAL-RETIRED-UNIT.txt und ORIGINAL-MP-AUDIO.txt.
 
+WEITERER ABGLEICHSBLOCK nov04-r45 – INTEGRIERTER QUELLSTAND
+Die beiden fehlenden Beschuss-/Idlepräfixe4208f0 und44a540 sind angeschlossen.
+104 tatsächliche Originalketten vergleichen Reaktion/Report/Broadcast vor
+Schaden beziehungsweise Zielerwerb. Entfernte Schützenplätze behalten nur den
+am echten Entfernungshook erfassten, generationsgebundenen schmalen Rawzustand.
+Ein tatsächlicher Besatzungstreffer wird bis zu dessen Familie weitergeführt;
+64 Entfernungs-/41e6e0-Ketten prüfen diese Unterscheidung. Unbekannte Rawdaten,
+71:10-Broadcast und Hardware-Idle nach Entfernung bleiben benannte Grenzen.
+Details: ORIGINAL-UPSTREAM-REAKTIONEN.txt.
+
+Vier feste geteilte Gebäudeverlaufspuffer,64 warme Jobs,Owner4-Partikel und
+401640/420200-Kontakte sind verbunden. Der letzte Kontakt liest die nach einer
+möglichen Wiedereinkehr tatsächlich aktuellen Globalwerte; zwölf Mikroeffekte
+liegen vor Terrain-/Brückenwiedereintritt. Der späte435fde-Leser folgt den FX,
+Kugeln und Projektilen und stellt BUILD88 über450260 wieder her. Das gemeinsame
+4d18ee-Gate wird einmal am Mainanfang zurückgesetzt. Die Welt läuft auch bei
+getrennten Host-/Gasttonfreigaben einmal; zwei gezielte Integrationsrepros
+scheitern vor dem lokalen Masterfix und bestehen danach.
+
+Kranreparatur normaler Gebäude verwendet importierte56/58-Terrainstempel,
+Originalauftrag, Arbeit, echten Rückzugspfad,52960-Ankunft und späteren Job.
+M1 ist mit injiziertem Kran geprüft; in M14 sind Kran und Fabrik authored,
+der Roboter wird für die isolierte Übernahme daneben platziert. Diese Fälle
+sind keine unverändert gespielten Missionsanfänge. Die sechs44fa40-Arbeitsbilder
+laufen vor dem normalen55f10-Bild in der echten sortierten Queue.86-Rücklauf
+und96-Mund benutzen die vorhandenen nativen Callback-/Warteuhren.
+Die normale455820-Chassis-/Armkomposition verwendet für bekannte Eingaben
+jetzt drei native Layer mit echtem W21,Frame32,9a und64&98.2048 Originalketten
+prüfen Komposition und Ruinen-vor-Live-Verdeckung. Der M14-Callback hält die
+drei Layer neben seinen sechs Arbeitsbildern; wiederholte Snapshots verändern
+weder Queue noch RNG. Frische Konstruktion und438cf0 markieren die bekannte9a-
+Herkunft im selben Kranrecord. Warme unbekannte9a/96-Recrewingzustände,
+negative GL-Scissorhöhen und weitere Commonzweige bleiben Grenzen.
+Details: ORIGINAL-GEBAEUDE-REKONSTRUKTION.txt und ORIGINAL-KRANGRAFIK.txt.
+
+490b0 unterscheidet echte Allokation vom vollen4800-Primärpool.52ab0/52500
+bleiben bei Erschöpfung als Präfix erhalten;52810 und Erfolgflags laufen nicht.
+Straßen übernehmen ihr9c:80 am belegten Commit. Direkte und wartende Phase38
+(Firetruck) bleiben getrennt. Die Zielsuche liest gecachte, inzwischen entfernte
+Slots aus derselben Rawautorität einschließlich des tatsächlich erhaltenen
+cell10;574c0 lehnt den inaktiven Gewinner ohne Ersatzsuche ab.56 tatsächliche
+Originalfälle sind feldweise verglichen. Der Trefferpunktwriter448c20 verwendet
+seine bereits berechnete Streuung ohne zweiten RNG-Aufruf. Ein echter Main-
+Crush/Cachefall, Slotwiederverwendung und fünf Rustzustände durch Gast-RPC sind
+zusätzlich geprüft. Die normale Bewegung vor Nahzielerwerb bleibt erhalten;
+eine allgemeine neue Verfolgungsregel wurde nicht erfunden.
+Details: ORIGINAL-ATTACK-APPROACH.txt.
+
+Dieser Abschnitt beschreibt die Integration im Quellstand. Den tatsächlich
+gebauten und veröffentlichten Prüfstand nennt ausschließlich TESTERGEBNIS.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -295,8 +346,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    für den engen SP-/GroupFF-Pfad geprüft; weitere Roster-/Pfad-/Rawglobal-
    Weiterläufe sind damit nicht allgemein implementiert.
    Die gewöhnlichen BUILD-/Fortschadenstabellen sind angebunden; Owner4-
-   Zerstörungs-/Verlaufspuffer, Kran-Wiederherstellung und die vollständigen
-   gekoppelten420200-Audio-/Global-/Poolaliasfolgen bleiben offen.
+   Verlaufspuffer und die normale Kran-Wiederherstellung sind im neuen Block
+   angebunden. Bridge80, positive5e-Hardware-Commonzweige, unbekannte warme
+   Kranbytes und weitere420200-Audio-/Global-/Poolaliasfolgen bleiben offen.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten

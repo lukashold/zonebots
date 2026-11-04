@@ -46,15 +46,18 @@ impl Game{
  }
  ///43bbe0 with the goal record already allocated by its actual caller.
  ///This helper performs no52500, allocation of that goal, or538f0 writes.
- pub(crate) fn plan_native_primary_route_with_goal(&self,u:&Unit,_dx:f64,_dy:f64,goal_link:u32)->Result<Option<(RouteResult,bool)>,super::road::Boundary>{
+ pub(crate) fn plan_native_primary_route_with_goal(&self,u:&Unit,dx:f64,dy:f64,goal_link:u32)->Result<Option<(RouteResult,bool)>,super::road::Boundary>{self.build_native_primary_goal(u,dx,dy,goal_link,false)}
+ ///4490b0 assigns44d1a0 BEFORE43bbe0; preserve that prefix on errors.
+ pub(crate) fn plan_native_primary_assigned_goal(&self,u:&Unit,dx:f64,dy:f64,goal_link:u32)->Result<Option<(RouteResult,bool)>,super::road::Boundary>{self.build_native_primary_goal(u,dx,dy,goal_link,true)}
+ fn build_native_primary_goal(&self,u:&Unit,_dx:f64,_dy:f64,goal_link:u32,assign_before:bool)->Result<Option<(RouteResult,bool)>,super::road::Boundary>{
   if !self.map.original||self.native_world.is_none(){return Ok(None);}let Some(graph)=self.map.native_road_graph.as_ref()else{return Ok(None);};let Some(slot)=u.native_slot else{return Ok(None);};let Some(m)=self.native_group_rosters.members[slot].as_ref()else{return Ok(None);};
   let start=((u.x/2.).floor()as i16,(u.y/2.).floor()as i16);let profile=if u.kind=="apc"&&u.crew.as_ref().is_some_and(|c|c.kind=="tough"){original_terrain::Profile::Tracked}else{original_terrain::profile(&u.kind)};
   let allowed=|code|if u.kind=="tough"&&m.role<1{route::tough_leader_passable(code)}else{original_terrain::passable(code,self.map.world,profile)};
   let terrain=|p|self.route_terrain_code(p);let price=|c|if u.native_class7c!=1&&self.map.world==1&&c==9{12}else{original_terrain::route_cost(c,profile)};
-  let active=self.native_path_active_slots();let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;
+  let active=self.native_path_active_slots();let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;if assign_before{paths.pool.assign_primary(slot,goal_link,&active);}
   let outcome=super::road::primary(&mut paths.pool.nodes,goal_link,start,graph,((self.map.width*16)as i16,(self.map.height*16)as i16),terrain,|c|!allowed(c),price,self.map.native_level_record,true);
   let result=match outcome{Ok(result)=>result,Err(boundary)=>return Err(boundary)};
-  paths.pool.assign_primary(slot,goal_link,&active);let view=anchors(&paths.pool,paths.pool.links[slot].primary);u.native_route_pending.set(None);u.native_secondary_route.set(false);Ok(Some((RouteResult::Path(view),result.set_road_flag)))
+  if !assign_before{paths.pool.assign_primary(slot,goal_link,&active);}let view=anchors(&paths.pool,paths.pool.links[slot].primary);u.native_route_pending.set(None);u.native_secondary_route.set(false);Ok(Some((RouteResult::Path(view),result.set_road_flag)))
  }
  pub(crate) fn native_owned_route_view(&self,index:usize)->Option<VecDeque<(f64,f64)>>{let u=self.units.get(index)?;let slot=u.native_slot?;let paths=self.native_routes.borrow();if !paths.managed[slot]{return None;}let m=self.native_group_rosters.members[slot].as_ref()?;Some(anchors(&paths.pool,if m.flags31&32!=0{paths.pool.links[slot].secondary}else{paths.pool.links[slot].primary}))}
 }

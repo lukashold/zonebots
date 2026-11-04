@@ -95,6 +95,7 @@ mod tests {
     fn blast_pulses_on_the_third_alternate_callback_inclusive_rectangle_and_faction_filter(){
         let mut g=field();g.spawn("pyro",1,512.,512.,1,None);g.spawn("pyro",0,512.,512.,2,None);
         g.spawn("pyro",1,500.+26.*2.-16.,500.+18.*2.-16.,3,None);
+        g.maintain_native_group_rosters(); //Supply the real native31 active/team fields before the direct callback.
         let a=Attack{target:0,damage:20,aim:0,facing:0,bullet:false};
         g.spawn_native_blast(250-12,250-24,a,0,None);
         for tick in 1..=5{g.motion_tick=tick;g.update_native_blasts();assert_eq!(g.units[0].hp,80.);}
@@ -177,7 +178,7 @@ pub struct Blast {
     pub id:usize,pub x:f64,pub y:f64,pub team:i32,pub frame:u8,pub strength:u8,pub water:bool,pub sprite:usize,
     #[serde(skip)] lifetime:u8,
     #[serde(skip)] attack:Attack,
-    #[serde(skip)] _shooter:Option<usize>,
+    #[serde(skip)] shooter:Option<usize>,
 }
 #[derive(Clone,Serialize)]
 #[serde(rename_all="camelCase")]
@@ -331,7 +332,7 @@ impl Game {
         let water=matches!(self.native_terrain(x+12,y+32),9|29|38|39|40|42);
         let special=data::TERRAIN_BLAST[self.map.world.min(4)];
         let (sprite,lifetime)=if water{if attack.damage<25{(special[2]as usize,special[3]as u8)}else{(special[0]as usize,special[1]as u8)}}else{(395,12)};
-        self.blasts.push(Blast{id,x:f64::from(x)*2.,y:f64::from(y)*2.,team,frame:0,strength:attack.damage,water,sprite,lifetime,attack,_shooter:shooter});
+        self.blasts.push(Blast{id,x:f64::from(x)*2.,y:f64::from(y)*2.,team,frame:0,strength:attack.damage,water,sprite,lifetime,attack,shooter});
         self.events.push(serde_json::json!({"kind":"explosion","x":(x+12)*2,"y":(y+24)*2,"radius":32,"silent":true}));
     }
     ///41f9d0/420200 tail for the41f610 ownerless zero-strength call. Sound and
@@ -339,7 +340,7 @@ impl Game {
     pub(crate) fn allocate_native_fragment_zero_blast(&mut self,p:[i16;2],water:bool)->bool {
         let Some(id)=(0..50).find(|id|!self.blasts.iter().any(|b|b.id==*id))else{return false;};
         let special=data::TERRAIN_BLAST[self.map.world.min(4)];let(sprite,lifetime)=if water{(special[2]as usize,special[3]as u8)}else{(395,12)};
-        self.blasts.push(Blast{id,x:f64::from(p[0])*2.,y:f64::from(p[1])*2.,team:255,frame:0,strength:0,water,sprite,lifetime,attack:Attack{target:0,damage:0,aim:0,facing:0,bullet:false},_shooter:None});true
+        self.blasts.push(Blast{id,x:f64::from(p[0])*2.,y:f64::from(p[1])*2.,team:255,frame:0,strength:0,water,sprite,lifetime,attack:Attack{target:0,damage:0,aim:0,facing:0,bullet:false},shooter:None});true
     }
     pub(crate) fn update_native_projectiles(&mut self){
         let mut pending=std::mem::take(&mut self.projectiles);pending.sort_by_key(|p|p.id);
@@ -378,23 +379,25 @@ impl Game {
     fn native_blast_contact(&mut self,b:&Blast){
         let(left,top)=((b.x/2.)as i32-6,(b.y/2.)as i32+10);
         self.native_ambient_area_contact([left as i16,top as i16]);
-        self.native_rectangle_contact(left,top,left+44,top+32,b.team,b.attack);
+        self.native_rectangle_contact(left,top,left+44,top+32,b.team,b.attack,b.shooter.map_or(255,|s|s as u8));
     }
-    fn native_rectangle_contact(&mut self,left:i32,top:i32,right:i32,bottom:i32,team:i32,attack:Attack){
+    fn native_rectangle_contact(&mut self,left:i32,top:i32,right:i32,bottom:i32,team:i32,attack:Attack,shooter:u8){
         let coarse=(top>>7)*16+(left>>7);
         for offset in BLAST_BUCKETS {
             let cell=coarse+offset;if !(0..256).contains(&cell){continue;}
-            let mut candidates=self.units.iter().enumerate().filter(|(_,u)|original_combat::alive(true,u.hp)&&!workshops::hidden(u)
+            let mut candidates=self.units.iter().enumerate().filter(|(_,u)|(u.native_slot.is_some()||original_combat::alive(true,u.hp))&&!workshops::hidden(u)
                 &&(((u.y/2.).floor()as i32>>7)*16+((u.x/2.).floor()as i32>>7))==cell)
                 .map(|(i,u)|(u.native_slot.unwrap_or(u.id),i)).collect::<Vec<_>>();
             candidates.sort_unstable();
             // Buckets are built before faction/rectangle filtering in the EXE.
             for (_,i) in candidates.into_iter().take(32){
-                let u=&self.units[i];if u.team<0||u.team==team{continue;}
-                let center=if stats(&u.kind).cls==1{16}else{8};
+                let u=&self.units[i];let id=u.id;
+                if let Some(slot)=u.native_slot{let Some(member)=self.native_group_rosters.members.get(slot).and_then(Option::as_ref)else{self.native_route_boundary=Some(super::original_path_contact::game::Boundary::UpstreamReaction(super::original_upstream_reactions::Boundary::MissingMember(slot)));return;};if !super::original_upstream_reactions::blast_admission(member.flags31,team as u8,shooter).0{continue;}}else if u.team<0||u.team==team{continue;}
+                let center=if u.native_class7c==1{16}else{8};
                 let(x,y)=((u.x/2.).floor()as i32+center,(u.y/2.).floor()as i32+center);
                 if x>=left&&x<=right&&y>=top&&y<=bottom{
-                    let mut attack=attack;attack.target=u.id;self.apply_native_contact(attack);
+                    if u.native_slot.is_some(){match self.native_blast_reaction_prefix(i,team as u8,shooter){Ok(true)=>{},Ok(false)=>continue,Err(b)=>{self.native_route_boundary=Some(super::original_path_contact::game::Boundary::UpstreamReaction(b));return;}}}
+                    let Some(current)=self.units.iter().position(|u|u.id==id)else{self.native_route_boundary=Some(super::original_path_contact::game::Boundary::UpstreamReaction(super::original_upstream_reactions::Boundary::RecipientChanged(id)));return;};let mut attack=attack;attack.target=self.units[current].id;self.apply_native_contact(attack);
                 }
             }
         }

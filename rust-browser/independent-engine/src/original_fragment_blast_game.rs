@@ -20,6 +20,7 @@ impl Game {
  ///Shared420200 sound prefix. 41f870's separate bridge caller remains an
  ///unported writer of the same cycle/gate; no second isolated cycle is used.
  pub(crate) fn native_blast_sound_prefix(&mut self,p:[i16;2]){
+    if self.native_world.as_ref().is_some_and(|s|s.effect_world_mask4f!=0){return;}
     if !native::admitted(p,[(self.map.width*16)as i16,(self.map.height*16)as i16]){return;}
     let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));
     if let Some(id)=native::sound(p,camera,size,self.native_blast_sound_gate,self.native_blast_quiet(),self.native_blast_sound_cycle){
@@ -37,7 +38,7 @@ impl Game {
  ///401560/402ce0 allocate their twelve color particles before freeing source.
  pub(super) fn retire_native_fragment_water_particle(&mut self,slot:usize){self.finish_native_water_expiry(slot);}
 }
-struct Terrain<'a>(&'a mut Game);
+pub(super) struct Terrain<'a>(pub(super) &'a mut Game);
 impl native::Terrain for Terrain<'_>{
  fn tile(&self,c:i16)->u8{if c<0{return 0;}let c=c as usize;let(x,y)=(c&127,c>>7);if x<self.0.map.width&&y<self.0.map.height{self.0.map.original_tiles.get(y*self.0.map.width+x).copied().unwrap_or(0)as u8}else{self.0.map.native_tile_plane.get(c).copied().unwrap_or(0)}}
  fn terrain(&self,c:i16)->u8{self.0.world_code(c)}

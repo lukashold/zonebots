@@ -1,0 +1,21 @@
+Original crane graphics:55f10 ->455820
+
+The live class1/family36 picture now retains three native layers at the actual
+UNIT display callback. Body frame32, shared hardwareW21, existing Crane.work9a,
+palette64&98 and ruined-BUILD-before-live-BUILD clipping drive the picture.
+The old44fa40 six work rows keep their earlier callback and shared queue order.
+No animation RNG is repeated by a snapshot or frontend drawing.
+
+Fresh41b210 allocation proves9a0;438cf0 explicitly writesFF. A provenance bit
+on the existing Crane state records these known writes. An unknown warm or
+recrewed actor does not acquire an invented9a default. Such input, invalid
+signedW21, and negative GL scissor heights retain named nativeCraneBoundary
+metadata and the compatibility artwork. No second9a value is stored.
+
+Verification:2048 executed native draw chains,1305 visible compositions;
+the helper checks headers/warm descriptors/clipping/mask writes/raster inputs.
+The actual M14 takeover/repair fixture retains three chassis layers alongside
+six forward or reverse work rows; repeated snapshots keep queue/RNG unchanged.
+Owner/flash rows and the real guest controller exercise palette perspective
+without guest simulation. Canvas/GL pixel equality and unknown warm9a/96
+recrewing lifecycles remain outside this bounded implementation.

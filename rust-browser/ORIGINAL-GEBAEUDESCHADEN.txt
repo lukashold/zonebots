@@ -103,7 +103,8 @@ Projektile benutzen weiter ihren eigenen
 Umwelt-/Terrainadapter; die neuen Kraterregeln gelten gezielt für41f610/Stärke0.
 Die fehlenden Fabrik-/Radar-Fragmenttabellen, ihre Callbacktails und der
 separate späte Fortfragmentpass stehen in ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt.
-Vollständige Maschinenbilder sowie Owner4-Trail/Expiry3 bleiben offen.
+Vollstaendige Maschinenbilder bleiben offen. Der begrenzte Owner4-/Expiry3-
+Folgeblock steht in ORIGINAL-GEBAEUDE-REKONSTRUKTION.txt.
 41f2d0 und die vollständige Kopplung
 aller alten Blastpool-/UNIT-Bucket-Speicher gehören nicht zu diesem Nachweis.
 Die Gebäudeschadensroutinen sind damit kein Beleg vollständiger1:1-Gleichheit.

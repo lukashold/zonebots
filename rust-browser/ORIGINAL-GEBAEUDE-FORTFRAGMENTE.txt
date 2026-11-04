@@ -49,9 +49,11 @@ Import aller20 Kampagnenmissionen und die MP-/Darstellungsausgabe. Die privaten
 Originalfixtures besitzen Signaturen3510664630/1615055178/2777176415; Blatt-
 grenzen für externe Environment-/Spark-Aufrufe bleiben ausdrücklich benannt.
 
-OWNER4-TRAIL/EXPIRY3 BLEIBT OFFEN
-Die vier globalen Verlaufspuffer,4028a0-Pointerrückschreiben/Bit8-Toggle,
-4020f0-Zerstörungspräfixe und401640/Expiry3 werden hier nicht durch einfache
-Spriteeffekte ersetzt. Der neue Startoffset schließt diese vorgelagerte
-Machinerie nicht. Ebenso sind sämtliche Fabrik-/Fort-Maschinenbilder, ganze
-Spielabläufe, Save-/Load-Aliase und GPU-Rasterung kein vollständiger1:1-Nachweis.
+OWNER4-TRAIL/EXPIRY3: BEGRENZTER FOLGEBLOCK
+Der neue, getrennt dokumentierte Ablauf in
+ORIGINAL-GEBAEUDE-REKONSTRUKTION.txt verbindet feste gemeinsame Verlaufspuffer,
+4028a0-Rueckschreiben/Bit8,4020f0-Praefixe,401640 samt vorgelagertem
+420200-Spray/Terrain und den spaeten Reparaturreader. Das ist kein einfacher
+Spriteersatz. Positive Crane-Gruppenrollen,Bridge80,vollstaendige455820-
+Krangrafik/40e6a0-Maschinerie,ganze Spielablaeufe,Save-/Load und GPU-Rasterung
+bleiben ausdruecklich gesonderte Grenzen.
