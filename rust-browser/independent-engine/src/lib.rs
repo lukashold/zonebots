@@ -1388,6 +1388,7 @@ impl Game {
             self.update_native_ambient_animations();
             self.update_native_ambient();
             self.update_native_lava();
+            self.advance_native_fort_fragments();
             self.update_native_world_effects();
             self.update_native_bullets();self.update_native_projectiles();self.advance_native_feedback_clock();
         }

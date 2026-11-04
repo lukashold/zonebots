@@ -101,7 +101,9 @@ erst danach. Konstruktor, Recyclebytes, Slotreihenfolge, RNG, Farbpunkt-Ausgabe
 und deren GPU-Rastergrenzen stehen in ORIGINAL-WASSERPARTIKEL.txt. Allgemeine
 Projektile benutzen weiter ihren eigenen
 Umwelt-/Terrainadapter; die neuen Kraterregeln gelten gezielt für41f610/Stärke0.
-Weitere Fabrik-/Radar-/Fort-Fragmenttabellen und deren vollständige ursprüngliche
-Maschinenaufrufer sind noch nicht angebunden.41f2d0 und die vollständige Kopplung
+Die fehlenden Fabrik-/Radar-Fragmenttabellen, ihre Callbacktails und der
+separate späte Fortfragmentpass stehen in ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt.
+Vollständige Maschinenbilder sowie Owner4-Trail/Expiry3 bleiben offen.
+41f2d0 und die vollständige Kopplung
 aller alten Blastpool-/UNIT-Bucket-Speicher gehören nicht zu diesem Nachweis.
 Die Gebäudeschadensroutinen sind damit kein Beleg vollständiger1:1-Gleichheit.

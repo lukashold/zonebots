@@ -1,0 +1,57 @@
+BUILD- UND FORTFRAGMENTE – begrenzter Callerabgleich
+
+Die vorhandenen41f8f0-/41f610-Kernel werden nun zusätzlich an die fehlenden
+gewöhnlichen BUILD-Aufrufer angeschlossen. Private Kampagnenmetadaten enthalten
+die Originaltabellen für Werkstätten(478420,25 Zeilen), Fahrzeugfabriken
+(4782a0,29), Roboterfabriken(4785b8,34) und Radar(478798,20). Der Extractor liest
+sie aus der lokalen EXE; Originaltabellen werden nicht in den Quellcode kopiert.
+Die35 kompakten aktiven BUILD-Poolbindungen und warmen Wiederverwendungsbytes
+bleiben erhalten.41f8f0 benutzt weiterhin die Timer der ersten Tabellenzeile.
+
+Die tatsächlichen Callbacktails laufen einmal pro BUILD-Aufruf. Lebende BUILD
+übergeben signed16(Maximum-Aktuell), tote BUILD den Sonderwert-2. Radar führt
+seinen gesicherten Dish-/Counter-Teil vor diesem Tail im selben Slot aus. Der
+Werkstatt-Tail bleibt im bestehenden40d050-Automaten und wird nicht verdoppelt.
+Zeichenrecords behalten nativen BUILD-Slot und Fragmentindex, einschließlich
+Zeichen-Y mit Offset100 gegenüber dem Sortier-Y.
+
+Beim tatsächlichen Alive->Zero-HP-Übergang liegt der40e790-Zeigerabschnitt vor
+dem bestehenden Insassen-/Regionkollaps: Der erste Threshold-2-Record vor dem
+ersten inaktiven X=-1 ersetzt den aktuellen Startoffset. Bytes und ursprüngliche
+Poolbasis bleiben unverändert. Spätere41f610-Aufrufe beginnen dort mit lokalem
+Recordzähler0. Bereits tote BUILD wiederholen den Übergang nicht. Die belegten
+Tabellen enden innerhalb ihres50er-Blocks. Korrupte Pointer und vollständige
+rohe Überlese-Aliase zwischen absichtlich vollständig gefüllten Nachbarblöcken
+sind kein Nachweis dieses begrenzten Bindings.
+
+Forts besitzen vier eigene900-Byte-Pools vor den35 BUILD-Blöcken.460430 löscht
+nur X in allen vier Pools.420ea0 konstruiert nur die ersten beiden mit der
+32-Zeilen-Tabelle47b5f0 und den vorhandenen nativen Fortpositionen/-HP-Werten.
+Jede Zeile behält ihre eigenen Timer, ihr Threshold wird mit aktuelleHP/9
+multipliziert, einschließlich-2. Die anderen zwei Slots werden nicht aus
+zusätzlichen Browserteams erfunden.41f520 ruft alle vier Slots in Reihenfolge
+auf; sein Schadenswert bleibt Maximum-Aktuell auch beim Fortverlust.
+
+Der Fortpass liegt nach Ambient100/Lava und vor den späteren Bodeneffekten und
+dem Originalsort. Seine bereits erfassten fortFragment-Spriterecords werden
+gemeinsam sortiert und bleiben bis zum nächsten Main-Frame unverändert. MP
+prüft Fortslot0..3, Record-ID0..199 und deren Übereinstimmung. Die Gastansicht
+erhält die fest geschriebene Literalpalette0; sie führt keinen Callback aus.
+41f69f schreibt WORD0x6400: Palettebyte0, Offsetbyte100. Beide Fragmentquellen
+tragen daher nativeLiteralPalette=true. Der MP-Validator erlaubt dies nur
+für die belegten Sprite-/Queue-/Slot-/50er-Recordkombinationen. Normale
+Einheitenpaletten werden weiterhin nach der Spielerseite umgefärbt.
+
+Gezielte Prüfungen umfassen112 tatsächlich ausgeführte gewöhnliche Original-
+Konstruktor-/Tailfixtures,96 originale Fort-Callbacks über drei Ticks, den
+40e790-Pointerteil aus48 realen Zerstörungsketten sowie echte Game-Mainaufrufe,
+Import aller20 Kampagnenmissionen und die MP-/Darstellungsausgabe. Die privaten
+Originalfixtures besitzen Signaturen3510664630/1615055178/2777176415; Blatt-
+grenzen für externe Environment-/Spark-Aufrufe bleiben ausdrücklich benannt.
+
+OWNER4-TRAIL/EXPIRY3 BLEIBT OFFEN
+Die vier globalen Verlaufspuffer,4028a0-Pointerrückschreiben/Bit8-Toggle,
+4020f0-Zerstörungspräfixe und401640/Expiry3 werden hier nicht durch einfache
+Spriteeffekte ersetzt. Der neue Startoffset schließt diese vorgelagerte
+Machinerie nicht. Ebenso sind sämtliche Fabrik-/Fort-Maschinenbilder, ganze
+Spielabläufe, Save-/Load-Aliase und GPU-Rasterung kein vollständiger1:1-Nachweis.

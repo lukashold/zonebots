@@ -8,7 +8,7 @@ impl Record{pub fn word(&self,n:usize)->i16{i16::from_le_bytes([self.bytes[n],se
 #[derive(Clone,Debug)]pub struct Pool{pub records:[Record;50]}
 impl Default for Pool{fn default()->Self{Self{records:[Record::default();50]}}}
 #[derive(Clone,Copy,Debug)]pub struct View{pub camera:[i16;2],pub size:[i16;2],pub multiplayer:bool}
-pub trait World{fn contact_mode(&mut self,enabled:bool);fn submit(&mut self,record:Draw);fn environment(&mut self,point:[i16;2]);fn spark(&mut self,point:[i16;2]);fn crt(&mut self)->u16;}
+pub trait World{fn contact_mode(&mut self,enabled:bool);fn select_record(&mut self,_slot:usize){}fn submit(&mut self,record:Draw);fn environment(&mut self,point:[i16;2]);fn spark(&mut self,point:[i16;2]);fn crt(&mut self)->u16;}
 impl Pool{
  ///40b070 clears only the first signed word of each record, retaining the
  ///warm bytes that41f8f0 does not overwrite when it allocates that record.
@@ -19,8 +19,13 @@ impl Pool{
  pub fn construct(&mut self,position:[i16;2],templates:&[[i16;6]],factor:i16){
   let Some(header)=templates.first()else{return;};for t in templates{if t[0]==-1{break;}let Some(r)=self.records.iter_mut().find(|r|r.word(0)==-1)else{continue;};r.set(0,position[0].wrapping_add(t[0]));r.set(2,position[1].wrapping_add(t[1]).wrapping_sub(32));r.bytes[14]=u8::from(t[2]<0);r.set(8,t[2].wrapping_abs());r.set(10,if t[3]==-2{-2}else{t[3].wrapping_mul(factor)});r.bytes[13]=header[4]as u8;r.bytes[16]=header[5]as u8;r.bytes[15]=header[5]as u8;r.bytes[12]=0;}
  }
- pub fn advance(&mut self,damage:i16,view:View,world:&mut impl World){
-  for(i,r)in self.records.iter_mut().enumerate(){let p=[r.word(0),r.word(2)];if p[0]==-1{return;}let flags=r.bytes[14];if flags&4!=0{continue;}
+ ///40e790 searches the current pointer only up to the first inactive record.
+ ///Its successful transition selects a subrecord; it does not rewrite bytes.
+ pub fn destroyed_start(&self,start:usize)->usize{for(i,r)in self.records.iter().enumerate().skip(start).take(50){if r.word(0)==-1{break;}if r.word(10)==-2{return i;}}start}
+ pub fn advance(&mut self,damage:i16,view:View,world:&mut impl World){self.advance_from(0,damage,view,world);}
+ ///The local record counter starts at zero at the actual incoming pointer.
+ pub fn advance_from(&mut self,start:usize,damage:i16,view:View,world:&mut impl World){
+  for(i,r)in self.records.iter_mut().skip(start).enumerate(){world.select_record(start+i);let p=[r.word(0),r.word(2)];if p[0]==-1{return;}let flags=r.bytes[14];if flags&4!=0{continue;}
    if flags&2!=0{let screen=[p[0].wrapping_sub(view.camera[0]),p[1].wrapping_sub(view.camera[1])];let sprite=r.word(8).wrapping_add(i16::from(r.bytes[12]as i8));if screen[0]>-32&&screen[0]<=view.size[0]&&screen[1]>-32&&screen[1]<=view.size[1]{world.submit(Draw{x:screen[0],y:screen[1].wrapping_sub(100),sprite,palette:0,offset:100});}
     if sprite==0x6f6&&(view.multiplayer||world.crt()&31==0){world.spark([p[0].wrapping_add(5),p[1]]);}
     r.bytes[15]=r.bytes[15].wrapping_sub(1);if r.bytes[15]==0{r.bytes[12]=r.bytes[12].wrapping_add(1);r.bytes[15]=r.bytes[16];if r.bytes[12]==r.bytes[13]{if flags&1==0{r.bytes[14]|=4;}else{r.bytes[12]=0;}}}

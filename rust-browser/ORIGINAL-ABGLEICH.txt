@@ -221,6 +221,22 @@ Der Rechenkern besitzt weiterhin seine fünf ausgeführten Seed-Goldens.
 Dies ist kein vollständiger globaler Konstruktor-/Partievergleich.
 Details: ORIGINAL-ZUFALL.txt.
 
+WEITERER ABGLEICHSBLOCK nov04-r42
+Die drei fehlenden gewöhnlichen Schadenstabellen sind angebunden:80 Fahrzeug-
+fabriken,95 Roboterfabriken und39 Radarstationen ergänzen die21 Werkstätten.
+Lebende BUILD-Aufrufer übergeben ihren tatsächlichen HP-Unterschied, tote den
+Sonderwert-2.40e790 bewahrt den ersten gültigen Threshold-2-Startoffset, ohne
+den Pool umzuschreiben. Vier getrennte Fortpools besitzen ihren eigenen
+420ea0-Konstruktor und späten41f520-Aufruf; nur die ersten zwei werden aus den
+belegten Forts initialisiert.112 gewöhnliche Callerfixtures,96 Fortcallbacks,
+48 Pointerfälle und120 Main-Aufrufe in20 beschädigten Missionen sind geprüft.
+
+Die fest geschriebene Fragmentpalette0 bleibt auch beim Gast0. Ein tatsächlicher
+GuestRPC-/OriginalDisplay-Vergleich prüft39 Fälle samt normalem Teamfarben-
+Kontrollrow. Weitere Owner4-Verlaufspuffer, Zerstörungsemitter, Expiry3 und
+die ursprüngliche Kran-/BUILD-Wiederherstellung sind damit nicht geschlossen.
+Details: ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -234,8 +250,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist
    für den engen SP-/GroupFF-Pfad geprüft; weitere Roster-/Pfad-/Rawglobal-
    Weiterläufe sind damit nicht allgemein implementiert.
-   Andere BUILD-/Fortschadenstabellen und die vollständigen gekoppelten420200-
-   Audio-/Global-/Poolaliasfolgen gehören nicht zum neuen Fragmentkernelnachweis.
+   Die gewöhnlichen BUILD-/Fortschadenstabellen sind angebunden; Owner4-
+   Zerstörungs-/Verlaufspuffer, Kran-Wiederherstellung und die vollständigen
+   gekoppelten420200-Audio-/Global-/Poolaliasfolgen bleiben offen.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten

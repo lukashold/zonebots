@@ -10,6 +10,8 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_workshop.rs"] pub(crate) mod workshop;
 #[path="original_workshop_game.rs"] mod workshop_game;
 #[path="original_building_fragments_game.rs"] mod building_fragments;
+#[path="original_fort_fragments.rs"]mod fort_fragments;
+#[path="original_fort_fragments_game.rs"]mod fort_fragments_game;
 #[path="original_fragment_blast_game.rs"] mod fragment_blast;
 #[cfg(test)]#[path="original_display_objects_game_tests.rs"]mod object_display_tests;
 #[path="original_water_spray_game.rs"] mod water_spray;
@@ -34,10 +36,10 @@ pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pu
 
 pub struct State {
     objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,retired_workshop_alias25:Option<super::original_retired_workshop::Alias>,
-    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_cp_tints:Vec<Option<u8>>,effect_draws:Vec<(usize,effects::Draw,Option<u8>)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,effect_origin:[i16;2],effect_flags:u8,effect_fade:u8,effect_sprite:i16,effect_suppression:u8,bridge_fx:effects::bridge::Raw,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,fragments:building_fragments::State,seasonal_cps:Option<seasonal_game::CpPool>,
+    forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_cp_tints:Vec<Option<u8>>,effect_draws:Vec<(usize,effects::Draw,Option<u8>)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,effect_origin:[i16;2],effect_flags:u8,effect_fade:u8,effect_sprite:i16,effect_suppression:u8,bridge_fx:effects::bridge::Raw,last_projection:[i16;2],crate_sound_played:bool,quiet_blasts:bool,fragments:building_fragments::State,fort_fragments:fort_fragments::State,seasonal_cps:Option<seasonal_game::CpPool>,
 }
 impl State {
-    fn empty() -> Self { Self { objects: vec![None;200],retired_workshop_alias25:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],crate_sound_played:false,quiet_blasts:false,fragments:Default::default(),seasonal_cps:None } }
+    fn empty() -> Self { Self { objects: vec![None;200],retired_workshop_alias25:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],crate_sound_played:false,quiet_blasts:false,fragments:Default::default(),fort_fragments:Default::default(),seasonal_cps:None } }
     fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
     ///43ecf0/43eee0 and58a40 do not write raw+0x26. Only58af0's
     ///destroyed-hardware branches replace this warm byte with RNG&3.
@@ -95,7 +97,7 @@ impl Game {
         //without rewriting any visual or compatibility cell during import.
         for y in 0..self.map.height.min(128){for x in 0..self.map.width.min(128){let cell=y*128+x;let visual=self.map.original_tiles.get(y*self.map.width+x).copied().unwrap_or(0);plane[cell]=(plane[cell]&127)|((visual&256)>>1)as u8;}}
         let initial_plane=plane.clone();self.map.native_terrain_plane=initial_plane.clone();
-        let mut state=State::empty();state.seasonal_cps=if v.is_null(){previous.as_ref().and_then(|s|s.seasonal_cps.clone())}else{seasonal_game::CpPool::import(v)};state.fragments=building_fragments::State::import(previous.as_ref().map(|s|&s.fragments),v);state.bridge_fx=previous.as_ref().map_or_else(Default::default,|s|s.bridge_fx);let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
+        let mut state=State::empty();state.seasonal_cps=if v.is_null(){previous.as_ref().and_then(|s|s.seasonal_cps.clone())}else{seasonal_game::CpPool::import(v)};state.fragments=building_fragments::State::import(previous.as_ref().map(|s|&s.fragments),v);state.fort_fragments=fort_fragments::State::import(previous.as_ref().map(|s|&s.fort_fragments),v);state.bridge_fx=previous.as_ref().map_or_else(Default::default,|s|s.bridge_fx);let mut units=BTreeSet::new();let mut pickups=BTreeSet::new();
         //460430 retires X only. Preserve raw inactive fields across missions;
         //Web render/unit bindings belong to the incoming mission instead.
         if let Some(old)=&previous{for(slot,object)in old.objects.iter().enumerate(){if let Some(mut o)=object.clone(){o.active=false;o.record.position[0]=-1;o.unit=None;o.pickup=None;o.render=None;o.fire=None;o.flag_sector=None;state.objects[slot]=Some(o);}}}
@@ -157,7 +159,7 @@ impl Game {
         for (cell,code) in plane.into_iter().enumerate(){if code!=initial_plane[cell]{self.set_world_code(cell as i16,code);}}
         //4097b0 initializes already-destroyed bridges before live groups spawn.
         for bridge in &mut state.bridges{if bridge.record.flags15&2!=0{self.collapse_native_bridge_terrain(bridge);for(cell,&owner)in self.map.bridge_base.iter().enumerate(){if owner==bridge.binding as i32{if let Some(tile)=self.map.tiles.get_mut(cell){*tile=3;}}}}}
-        self.native_world=Some(state);let forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|b.id).collect::<Vec<_>>();for id in forts{self.copy_native_fort_producer_health(id,true);}self.sync_native_world();
+        self.native_world=Some(state);let forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|b.id).collect::<Vec<_>>();for id in forts{self.copy_native_fort_producer_health(id,true);}self.sync_native_world();self.initialize_native_fort_fragments();
     }
     pub(crate) fn sync_native_world(&mut self) {
         let Some(mut state)=self.native_world.take()else{if self.map.original{self.import_native_world(&Value::Null);}return;};
@@ -225,6 +227,7 @@ impl Game {
     fn native_radar_inputs(&self)->Vec<(usize,Option<usize>,super::original_building_display::Radar,super::original_building_display::Input)>{let Some(world)=&self.native_world else{return vec![];};let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));world.buildings.iter().enumerate().filter(|(_,b)|b.record.kind==8).map(|(slot,b)|{let owner=b.binding.and_then(|id|self.buildings.iter().find(|v|v.id==id)).map(|b|b.team).or_else(||self.world_sector(b.record.position).and_then(|id|self.sectors.iter().find(|s|s.id==id)).map(|s|s.owner)).unwrap_or(-1);(slot,b.binding,b.display,super::original_building_display::Input{position:b.record.position,maximum:b.maximum,hp:b.record.hp,owner:if owner<0{4}else{owner as i8},local_team:self.native_feedback.local_team as i8,pulse:self.native_callback_mode!=0,camera,size})}).collect()}
     pub(crate) fn native_radar_display_projection(&self)->Vec<(usize,Option<usize>,super::original_building_display::Result)>{self.native_radar_inputs().into_iter().map(|(slot,id,mut state,input)|(slot,id,state.advance(input))).collect()}
     pub(crate) fn advance_native_radar_display(&mut self)->Vec<(usize,Option<usize>,super::original_building_display::Result)>{let inputs=self.native_radar_inputs();let mut output=Vec::new();for(slot,id,mut state,input)in inputs{let out=state.advance(input);if let Some(b)=self.native_world.as_mut().and_then(|w|w.buildings.get_mut(slot)){b.display=state;if let Some(c)=&mut b.constructor{c.flags6=state.flags6;}}if let Some(id)=id{self.native_factory_flags6.insert(id,state.flags6);}output.push((slot,id,out));}output}
+    pub(crate) fn advance_native_radar_display_for(&mut self,id:usize)->Vec<(usize,Option<usize>,super::original_building_display::Result)>{let mut output=Vec::new();for(slot,binding,mut state,input)in self.native_radar_inputs().into_iter().filter(|(_,binding,_,_)|*binding==Some(id)){let out=state.advance(input);if let Some(b)=self.native_world.as_mut().and_then(|w|w.buildings.get_mut(slot)){b.display=state;if let Some(c)=&mut b.constructor{c.flags6=state.flags6;}}self.native_factory_flags6.insert(id,state.flags6);output.push((slot,binding,out));}output}
     pub(crate) fn native_radar_raw_state(&self,slot:usize)->Option<super::original_building_display::Radar>{Some(self.native_world.as_ref()?.buildings.get(slot)?.display)}
     pub(crate) fn native_world_buildings(&self)->Option<Vec<native::Building>>{Some(self.native_world.as_ref()?.buildings.iter().map(|b|b.record).collect())}
     ///The constructor delta records only source-written fields; None bytes
@@ -308,7 +311,11 @@ impl Game {
             if !b.fort_proxy {if let Some(building)=b.binding.and_then(|id|self.buildings.iter_mut().find(|b|b.id==id)){building.hp=f64::from(damage.hp);if damage.destroyed{building.ready_guns.clear();self.events.push(json!({"kind":"buildingLost","team":building.team,"id":building.id}));}}}else if damage.destroyed{b.record.kind=-1;}
             if damage.destroyed&&!b.fort_proxy{if let Some(shape)=usize::try_from(b.record.kind).ok().and_then(|k|native::BUILDING_SHAPES.get(k)){
                 let [x,y]=b.record.position;collapse=Some([x.wrapping_add(16),y.wrapping_add(16),x.wrapping_add(i16::from(shape[0])*16).wrapping_sub(16),y.wrapping_add(i16::from(shape[1])*16).wrapping_sub(16)]);
-            }}
+            }
+                //40e790 pointer stage: after the separate owner4/machinery
+                //boundary, before the existing occupant/region collapse.
+                Self::retire_native_building_fragment_prefix(&mut state,slot);
+            }
         }
         self.native_world=Some(state);if let Some(rect)=collapse{self.collapse_native_units(rect,false);}let Some(state)=self.native_world.take()else{return;};
         let bases=std::array::from_fn(|i|state.forts.get(i).map(|f|f.base).unwrap_or([32767,32767]));let hp=std::array::from_fn(|i|state.forts.get(i).and_then(|f|self.buildings.iter().find(|b|b.id==f.binding)).map(|b|b.hp as i16).unwrap_or(0));

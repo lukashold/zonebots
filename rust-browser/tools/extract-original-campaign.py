@@ -273,14 +273,23 @@ def extract(root,out):
    record=next(b for b in native_buildings if b['kind']==-1)
    record.update({'kind':2,'x':ft['rawBase'][0],'y':ft['rawBase'][1]+16,'buildingId':next(b['id']for b in buildings if b['kind']=='fort'and b['team']==ft['team']),'fortProxy':True})
   data['nativeWorldBuildings']=native_buildings
-  #40cd20 calls41f8f0 with the repair descriptor at478420. Only private
-  #campaign metadata carries these original sprite/position templates.
-  repair_fragments=[]
+  #41f8f0 ordinary BUILD tables;420ea0 fort uses separate per-row timing.
+  fragment_tables={}
+  for kind,address in [(0,0x478420),(1,0x4782a0),(4,0x4785b8),(8,0x478798)]:
+   rows=[]
+   for i in range(50):
+    row=list(struct.unpack('<6h',exe.read(address+i*12,12)))
+    if row[0]==-1:break
+    rows.append(row)
+   fragment_tables[kind]=rows
+  data['nativeBuildingFragments']=[{'nativeSlot':b['nativeSlot'],'templates':fragment_tables[b['kind']]} for b in native_buildings if b['kind'] in fragment_tables]
+  fort_fragments=[]
   for i in range(50):
-   row=list(struct.unpack('<6h',exe.read(0x478420+i*12,12)))
+   row=list(struct.unpack('<6h',exe.read(0x47b5f0+i*12,12)))
    if row[0]==-1:break
-   repair_fragments.append(row)
-  data['nativeBuildingFragments']=[{'nativeSlot':b['nativeSlot'],'templates':repair_fragments} for b in native_buildings if b['kind']==0]
+   fort_fragments.append(row)
+  data['nativeFortFragments']={'templates':fort_fragments}
+
 
   #428d20 sets622db8=2;17b30 maps18-(18>>3)-(18>>2) to12.
   #4600bd defaults the cap to50 before loading CPUPLR;10570 reads the

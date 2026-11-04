@@ -1,11 +1,11 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-872 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
+883 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
 separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-76/76 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+77/77 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 8a3289df2f57b82bbd7b45ca909a157c125b4b459ec086ca2b9fc345ff2280ce
+Wasm SHA256: 187b3ed7b5d12e1b2d8698d206ef2f375b7168e030dfd433c17c54dd2366b096
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -169,8 +169,27 @@ NEUER ABGLEICHSBLOCK nov04-r41
  sequenzielle M1/M2/M3-Mainrepro prüfen diesen Fix samt Slotwiederverwendung.
 - zonebots-mp-6-native-clock-road weist die früheren Builds3/4/5 vor Beginn ab.
 Details und verbleibende Grenzen: ORIGINAL-PFADPOOL.txt, ORIGINAL-PAUSE.txt,
-ORIGINAL-ZUFALL.txt und ORIGINAL-ABGLEICH.txt. Weitere BUILD-/Fort-Ergänzungen
-werden separat vorbereitet und gehören nicht zu diesem gebauten Stand.
+ORIGINAL-ZUFALL.txt und ORIGINAL-ABGLEICH.txt. Die folgenden BUILD-/Fort-Ergänzungen gehören jetzt zum gebauten Stand.
+
+NEUER ABGLEICHSBLOCK nov04-r42
+- Originale Fragmentvorlagen für alle21 Werkstätten,80 Fahrzeugfabriken,
+ 95 Roboterfabriken und39 Radarstationen;40 Forts verwenden getrennte Pools.
+ 112 echte Gebäudecaller,96 Fortfolgen und48 Entfernungs-/Pointerfolgen
+ werden gegen die protokollierten Originalfelder und Signaturen geprüft.
+- 120 tatsächliche Maincallbacks auf beschädigten Gebäuden aller20 Missionen
+ prüfen die aktive Einbindung. Radar und Fragmenttail behalten die originale
+ Aufrufreihenfolge; Fortfragmente laufen an ihrer eigenen früheren Mainstelle.
+- Zerstörung verschiebt den BUILD-Fragmentpointer auf den ersten -2-Record.
+ Die vier Fortpools erhalten eigene Warmzustände, Timer und Konstruktorfelder.
+ Keine zweite Zerstörung beim unveränderten Null-HP-Zustand.
+- Tatsächliche Gast-RPC-/OriginalDisplay-Prüfungen mit39 Fällen erhalten die
+ feste Palette0 für Gebäude- und Fortfragmente. Gewöhnliche Team0-Bilder
+ werden weiterhin in die lokale Gastperspektive umgefärbt.
+- zonebots-mp-7-native-fort-fragments weist die älteren Builds3/4/5/6 ab.
+Owner4-Trümmelaufzeichnung, deren späte Wiedergabe/Kran-Restauration und
+getrennte native Mehrspieler-Audiogates bleiben als nächste Blöcke offen.
+Details und engere Quellen-/Speichergrenzen: ORIGINAL-GEBAEUDE-FORTFRAGMENTE.txt
+und ORIGINAL-ABGLEICH.txt. Die Prüfzahlen sind keine vollständigen Partien.
 
 BROWSER
 Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
@@ -179,7 +198,7 @@ gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
 und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
 Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
 kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
-nov04-r40/r41 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
+nov04-r40/r41/r42 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
 Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
 Graphics-Adaptertests geprüft.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht

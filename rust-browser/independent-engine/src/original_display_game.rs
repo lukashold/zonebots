@@ -67,7 +67,8 @@ impl Game{
   for d in &self.native_smoke20.tracks.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};if d.queued{queue.push((r,plain(r,"track",d.slot)));}else{let mut v=plain(r,"track",d.slot);v["stage"]=json!("pre");pre.push(v);}}
   pre.extend(self.native_display.buildings_before.clone().unwrap_or_else(||self.project_native_building_display()));
   let mut build_queue=self.native_display.radar_before.clone().unwrap_or_else(||self.project_native_radar_display());
-  for(r,id,slot)in self.native_building_fragment_draws(){let mut v=plain(r,"buildingFragment",id);v["nativeSlot"]=json!(slot);build_queue.push((r,v));}
+  //41f69f writes WORD0x6400: literal palette0/offset100, not BUILDowner.
+  for(r,id,slot)in self.native_building_fragment_draws(){let mut v=plain(r,"buildingFragment",id);v["nativeSlot"]=json!(slot);v["nativeLiteralPalette"]=json!(true);build_queue.push((r,v));}
   //BUILD callbacks append in native slot order, before any UNIT submission.
   build_queue.sort_by_key(|(_,v)|v["nativeSlot"].as_u64().unwrap_or(u64::MAX));queue.extend(build_queue);
   let objects=self.native_display_objects();
@@ -82,6 +83,7 @@ impl Game{
   if let Some(rows)=&self.native_display.objects{queue.extend(rows.iter().cloned());}else{for o in objects{if let Some(r)=o.record{queue.push((r,plain(r,"object",usize::from(o.slot))));}}}
   for d in &self.native_smoke20.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};queue.push((r,plain(r,"smoke",usize::from(d.slot))));}
   effect_rows(&mut queue,"chunk",self.native_ambient_animation_visuals());effect_rows(&mut queue,"ambient",self.native_ambient_visuals());effect_rows(&mut queue,"lava",self.native_lava_visuals());
+  for(r,id,slot)in self.native_fort_fragment_draws(){let mut row=plain(r,"fortFragment",id);row["nativeSlot"]=json!(slot);row["nativeLiteralPalette"]=json!(true);queue.push((r,row));}
   for d in &self.native_bullet_impacts20.draws{let r=Record{x:d.position[0],y:d.position[1],sprite:d.sprite,palette:255,offset:0};queue.push((r,plain(r,"groundImpact",usize::from(d.slot))));}
   sort(&mut queue,|r|r.0.y);pre.extend(queue.into_iter().map(|(_,mut value)|{value["stage"]=json!("queue");value}));pre
  }
