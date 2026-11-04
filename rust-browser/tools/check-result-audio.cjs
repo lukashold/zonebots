@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const app=fs.readFileSync(path.join(__dirname,'../dist/independent/app.js'),'utf8'),start=app.indexOf('function update(s)'),end=app.indexOf('\n function start()',start);assert(start>=0&&end>start);
+const snapshot=(winner=null,clock=0)=>({winner,time:10,units:[],events:[],nativeUiClock:clock,map:{original:true,world:0}});
+function harness(network=false,initial=snapshot()){
+ const nodes={},scenes=[],voices=[];let hudCalls=0;
+ const context={state:initial,paused:false,mergeSnapshot:s=>s,performance:{now:()=>100},previousUnits:new Map(),snapshotSpan:50,receivedAt:0,hurt:new Map(),placement:null,selected:new Set(),cam:{x:0,y:0},zoom:1,innerHeight:768,viewWidth:()=>1024,isNetwork:()=>network,$:id=>nodes[id]??=( {hidden:true,textContent:''}),hud:()=>hudCalls++,RadioAudio:{setScene:(...a)=>scenes.push(a),say:(...a)=>voices.push(a),nativeSample:()=>{},nativeVoice:()=>{},effect:()=>{}}};
+ vm.createContext(context);vm.runInContext(app.slice(start,end),context);
+ return{context,nodes,scenes,voices,get hudCalls(){return hudCalls;}};
+}
+function run(){for(const network of[false,true])for(const winner of[0,1]){
+ const fixture=harness(network),{context,nodes,scenes,voices}=fixture;
+ for(let n=0;n<5;n++)context.update(snapshot(null,n));assert.equal(voices.length,0);assert.equal(scenes.length,0);assert.equal(context.paused,false);
+ for(let n=0;n<12;n++){const s=snapshot(winner,n+5);if(n===0)s.events=[{kind:'victory',team:winner}];context.update(s);}
+ assert.equal(voices.length,1,'Repeated winner snapshots/UI-only returns must announce the result once');assert.equal(scenes.length,1,'Identical result snapshots must not restart scene audio');assert.equal(voices[0][0],winner===0?'victory':'defeat');
+ assert.equal(context.paused,true);assert.equal(nodes.result.hidden,false);assert.equal(nodes.result.textContent,winner===0?'SIEG – Fort gesichert':'NIEDERLAGE');assert.equal(nodes.newBattle.hidden,false);if(network)assert.equal(nodes.newBattle.textContent,'Zur Mehrspieler-Lobby');assert.equal(fixture.hudCalls,17,'All result snapshots still refresh UI');
+ context.paused=false;context.update(snapshot(winner,17));assert.equal(context.paused,true,'A completed game remains paused');assert.equal(voices.length,1);
+ context.state=null;context.update(snapshot(winner,0));assert.equal(voices.length,2,'A freshly loaded game state may announce its result');
+ context.update(snapshot(null,1));context.update(snapshot(winner,2));assert.equal(voices.length,3,'A later winner transition is a new result');context.update(snapshot(1-winner,3));assert.equal(voices.length,4,'A changed winner receives the corresponding result');
+}console.log('Result audio passed: actual App.update, repeated UI-only/winner states, offline/network, both winners, fresh game/transition, unchanged pause/buttons/HUD.');}
+module.exports={harness};if(require.main===module)run();

@@ -45,7 +45,9 @@ impl Game{
     vx>=bx&&vx<=bx+160&&vy>=by&&vy<=by+270
    });
    match action(vx-x,vy-y,bridge,protected,v.hp as i8){
-    1=>{self.activate_native_combat_groups(i,u.id);self.units[i].hp=-1.;self.remove_original_group_member(i);self.finish_order(i);},
+    //45c459 owns5849e7=1 only around the real58ec0 removal.
+    //Its raw UNIT remains addressable by the following cached45bf90query.
+    1=>{self.activate_native_combat_groups(i,u.id);self.native_remove_actor(i,true,false);},
     2=>{
      self.activate_native_combat_groups(i,u.id);
      let side=(original_combat::facing(v.angle).wrapping_add(2)&4)!=0;

@@ -28,6 +28,7 @@
  }
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
+  if(state.nativeUiClock!==undefined&&(!Number.isInteger(state.nativeUiClock)||state.nativeUiClock< -32768||state.nativeUiClock>32767))return false;
   for(const [key,limit]of [['units',512],['buildings',256],['sectors',256],['crates',512],['effects',2048],['events',MAX_EVENTS]])if(!Array.isArray(state[key])||state[key].length>limit)return false;
   if(state.bullets!==undefined&&(!Array.isArray(state.bullets)||state.bullets.length>200||!state.bullets.every(b=>object(b)&&integer(b.id,199)&&[b.x,b.y,b.angle].every(Number.isFinite)&&[0,1].includes(b.team)&&typeof b.laser==='boolean'&&integer(b.phase,1))))return false;
   if(state.projectiles!==undefined&&(!Array.isArray(state.projectiles)||state.projectiles.length>50||!state.projectiles.every(p=>object(p)&&integer(p.id,49)&&[p.x,p.y,p.angle,p.size].every(Number.isFinite)&&[0,1].includes(p.team)&&['shell','grenade','rocket','flame','howitzer'].includes(p.kind)&&integer(p.sprite,7210)&&p.size>=0&&p.size<=256)))return false;
@@ -190,6 +191,10 @@
    if(!session?.connected){fail('Verbindung zum Mitspieler unterbrochen.');return null;}
    try{const result=run({op:'tick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}if(canonical.winner!==null){broadcast(true);commitPause(true,'Schlacht beendet.');}return result;}catch(error){fail(error.message);return null;}
   }
+  function tickUi(dt){
+   if(role!=='host'||!active||!paused||awaitingReady||!session?.connected||!canonical?.map.original||!Number.isFinite(dt)||dt<=0)return null;
+   try{const result=run({op:'uiTick',dt:Math.min(.1,dt)});frameClock+=Math.min(.1,dt);if(frameClock>=FRAME_STEP){frameClock%=FRAME_STEP;broadcast();}return result;}catch(error){fail(error.message);return null;}
+  }
   function setPaused(value,reason='Pause'){
    if(!active||typeof value!=='boolean'||awaitingReady)return false;
    if(role==='guest'){const sent=send('game:pauseRequest',{epoch,paused:value});if(!sent){info('failed','Pausenauftrag konnte nicht gesendet werden.');return false;}if(value){paused=true;options.onPause?.(true,reason);}return true;}
@@ -252,7 +257,7 @@
    }catch(error){return fail(error.message||'Mehrspielerzustand konnte nicht verarbeitet werden.');}
    return false;
   }
-  const api=Object.freeze({bind,start,handle,action,tick,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
+  const api=Object.freeze({bind,start,handle,action,tick,tickUi,requestPreview,setPaused,handleTransportStatus,close,get state(){return canonical;},get viewState(){return view;},get role(){return role;},get isHost(){return role==='host';},get active(){return active;},get paused(){return paused;},get waiting(){return awaitingReady;}});
   return api;
  }
  global.MultiplayerGame=Object.freeze({create,perspective,validateAction});

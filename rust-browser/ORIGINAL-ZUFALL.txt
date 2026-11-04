@@ -1,0 +1,33 @@
+Originalabgleich: Rechenkern und Lebensdauer des Zufallszustands
+Stand: 04.11.2026, begrenzter V41-Block
+
+460850 erweitert den Eingabewert mit fünf32-Bit-LCG-Schritten und führt
+danach19 Aufwärmschritte aus.460910 verwendet fünf globale32-Bit-Wörter.
+Im nativen Mehrspielermodus liefert460910 Null und verändert diese Wörter
+nicht. Der Rechenkern und zehn folgende Rückgaben sind bereits für fünf
+tatsächlich ausgeführte native Seeds einschließlich0 undFFFFFFFF geprüft.
+
+Der einzige statisch belegte460850-Caller liegt bei4622a8 in4621e0.
+Dieser Ressourceninitializer wird vom Startcontroller62300 aufgerufen.
+Er liest den signierten WORD622d18; dessen ursprünglicher Imagewert ist0.
+Die Missionsinitialisierung60430 ruft460850 nicht erneut auf. Die späteren
+bekannten622d18-Schreiber gehören zum Ergebnis-/Scorecontroller:1234 und0.
+Sie sind kein Beleg für einen Neustart des RNG bei jedem Missionswechsel.
+
+Die echte Wasm-init-Schnittstelle hat bisher die neue Missionsnummer über
+den prozeduralen Kartenseed auch an den nativen RNG weitergegeben. Das ist
+korrigiert: Der normale erste Originalstart beginnt mit dem belegten Seed0.
+Ein weiterer Original-Missionsstart übernimmt die aktuellen fünf Wörter.
+SP/MP-Wechsel ändern nur den Nullrückgabezweig. Die prozedurale Karten-
+erzeugung und ihr eigener Seed bleiben davon unabhängig.
+
+Zwei gezielte Regressionen prüfen die tatsächliche init-Schnittstelle,
+veränderte Kartenseeds, erhaltene Fortschritte,100 MP-Nullrückgaben ohne
+Zustandsänderung und die nächste belegte native Rückgabe nach Rückkehr zuSP.
+
+Grenzen: Dies korrigiert die Lebensdauer am normalen Browser-Missionsstart.
+Vollständige originale Start-/Lade-/Ergebniscontroller, Spielstandimporte,
+weitere globale Speicherüberlappungen sowie jede Zufallsentnahme aller
+Konstruktoren einer gesamten Partie sind damit nicht durchgehend belegt.
+Ein gleicher Seed allein beweist keine identischen Partien und keine1:1-
+Gleichheit. Rohdaten und Decompilertexte bleiben ausschließlich lokal.

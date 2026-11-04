@@ -178,13 +178,57 @@ Alle64 CP-Datensätze bleiben beim Import erhalten; Farben werden aus ihrem
 echten Besitzerbyte abgeleitet. Der MP-Build5 weist ältere Builds ab, bevor
 die zusätzliche Farbprovenienz übertragen wird. Details: ORIGINAL-SAISON.txt.
 
+WEITERER ABGLEICHSBLOCK nov04-r41
+Ein Kampagnenlauf hat einen fehlerhaften Überroll-Caller aufgedeckt.45c210
+ruft jetzt die tatsächliche58ec0-Entfernung mit gesetzter Unterdrückung auf,
+anstatt nur HP und Gruppenmitgliedschaft zu ändern. Die unmittelbar folgende
+45bf90-Kontaktprüfung darf ihren gecachten Slot weiterhin lesen und erhält
+dafür den erfassten Raw-Nachzustand. Es gibt weder einen allgemeinen HP-
+Fallback noch eine Reaktivierung oder ein nachträgliches Live-Filter.
+Vier ausgeführte Originalketten und der sequenzielle M1/M2/M3-Spielrepro prüfen
+diesen Übergang. Die separate5a1002-Crushmarkerqueue bleibt abgegrenzt.
+
+Der verwaltete Konturabschluss verwendet jetzt persistenten Road-Scratch und
+den endlichen Originalassembler.480 Originalaufrufe stimmen in allen640
+modellierten Framebytes überein. Getrennte64 echte Caller mit433b30/41b950-
+Profilinitialisierung sowie64 Caller mit identischen kontrollierten Masken
+prüfen Preise, Köpfe, Punkte und UNIT-Flags. Der Probeactor verwendet die
+tatsächlichen UNIT18/1c-Tabellen und dynamische Maskentransaktionen.
+Vier Candidate3-Caller prüfen den warmen Preisbuffer-Alias.40 verkettete
+Straßenpunkte werden wie im Original nur auf39 kopierte Punkte übernommen.
+Allokationen ab Record40 und unmodellierte gemeinsame Raster-/Dummyzustände
+bleiben ausdrücklich begrenzt. Details: ORIGINAL-PFADPOOL.txt.
+
+Die normale Pause trennt jetzt Spiel-, Portrait- und UI-/Audiocallbacks.
+396 tatsächlich ausgeführte Callerfolgen belegen stehende Spielzähler und
+weiterlaufende16-Bit-Samplezeit. uiTick verändert ausschließlich dieses UIwort;
+der pausierte Host bleibt im Mehrspieler die einzige Zeitautorität. Große
+Browserzeitabstände werden beim Fortsetzen nicht nachgeholt. Normale direkte
+tick-Aufrufe behalten ihre bisherige Semantik. Das ersetzt nicht den vollständigen
+Originalmenü-/SDL-/Mixercontroller. Details: ORIGINAL-PAUSE.txt.
+Die Integration hat außerdem zwei Ergebnis-Audiofehler reproduziert und behoben:
+Ein victory-Event plus erster Sieger-Snapshot sprach doppelt; wiederholte
+pausierte Sieger-Snapshots starteten die Ansage erneut. Ergebnis-Audio läuft
+jetzt einmal pro tatsächlichem Winnerübergang. Die tatsächliche App.update-
+Funktion und beide terminalen Wasmzustände werden dagegen geprüft.
+
+Der normale Originalstart benutzt den belegten initialen RNG-Seed0 und behält
+die aktuellen fünf Zustandswörter über weitere Originalmissionsstarts. Bisher
+wurde der prozedurale Kartenseed bei jedem Missionsstart auch als nativer RNG-
+Seed verwendet. Zwei neue Tests prüfen die tatsächliche init-Schnittstelle,
+erhaltene Fortschritte und MP-Nullrückgaben ohne Änderung der fünf Wörter.
+Der Rechenkern besitzt weiterhin seine fünf ausgeführten Seed-Goldens.
+Dies ist kein vollständiger globaler Konstruktor-/Partievergleich.
+Details: ORIGINAL-ZUFALL.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
    sind noch nicht als identische Eingabespur nachgewiesen. Insbesondere die
-   temporäre Straßenliste überlappt ab Record44 mit Originalglobals. Lokale
-   Kontur-zu-Straße-Ersetzung und vollständiges Scratch-/Globalaliasing bleiben
-   getrennt von der jetzt geprüften primären Straßenassemblierung.
+   temporäre Straßenliste überlappt schon ab Record40 mit Endpointglobals,
+   danach ab44 mit UNIT-/Worker-/Kandidatendaten. Die normale Kontur-zu-Straße-
+   Ersetzung ist für den geprüften Laufzeitumfang angebunden; weitergehende
+   Aliaszugriffe und die gemeinsame Raster-/Dummyautorität bleiben offen.
 2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
    Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist
@@ -195,9 +239,10 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.
    Dies ersetzt weder deren Implementierung noch einen vollständigen Partietest.
 3. Sämtliche alten Eingabe-/UI-Warteschlangen, Original-Globals und bedingten
-   Sprachaufrufer sind nicht vollständig übernommen. Die UI-Uhr in Menüs/Pause,
-   Banklade-/SDL-Kanalverhalten und weitere allgemeine Funkereignisse sind noch
-   nicht durchgehend an dieselben Originalaufrufpunkte gebunden.
+   Sprachaufrufer sind nicht vollständig übernommen. Die normale Pausen-UIuhr
+   ist getrennt angebunden; weitere Menü-/Lade-/Abbruchzweige, Banklade-/SDL-
+   Kanalverhalten und allgemeine Funkereignisse sind damit nicht durchgehend
+   an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
    maschinenanimationen und der globale Sieg-/Zwischensequenzcontroller sind
    weiterhin offen. Normale Queuevergleiche belegen diese Sonderfälle nicht.

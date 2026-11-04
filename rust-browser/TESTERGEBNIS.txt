@@ -1,10 +1,11 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-852/852 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-74/74 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+872 Rust-Tests bestanden;1 Privatkampagnen-Repro standardmäßig ignoriert,
+separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
+76/76 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 1c240fd7cbaca6d88c67ff6b66d4c31e867a4ac59fea9d37d2211e2a35d3b4ee
+Wasm SHA256: 8a3289df2f57b82bbd7b45ca909a157c125b4b459ec086ca2b9fc345ff2280ce
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -143,6 +144,34 @@ NEUER ABGLEICHSBLOCK nov04-r40
 Die konkreten Quellen und Grenzen stehen in ORIGINAL-BRUECKENPARTIKEL.txt,
 ORIGINAL-WERKSTATT.txt und ORIGINAL-SAISON.txt.
 
+NEUER ABGLEICHSBLOCK nov04-r41
+- Persistenter Road-Scratch mit480 vollständigen640-Byte-Originalvergleichen,
+ 64 realen Profilcallerfällen und64 getrennten Kontrollmaskenfällen.
+ Vier weitere Caller prüfen den Candidate3-/PreisX-Warmalias.45 gezielte
+ Weg-/Scratch-/DDA-Prüfungen bestehen. Tatsächliche UNIT18/1c-Masken und
+ endliche Poolpräfixe ersetzen die bisherige vereinfachte Konturersetzung.
+- Getrennte UI-/Audiouhr in Pause;396 tatsächliche Originalcallerfolgen,
+ fünf gezielte Rustprüfungen und echte Wasm-/App-/Host-Gast-Pause-/Resume-
+ Prüfungen. Keine Einheiten-, Produktions-, Partikel- oder Phrasenbewegung.
+- Ergebnisansagen nur einmal pro Winnerübergang. Der vorherige Fehler ist
+ nachgewiesen:12 gleiche Sieger-Snapshots sprachen12-mal, ein victory-Event
+ plus erster Sieger-Snapshot doppelt. Beide terminalen Wasmzustände sind
+ durch die tatsächliche App.update-Funktion geprüft.
+- Native RNG-Lebensdauer getrennt vom Kartenseed: Anfang0, dann Prozess-
+ fortschritt über Missionsstarts und unveränderte fünf Wörter im MP-Zweig.
+ Zwei neue Tests prüfen normale init-Aufrufe, echte neue Kartenseeds,
+ vorherigen prozeduralen Modus und MP-Rückgaben.
+- Der erste Node-Gesamtlauf fand zwei Fehler. Der Kampftest isoliert jetzt
+ seine eigene Windup-Seite statt früher feuernde Gegner mitzuzählen; alle
+ Release-/Treffer-/Formationsasserts bleiben erhalten. Der eigentliche
+ Kampagnenfehler war45c210 ohne vollständige58ec0-Entfernung. Vier ganze
+ Originalketten,72 gezielte Regressionen und der separat ausgeführte
+ sequenzielle M1/M2/M3-Mainrepro prüfen diesen Fix samt Slotwiederverwendung.
+- zonebots-mp-6-native-clock-road weist die früheren Builds3/4/5 vor Beginn ab.
+Details und verbleibende Grenzen: ORIGINAL-PFADPOOL.txt, ORIGINAL-PAUSE.txt,
+ORIGINAL-ZUFALL.txt und ORIGINAL-ABGLEICH.txt. Weitere BUILD-/Fort-Ergänzungen
+werden separat vorbereitet und gehören nicht zu diesem gebauten Stand.
+
 BROWSER
 Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
 bei rund einer Spielminute nur lesend geprüft; die Bedienung wurde unverändert
@@ -150,7 +179,7 @@ gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
 und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
 Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
 kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
-nov04-r40 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
+nov04-r40/r41 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
 Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
 Graphics-Adaptertests geprüft.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht

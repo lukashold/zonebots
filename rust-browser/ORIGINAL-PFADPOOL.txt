@@ -74,8 +74,9 @@ Primärscan4800 ist inklusiv; Zwischenfehler räumen nur den gespeicherten Präf
 auf. Der letzte aktuelle Record kann verwaist bleiben. Der Aufrufer ignoriert
 AL vom letzten Zielanhang. Diese Wirkungen sind nicht atomar.
 Der tatsächliche53730-Gamecaller setzt das Roadflag vor538f0 und hält den
-ursprünglichen Kopf. Die temporäre80-Liste überlappt ab Record44 mit nativen
-Globals und ist nicht durch diesen primären Poolnachweis abgedeckt.
+ursprünglichen Kopf. Die temporäre80-Liste überlappt ab Record40 mit Endpoint-
+Globals und ab44 mit UNIT-/Worker-/Kandidatendaten. Diese Aliase sind nicht
+durch den primären Poolnachweis abgedeckt; der V41-Block ist unten beschrieben.
 
 DYNAMISCHE MASKEN UND TERRAINBELEGUNG
 44e520/45a5c0:2.048 Originalaufrufe mit allen wiederhergestellten Maskenbytes,
@@ -93,15 +94,77 @@ sind feldweise verglichen. Die erste Rayabfrage überschreibt gemeinsame
 Intervallglobals mit Deltawerten; folgende Corners dürfen nicht gegen die
 unveränderte Anfangsbox geprüft werden. Der Primary-Rest bleibt nach Prepend
 erhalten. Kontaktphasen und eingefrorene UNIT-Callbacks werden nicht erweitert.
+Eine im längeren Kampagnenlauf erreichte Kombination ist zusätzlich geprüft:
+45c210 überrollt einen schwachen Roboter und ruft58ec0 unter5849e7=1 auf.
+Die folgende45bf90-Abfrage sieht denselben gecachten UNIT-Slot weiterhin.
+Vier vollständige Originalketten (3168263281) und der normale Game-Hardware-
+callback bestätigen Rolle0/GruppeFF,31:4 aus, erhaltene Position/Phase/Klasse,
+echten Dummy-W-Verweis und0 Gameplay-RNG. Die Mitgliedschaft wird nicht
+wiederhergestellt; nur der tatsächlich erfasste Raw-Entfernungszustand bleibt
+für diesen Reader zugänglich. Ein fehlender Member oder HP<0 ohne solches
+Quellereignis bleibt eine Grenze. Der separate kosmetische5a1002-Crushmarker-
+Pool ist damit nicht implementiert oder als geschlossen behauptet.
 512 Original-Teamgatefälle:1814112557.5c210 filtert ungleiche Teams,5bec0
 fordert danach gleiche Teams. Der natürliche Caller erreicht5bd30 daher nicht;
 ein direkter Aufruf wird dadurch nicht als vollständig implementiert gewertet.
 
+KONTURABSCHLUSS UND PERSISTENTER ROAD-SCRATCH (V41)
+Der verwaltete Main-Pfad ruft nach43e0b0/43c1b0 jetzt43df20 mit dem
+aktuellen Graphen, tatsächlichen UNIT18/1c-Masken und endlichen Pools auf.
+original_road_scratch.rs hält native Adresstokens, warme Koordinaten, die
+40 einzeln zurückgesetzten Next-Felder, Preispaare, Modebytes und bekannte
+Endpoint-/Cursorpräfixe. original_road_shortcut_game.rs führt die Probe über
+pixelgenaue DDA und echte dynamische Maskentransaktionen aus. Die vorhandene
+Straßenassemblierung/Komprimierung wird auch für diese40 Records verwendet.
+
+480 isolierte vollständige43df20-Aufrufe vergleichen alle640 bekannten
+Framebytes, Preise, Modebytes und Recordcursor:3713235901. Getrennte64 echte
+43e190-Caller mit433b30/41b950-Profilinitialisierung vergleichen Köpfe,
+Punkte, UNIT-Flags und Preise:4035984813;26 übernehmen die Straße,38 die
+Kontur. Weitere64 Caller mit ausdrücklich identischen kontrollierten Masken:
+2807892797;28/36. In allen diesen Fällen ist der Gameplay-RNG-Verbrauch0.
+Die frühere64erCallerdatei mit ungesetztem UNIT1c ist kein Profilnachweis und
+wird dafür nicht weiter verwendet. Vier zusätzliche unterdrückte Candidate3-
+Caller bestätigen den überlappenden WORD-Write an PreisX:FFFF, während das
+warme PreisY=-2000 erhalten bleibt; tatsächliche Gameadoption ist verglichen.
+
+Die Laufzeit prüft jede Allokation/jeden Zugriff vor Komprimierung auf die
+Records0..39 und jede gepackte Eingabe auf den modellierten Preisbuffer.
+40 verkettete Punkte werden wie im Original auf39 kopierte Punkte begrenzt;
+ein verlorenes Endziel wird nicht künstlich angehängt. Erste unbekannte
+Scratch-/Buffer-/Regionzugriffe und endliche Kopierfehler melden benannte
+Grenzen mit bereits erfolgten Präfixschreibungen. Die Übernahme ist keine
+atomare Transaktion:52500/W17-Clear und bereits reservierte Records bleiben
+bei einem späteren Fehler sichtbar. Der nicht veröffentlichte lokale Kopf
+wird getrennt vom tatsächlichen UNIT-Kopf diagnostiziert.
+
+Warmzustand wird beim Missionswechsel separat übernommen; der eigentliche
+Routenpool wird zurückgesetzt. Ein Test prüft diese Resettrennung und die
+WORD-Breite von4d15e4 unter Erhalt des oberen Wortes. Gamefälle prüfen auch
+Brückenzerstörung/-reparatur: nur die ursprünglichen Bound-Werte ändern sich,
+alle Next-Tabellen und der bis dahin unbenutzte Scratchzustand bleiben erhalten.
+Die unveränderten natürlichen Main-Tests für Roboter- und Fahrzeugkonturen
+laufen weiter durch Queue, Worker, endliche Veröffentlichung und Kopfverbrauch.
+
+BEGRENZUNG DIESES ADAPTERS
+Die640 Bytes sind keine allgemeine Autorität für jeden nachfolgenden Alias.
+Candidate3 reicht darüber hinaus; sein nachgewiesener PreisX-Write ist eigens
+mit dem Preisbuffer verbunden. Weitere Allokationen ab Record40 bleiben eine
+Grenze. Die ursprüngliche Suchkapazität80 wird dadurch nicht als ungültig
+behauptet. Die initialen Kampagnen-Hopzahlen sind keine Laufzeitfreigabe.
+Der physische Probeactor führt die in diesem Caller benötigten warmen BC-/67-
+Felder separat; er vereinigt noch nicht alle Benutzer des633950-Dummyrecords.
+45cf90/43b950-Rasterglobals6330a8..b4,62d5d0/d4/dc,632694/4d2be4 sind noch
+keine gemeinsame Autorität aller Strahl-/Preismodule; dafür bleibt ein explizites
+Diagnosebit gesetzt. Standalone-Kompatibilitätsplanung außerhalb des verwalteten
+Main-Pfads ist durch diese Integration ebenfalls nicht vollständig ersetzt.
+
 WEITER BESTEHENDE GRENZEN
 Die gekoppelten globalen Straßen-/Konturabschlussfälle und alle Überlauf-
 wechselwirkungen einer vollständigen Partie sind noch nicht vollständig als
-identische Original-Eingabespur verglichen. Scratch-/Globalaliasing, weitere
+identische Original-Eingabespur verglichen. Nicht modellierte Scratch-/Globalaliasing-Folgen, weitere
 direkte Ausweichcaller, außergewöhnliche entfernte UNIT-Folgen, sämtliche UI-Globals
-und die Originaluhr in Menüs/Pause bleiben konkrete Vergleichsgrenzen.
+und weitere Originalmenü-/Lade-/UI-Abbruchpfade bleiben konkrete Vergleichsgrenzen.
+Die normale Pausen-UIuhr ist inzwischen getrennt angebunden: ORIGINAL-PAUSE.txt.
 Die globale Zeichenfolge hat einen eigenen Bericht ORIGINAL-ZEICHENQUEUE.txt.
 Einzelne bestandene Funktionstests schließen diese verbleibenden Punkte nicht.

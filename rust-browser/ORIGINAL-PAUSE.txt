@@ -1,0 +1,55 @@
+Originalabgleich: Pause, Spieltakte und UI-/Audiouhr
+Stand: 04.11.2026, begrenzter V41-Block
+
+Es gibt getrennte native Zeitbasen.434a70 wird vom Spielhandler19 bei
+435bab aufgerufen. Seine16/32-,6-,8-,4-Schrittzähler und das wechselnde
+Callbackbyte bleiben im pausierten Spielmenü stehen. Der Szenenzustand
+622cc0 (u.a.0/1/16) ist dabei kein allgemeines Pauseflag.
+
+Der tatsächliche Pausen-/Menühandler27 bei437660 setzt4d02ce=1 und ruft
+42dc50 auf.4d02ce hält den separaten Sekundenzähler5b6d9c an; er wird
+im Spielhandler wieder gelöscht. Der Befehlszweig45f070(-7) fordert das
+Menü nur bei622cc0==0 an. Der separate UI-Eingang470ab0 kann bei aktuellem
+Kontext19 ebenfalls Handler27 anfordern. Resume kann im selben äußeren
+Callback vom Menü wieder zum Spielhandler wechseln.
+
+46c510 erhöht dagegen das16-Bit-UIwort680d08 nach dem ausgewählten
+Handler. Dieses Wort läuft im normalen pausierten Menü weiter und wird
+von46e660 für die Sample-Abstände verwendet. Es ist keine allgemeine
+Wanduhr: Lade-, Reentry-, Netzwerk- und besondere Handlerabbruchpfade
+können den Aufruf vor diesem Inkrement verlassen. Der äußere SDL-Takt
+verwendet normalerweise17Hz; gesonderte Videopfade verändern diese Rate.
+
+Die Portrait-/Phrasenuhr ist wiederum getrennt.46ade0 wird im Spielhandler
+bei436057 aufgerufen und führt46ad70 einmal sowie unter seiner belegten
+Zusatzbedingung ein zweites Mal aus. Das pausierte Menü ruft diesen
+Spielhandlerteil nicht auf. Weiterlaufende UIzeit bedeutet deshalb keine
+weiterlaufenden Portraitframes.
+
+396 ausgeführte Originalcaller-Traces mit Szenen0/1/16, drei UIwort-
+Startwerten einschließlich beider Wrapgrenzen und zwei Sekundenphasen
+bestätigen diese Trennung (Gesamtsignatur282591419). Ein Sample mit
+MinTicks12 wird nach zwölf UIcallbacks erneut zugelassen, während der
+Spielzähler unverändert bleibt. Der Rust-Gametest vergleicht die belegten
+Clock-/Samplefelder dieser396 Fälle (Signatur3506412265).
+
+Der Browser verwendet dafür den ausdrücklichen UI-only-Aufruf uiTick.
+Er erhöht ausschließlich das UIwort über einen begrenzten17Hz-Adapter;
+Einheiten, Produktion, Partikel, RNG, Spielzeit und Phrasen bleiben stehen.
+Normale direkte tick-Aufrufe behalten ihre bisherige Zeitsemantik.
+Große Browserzeitabstände werden gekappt und beim Fortsetzen nicht als
+Simulationsrückstand nachgeholt. Nur der Offlinekern bzw. der pausierte,
+verbundene Mehrspielerhost führt diese Aufrufe aus. Der Gast übernimmt
+den gespeicherten signed16-Wert und kann keine eigenen Ticks einschleusen.
+
+Geprüft sind echte Wasm-Aufrufe, der tatsächliche App-Callbackprefix,
+Host-/Gast-Pause und Resume, Sampleabstand12, signed16-Überläufe, unver-
+änderte Simulations-/Portraitdaten und die Protokollvalidierung.
+
+Grenzen: Die Originaloracle führt die Caller, den Selector,434a70,
+45f070(-7) und46e660 tatsächlich aus; Welt-/KI-/Raster-/Netzwerk- und
+Menüwidget-Callees sind ausdrücklich kontrollierte Grenzen. Der neue
+UI-only-Einstieg ist ein Browseradapter, kein vollständiger SDL- oder
+Originalmenücontroller. Mixer-Channel-Stops des ursprünglichen Menü-
+Initialisierungszweigs sind durch diesen Clockblock nicht nachgebaut.
+Dieser Nachweis bedeutet keine vollständige1:1-Gleichheit des Spiels.

@@ -13,7 +13,7 @@ function field(){const width=64,height=48,n=width*height;return{map:{width,heigh
  //windup from actual acquisition, independently of the idle RNG sequence.
  for(let i=0;i<160&&!state.units[0].nativeFire;i++)tick(.059);
  assert(state.units[0].nativeFire,'Native idle search must eventually acquire this visible enemy');assert.equal(state.units[0].nativeFire.frame,0);
- for(let t=2;t<=12;t++){tick(.059);assert.equal(state.bullets.length,0);assert.equal(state.units.find(u=>u.id===target).hp,30);}
+ for(let t=2;t<=12;t++){tick(.059);assert.equal(state.bullets.filter(b=>b.team===0).length,0,'The sniper windup forbids its own bullet, not an earlier enemy release');assert.equal(state.units.find(u=>u.id===target).hp,30);}
  tick(.059);const bullet=state.bullets.find(b=>b.team===0);assert(bullet,'Native release must serialize the traveling bullet');assert.equal(bullet.x,366);assert.equal(bullet.y,616);assert.equal(state.units.find(u=>u.id===target).hp,30,'Release is not contact');
  assert(state.events.some(e=>e.kind==='shot'&&e.team===0));
  const window={};vm.runInNewContext(fs.readFileSync(path.join(root,'dist/independent/multiplayer-game.js'),'utf8'),{window,setTimeout,clearTimeout,Date});

@@ -4,12 +4,15 @@
 //! as a failed intermediate append in the original caller.
 use super::{Node,FREE,PRIMARY};
 use crate::original_route::{self as road,Point,RoadGraph};
-// Scratch records overlap native global storage from slot44 onward. They are
-// not a runtime input here; full scratch/global aliasing remains separate.
+// Scratch records overlap endpoint globals from slot40 onward. The runtime
+// scratch entry below stops before those aliased node accesses; the bounded
+// caller and persistent bytes live in original_road_scratch.
 const SCRATCH:u32=0x004d1480;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Boundary{Node(u32),Region(u8)}
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct ResultState{pub failed:bool,pub set_road_flag:bool,pub recorded:i8}
-struct Builder<'a>{nodes:&'a mut[Node],base:u32,temporary:bool,head:u32,cursor:u32,records:[u32;80],count:i8}
+#[derive(Clone,Debug)]pub struct Trace{pub records:[u32;80],pub recorded:i8,pub record_cursor:usize,pub endpoint_distances:Option<[i32;8]>,pub end:Option<road::RoadEndpoint>,pub begin:Option<road::RoadEndpoint>}
+impl Default for Trace{fn default()->Self{Self{records:[0;80],recorded:0,record_cursor:0,endpoint_distances:None,end:None,begin:None}}}
+struct Builder<'a>{nodes:&'a mut[Node],base:u32,temporary:bool,head:u32,cursor:u32,records:[u32;80],count:i8,record_cursor:usize,endpoint_distances:Option<[i32;8]>,end:Option<road::RoadEndpoint>,begin:Option<road::RoadEndpoint>}
 impl Builder<'_>{
  fn index(&self,link:u32)->Result<usize,Boundary>{let n=link.wrapping_sub(self.base);if n&7!=0||n/8>=self.nodes.len()as u32{return Err(Boundary::Node(link));}Ok((n/8)as usize)}
  fn node(&self,link:u32)->Result<Node,Boundary>{Ok(self.nodes[self.index(link)?])}
@@ -20,7 +23,7 @@ impl Builder<'_>{
   let mut i=self.index(self.cursor)?;
   while self.nodes[i].next!=FREE{i+=1;if (i as i16)>4800||self.temporary&&i>=80{return Ok(true);}if i>=self.nodes.len(){return Err(Boundary::Node(self.base.wrapping_add(i as u32*8)));}}
   let address=self.base.wrapping_add(i as u32*8);self.nodes[i]=Node{point:[p.0,p.1],next:0};
-  if address!=self.cursor{self.node_mut(self.cursor)?.next=address;let count=self.count as u8 as usize;if count>=80{return Err(Boundary::Node(address));}self.records[count]=self.cursor;self.count=self.count.wrapping_add(1);self.cursor=address;if self.count as u8>=80{return Ok(true);}}
+  if address!=self.cursor{self.node_mut(self.cursor)?.next=address;let count=self.count as u8 as usize;if count>=80{return Err(Boundary::Node(address));}self.records[count]=self.cursor;self.record_cursor+=1;self.count=self.count.wrapping_add(1);self.cursor=address;if self.count as u8>=80{return Ok(true);}}
   Ok(false)
  }
  fn points(&self)->Result<Vec<Point>,Boundary>{let mut out=Vec::new();let mut link=self.head;for _ in 0..self.nodes.len(){if link==0{return Ok(out);}let n=self.node(link)?;out.push((n.point[0],n.point[1]));link=n.next;}Err(Boundary::Node(link))}
@@ -46,12 +49,23 @@ impl Builder<'_>{
  }
 }
 pub fn primary(nodes:&mut[Node],head:u32,start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{assemble(nodes,PRIMARY,false,head,start,graph,dimensions,terrain,flagged,price,level,compare)}
-fn assemble(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{
- let mut b=Builder{nodes,base,temporary,head,cursor:head,records:[0;80],count:0};let p=b.node(head)?.point;let goal=(p[0],p[1]);
+fn assemble(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{
+ let mut trace=Trace::default();assemble_traced(nodes,base,temporary,head,start,graph,dimensions,terrain,flagged,price,level,compare,&mut trace)
+}
+///43df20 owns exactly40 initialized scratch-next fields. Any attempted
+///41st access returns Node(address), retaining all prior writes and trace.
+pub fn scratch(nodes:&mut[Node;40],start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,trace:&mut Trace)->Result<ResultState,Boundary>{assemble_traced(nodes,SCRATCH,true,SCRATCH,start,graph,dimensions,terrain,flagged,price,level,false,trace)}
+fn assemble_traced(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8,level:i16,compare:bool,trace:&mut Trace)->Result<ResultState,Boundary>{
+ let mut b=Builder{nodes,base,temporary,head,cursor:head,records:trace.records,count:0,record_cursor:0,endpoint_distances:None,end:None,begin:None};
+ let result=assemble_inner(&mut b,start,graph,dimensions,&mut terrain,&mut flagged,&mut price,level,compare);
+ trace.records=b.records;trace.recorded=b.count;trace.record_cursor=b.record_cursor;trace.endpoint_distances=b.endpoint_distances;trace.end=b.end;trace.begin=b.begin;result
+}
+fn assemble_inner(b:&mut Builder<'_>,start:Point,graph:&RoadGraph,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{
+ let head=b.head;let p=b.node(head)?.point;let goal=(p[0],p[1]);
  let dx=i32::from(goal.0)-i32::from(start.0);let dy=i32::from(goal.1)-i32::from(start.1);
  if dx.wrapping_mul(dx).wrapping_add(dy.wrapping_mul(dy))<0x3840{return b.fallback(goal);}
- let Some(end)=road::road_endpoint(goal,dimensions,&mut terrain,&mut flagged)else{return b.fallback(goal);};
- let Some(begin)=road::road_endpoint(start,dimensions,&mut terrain,&mut flagged)else{return b.fallback(goal);};
+ let searched=road::road_endpoint_trace(goal,dimensions,&mut terrain,&mut flagged);b.endpoint_distances=Some(searched.distances);b.end=searched.endpoint;let Some(end)=searched.endpoint else{return b.fallback(goal);};
+ let searched=road::road_endpoint_trace(start,dimensions,&mut terrain,&mut flagged);b.endpoint_distances=Some(searched.distances);b.begin=searched.endpoint;let Some(begin)=searched.endpoint else{return b.fallback(goal);};
  let Some(to)=graph.region_at(end.point)else{return b.fallback(goal);};let Some(from)=graph.region_at(begin.point)else{return b.fallback(goal);};
  if from==to||graph.regions.get(usize::from(to)).and_then(|r|r.next.get(usize::from(from)))==Some(&255){return b.fallback(goal);}
  b.node_mut(head)?.next=FREE;

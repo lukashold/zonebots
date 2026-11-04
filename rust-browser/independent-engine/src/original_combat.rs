@@ -293,6 +293,13 @@ pub struct OriginalRng {
     pub multiplayer: bool,
 }
 impl OriginalRng {
+    ///4621e0 calls460850 once with the initial signed WORD622d18 (zero).
+    ///Mission reset60430 is not a seed writer. The five words survive normal
+    ///mission changes; the independent procedural-map seed is unrelated.
+    pub fn for_original_mission(previous:Option<&Self>,multiplayer:bool)->Self {
+        let mut rng=previous.cloned().unwrap_or_else(||Self::seeded(0));
+        rng.multiplayer=multiplayer;rng
+    }
     /// 00460850 expands a seed through five wrapping LCG steps, then warms
     /// the multiply-with-carry state for nineteen calls.
     pub fn seeded(seed:u32)->Self {
@@ -715,6 +722,34 @@ mod tests {
 #[cfg(test)]
 mod native_rng_execution_tests {
  use super::*;
+ #[test]
+ fn native_process_rng_survives_mission_and_multiplayer_changes_without_reseeding(){
+  let initial=[2513651531,56422903,4249065823,1576818171,860525097];
+  let mut a=OriginalRng::for_original_mission(None,false);assert_eq!(a.words,initial);
+  assert_eq!(a.next_u32(),2513658891);let words=a.words;
+  let mut b=OriginalRng::for_original_mission(Some(&a),true);for _ in 0..100{assert_eq!(b.next_u32(),0);}assert_eq!(b.words,words);
+  let mut c=OriginalRng::for_original_mission(Some(&b),false);assert_eq!(c.next_u32(),1445726181);
+  assert_eq!(OriginalRng::for_original_mission(None,false).words,initial);
+ }
+ #[test]
+ fn native_process_rng_actual_init_keeps_current_words_separate_from_map_seed(){
+  use crate::{GAME,Game,request,json};
+  let mut map=Game::new(0,1,404).map;map.original=true;
+  let mut mission=json!({"map":map,"sectors":[],"buildings":[],"crates":[],"spawns":[]});
+  GAME.with(|cell|*cell.borrow_mut()=None);
+  let result=request(json!({"op":"init","seed":991,"originalMission":mission,"aiTeams":[]}));assert!(result.get("error").is_none(),"{result}");
+  GAME.with(|cell|{let mut state=cell.borrow_mut();let g=state.as_mut().unwrap();assert_eq!(g.original_rng.words,[2513651531,56422903,4249065823,1576818171,860525097]);assert_eq!(g.original_rng.next_u32(),2513658891);});
+  let words=GAME.with(|cell|cell.borrow().as_ref().unwrap().original_rng.words);
+  mission["map"]["seed"]=json!(505);
+  let result=request(json!({"op":"init","seed":999999,"originalMission":mission,"aiTeams":[]}));assert!(result.get("error").is_none(),"{result}");
+  assert_eq!(result["map"]["seed"],505);
+  GAME.with(|cell|{let mut state=cell.borrow_mut();let g=state.as_mut().unwrap();assert_eq!(g.original_rng.words,words);assert_eq!(g.original_rng.next_u32(),1445726181);});
+  GAME.with(|cell|*cell.borrow_mut()=None);
+  let legacy=request(json!({"op":"init","seed":123456,"aiTeams":[]}));assert_eq!(legacy["map"]["original"],false);
+  let result=request(json!({"op":"init","seed":998,"originalMission":mission,"aiTeams":[]}));assert!(result.get("error").is_none(),"{result}");
+  GAME.with(|cell|assert_eq!(cell.borrow().as_ref().unwrap().original_rng.words,[2513651531,56422903,4249065823,1576818171,860525097],"a procedural game cannot supply the native process seed"));
+  GAME.with(|cell|*cell.borrow_mut()=None);
+ }
  #[test]
  fn seeding_and_ten_draws_match_the_executed_x86_for_five_seeds() {
   {let mut rng=OriginalRng::seeded(0);assert_eq!(rng.words,[2513651531, 56422903, 4249065823, 1576818171, 860525097]);assert_eq!((0..10).map(|_|rng.next_u32()).collect::<Vec<_>>(),[2513658891, 1445726181, 2509516730, 1448726109, 3417174521, 488389304, 903333144, 1687362967, 3011265959, 2386887008]);}

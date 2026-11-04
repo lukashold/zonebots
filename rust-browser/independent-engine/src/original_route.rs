@@ -70,15 +70,17 @@ pub fn align_road(point:Point,dimensions:Point,mut terrain:impl FnMut(Point)->u8
 ///0043b090/0043afd0 scan N,S,E,W,NE,SE,SW,NW, preserving ties in that order.
 /// A ray crossing a nonzero unit+18 permission byte adds16 once; diagonals
 /// multiply the complete integer score by1.5. A failed ray is not a candidate.
-pub fn road_endpoint(point:Point,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool)->Option<RoadEndpoint>{
- let on_road=road(terrain((point.0>>4,point.1>>4)));let mut best=None;let mut best_score=i32::MAX;
+#[derive(Clone,Copy,Debug)]pub struct EndpointTrace{pub distances:[i32;8],pub endpoint:Option<RoadEndpoint>}
+pub fn road_endpoint(point:Point,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool)->Option<RoadEndpoint>{road_endpoint_trace(point,dimensions,terrain,flagged).endpoint}
+pub fn road_endpoint_trace(point:Point,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool)->EndpointTrace{
+ let mut distances=[i32::MAX;8];let on_road=road(terrain((point.0>>4,point.1>>4)));let mut best=None;let mut best_score=i32::MAX;
  if on_road{best=Some(point);}else{
   for(i,(dx,dy))in [(0,-16),(0,16),(16,0),(-16,0),(16,-16),(16,16),(-16,16),(-16,-16)].into_iter().enumerate(){
    let(mut x,mut y)=point;let mut distance=0;let mut obstructed=false;
-   while x>0&&x<2048&&y>0&&y<2048{let code=terrain((x>>4,y>>4))&127;distance+=1;if road(code){let mut score=distance+if obstructed{16}else{0};if i>=4{score+=score>>1;}if score<best_score{best_score=score;best=Some((x,y));}break;}obstructed|=flagged(code);x=x.wrapping_add(dx);y=y.wrapping_add(dy);}
+   while x>0&&x<2048&&y>0&&y<2048{let code=terrain((x>>4,y>>4))&127;distance+=1;if road(code){let mut score=distance+if obstructed{16}else{0};if i>=4{score+=score>>1;}distances[i]=score;if score<best_score{best_score=score;best=Some((x,y));}break;}obstructed|=flagged(code);x=x.wrapping_add(dx);y=y.wrapping_add(dy);}
   }
  }
- best.map(|p|RoadEndpoint{point:align_road(p,dimensions,terrain),already_on_road:on_road})
+ EndpointTrace{distances,endpoint:best.map(|p|RoadEndpoint{point:align_road(p,dimensions,terrain),already_on_road:on_road})}
 }
 /// Four100-byte candidate headers: price low byte; count high byte, negative
 /// only when complete. Native strict comparison keeps the first equal price.

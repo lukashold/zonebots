@@ -126,19 +126,20 @@ impl Contact{
 pub fn trace(start:(i16,i16),goal:(i16,i16),vehicle:bool,permission:impl FnMut(i16,u8)->i8)->Contact{trace_impl(start,goal,vehicle,true,permission)}
 pub fn trace_before_response(start:(i16,i16),goal:(i16,i16),vehicle:bool,permission:impl FnMut(i16,u8)->i8)->Contact{trace_impl(start,goal,vehicle,false,permission)}
 fn trace_impl(start:(i16,i16),goal:(i16,i16),vehicle:bool,dummy_response:bool,mut permission:impl FnMut(i16,u8)->i8)->Contact{
+ trace_queried::<std::convert::Infallible>(start,goal,vehicle,dummy_response,|old,attempted,octant|{let mut c=Contact::new(old,attempted);let hit=c.wrapped((attempted.0.wrapping_sub(old.0)as i8,attempted.1.wrapping_sub(old.1)as i8),vehicle,|cell|permission(cell,octant));Ok((hit,c))}).unwrap()
+}
+pub fn trace_queried<E>(start:(i16,i16),goal:(i16,i16),vehicle:bool,dummy_response:bool,mut query:impl FnMut((i16,i16),(i16,i16),u8)->Result<(bool,Contact),E>)->Result<Contact,E>{
  let(mut x,mut y)=(i32::from(start.0),i32::from(start.1));let dx=i32::from(goal.0)-x;let dy=i32::from(goal.1)-y;let(ax,ay)=(dx.abs(),dy.abs());let sx=if dx>0{1}else{-1};let sy=if dy<0{-1}else{1};let major=ax.max(ay);let mut error=major>>1;
  let octant=if dx>0{if ax<ay{if dy<0{if ax<((-dy)>>1){0}else{1}}else if ax<(dy>>1){4}else{3}}else if dy<0{if (ax>>1)<(-dy){1}else{2}}else if(ax>>1)<dy{3}else{2}}
   else if ax<ay{if dy<0{if ax<((-dy)>>1){0}else{7}}else if ax<(dy>>1){4}else{5}}else if dy<0{if (ax>>1)<=(-dy){7}else{6}}else if(ax>>1)<=dy{5}else{6};
  let mut result=Contact::new(start,start);
  for _ in 0..major{
-  let old=(x as i16,y as i16);let(mut vx,mut vy)=(0,0);
-  if ax>=ay{x+=sx;vx=sx as i8;error-=ay;if error<0{error+=ax;y+=sy;vy=sy as i8;}}
-  else{y+=sy;vy=sy as i8;error-=ax;if error<0{error+=ay;x+=sx;vx=sx as i8;}}
-  result=Contact::new(old,(x as i16,y as i16));
-  if result.wrapped((vx,vy),vehicle,|cell|permission(cell,octant)){
-   if vehicle&&dummy_response{result.position=result.attempted;}return result;
-  }
+  let old=(x as i16,y as i16);
+  if ax>=ay{x+=sx;error-=ay;if error<0{error+=ax;y+=sy;}}
+  else{y+=sy;error-=ax;if error<0{error+=ay;x+=sx;}}
+  let(hit,contact)=query(old,(x as i16,y as i16),octant)?;result=contact;
+  if hit{if vehicle&&dummy_response{result.position=result.attempted;}return Ok(result);}
   result.position=result.attempted;
  }
- result
+ Ok(result)
 }

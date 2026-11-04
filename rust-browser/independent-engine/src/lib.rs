@@ -10,6 +10,7 @@ mod original_grenades;
 mod original_initiative;
 mod original_terrain;
 mod original_motion;
+mod original_clock;
 mod native_math;
 mod original_fire;
 mod original_formation;
@@ -34,6 +35,7 @@ mod original_collision;
 mod original_dynamic_collision;
 mod original_route_game;
 mod original_route_pool;
+mod original_road_scratch;
 mod original_path_contact;
 mod original_hardware_point;
 mod original_audio;
@@ -432,6 +434,7 @@ pub struct Game {
     #[serde(skip)] native_hardware_dummy_attributes:original_entry::HardwareAttributes,
     #[serde(skip)] initiative_clock:f64,
     #[serde(skip)] motion_clock:f64,
+    #[serde(skip)] native_ui_clock:original_clock::UiClock,
     #[serde(skip)] motion_tick:u64,
     #[serde(skip)] native_vehicle_positions:Vec<(i32,i32)>,
     #[serde(skip)] native_transports:Vec<original_transport::Boarding>,
@@ -467,6 +470,7 @@ impl Game {
             crates: vec![],
             events: vec![], objects:vec![], walls:vec![],wall_owners:vec![],
             time: 0.,
+            native_ui_clock:Default::default(),
             winner: None,
             difficulty: difficulty.min(3),
             mission,
@@ -1009,6 +1013,7 @@ impl Game {
         }
     }
     pub fn step(&mut self, dt: f64) {
+        self.native_ui_clock.reset();
         if !self.map.original {self.step_update(dt);return;}
         self.motion_clock+=dt.clamp(0.,0.1);
         while self.motion_clock+1e-10>=original_motion::TICK_SECONDS {
@@ -1513,7 +1518,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
         "productionSeconds": g.buildings.iter().map(|b| g.remaining_seconds(b)).collect::<Vec<_>>(),
         "buildMenus": g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>(),
     });
-    if g.map.original{value["nativeRouteBoundary"]=g.native_route_boundary.map(|b|format!("{b:?}")).into();}
+    if g.map.original{value["nativeRouteBoundary"]=g.native_route_boundary.map(|b|format!("{b:?}")).into();value["nativeUiClock"]=json!(g.native_feedback.ui_clock);}
     if g.map.original&&!g.multiplayer{
         let f=&g.native_feedback;let speaker=f.display_speaker.and_then(|slot|g.units.iter().rfind(|u|u.native_slot==Some(slot)));
         value["nativePortrait"]=json!({"mode":f.portrait_mode,"message":f.current_message,"phraseIndex":f.phrase_index,"phraseCounter":f.phrase_counter,"phraseFrame":f.phrase_frame,"unitId":speaker.map(|u|u.id),"nativeSlot":f.display_speaker,"rawSpeakerSlot":f.speaker});
@@ -1538,6 +1543,8 @@ pub fn request(v: Value) -> Value {
             g.native_seasonal_mode=u8::from(v["nativeCalendar"]["month"].as_i64()==Some(11)&&v["nativeCalendar"]["day"].as_i64()==Some(25));
             g.native_cosmetic_rng=state.as_ref().map_or(v["nativeCosmeticSeed"].as_u64().unwrap_or(1)as u32,|previous|previous.native_cosmetic_rng);
             if !v["originalMission"].is_null() {
+                g.original_rng=original_combat::OriginalRng::for_original_mission(state.as_ref().filter(|p|p.map.original).map(|p|&p.original_rng),multiplayer);
+                if let Some(previous)=state.as_mut(){g.native_routes.get_mut().road_scratch=std::mem::take(&mut previous.native_routes.get_mut().road_scratch);}
                 if let Some(previous)=state.as_mut(){g.native_world=previous.native_world.take();g.native_smoke20=std::mem::take(&mut previous.native_smoke20);g.native_bullet_impacts20=std::mem::take(&mut previous.native_bullet_impacts20);g.native_fire_base_strength=previous.native_fire_base_strength;g.native_hardware_pool=std::mem::take(&mut previous.native_hardware_pool);g.native_ambient=previous.native_ambient.take();g.native_lava=std::mem::take(&mut previous.native_lava);g.native_lava_sound_tick=previous.native_lava_sound_tick;g.native_ambient_animations=std::mem::take(&mut previous.native_ambient_animations);g.native_order_arguments=previous.native_order_arguments;g.native_feedback=std::mem::take(&mut previous.native_feedback);g.native_path_contact=std::mem::take(&mut previous.native_path_contact);g.native_query_shape=previous.native_query_shape;g.native_audio=std::mem::take(&mut previous.native_audio);g.native_production_limit=previous.native_production_limit;g.native_blast_sound_gate=previous.native_blast_sound_gate;g.native_blast_sound_cycle=previous.native_blast_sound_cycle;g.native_blast_terrain_class=previous.native_blast_terrain_class;g.native_protected_order_seen=previous.native_protected_order_seen;g.native_wait_clock=previous.native_wait_clock;g.native_flag_frame=previous.native_flag_frame;g.native_object_frame=previous.native_object_frame;g.native_frame16=previous.native_frame16;g.native_attack_ray_building=previous.native_attack_ray_building;g.native_selection=std::mem::take(&mut previous.native_selection);g.native_hardware_dummy=previous.native_hardware_dummy;g.native_hardware_dummy_attributes=previous.native_hardware_dummy_attributes;g.native_factory_placement=std::mem::take(&mut previous.native_factory_placement);g.native_group_rosters=std::mem::take(&mut previous.native_group_rosters);g.native_pressure=std::mem::take(&mut previous.native_pressure);}
                 if let Err(e) = g.apply_original(&v["originalMission"]) { return json!({"error":e}); }
             }
@@ -1563,7 +1570,7 @@ pub fn request(v: Value) -> Value {
         let slot = v.get("slot").map(|n| n.as_u64().and_then(|i| usize::try_from(i).ok()).unwrap_or(usize::MAX)).unwrap_or(0);
         let x = v["x"].as_f64().unwrap_or(f64::NAN);
         let y = v["y"].as_f64().unwrap_or(f64::NAN);
-        if g.map.original&&v["op"]!="init"&&v.get("nativeSelected").is_some(){let previous=g.native_selected_slot;g.native_selected_slot=if g.multiplayer{None}else{v["nativeSelected"].as_u64().and_then(|id|usize::try_from(id).ok()).and_then(|id|g.units.iter().find(|u|u.id==id&&u.team==0&&original_combat::alive(true,u.hp))).and_then(|u|u.native_slot)};if g.native_selected_slot.is_some()&&g.native_selected_slot!=previous{g.native_feedback_selection_changed();}}
+        if g.map.original&&v["op"]!="init"&&v["op"]!="uiTick"&&v.get("nativeSelected").is_some(){let previous=g.native_selected_slot;g.native_selected_slot=if g.multiplayer{None}else{v["nativeSelected"].as_u64().and_then(|id|usize::try_from(id).ok()).and_then(|id|g.units.iter().find(|u|u.id==id&&u.team==0&&original_combat::alive(true,u.hp))).and_then(|u|u.native_slot)};if g.native_selected_slot.is_some()&&g.native_selected_slot!=previous{g.native_feedback_selection_changed();}}
         if g.map.original {
             if let Some(enabled)=v["nativeAudio"]["soundEnabled"].as_bool(){g.native_feedback.sound_enabled=u8::from(enabled);}
 
@@ -1578,6 +1585,7 @@ pub fn request(v: Value) -> Value {
         let mut placement = None;
         match v["op"].as_str().unwrap_or("") {
             "tick" => g.step(v["dt"].as_f64().unwrap_or(0.04)),
+            "uiTick" => g.step_native_ui_only(v["dt"].as_f64().unwrap_or(0.)),
             "advance" => for _ in 0..v["steps"].as_u64().unwrap_or(1).min(30000) { g.step(0.1); },
             "command" => g.command(&v),
             "produce" => { g.produce_for_team(id, v["product"].as_str(), team); },

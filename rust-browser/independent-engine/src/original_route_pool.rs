@@ -102,14 +102,14 @@ pub trait WorkWorld{
 }
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct Worker{pub mask_cursor:usize,pub countdown:i8}
 #[derive(Clone,Debug)]pub struct State{
- pub pool:Pool,pub managed:[bool;240],pub scheduler:Scheduler,pub worker:Worker,
+ pub road_scratch:crate::original_road_scratch::State,pub pool:Pool,pub managed:[bool;240],pub scheduler:Scheduler,pub worker:Worker,
  pub mask:Vec<u8>,pub candidates:[Option<crate::original_route::local::Contour>;4],
  pub headers:[(u8,i8);4],
  pub origin:i16,pub steps:u32,pub contact:[[i16;2];240],
 }
-impl Default for State{fn default()->Self{Self{pool:Default::default(),managed:[false;240],scheduler:Default::default(),worker:Default::default(),mask:vec![65;16384],candidates:std::array::from_fn(|_|None),headers:[(0,0);4],origin:0,steps:0,contact:[[-1;2];240]}}}
+impl Default for State{fn default()->Self{Self{road_scratch:Default::default(),pool:Default::default(),managed:[false;240],scheduler:Default::default(),worker:Default::default(),mask:vec![65;16384],candidates:std::array::from_fn(|_|None),headers:[(0,0);4],origin:0,steps:0,contact:[[-1;2];240]}}}
 impl State{
- pub fn vacant()->Self{Self{pool:Pool{nodes:vec![],links:[Links::default();240]},managed:[false;240],scheduler:Default::default(),worker:Default::default(),mask:vec![],candidates:std::array::from_fn(|_|None),headers:[(0,0);4],origin:0,steps:0,contact:[[-1;2];240]}}
+ pub fn vacant()->Self{Self{road_scratch:Default::default(),pool:Pool{nodes:vec![],links:[Links::default();240]},managed:[false;240],scheduler:Default::default(),worker:Default::default(),mask:vec![],candidates:std::array::from_fn(|_|None),headers:[(0,0);4],origin:0,steps:0,contact:[[-1;2];240]}}
  pub fn reset_for_mission(&mut self){self.pool.reset_for_mission();self.managed.fill(false);self.scheduler=Default::default();self.worker=Default::default();self.contact.fill([-1;2]);}
 }
 impl Worker{
