@@ -8,6 +8,10 @@
  const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k),object=o=>o!==null&&typeof o==='object'&&!Array.isArray(o);
  const integer=(n,max=0xffffffff)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
  const flip=n=>n===0?1:n===1?0:n;
+ //41cfa0 selects baked red/blue banks, both with palette0. Guest color
+ //mapping must retain each bank's own pixels/alpha; the banks are not exact
+ //geometric/color-offset copies. This marker is derived after wire validation.
+ const canonicalFortBanner=r=>object(r)&&r.kind==='sprite'&&r.stage==='queue'&&r.source==='fortBanner'&&integer(r.nativeSlot,1)&&r.id===r.nativeSlot&&r.palette===0&&integer(r.sprite)&&r.sprite>=1234+r.nativeSlot*4&&r.sprite<=1237+r.nativeSlot*4;
  function remapEvent(event){if(!object(event))return event;const result={...event};for(const key of Object.keys(result))if(['team','owner','winner','previous'].includes(key)||key.endsWith('Team'))result[key]=flip(result[key]);return result;}
  function remapCrew(crew){if(!object(crew))return crew;const result={...crew};if(own(result,'team'))result.team=flip(result.team);return result;}
  function perspective(state,role){
@@ -21,7 +25,7 @@
    nativeCosmetic20Visuals:(state.nativeCosmetic20Visuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
    nativeLavaVisuals:(state.nativeLavaVisuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
    nativeObjectVisuals:state.nativeObjectVisuals,
-   nativeDisplayQueue:(state.nativeDisplayQueue||[]).map(r=>({...r,...(Number.isInteger(r.palette)&&!r.nativeLiteralPalette?{palette:flip(r.palette)}:{}),...(Number.isInteger(r.team)?{team:flip(r.team)}:{}),...(object(r.art)?{art:{...r.art,team:flip(r.art.team)}}:{}),...(Array.isArray(r.nativeLayers)?{nativeLayers:r.nativeLayers.map(l=>({...l,palette:flip(l.palette)}))}:{}),...(object(r.draw)?{draw:{...r.draw,...(Number.isInteger(r.draw.team)?{team:flip(r.draw.team)}:{}),...(Number.isInteger(r.draw.palette)?{palette:flip(r.draw.palette)}:{})}}:{})})),
+   nativeDisplayQueue:(state.nativeDisplayQueue||[]).map(r=>({...r,...(Number.isInteger(r.palette)&&!r.nativeLiteralPalette?{palette:flip(r.palette)}:{}),...(canonicalFortBanner(r)?{nativeFortBannerSwap:true}:{}),...(Number.isInteger(r.team)?{team:flip(r.team)}:{}),...(object(r.art)?{art:{...r.art,team:flip(r.art.team)}}:{}),...(Array.isArray(r.nativeLayers)?{nativeLayers:r.nativeLayers.map(l=>({...l,palette:flip(l.palette)}))}:{}),...(object(r.draw)?{draw:{...r.draw,...(Number.isInteger(r.draw.team)?{team:flip(r.draw.team)}:{}),...(Number.isInteger(r.draw.palette)?{palette:flip(r.draw.palette)}:{})}}:{})})),
    nativeTrackVisuals:(state.nativeTrackVisuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
    nativeDeathVisuals:(state.nativeDeathVisuals||[]).map(f=>({...f,team:flip(f.team)})),
    buildings:state.buildings.map(b=>({...b,team:flip(b.team)})),sectors:state.sectors.map(s=>({...s,owner:flip(s.owner)})),
@@ -50,6 +54,7 @@
   if(state.nativeObjectVisuals!==undefined&&(!Array.isArray(state.nativeObjectVisuals)||state.nativeObjectVisuals.length>200||!state.nativeObjectVisuals.every(o=>object(o)&&integer(o.id,4095)&&typeof o.nativeActive==='boolean'&&[o.x,o.y].every(Number.isFinite)&&integer(o.nativeAnimation18,255)&&Number.isInteger(o.nativeSpriteOffset21)&&o.nativeSpriteOffset21>=-128&&o.nativeSpriteOffset21<=127)))return false;
   if(state.nativeDisplayQueue!==undefined&&(!Array.isArray(state.nativeDisplayQueue)||state.nativeDisplayQueue.length>4000||!state.nativeDisplayQueue.every(r=>{
    if(!object(r)||!['building','unit','sprite','effect','repairClock','repairOverlay'].includes(r.kind)||!['pre','queue'].includes(r.stage))return false;
+   if(r.nativeFortBannerSwap!==undefined||r.source==='fortBanner'&&!canonicalFortBanner(r))return false;
    if(r.nativeCraneBoundary!==undefined&&(r.kind!=='unit'||r.art?.type!=='crane'||r.nativeLayers!==undefined||!['missingWork9a','invalidW21','missingWorld','missingForts','missingHardware','negativeScissor','unsupportedPalette'].includes(r.nativeCraneBoundary)))return false;
    if(r.nativeLiteralPalette!==undefined&&(typeof r.nativeLiteralPalette!=='boolean'||r.nativeLiteralPalette&&(r.kind!=='sprite'||!['wreckOverlay','seasonalOverlay','buildingFragment','fortFragment'].includes(r.source)||r.palette!==0)))return false;
    if(r.source==='retiredUnit'&&(r.kind!=='sprite'||r.stage!=='queue'||!integer(r.nativeSlot,239)||r.nativeLiteralPalette!==undefined||!integer(r.palette,7)))return false;

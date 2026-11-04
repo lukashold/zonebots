@@ -332,6 +332,16 @@ Details: ORIGINAL-ATTACK-APPROACH.txt.
 Dieser Abschnitt beschreibt die Integration im Quellstand. Den tatsächlich
 gebauten und veröffentlichten Prüfstand nennt ausschließlich TESTERGEBNIS.txt.
 
+FORTFAHNEN UND MEHRSPIELERFARBEN (NOV04-R46)
+Die großen Fort-Dachfahnen entsprechen dem Original.680 tatsächliche
+Sourcebeobachtungen und80 Wasm-Starts bestätigen die normalen Zeichenqueues.
+Die Gastansicht korrigiert ausschließlich die beiden eingebrannten Team-
+Farbbänder dieser Fahnen. Spriteidentität, Form, Alpha, Schatten, normale
+Fahnen und der fortgesetzte Palettenzustand bleiben erhalten. Der neue
+OriginalArt-/Gast-RPC-Vergleich prüft49 RPCs und644 Art-Aufrufe über vier
+native Frames und fünf Welten. Vollständige GPU- oder Originalnetzwerk-
+Gleichheit folgt daraus nicht. Details: ORIGINAL-FORTFAHNEN.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

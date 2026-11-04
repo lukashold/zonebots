@@ -2,9 +2,9 @@ Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
 951 Rust-Tests bestanden;9 Privatdiagnostiken standardmäßig ignoriert und
-im aktuellen nov04-r45 separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
-82/82 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
-Release für wasm32-unknown-unknown mit --locked gebaut.
+im unveränderten nov04-r45-Kern separat erfolgreich ausgeführt. Doctests bestanden (0 vorhanden).
+83/83 Node-Prüfprogramme im aktuellen nov04-r46 bestanden, einschließlich aller20 privaten Missionen.
+Der Rust/Wasm-Kern ist bytegleich zu nov04-r45 und wurde dort mit --locked gebaut.
 Wasm SHA256: c19b27767f3c84cd9ce42bd54fa1b86e0e0d042b3a62e61ed6ba1e56896f7f27
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
@@ -273,6 +273,20 @@ NEUER ABGLEICHSBLOCK nov04-r45
  Offene Source-Common-/Bridge-/Broadcast-/Warm-/GPU-/Audiokontexte stehen in
  ORIGINAL-ABGLEICH.txt; vollständige1:1-Gleichheit wird weiterhin nicht behauptet.
 
+NOV04-R46: FORTFAHNEN UND GASTPERSPEKTIVE
+Die große Dachfahne ist original:680 Sourcebeobachtungen und80 tatsächliche
+Wasm-Starts bestätigen sie für alle20 Missionen. Korrigiert wurde ein echter
+Farbfehler der Gastansicht: Die beiden eingebrannten Farbbänder werden nur bei
+echten Fortfahnen getauscht, ohne Sprite, Form, Alpha, Schatten oder nachfolgende
+geerbte Palettenzustände zu verändern. Ein Austausch der Spritebanken wäre
+falsch, weil mehrere Originalframes unterschiedliche Pixelmasken besitzen.
+Der Test scheitert am vorherigen Stand und besteht nach der Korrektur mit49
+Gast-RPCs,644 Art-Aufrufen,vier tatsächlichen nativen Frames und fünf Welten.
+Das ist ein OriginalArt-/RPC-Farbvergleich, kein vollständiger GPU-Rasterbeweis.
+zonebots-mp-11-native-fort-perspective weist frühere Builds3..10 zurück.
+Der neue reine Frontendstand besteht83/83 Nodeprogramme; der c19-Wasm und seine
+951+9 Rustprüfungen bleiben unverändert. Details: ORIGINAL-FORTFAHNEN.txt.
+
 BROWSER
 Frühere Aufnahme: nov04-r39 in Edge, laufende Originalgrafik-Partie(M20),
 59FPS und einzelne Bild-/Kern-p95-Werte10,4/7,9ms. Diese Messung wird nicht auf
@@ -284,6 +298,13 @@ Normal, tatsächlich gestartete Partie bis zur Aufnahme0:16 mit Fort/HUD/
 Produktionsuhr. Keine erfassten Seitenkonsolenwarnungen/-fehler. Der eigene
 Prüftab wurde geschlossen; die Benutzerpartie in Edge nicht bedient. Diese
 Sichtprüfung ist kein Kranreparaturrepro oder neuer Frameratenbenchmark.
+nov04-r46 wurde zusätzlich in zwei eigenen versteckten In-App-Browsertabs
+als echte LAN-Host-/Gastpartie gestartet. Einladung und Antwort, Datenkanal,
+gemeinsamer M1-Start und übertragene Pause funktionieren; beide HUDs zeigen
+denselben Stand0:02. Keine erfassten Seitenkonsolenwarnungen/-fehler. Die beiden
+Screenshotversuche scheiterten mit einer Zeitüberschreitung der Browseraufnahme;
+eine neue visuelle GPU-Prüfung dieser Partie wird daher nicht behauptet.
+Beide eigenen Tabs sind geschlossen; der Benutzertab wurde nicht bedient.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
 öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
 und zwei physische LAN-Rechner wurden nicht separat geprüft.

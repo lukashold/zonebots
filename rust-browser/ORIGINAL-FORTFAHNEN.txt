@@ -1,0 +1,19 @@
+Fort banners and guest color perspective
+
+The original places32x24 banners on both fort roofs, at nativebase+(83,27).
+The browser doubles these coordinates/dimensions. Their normal presence is
+confirmed for all20 campaign imports; ordinary territory flags at fort-sector
+positions are correctly excluded by the initialized native fort flags.
+
+The two fort-banner banks contain baked red16..31 and blue32..47 pixels.
+Guest perspective now swaps those two index bands only for genuine fortBanner
+records. It preserves the sprite,shape,alpha,position and existing palette
+state. The banks cannot simply be exchanged:several frames have different
+alpha/opaque pixels. Host records,shadows,ordinary flags,white/neutral/literal
+palettes and following inherited effects keep their existing paths.
+
+The marker is local derived guest metadata,never a host wire field. Tests use
+four actual canonical native frames,all five palette worlds and actual guest/
+Art submissions,including following250/557 inherited effects. This validates
+the browser perspective policy; it is not full Original multiplayer-startup
+or GPU raster equivalence. Original sprite pixels remain private assets.
