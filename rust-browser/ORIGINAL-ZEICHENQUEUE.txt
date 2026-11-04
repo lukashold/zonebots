@@ -150,7 +150,8 @@ Maske aus Browser-Gebäuderechtecken erfunden. Der UNIT97-Geländeprefix ist
 in ORIGINAL-INFANTERIEGELAENDE.txt mit8192 Originalaufrufen und132 tatsächlichen
 Rasterausgaben separat nachgewiesen. Der separate OBJECT-Weihnachtszweig für
 Basissprite5960/Global4a8c06 gehört nicht zu den119 nun angeschlossenen
-Wrackfällen. Unbekannte+0x26-Varianten außerhalb der vier belegten Zeilen
+Wrackfällen. Er ist separat in ORIGINAL-SAISON.txt nachgewiesen und am
+tatsächlichen OBJECT-Callback angeschlossen. Unbekannte+0x26-Varianten außerhalb der vier belegten Zeilen
 bleiben explizite Grenzen und werden nicht durch Maskierung geraten.
 Die Operand98-Inventarliste enthält auch fremde Strukturen:
 4460c0 gehört einem Bilddecoder und ist ausdrücklich kein UNIT98-Schreiber.

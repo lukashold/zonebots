@@ -84,8 +84,11 @@ vorher zerstörte und nicht gefundene Brücken lösen41f870 nicht aus.
 Rusttest überein:1134249563.256 reale409c50-Caller mit echter Partikelallokation,
 RNG und Terrain zeigen Partikel vor Sound vor UNIT/OBJECT/Terrain/Road;90199521.
 UNIT-/OBJECT-Teardown und SDL sind dort aufgezeichnete Blätter. Die vorgelagerten
-09a60/09870/403370-Partikel und deren RNG sind im Liveadapter weiterhin offen;
-der neue Soundhelper ersetzt sie ausdrücklich nicht. Sechs gezielte Soundtests
+09a60/09870/403370-Partikel sind inzwischen separat mit dem gemeinsamen44-Byte-
+Pool und dem401210-Expiry11 verbunden:2560 Präfixe265808217 und2560 vollständige
+Expirycallbacks806747683. Quellenbelegung, Count-RNG auch bei vollem/gesperrtem
+Pool, warme Payloads und weltabhängige Kinder stehen in ORIGINAL-BRUECKENPARTIKEL.txt.
+Der Soundhelper bleibt ein eigener Aufruf nach dem Partikelpräfix. Seine Tests
 prüfen die gemeinsame Cycle-/Descriptorwirkung und den tatsächlichen Brückentod.
 
 GRENZEN DES GESAMTABGLEICHS

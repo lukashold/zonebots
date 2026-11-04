@@ -99,6 +99,16 @@ async function run(){
  const wreckPayload={...frozenPayload,seq:newestSequence+5,state:{...frozenPayload.state,nativeDisplayQueue:[wreckRow]}};
  assert.equal(guest.handle({type:'game:frame',payload:wreckPayload}),true,'Literal wreck overlay passes the real guest frame validator');assert.equal(guest.viewState.nativeDisplayQueue[0].palette,0);
  for(const delta of [{nativeLiteralPalette:'true'},{palette:1},{kind:'unit'},{source:'object'}]){const bad=clone(wreckPayload);bad.seq++;Object.assign(bad.state.nativeDisplayQueue[0],delta);assert.equal(guest.handle({type:'game:frame',payload:bad}),false,'The literal-palette exception is limited to the source wreck overlay');}
+ // Christmas CP tint is derived from a raw owner; water and untagged point
+ // colors are literal. Never swap a numeric color bank without provenance.
+ const point=(id,color,owner)=>({id,primitive:'colorPoint',x:600,y:800,nativeDrawX:300,nativeDrawY:400,colorIndex:color,...(owner===undefined?{}:{nativeTintOwner:owner})});
+ const points=[point(0,9),point(1,24),point(2,24,0),point(3,40,1),point(4,88,4),point(5,8,255)];
+ const seasonalRow={...wreckRow,source:'seasonalOverlay',sprite:294},seasonalFlag={...wreckRow,source:'seasonalFlag',sprite:292,nativeLiteralPalette:undefined};
+ const seasonalPayload={...frozenPayload,seq:newestSequence+6,state:{...frozenPayload.state,nativeDisplayQueue:[seasonalFlag,seasonalRow],nativeEffects:points}};
+ assert.equal(guest.handle({type:'game:frame',payload:seasonalPayload}),true,'Exact CP-tagged points and the seasonal three-record overlays pass actual guest validation');
+ assert.deepEqual(clone(guest.viewState.nativeEffects).map(p=>p.colorIndex),[9,24,40,24,88,8]);
+ assert.equal(guest.viewState.nativeEffects[2].nativeTintOwner,1);assert.equal(guest.viewState.nativeEffects[3].nativeTintOwner,0);assert.equal(guest.viewState.nativeDisplayQueue[0].palette,1);assert.equal(guest.viewState.nativeDisplayQueue[1].palette,0);assert.equal(points[2].colorIndex,24);
+ for(const change of [{colorIndex:9},{nativeTintOwner:256},{nativeTintOwner:-1},{nativeTintOwner:1.5}]){const bad=clone(seasonalPayload);bad.seq++;Object.assign(bad.state.nativeEffects[2],change);assert.equal(guest.handle({type:'game:frame',payload:bad}),false,'Malformed CP provenance cannot recolor guest particles');}
  const actionsBefore=engine.calls.length;for(let i=0;i<60;i++)host.handle({type:'game:action',payload:{epoch:1,requestId:i,request:{op:'command',kind:'stop',ids:[blue]}}});
  assert(engine.calls.length-actionsBefore<=40,'Remote action rate must be bounded');pump();
  hostSession.connected=false;const disconnectedTime=host.state.time;assert.equal(host.tick(.05),null);assert.equal(host.state.time,disconnectedTime);assert.equal(host.paused,true,'Host must stop when the transport disconnects');

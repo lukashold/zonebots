@@ -76,6 +76,8 @@ neue Format und die unveränderte Autorität.
 
 ABGRENZUNG
 Der Weihnachts-Caller402c80 verwendet denselben Konstruktor mit Flags2 und
-einer anderen Farbquelle. Er gehört zum separaten467e90-Shape-Zweig und wird
-nicht zu einem Wasserpunkt umklassifiziert. Weitere nicht belegte Nicht-Sprite-
+einer anderen Farbquelle. Der separate467e90-Zweig ist inzwischen numerisch
+geprüft: Er schreibt dieselbe1x1-Liniengeometrie, erhält aber seine eigene
+CP-Farbprovenienz. Die6.144 zugehörigen Schritte und seine tatsächlichen
+Caller stehen in ORIGINAL-SAISON.txt. Weitere nicht belegte Nicht-Sprite-
 Formen bleiben getrennt. Die Gesamtpartie ist weiterhin kein1:1-Nachweis.

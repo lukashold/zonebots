@@ -3,6 +3,7 @@
 use super::{ObjectInput,Record};
 pub const WRECK_OFFSETS:[[i16;6];4]=[[2,8,16,9,4,1],[0,6,2,16,13,16],[2,4,13,13,18,5],[0,4,18,1,20,6]];
 #[derive(Clone,Debug)]pub struct Draw{pub records:Vec<Record>,pub spark:Option<[i16;2]>}
+pub fn visible(p:[i16;2],camera:[i16;2],size:[i16;2])->bool{let s=[i32::from(p[0])-i32::from(camera[0]),i32::from(p[1])-i32::from(camera[1])];p[0]>0&&s[0]>-32&&s[0]<i32::from(size[0])&&s[1]>-32&&s[1]<i32::from(size[1])}
 ///Records remain in world coordinates. The original subtracts the camera
 ///before queue writes; the compositor applies that same translation later.
 pub fn project(input:ObjectInput,variant26:i8,frame4:i16,frame6:i8,camera:[i16;2],size:[i16;2])->Result<Draw,i8>{

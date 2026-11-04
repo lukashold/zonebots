@@ -6,6 +6,7 @@
 #[path="original_display_terrain.rs"]pub(crate) mod terrain;
 #[path="original_display_terrain_game.rs"]mod terrain_game;
 #[path="original_display_objects.rs"]pub(crate) mod objects;
+#[path="original_seasonal.rs"]pub(crate) mod seasonal;
 ///UNIT submissions are retained from their own callback. A later OBJECT,
 ///ambient hit or slot retirement must not rewrite the already queued record.
 #[derive(Clone,Copy)]pub(crate) struct FlagSeed{pub sector:usize,pub position:[i16;2]}

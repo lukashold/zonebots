@@ -1,6 +1,7 @@
 //!402160/402770/4017b0 cosmetic particles. Separate from the OBJECT pool.
 //!The viewport is explicit because native sprite phases advance only on draw.
 #[path="original_water_spray.rs"]pub(crate) mod spray;
+#[path="original_bridge_effects.rs"]pub(crate) mod bridge;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Kind{Hit,DirectHit,Destroyed,FallingObject(i16),CrateBurst,Poof{sprite:i16,maximum:i8},Fragment{sprite:i16,maximum:i8},AmbientFragment(i16)}
 #[derive(Clone,Debug)]
@@ -79,12 +80,11 @@ impl Particle{
         *last_projection=projection;
         let world=[self.origin[0].wrapping_add(projection[0]),self.origin[1].wrapping_add(projection[1])];
         let screen=[world[0].wrapping_sub(view.camera[0]),world[1].wrapping_sub(view.camera[1])];
-        let color_point=self.flags&6==0;
+        let color_point=self.flags&4==0;
         let visible=if self.flags&4==0||self.sprite==250{screen[0]>view.clip[0]&&screen[0]<view.clip[2]&&screen[1]>view.clip[1]&&screen[1]<view.clip[3]}
             else{screen[0].wrapping_add(200)>view.clip[0]&&screen[0].wrapping_sub(70)<view.clip[2]&&screen[1].wrapping_add(200)>view.clip[1]&&screen[1].wrapping_sub(70)<view.clip[3]};
         let draw=if visible{if color_point{
             Some(Draw{point:world,screen,sprite:0,height:0,angle:0,transformed:false,owner:self.owner,primitive:Some(Primitive::ColorPoint{color:self.tint})})
-        }else if self.flags&4==0{None //467e90's different shape is outside this water-point port.
         }else if self.sprite==250{
             let height=((-i32::from(self.position[2]))>>5).min(4)as i16;let sprite=250i16.wrapping_add(height.wrapping_mul(4)).wrapping_add(i16::from(self.phase));self.phase=self.phase.wrapping_add(1)&3;
             Some(Draw{point:world,screen,sprite,height:0,angle:0,transformed:false,owner:self.owner,primitive:None})

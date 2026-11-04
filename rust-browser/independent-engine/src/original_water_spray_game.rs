@@ -1,11 +1,11 @@
 //!401560/402ce0 ->402230. Allocations share the existing late-FX pool.
 use crate::{Game,original_combat::OriginalRng};
 use super::{State,effects::{Particle,spray::{self,Context,Pool}}};
-struct World<'a>{state:&'a mut State,rng:&'a mut OriginalRng}
+struct World<'a>{state:&'a mut State,rng:&'a mut OriginalRng,cp_owner:Option<u8>}
 impl Pool for World<'_>{
  fn first_free(&self)->Option<usize>{self.state.effects.iter().position(|p|p.as_ref().is_none_or(|p|!p.active||p.position[0]==-1000))}
  fn load(&mut self,slot:usize)->[u8;44]{self.state.effects[slot].as_ref().map_or([0;44],Particle::bytes)}
- fn store(&mut self,slot:usize,record:[u8;44]){self.state.effects[slot]=Some(Particle::from_bytes(record));}
+ fn store(&mut self,slot:usize,record:[u8;44]){self.state.put_effect(slot,Particle::from_bytes(record));self.state.effect_cp_tints[slot]=self.cp_owner;}
  fn random(&mut self)->u32{self.rng.next_u32()}
 }
 impl Game{
@@ -13,8 +13,11 @@ impl Game{
  ///equating it with sound suppression or an unrelated graphics preference.
  pub(crate) fn set_native_particle_suppression(&mut self,value:u8){if let Some(s)=&mut self.native_world{s.effect_suppression=value;}}
  pub(super) fn emit_native_water_spray(&mut self,count:i16)->usize{
+  self.emit_native_spray_with_cp(count,None)
+ }
+ pub(super) fn emit_native_spray_with_cp(&mut self,count:i16,cp_owner:Option<u8>)->usize{
   let Some(state)=&mut self.native_world else{return 0;};let g=Context{origin:state.effect_origin,tint:state.effect_tint,flags:state.effect_flags,fade:state.effect_fade,owner:state.effect_owner,sprite:state.effect_sprite};let disabled=state.effect_suppression;self.original_rng.multiplayer=self.multiplayer;
-  spray::emit(&mut World{state,rng:&mut self.original_rng},count,disabled,g)
+  spray::emit(&mut World{state,rng:&mut self.original_rng,cp_owner},count,disabled,g)
  }
  pub(super) fn finish_native_water_expiry(&mut self,slot:usize){
   let Some(state)=&mut self.native_world else{return;};let Some(source)=state.effects.get(slot).and_then(Option::as_ref)else{return;};

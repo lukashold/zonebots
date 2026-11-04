@@ -1,0 +1,7 @@
+import ghidra.app.emulator.EmulatorHelper;
+import java.io.PrintWriter;
+//Actual44de00 including44dd70, no successful placement leaf substituted.
+public class ZRound43WorkshopAliasOffsetsB extends ZNativeWorldEffectOracle{
+ String hex(EmulatorHelper e,long p,int n){StringBuilder s=new StringBuilder();for(byte b:e.readMemory(toAddr(p),n))s.append(String.format("%02x",b&255));return s.toString();}
+ public void run()throws Exception{try(PrintWriter out=new PrintWriter(getScriptArgs()[0])){for(int s=0;s<8;s++){EmulatorHelper e=new EmulatorHelper(currentProgram);try{long p=0x612f80+25*44,h=0x59e6c2,u=0x5e30c8;byte[]warm=new byte[44];for(int j=0;j<44;j++)warm[j]=(byte)(s*11+0x80+j);e.writeMemory(toAddr(p),warm);put(e,p,2,346);put(e,p+2,2,420);e.writeMemory(toAddr(u),new byte[240*192]);put(e,u+8,4,h);e.writeMemory(toAddr(h),new byte[44]);put(e,h+23,1,(s&1)*4);for(int j=0;j<4;j++)put(e,h+28+j,1,120+s+j);e.writeMemory(toAddr(0x58aaaa),new byte[16384]);e.writeMemory(toAddr(0x5b6dac),new byte[96*136]);int cell=416*8+(352>>4);for(int j=0;j<4;j++)put(e,0x58aaaa+cell+(j&1)+(j>>1)*128,1,(s&2)*64);String before=hex(e,p,44);put(e,S,4,RET);e.writeRegister("ESP",S);e.writeRegister("ECX",u);e.writeRegister("EDX",p);e.setBreakpoint(toAddr(RET));if(!e.run(toAddr(0x44de00),null,monitor)||e.readRegister("EIP").longValue()!=RET)throw new Exception(e.getLastError());out.println("{\"scenario\":"+s+",\"before\":\""+before+"\",\"after\":\""+hex(e,p,44)+"\"}");}finally{e.dispose();}}}}
+}

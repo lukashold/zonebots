@@ -253,6 +253,8 @@ def extract(root,out):
   data['map']['nativeTerrainPlane']=terrain_plane
   data['map']['nativeLevelRecord']=li
   data['nativeAi']={'levelRecordIndex':li,'decisionControl':cp[0x780],'reservePercent':25,'rawReservePercent':cp[0x781],'populationWeight':cp[0x89f],'terrainPlane':terrain_plane,'initialSectorTasks':[{'slot':slot,'groupId':gid,'sector':cp[0x799+slot*10]-1 if cp[0x799+slot*10] else None}for slot,gid in cpu_starts],'source':'CPUPLR ->00417040/00416b70/00417b30/00419fb0','strategy':'native_clock_with_browser_sector_adapter'}
+  #417400 reads all64 CP records, including inactive slots and raw owners.
+  data['nativeAi']['sectorRecords']=[{'rect':list(struct.unpack_from('<4h',cp,i*30)),'owner':cp[i*30+8]} for i in range(64)]
   data['walls']=walls
   data['map']['bridgeMaxHp']=bridgecaps
   # Version-9 MAPs already contain the96-record authored native road graph.

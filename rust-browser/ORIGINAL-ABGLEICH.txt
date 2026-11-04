@@ -153,8 +153,30 @@ eine ausdrückliche Adaptergrenze. Details: ORIGINAL-WASSERPARTIKEL.txt.
 Sicht-/Enabled-Verhalten. Eine Explosion und ein Brückenkollaps im selben
 Callback werden damit nicht pauschal durch dieselbe Tonsperre unterdrückt.2.048 direkte Originalaufrufe
 und tatsächliche Game-Brückentode sind geprüft. Die vorgelagerten Brücken-
-partikel und deren Expiry11 sind weiterhin nicht implementiert. Der neue
+partikel und deren Expiry11 sind im nachfolgenden Block ergänzt. Der neue
 Transportbuild lehnt alte Clients vor dem Start ab, deren Effektformat fehlt.
+
+WEITERER ABGLEICHSBLOCK nov04-r40
+Horizontale und vertikale Brücken emittieren ihre ursprünglichen Partikel vor
+dem Brückensound. Der Quellslot bleibt bei Expiry11 bis nach beiden Kinder-
+gruppen belegt.5.120 tatsächliche Originalfälle prüfen Poolbytes, Slotfolge,
+RNG und FX-Globals;2.864 Graphics-Fälle einschließlich echter Gast-RPCs prüfen
+die Darstellung. Details und Callergrenzen: ORIGINAL-BRUECKENPARTIKEL.txt.
+
+Die enge Einzelspieler-Werkstattfortsetzung für einen entfernten UNIT ist
+anhand64 vollständiger Callerfolgen und acht Offsetproben ergänzt. Sie heilt
+oder aktiviert den entfernten UNIT nicht erneut. GROUP255 erreicht stattdessen
+seinen tatsächlichen OO24/25-Alias; rohe Identität und typisierter Rosterindex
+bleiben getrennt. Die beiden Fertigstellungssamples193/194 verwenden denselben
+nativen Noticezähler. Andere Membership-/Pfadkontexte bleiben offen.
+Details: ORIGINAL-WERKSTATT.txt.
+
+Der belegte25.-Dezember-Modus, sein eigener16er-Takt und die dreiteiligen
+OBJECT-Bilder sind ergänzt.2.048 echte Queueaufrufe,6.144 Partikelschritte,
+170 Emittercaller und40 tatsächliche Zerstörungsprefixe belegen den engen Pfad.
+Alle64 CP-Datensätze bleiben beim Import erhalten; Farben werden aus ihrem
+echten Besitzerbyte abgeleitet. Der MP-Build5 weist ältere Builds ab, bevor
+die zusätzliche Farbprovenienz übertragen wird. Details: ORIGINAL-SAISON.txt.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
@@ -165,8 +187,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    getrennt von der jetzt geprüften primären Straßenassemblierung.
 2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
-   Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung auf
-   einem kalten/entfernten UNIT benötigt weitere GroupFF-/Rawglobal-Folgen.
+   Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist
+   für den engen SP-/GroupFF-Pfad geprüft; weitere Roster-/Pfad-/Rawglobal-
+   Weiterläufe sind damit nicht allgemein implementiert.
    Andere BUILD-/Fortschadenstabellen und die vollständigen gekoppelten420200-
    Audio-/Global-/Poolaliasfolgen gehören nicht zum neuen Fragmentkernelnachweis.
    Nicht unterstützte Laufzeitwege werden als nativeRouteBoundary benannt.

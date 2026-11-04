@@ -1,0 +1,91 @@
+BRUECKENPARTIKEL – abgegrenzter Originalvergleich
+
+Der bestehende409c50-Brückenschaden ruft jetzt die belegten09a60/09870-Präfixe
+vor41f870 und vor dem UNIT-/OBJECT-/Terrainkollaps auf. Beim ersten Erreichen
+halber HP werden die beiden mittleren Reihen angefordert; beim Zerstören alle
+vier. Bereits beschädigte oder zerstörte Brücken wiederholen den Übergang nicht.
+
+PRAEFIX UND KONSTRUKTOR
+Die Anzahl der Längsabschnitte ist signed16((Spannweite>>4)-2). Nichtpositive
+Werte erzeugen keine Anforderung. Trotzdem setzen beide Präfixe den unteren
+Commandwordwert1610, Maximumphase12 und Besitzer0. Pro Abschnitt gelten:
+horizontal: UrsprungX=BridgeX-144+16*i, UrsprungY=BridgeY-[108,92,76,60];
+vertikal: UrsprungX=BridgeX-[160,144,128,112], UrsprungY=BridgeY-92+16*i.
+Halbschaden verwendet nur die beiden mittleren Werte. Koordinaten und die
+Subtraktion behalten den ursprünglichen16-Bit-Überlauf.
+
+Jede Anforderung setzt Welt-Sprite, Maximum11, Fade0, Flags12, Konstruktor
+403370 und vorübergehend Sperrbyte0. Anschließend steigt Rohpayload36 um10,
+auch wenn der Pool voll war. Das vorherige Sperrbyte wird wiederhergestellt.
+Die gemeinsame402160-Allokation sucht zuerst den ersten freien X==-1000-Slot
+im vorhandenen44-Byte-Effektepool. X==0 und X==-1 sind belegt. Erst bei Erfolg
+folgen die fünf Zufallsaufrufe von403370: Phase&3, zweimal low16%41-20,
+VZ=-max((random&15)-3,3), Spin=(random&63)-32. Lebensdauer500, Expiry11,
+Deceleration1 und erster Restzähler3 werden feldweise geschrieben.
+
+EXPIRY11 UND RECYCLING
+401210 setzt Ursprung=alterUrsprung+letzteProjektion-[152,84], Fade0,
+Besitzer0, Flags4, Maximum5 und den ersten weltabhängigen Kindersprite.
+Ein Zufallsaufruf bestimmt immer die erste Anzahl4+(random&3), auch bei
+gesperrtem oder vollem Pool.402770 fordert erst diese Gruppe und dann vier
+Partikel mit dem zweiten weltabhängigen Sprite an. Erst danach wird der
+Quellslot durch X=-1000 freigegeben. Die Quelle kann sich somit nicht selbst
+während ihrer Folgeallokation ersetzen. Jeder tatsächlich erstellte Kinderslot
+verbraucht die sechs originalen402770-Zufallswerte. Der native MP-RNG liefert
+weiterhin0 ohne den Fünfwortzustand zu verändern.
+
+Weltreihenfolge DESERT/VOLCAN/ARCTIC/JUNGLE/CITY:
+Präfixsprites1138/1150/1186/1162/1174;
+Kindpaare1578,1586 /3235,3243 /3347,3355 /3403,3411 /3291,3299.
+Es werden keine allgemeinen Sprite250-Kinder eingesetzt.
+
+Der gemeinsame Konstruktor übernimmt Rohbyte32 aus4a6522, setzt Byte33=0
+und kopiert die beiden32-Bit-Payloads nach36/40. Bytes34/35 bleiben warm.
+4a6522 ist ein eigener globaler Bytewert und wird nicht aus einem Browser-
+Projektionswert geraten. Der zuletzt allokierte Recordpointer wird nur nach
+Erfolg als nativer5c9a88+44*Slot-Wert gespeichert. Unbeobachteter Vorzustand
+bleibt ausdrücklich unbekannt; es wird kein Vec-/Browserpointer eingesetzt.
+Rawglobals bleiben beim Weltimport erhalten, solange kein Resetwriter belegt ist.
+Neue Konstruktionen löschen das separate CP-Farbprovenienz-Tag des Slots;
+Quellretirement ist keine neue Konstruktion und überschreibt keine warmen Bytes.
+
+SPIEL- UND DARSTELLUNGSANBINDUNG
+Präfix und Expiry nutzen denselben vorhandenen späten FX-Pool und Slotloop.
+Neue höhere Slots können noch im selben Callback gezeichnet werden; bereits
+besuchte Slots warten auf das nächste. Das aktuelle Frame behält seine erfassten
+Zeichenaufträge auch nach einer späteren Slotänderung. Flags12-Präfixe verwenden
+den vorhandenen transformierten Spritepfad, Flags4-Kinder den normalen Spritepfad.
+Beide bleiben im nativeEffects-Array außerhalb der sortierten UNIT-/BUILD-Queue.
+Der tatsächliche OriginalArt-/Graphics-Pfad wird für Original und HD geprüft.
+Gast-RPC übernimmt diese gewöhnlichen Spritefelder und remappt die Teamperspektive.
+Es wird keine neue ColorPoint-Klassifizierung für diese Sprites eingeführt.
+
+NACHWEISE
+2560 vollständige Originalpräfixe09a60/09870→402160→401170→403370→460910,
+einschließlich actual42e1a0-Welttabellen: FNV265808217,15040 RNG-Aufrufe,
+3008 Allokationen und17336 Anforderungsversuche. Voller500×44-Pool, alle
+Anforderungs- und Endglobals, Zufallsrückgaben und geänderte Records stimmen.
+2560 vollständige401210→402160→401170→402770→460910-Callbacks:
+FNV806747683,20980 RNG-Aufrufe und3070 Allokationen. Ganze Poolbytes,
+Quellbelegung vor beiden Gruppen, Teilkapazität der zweiten Gruppe und alle
+RNG-Zustandswörter stimmen. Die gemeinsamen Kerneltests enthalten dieselben
+deterministischen Fälle; vorhandene private Originalvektoren werden zusätzlich
+feldweise verglichen. Alle5120 Vektoren stimmen auch im typisierten Gamepool.
+
+Die Fixtures enthalten alle fünf Welten, beide Präfixorientierungen, Halbschaden,
+negative/kleine/überlaufende Spannen, SP/MP, warme44-Byte-Muster, gesperrte und
+volle Pools, erste/letzte/verstreute freie Slots und Kapazitäten0/1/12/500.
+Kleine und Nullkapazitäten sind bewusst künstliche Grenzfälle, keine behaupteten
+Kampagneneinstellungen. Gezielte echte Gamecallbacks prüfen Übergangsreihenfolge,
+kein Wiederauslösen, warme Imports und den späten Drawpass. Frontendfälle prüfen
+alle Welt-Sprites, erste/letzte native Konstruktorrecords, Transformation,
+Original-/HD-Delegation und den tatsächlichen Gast-RPC-Pfad.
+
+GRENZEN
+Weitere BUILD-Schreiber von4a6522/4a67fc/4a6800 und die Kopplung sämtlicher
+anderer FX-Konstruktoren sind nicht durch diesen Block vollständig angebunden.
+Bekannte Rohwerte bleiben erhalten; daraus folgt keine globale Pointerparität.
+Die Frontendprüfungen sichern die Sprite-/Transformationsdaten und den Aufrufweg,
+keine identische GPU-Rasterung, Scissor-Vererbung oder ursprüngliche Batchgrenzen.
+Brückengameplay, sämtliche Kollapsblätter und die ganze Partie bleiben eigene
+Vergleichsbereiche. Dieser Nachweis bedeutet keine vollständige1:1-Gleichheit.

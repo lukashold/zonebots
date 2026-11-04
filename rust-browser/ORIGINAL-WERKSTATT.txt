@@ -59,7 +59,7 @@ Fahrzeugflag+0x69 Bit0x40. Das Fahrzeug ist während des Werkstattaufenthalts
 nicht als frei bedienbare Einheit auf der Karte aktiv. Die anfängliche Arbeit
 bei Gebäude+0x24 ist ganzzahlig:
   D = maximale Rumpf-HP minus aktuelle Rumpf-HP
-  A = max(1, trunc(D/5))
+  A = trunc(i16(D)/5); nur A==0 wird zu1 (negative Werte bleiben negativ)
   W = trunc((A+1) ×884 / gameFactor)
 Der Standardzweispieler-/Kampagnenfaktor des bestehenden Befunds ist12.
 Die Formel verwendet fehlende Rumpf-HP, nicht Fabrik-Produktionspunkte.
@@ -108,3 +108,68 @@ Bewegungsscheduler bezeichnet werden. Auch das Verhalten beim Abbruch und bei
 Zerstörung muss als eigene robuste Implementierung von den obigen nachgewiesenen
 Originalschritten getrennt werden. Aktuelle Umsetzung und Tests stehen in
 TESTERGEBNIS.txt; dieses Dokument behauptet keine ungeprüften Testergebnisse.
+
+V40: ENGER ABSCHLUSS NACH ENTFERNTEM UNIT
+Ein tatsächlicher SP-Ablauf ist nativ ausgeführt:44ebf0 lässt einen Panzer
+mit195/200 HP ein,40d050 reduziert147 Arbeit nach fünf Updates auf17,
+58ec0 entfernt ihn, und der nächste BUILD-Callback erreicht trotz inaktivem
+UNIT den Abschluss vor seiner nächsten17er-Belegungskontrolle. Bei längerer
+Reparatur räumt der17er-Callback hingegen die inaktive Belegung auf. Ein
+Besitzerwechsel erreicht den Abschluss ohne Vollheilung. Das ist kein
+Liveness-Test am Anfang des BUILD-Callbacks. Die bekannten BUILD/W-Writes
+und das Fragmentblatt laufen weiterhin vor der späteren UNIT-Fortsetzung.
+
+Für den bewiesenen Fall Rolle0/GruppeFF mit leeren ursprünglichen Pfaden
+führt der Port die SP-Fortsetzung45a9b0→53ff0/53f60→52500→438740→45ef00/45f070
+aus. UNIT bleibt inaktiv; es entsteht kein lebendes Fahrzeug und kein Web-
+Ereignis vehicleRepaired für den entfernten Actor. Die erhaltene W-Referenz
+löst den gemeinsamen Hardwarepool oder echten Dummy auf, auch nach Freigabe
+oder Wiederverwendung.52500 löscht dort Bit0 in W+0x17. UNIT-Slot-Wiederverwendung
+initialisiert den neuen Actor und verwirft die alte Fortsetzung.
+
+GruppeFF ist kein gültiger GROUP-Index: GROUP-Basis60ec00+255×72=6133b8
+überlappt OBJECT25 ab6133cc. Die Quellschreiboperationen sind genau
+ WORD OBJECT25+0x18 = low16(UNIT-X+8),
+ WORD OBJECT25+0x1a = low16(UNIT-Y+8),
+ BYTE OBJECT25+0x26 =1.
+Dabei sind24/25 die tatsächlichen Hardware-Ratenbytes,26 das von der KI
+gelesene Restriktionsbyte und27 ein separates Hardwarebyte. Der Port
+erhält auch das obere Wortbyte27. Die gespeicherten vier Geländezeichen
+liegen nach tatsächlich ausgeführtem44de00 bei+0x14..+0x17 (20..23),
+nicht17..26; sie bleiben unverändert. Die Wrack-Lebensdauer liegt bei
++0x24 (36/37) und bleibt ebenfalls unverändert. Der unabhängige Wrack-
+Variantenwert+0x26 (38) erhält1. Auf einem noch nicht materialisierten
+OBJECT25 bleibt dies ein latenter Fünfbyte-Patch, ohne Allokation/Aktivierung.
+Spätere Konstruktoren überschreiben bzw. erhalten diese Bytes nach ihren
+belegten Schreibmasken; insbesondere43eee0 schreibt auch bei EquipmentFF
+Hardwarebyte27, während der separate Variantenwert38 warm bleibt.
+
+Der minimale entfernte UNIT-Schatten speichert nur benötigte Rohfelder und
+die nachgewiesenen Fortsetzungsschreibwerte. Der rohe Rosterwert6133b8 wird
+im letzten Fortsetzungsdelta erhalten; typisierter Gruppenzugriff ist None.
+Dies ist ausdrücklich keine vollständige632194-Autorität: spätere Leser des
+aliasten globalen Rosterkontexts benötigen weiterhin einen eigenen Resolver.
+Die hier nicht gemeinsam autoritativ modellierten Scratchglobals62dc04,
+56ed47,4d02c3/4d1202 sowie Rate62dc38/Cancel4a6523 werden dadurch nicht
+als vollständiger globaler Aufrufzustand ausgegeben. Das Fortsetzungsdelta
+enthält die bekannten Actor-/Roster-/Opcode-/Dispatchwerte; nur die schon
+gemeinsamen Auftragsargumente62dc00/62dc3c/62dc48 werden unmittelbar gesetzt.
+WederFF-Klemmung auf Gruppe0 noch ein erfolgreicher Ersatz-Gruppenauftrag
+ist zulässig. MP-Queue, andere Rollen/Gruppen und nicht gesicherte Pfadformen
+bleiben RetiredWorkshopCompletion-Grenzen. Kalte Gruppe0 wird nicht durch
+diese nur für den bewiesenen entfernten GruppeFF-Fall freigegebene API ersetzt.
+
+Beide direkten Reparatursamples193 (44ebf0) und194 (46f690) erhöhen nach
+erfolgreicher Descriptor-Zulassung den Notice-Zähler681580 modulo4. Der
+Effect-Zähler681588 bleibt unverändert. Der bestehende Portfehler ist für
+beide Caller korrigiert. Da der Rustzustand nur i16-Zähler repräsentiert,
+wird keine Parität des unmodellierten oberen nativen32bit-Wortes behauptet.
+
+Abgleich:64 tatsächliche40d050-Fortsetzungen, alle192 UNIT-Bytes und132
+OBJECT-Nachbarbytes sowie W/Dummy-Maske und Auftragswerte, Signatur3417514213.
+Acht tatsächliche44de00/44dd70-Aufrufe sichern die gespeicherten Geländebytes
+und benachbarten Rohbytes (Signatur3747195133). Der frühere natürliche
+14-Zeilen-Abgleich bleibt als Reichweiten-/Reihenfolgenbeleg erhalten.
+Eigene Game-Regressions prüfen natürliche kurze Restarbeit, Besitzerwechsel,
+lebendes und nicht materialisiertes OBJECT25, W-/UNIT-Recycling, Dummy,
+Audiozulassung und den tatsächlichen nächsten Game.step ohne Wiederbelebung.

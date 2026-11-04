@@ -96,20 +96,22 @@ pub fn entry_building(positions:&[[i16;2]],unit_cell:i32)->Option<usize>{positio
  #[test]fn occupied_and_invalidated_slots_wait_for_the_signed17_tick_test(){let mut b=fixture(0);b.set_word(28,100);b.set_word(30,100);b.set_dword(36,10000);b.bytes[62]=127;b.set_word(8,-1);let i=Input{owner:0,team_rate:26,camera:[1000,1000],size:[800,600],mode:1};let o=b.advance(i,None,||0).unwrap();assert_eq!(b.remaining(),9974);assert_eq!(b.bytes[62],128);assert!(!o.effects.iter().any(|a|matches!(a,Effect::Complete{..})));b.bytes[62]=16;b.advance(i,None,||0).unwrap();assert_eq!(b.remaining(),0);assert_eq!(b.occupant(),-1);}
 }
 
-///Only UNIT31 and UNIT8 are retained here.60430 zeroes all240UNIT records;
+///The40d050 lookup retains UNIT31/UNIT8. A separate minimal continuation
+///snapshot is finalized only at the actual58ec0→4bba0→52500 event.
+///60430 zeroes all240UNIT records;
 ///41b210 clears a chosen slot before setting31/8. W8/W10 remain in the one
 ///shared hardware pool and are deliberately not copied into a tombstone.
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Default)]pub enum HardwareRef{#[default] Dummy,Slot(usize)}
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct UnitProjection{pub flags31:u8,pub hardware:HardwareRef,pub retired:bool}
-#[derive(Clone,Debug)]pub struct UnitSlots{pub slots:[UnitProjection;240]}
-impl Default for UnitSlots{fn default()->Self{Self{slots:[UnitProjection::default();240]}}}
+#[derive(Clone,Debug)]pub struct UnitSlots{pub slots:[UnitProjection;240],pub continuations:Box<[Option<crate::original_retired_workshop::Unit>;240]>,pub last_retired_command:Option<crate::original_retired_workshop::Command>}
+impl Default for UnitSlots{fn default()->Self{Self{slots:[UnitProjection::default();240],continuations:vec![None;240].into_boxed_slice().try_into().ok().unwrap(),last_retired_command:None}}}
 impl UnitSlots{
- pub fn clear_for_mission(&mut self){self.slots.fill(UnitProjection::default());}
- pub fn construct(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:false};}}
+ pub fn clear_for_mission(&mut self){self.slots.fill(UnitProjection::default());self.continuations.fill(None);}
+ pub fn construct(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(c)=self.continuations.get_mut(slot){*c=None;}if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:false};}}
  ///Only the low3bits read by40d050 are projected, not the whole rawbyte.
  ///Snapshot occurs after actual58660 and after successful58af0 can have
  ///cleared UNIT8.4bba0 subsequently clears31:8, leaving owner/active bits.
- pub fn retired(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:true};}}
+ pub fn retired(&mut self,slot:usize,flags31:u8,hardware:HardwareRef){if let Some(c)=self.continuations.get_mut(slot){*c=None;}if let Some(record)=self.slots.get_mut(slot){*record=UnitProjection{flags31:flags31&7,hardware,retired:true};}}
 }
 
 #[cfg(test)]mod retained_unit_tests{

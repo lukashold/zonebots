@@ -1,5 +1,5 @@
-//!41f870's bridge-origin sound. The preceding09a60/09870 particle emitters
-//!remain a separate source dependency; this helper does not imitate their RNG.
+//!41f870's bridge-origin sound. The preceding09a60/09870 emitters have their
+//!own shared-pool binding; this helper neither replaces nor repeats their RNG.
 use crate::{Game,original_bridge_sound as native,original_audio::Gate};
 impl Game{
  pub(crate) fn native_bridge_collapse_sound(&mut self,point:[i16;2]){

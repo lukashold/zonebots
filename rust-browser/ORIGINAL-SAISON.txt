@@ -1,0 +1,53 @@
+Originalabgleich: Saison-OBJECT und farbige Partikel
+Stand: 04.11.2026, begrenzter V40-Block
+
+433ca0 aktiviert den Modus ausschließlich am lokalen 25. Dezember
+(Monat11, Tag25). Die Einstellung wird beim Missionsstart übernommen.
+622c88 ist der separate 16-Schritt-Callbackzähler; OBJECT-6er-, Flaggen-
+und Wartetakte werden dafür nicht wiederverwendet.
+
+Der tatsächliche OBJECT-Callback43f260 erzeugt für TEMPLATE-Basissprite5960
+im Modus1 drei gespeicherte Zeichenrecords: das Grundbild mit geerbter
+Palette255, Sprite292 mit der tatsächlichen CP-Farbe und Sprite293..295
+mit Literalpalette0. Die Farbabfrage verwendet den um die Metadatentiefe
+versetzten Punkt. Sichtbarkeit, signed Queueoffsets und der 16er-Takt sind
+gegen2048 Originalaufrufe geprüft (268 Dreirecord-Ausgaben,
+Queuebyte-Signatur1105404087). Snapshots verändern keine Zufallsfolge.
+
+41eb90 ruft nach dem FallingObject-Emitter402160/403090 den Weihnachts-
+Emitter402c80 auf: beim belegten TEMPLATE-Flagswert14 mit(x,y+8).
+Erst danach wird das ursprüngliche OBJECT inaktiv. Falling verwendet die
+gemeinsamen Raw44-Schreiber und erhält die ungeschriebenen Bytes34/35.
+402c80 setzt Flags2, Timerbyte128 und erzwingt acht First-free-Versuche.
+Die CP-Farbe ist das echte Byte owner*16+24 mit Byteüberlauf. Es werden
+alle64 Original-CP-Rechtecke und der zweite Suchlauf bei Tile+(1,1)
+verwendet. Der private Kampagnenimport liefert diese Daten; aktuelle
+Eroberungen verändern nur die über nativeSlot belegten Besitzerbindungen.
+
+170 ausgeführte Original-Emittercaller stimmen mit dem gesamten500x44-
+Pool und allen fünf RNG-Wörtern überein. Weitere40 echte Zerstörungs-
+Prefixfälle prüfen Falling-vor-Shape, volle/teilvolle Pools, beide RNG-
+Modi und warme Records. Game-Regressionsfälle prüfen denselben Callsite
+einschließlich vorheriger16 Hit-/16 Zerstörungspartikel und Retirement.
+
+467e90 schreibt geometrisch denselben1x1-Farbpunkt wie467c70/467d60:
+keine angenommene zusätzliche Form. Weitere6144 echte native Updates
+stimmen in Raw44, Projektion, Retirement, Zeichenbefehlen und32 Vertex-
+Bytes überein (426 sichtbare Punkte, Signatur4062574557).
+
+Mehrspieler transportiert CP-Tint-Provenienz getrennt von den44 nativen
+Bytes. Jeder tatsächliche Neukonstruktor löscht diese Kennzeichnung;
+gespeicherte Zeichenbilder behalten ihren ursprünglichen Tag. Nur getaggte
+Besitzer0/1 werden für den Gast umgefärbt. Wasserfarbe9 und ungetaggte
+Literalindices bleiben erhalten. Die zusätzliche Saisonpalette0 bleibt
+ebenfalls0. Der tatsächliche Host-/Guest-Validator prüft diese Regeln
+einschließlich ungültiger Besitzer-/Farbkombinationen.
+
+Grenzen: Unvollständige64-CP-Pakete, fehlgeschlagene CP-Suche und der
+ungeklärte4d18e2-Außenmodus werden ausdrücklich als Boundary gemeldet.
+Der andere4213c0-Zweig verlangt Modus2, den der geprüfte Kalenderwriter
+nicht erzeugt; dieser Zweig ist nicht angeschlossen. Der allgemeine
+FX-Konstruktor außerhalb des belegten Falling-Callsites wurde nicht
+pauschal ersetzt. Die endgültige GPU-Rasterung und vollständige gleiche
+Missionen mit identischen Eingaben/RNG sind kein Teil dieses Nachweises.
+Dieser Stand beweist keine vollständige1:1-Gleichheit des Spiels.

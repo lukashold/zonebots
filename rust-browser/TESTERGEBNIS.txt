@@ -1,10 +1,10 @@
 Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-821/821 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
-73/73 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
+852/852 Rust-Tests bestanden; Doctests bestanden (0 vorhanden).
+74/74 Node-Prüfprogramme bestanden, einschließlich aller20 privaten Missionen.
 Release für wasm32-unknown-unknown mit --locked gebaut.
-Wasm SHA256: 7559bfad8b2692dbb3f18a534c3d3dd0ba6c33e4fe62d706db19cbf6af5562e1
+Wasm SHA256: 1c240fd7cbaca6d88c67ff6b66d4c31e867a4ac59fea9d37d2211e2a35d3b4ee
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -128,15 +128,31 @@ NEUER ABGLEICHSBLOCK nov04-r39
   colorPoint-/Literalpaletten-Daten nicht verstehen. Der konkrete Regressionstest
   scheiterte vor dem Buildwechsel und besteht mit zonebots-mp-4-native-effects.
 
+NEUER ABGLEICHSBLOCK nov04-r40
+- 5.120 vollständige Brückenpräfix-/Expiry11-Aufrufe im Original und im
+  typisierten Gamepool.2.864 Graphics-Fälle prüfen Sprites, Transformationen
+  und echte Gast-RPCs. Die Kinder werden vor dem Source-Retirement erzeugt.
+- 64 vollständige Werkstattfortsetzungen auf entfernten UNITs und acht
+  tatsächliche Aliasoffsetproben.63 eindeutige gezielte Regressionen prüfen
+  Werkstatt, OBJECT-Erhalt und Tod; keine künstliche Reaktivierung.
+- 2.048 saisonale OBJECT-Queueaufrufe,6.144 Flags2-Partikelschritte,170 echte
+  Emittercaller und40 Zerstörungsprefixe. Kalenderinitialisierung, eigener
+  16er-Takt,64 CP-Datensätze und getrennte CP-Farbprovenienz sind angebunden.
+- zonebots-mp-5-seasonal lehnt ältere Builds vor dem Start ab. Echte Host-/
+  Gastprüfungen erhalten Farbprovenienz, neutrale Literalfarben und Autorität.
+Die konkreten Quellen und Grenzen stehen in ORIGINAL-BRUECKENPARTIKEL.txt,
+ORIGINAL-WERKSTATT.txt und ORIGINAL-SAISON.txt.
+
 BROWSER
-AktuellenRelease in Edge in einer laufenden Originalgrafik-Partie(Mission20)
+Den vorherigenRelease nov04-r39 in Edge in einer laufenden Originalgrafik-Partie(Mission20)
 bei rund einer Spielminute nur lesend geprüft; die Bedienung wurde unverändert
 gelassen. Vollbild, Auswahl/Befehlsanzeige und Originaldarstellung sind am DOM
 und an der Aufnahme geprüft. Keine erfassten Browserwarnungen/-fehler.
 Beobachtete Bild-/Kern-p95:10,4/7,9ms bei59FPS. Das ist eine einzelne Messung,
-kein allgemeiner Frameratenvergleich. Der HD-Delegationspfad ist zusätzlich
-mit den tatsächlichen Graphics-Adaptertests geprüft, keine neue HD-Browser-
-Sichtprüfung wird für diesen Build behauptet.
+kein allgemeiner Frameratenvergleich. Die laufende Benutzerpartie wurde für
+nov04-r40 nicht neu geladen; eine neue Browser-Sichtprüfung wird für diesen
+Build nicht behauptet. Original-/HD-Delegationspfade sind mit den tatsächlichen
+Graphics-Adaptertests geprüft.
 Browseraufnahmen bleiben lokal; sie enthalten Originalmedien und werden nicht
 öffentlich mitveröffentlicht. macOS-Hardware, tatsächliche Lautsprecherausgabe
 und zwei physische LAN-Rechner wurden nicht separat geprüft.

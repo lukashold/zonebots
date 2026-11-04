@@ -14,7 +14,7 @@
   if(!state||role!=='guest')return state;
   return {...state,units:state.units.map(u=>({...u,team:flip(u.team),crew:remapCrew(u.crew),cargo:(u.cargo||[]).map(remapCrew)})),
    objects:(state.objects||[]).map(o=>Number.isInteger(o.nativeTeam)?{...o,nativeTeam:flip(o.nativeTeam)}:o),
-   nativeEffects:(state.nativeEffects||[]).map(f=>f.primitive==='colorPoint'?{...f}:{...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})}),
+   nativeEffects:(state.nativeEffects||[]).map(f=>f.primitive==='colorPoint'?{...f,...(Number.isInteger(f.nativeTintOwner)?{nativeTintOwner:flip(f.nativeTintOwner),colorIndex:(flip(f.nativeTintOwner)*16+24)&255}:{})}:{...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})}),
    nativeAmbientVisuals:(state.nativeAmbientVisuals||[]).map(f=>({...f,team:flip(f.team),palette:flip(f.palette)})),
    nativeAmbientAnimations:(state.nativeAmbientAnimations||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
    nativeCosmetic20Visuals:(state.nativeCosmetic20Visuals||[]).map(f=>({...f,...(Number.isInteger(f.team)?{team:flip(f.team)}:{})})),
@@ -35,7 +35,7 @@
   if(state.fires!==undefined&&(!Array.isArray(state.fires)||state.fires.length>200||!state.fires.every(f=>object(f)&&integer(f.id,199)&&[f.x,f.y].every(Number.isFinite)&&[0,1].includes(f.team)&&integer(f.frame,5)&&integer(f.sprite,7210))))return false;
   if(state.nativeEffects!==undefined&&(!Array.isArray(state.nativeEffects)||state.nativeEffects.length>2000||!state.nativeEffects.every(f=>{
    if(!object(f)||!integer(f.id,1999))return false;
-   if(f.primitive==='colorPoint')return integer(f.colorIndex,255)&&[f.x,f.y].every(n=>Number.isSafeInteger(n)&&n%2===0&&n>=-65536&&n<=65534)&&[f.nativeDrawX,f.nativeDrawY].every(n=>Number.isInteger(n)&&n>=-32768&&n<=32767)&&['sprite','team','scale','rotation'].every(k=>!own(f,k));
+   if(f.primitive==='colorPoint')return integer(f.colorIndex,255)&&(f.nativeTintOwner===undefined||integer(f.nativeTintOwner,255)&&f.colorIndex===((f.nativeTintOwner*16+24)&255))&&[f.x,f.y].every(n=>Number.isSafeInteger(n)&&n%2===0&&n>=-65536&&n<=65534)&&[f.nativeDrawX,f.nativeDrawY].every(n=>Number.isInteger(n)&&n>=-32768&&n<=32767)&&['sprite','team','scale','rotation'].every(k=>!own(f,k));
    return f.primitive===undefined&&f.colorIndex===undefined&&integer(f.sprite,7210)&&[f.x,f.y,f.scale,f.rotation].every(Number.isFinite)&&Math.abs(f.scale)<=1025;
   })))return false;
   if(state.nativeDeathVisuals!==undefined&&(!Array.isArray(state.nativeDeathVisuals)||state.nativeDeathVisuals.length>15||!state.nativeDeathVisuals.every(f=>object(f)&&integer(f.id,14)&&integer(f.sprite,7210)&&[f.x,f.y,f.scale,f.rotation].every(Number.isFinite)&&[0,1,2,3].includes(f.team))))return false;
@@ -44,7 +44,7 @@
   if(state.nativeObjectVisuals!==undefined&&(!Array.isArray(state.nativeObjectVisuals)||state.nativeObjectVisuals.length>200||!state.nativeObjectVisuals.every(o=>object(o)&&integer(o.id,4095)&&typeof o.nativeActive==='boolean'&&[o.x,o.y].every(Number.isFinite)&&integer(o.nativeAnimation18,255)&&Number.isInteger(o.nativeSpriteOffset21)&&o.nativeSpriteOffset21>=-128&&o.nativeSpriteOffset21<=127)))return false;
   if(state.nativeDisplayQueue!==undefined&&(!Array.isArray(state.nativeDisplayQueue)||state.nativeDisplayQueue.length>4000||!state.nativeDisplayQueue.every(r=>{
    if(!object(r)||!['building','unit','sprite','effect','repairClock','repairOverlay'].includes(r.kind)||!['pre','queue'].includes(r.stage))return false;
-   if(r.nativeLiteralPalette!==undefined&&(typeof r.nativeLiteralPalette!=='boolean'||r.nativeLiteralPalette&&(r.kind!=='sprite'||r.source!=='wreckOverlay'||r.palette!==0)))return false;
+   if(r.nativeLiteralPalette!==undefined&&(typeof r.nativeLiteralPalette!=='boolean'||r.nativeLiteralPalette&&(r.kind!=='sprite'||!['wreckOverlay','seasonalOverlay'].includes(r.source)||r.palette!==0)))return false;
    if(r.kind==='repairOverlay')return r.stage==='pre'&&integer(r.id)&&integer(r.nativeSlot,34)&&integer(r.team,3)&&[r.x,r.y].every(Number.isSafeInteger);
    if(r.kind==='repairClock')return r.stage==='pre'&&integer(r.id)&&integer(r.nativeSlot,34)&&[r.x,r.y].every(Number.isSafeInteger)&&(r.seconds==null||Number.isInteger(r.seconds)&&r.seconds>=-2147483648&&r.seconds<=2147483647);
    if(r.kind==='building'){const a=r.art;return r.stage==='pre'&&integer(r.id)&&(r.radarDishQueued===undefined||typeof r.radarDishQueued==='boolean')&&(a===undefined||object(a)&&integer(a.id)&&typeof a.kind==='string'&&a.kind.length<=32&&Number.isInteger(a.team)&&a.team>=-1&&a.team<=3&&[a.x,a.y,a.w,a.h,a.hp,a.maxHp,a.stars,a.progress,a.completionTicks,r.time].every(Number.isFinite)&&(a.product==null||typeof a.product==='string'&&a.product.length<=32)&&(a.rawBase==null||Array.isArray(a.rawBase)&&a.rawBase.length===2&&a.rawBase.every(Number.isFinite))&&(a.orientation==null||typeof a.orientation==='string'&&a.orientation.length<=32)&&typeof a.nativeFortDestroyed==='boolean'&&(a.nativeWorkshopDrawQueued===undefined||typeof a.nativeWorkshopDrawQueued==='boolean')&&integer(a.nativeFlagFrame,3)&&(r.seconds==null||integer(r.seconds)));}
