@@ -586,13 +586,36 @@ impl Game {
         for slot in 0..length{let mut resume=false;loop{
             let Some(state)=&mut self.native_world else{return;};let Some(p)=state.effects[slot].as_mut().filter(|p|p.active)else{break;};
             let step=if resume{p.resume_native_trail(view,&mut state.last_projection,&mut state.trail)}else{p.advance_native_trail(view,&mut state.last_projection,&mut state.trail)};
-            if let Some(draw)=step.draw{if draw.primitive.is_none()&&!draw.inherited_palette{state.direct_palette=Some(draw.owner&3);}state.effect_draws.push((slot,draw,state.effect_cp_tints.get(slot).copied().flatten()));}let Some(mode)=step.expiry else{break;};let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];let actions=effects::source_expiry_prefix(mode,point,p.sprite);
-            if matches!(mode,5|8){self.retire_native_fragment_water_particle(slot);break;}
-            if mode==3{self.finish_native_building_part_expiry(slot,view);break;}
-            if mode==11{self.finish_native_bridge_expiry(slot);break;}
-            self.execute_native_effect_actions(slot,actions,view);
+            if let Some(draw)=step.draw{if draw.primitive.is_none()&&!draw.inherited_palette{state.direct_palette=Some(draw.owner&3);}state.effect_draws.push((slot,draw,state.effect_cp_tints.get(slot).copied().flatten()));}
+            let Some(mode)=step.expiry else{break;};
+            let point=[p.origin[0].wrapping_add(state.last_projection[0]),p.origin[1].wrapping_add(state.last_projection[1])];
+            match mode{
+                2|5|8|9=>{self.retire_native_fragment_water_particle(slot);break;}
+                3=>{self.finish_native_building_part_expiry(slot,view);break;}
+                4=>self.finish_native_fort_debris_expiry(slot,point),
+                11=>{self.finish_native_bridge_expiry(slot);break;}
+                1|6|7|10=>{let actions=effects::source_expiry_prefix(mode,point,p.sprite);self.execute_native_effect_actions(slot,actions,view);}
+                _=>break, // Outside the original 403450 dispatch table.
+            }
             resume=self.native_world.as_ref().and_then(|s|s.effects[slot].as_ref()).is_some_and(|p|p.active&&p.position[2]>=0);if !resume{break;}
         }}
+    }
+    ///401000: ground creates a 24-frame animation; water retires the source
+    ///before the dedicated splash sound and ownerless 420200 reentry.
+    fn finish_native_fort_debris_expiry(&mut self,slot:usize,point:[i16;2]){
+        let cell=Self::world_cell(point) as u16;
+        let wet=cell<=0x3fff&&matches!(self.world_code(cell as i16)&127,9|42|38|40|39);
+        let Some(p)=self.native_world.as_mut().and_then(|s|s.effects[slot].as_mut())else{return;};
+        if cell>0x3fff{p.position[0]=-1;p.expiry=0;return;}
+        if !wet{
+            self.native_ambient_animations.spawn_fort_debris_landing(point,self.map.world,p.owner);
+            p.active=false;p.position[0]=-1000;return;
+        }
+        p.active=false;p.position[0]=-1000;p.expiry=0;
+        self.emit_native_spatial_audio(crate::original_audio::spatial::Chance::FortDebrisWater4{point});
+        if let Some(s)=&mut self.native_world{s.quiet_blasts=true;}
+        if point[0]>=-32{self.native_fragment_zero_blast(point);}
+        if let Some(s)=&mut self.native_world{s.quiet_blasts=false;}
     }
     ///Source pointers intentionally see the current record after reentry/reuse.
     ///Inactive records remain valid; never use the earlier Vec action point.

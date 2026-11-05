@@ -1,14 +1,15 @@
 Z – ORIGINALFILME IM LOKALEN SPIEL
 
 Die Browser-Fassung kann nach einem Sieg oder einer Niederlage den
-Originalfilm der jeweiligen Mission starten. Mehrspieler-Partien
+Originalfilm der jeweiligen Mission starten. Nach der Siegesauswertung in
+Mission 20 folgt zusätzlich der Kampagnen-Epilog. Mehrspieler-Partien
 wechseln wie im Original direkt zur Auswertung.
 
 Das Zusatzpaket wird aus der vorhandenen GOG-Installation erzeugt. Die
 Spieldateien müssen nicht in den Browser geladen werden. Benötigt werden
 Python und FFmpeg. Unter Windows im Projektordner ausführen:
 
-  python tools/extract-original-result-films.py --out C:\Z-Originalfilme
+  python tools/extract-original-result-films.py --include-epilogue --out C:\Z-Originalfilme
   python independent-engine/serve.py --films C:\Z-Originalfilme --port 8768
 
 Falls FFmpeg nicht im Suchpfad liegt, beim ersten Befehl zusätzlich
@@ -19,6 +20,9 @@ Voreinstellung. Der Server öffnet die lokale Spielseite im Browser.
 Der Film startet nach dem Fort-Abschluss. Mit Escape oder „Film
 überspringen“ geht es zur Auswertung. Blockiert der Browser die
 automatische Tonwiedergabe, lässt sich der Film per Klick starten.
+Den Epilog startet „OK“ in der letzten Auswertung. Danach geht es ins
+Hauptmenü; ein neues Spiel beginnt wieder mit Mission 1. Ein vorhandenes
+Filmpaket lässt sich mit --clip e_outro --append ergänzen.
 
 Der lokale Filmserver bindet an 127.0.0.1. Das Zusatzpaket und die
 Originalfilme gehören nicht zum öffentlichen Git-Repository.

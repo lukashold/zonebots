@@ -18,6 +18,19 @@ impl Default for State{fn default()->Self{Self{records:vec![Record::default();15
 pub trait World{fn emit(&mut self,state:&mut State,source_slot:usize,position:[i16;2],heading:i16);}
 impl State{
  pub fn clear_for_mission(&mut self){for r in &mut self.records{r.set_word(0,-1);}self.draws.clear();self.queue.clear();self.extra.clear();}
+ ///401000 -> 41d480. The new animation preserves the unaddressed bytes of
+ ///the first free 48-byte record, including a previous record's start delay.
+ pub fn spawn_fort_debris_landing(&mut self,p:[i16;2],world:usize,owner:u8)->Option<usize>{
+  // 42e1a0 selects word 494364+world*32 as 4d027c.
+  const SPRITES:[i16;5]=[5465,5490,5565,5540,5565];
+  let sprite=*SPRITES.get(world)?;
+  let slot=self.records.iter().position(|r|!r.active())?;
+  let r=&mut self.records[slot];
+  r.set_word(0,p[0]);r.set_word(2,p[1]);r.set_word(20,sprite);r.set_word(22,sprite+24);
+  r.set_word(32,2);r.set_byte(34,2);
+  r.set_byte(31,0);r.set_byte(38,0);r.set_byte(39,owner&3);r.set_byte(41,0);
+  Some(slot)
+ }
  pub fn spawn_water(&mut self,p:[i16;2])->Option<usize>{let slot=self.records.iter().position(|r|!r.active())?;let r=&mut self.records[slot];for offset in[0,4,8]{r.set_word(offset,p[0]);r.set_word(offset+2,p[1]);}r.set_word(32,2);r.set_word(34,2);r.bytes[38..42].fill(0);r.set_word(26,0);r.set_word(20,3034);r.set_word(22,3038);r.set_byte(31,0);Some(slot)}
  ///41dbf0 obtains C rand BEFORE first-free allocation. The caller supplies
  ///that draw (zero in multiplayer), including when this150-slot pool is full.

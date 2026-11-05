@@ -713,6 +713,21 @@ Schreibfälle bleiben im Nachbau als Grenze markiert. Die 20 unveränderten
 Kampagnen-Straßennetze haben auf einfachen Wegen höchstens 30 Übergänge;
 die langen Fälle sind daher gezielte Grenztests, keine Partievergleiche.
 
+FORTTRÜMMER UND LETZTER KAMPAGNENÜBERGANG
+Die Partikelroutine 4028a0 ruft beim Ablauf 403450 auf. Modus 4 landet auf
+trockenem Boden im ersten freien 48-Byte-Animationsplatz mit Weltgrafik und
+Besitzerpalette. Im Wasser wird der Partikel vor dem eigenen Geräusch und
+der Explosion ohne Besitzer freigegeben. Modi 2 und 9 erzeugen zwölf
+Farbspritzer mit den Originalfarben 22 und 11. Die frühere Endlosschleife
+in einem reproduzierten Sieg von Mission 20 ist beseitigt. Der Wasm-Lauf
+und der Browser erreichen mit dem Originalgelände die Siegesauswertung.
+
+144 Aufrufe der Originalroutine 437170 decken den Übergang nach der
+Auswertung ab. Nach dem letzten Einzelspielersieg folgt e_outro und die
+Missionsauswahl wird auf 1 zurückgesetzt. Der Browser bietet den Epilog
+mit dem lokalen Zusatzpaket an und wechselt nach Ende oder Überspringen
+ins Hauptmenü. Die deutsche Ogg-Spur ist bytegleich zur lokalen GOG-Datei.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

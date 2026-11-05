@@ -20,6 +20,10 @@ const copy=frame=>({frame:frame.frame,indices:Array.from(frame.pixels.slice(0,4)
   c.enqueue(zip.subarray(0,20));c.enqueue(zip.subarray(20));c.close();
  }})});
  const film=await load('local:fixture',fetcher);
+ const whole=await load('local:fixture',fetcher,{rawBytes:bytes.length});
+ assert.equal(whole.frames,film.frames);
+ await assert.rejects(load('local:fixture',fetcher,{rawBytes:bytes.length-1}),/zu groß/);
+ await assert.rejects(load('local:fixture',fetcher,{rawBytes:bytes.length+1}),/Filmlänge/);
  assert.deepEqual([film.width,film.height,film.frames,film.frameMs,stepMs],[320,200,4,84,40]);
  const runtime=timeline(film);
  assert.deepEqual(copy(runtime.tick(0)),{frame:0,indices:[1,1,1,1],color:[0,0,0]});

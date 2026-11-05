@@ -1,11 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.137 Rusttests und 51 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 99/99 Node-Prüfprogramme im
-Quellstand nov05-r66 bestanden, einschließlich aller 20 privaten Missionen.
+1.137 Rusttests und 52 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 100/100 Node-Prüfprogramme im
+Quellstand nov05-r67 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 65285649eb705fd37c9f65a58a4f050205f4ccf66f91623a3e65185304d77817
+Wasm SHA256: e9796c4631070425690d7e4187bbd4cebad6a639c838b534c74aa7120614bc7f
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,6 +40,14 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R67
+- Originalkampagne, Mission 20: Der kontrollierte Fortkontakt durchläuft
+  mit unverändertem Gelände die gesamten 169 Abschlussschritte und liefert
+  Sieg, 14 gegnerische Gruppenverluste und 20.000 Punkte. Kein Partikelhang.
+- 144 ausgeführte Originalübergänge, einschließlich des Kampagnenendes
+  mit und ohne lokale Filmdateien. Browser: letzter Sieg, laufender Epilog,
+  automatisches Ende, Überspringen und neue Auswahl auf Mission 1.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R66
 - 240 Originalaufrufe der Rasterkosten und 480 vollständige Vergleiche

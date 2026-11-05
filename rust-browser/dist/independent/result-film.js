@@ -1,6 +1,7 @@
 window.ResultFilm=(()=>{
  'use strict';
- const WIDTH=320,HEIGHT=200,PIXELS=WIDTH*HEIGHT,HEADER=14,STEP=40,MAX_FRAMES=1200;
+ const WIDTH=320,HEIGHT=200,PIXELS=WIDTH*HEIGHT,HEADER=14,STEP=40,MAX_FRAMES=1800;
+ const MAX_BYTES=HEADER+MAX_FRAMES*(PIXELS+769);
  const signed=n=>n<128?n:n-256;
  function open(data){
   const bytes=data instanceof Uint8Array?data:new Uint8Array(data);
@@ -68,21 +69,23 @@ window.ResultFilm=(()=>{
   }
   return {tick};
  }
- async function load(url,fetcher=fetch){
-  const response=await fetcher(url);
+ async function load(url,fetcher=fetch,{signal,rawBytes}={}){
+  const response=await fetcher(url,{signal});
   if(!response.ok||!response.body)throw Error('Der Film ist nicht verfügbar.');
   const stream=response.body.pipeThrough(new DecompressionStream('gzip'));
   const reader=stream.getReader(),chunks=[];
+  const exact=Number.isInteger(rawBytes)&&rawBytes>=HEADER&&rawBytes<=MAX_BYTES?new Uint8Array(rawBytes):null;
   let size=0;
   try{
    for(;;){
     const {done,value}=await reader.read();
     if(done)break;
-    size+=value.length;
-    if(size>HEADER+MAX_FRAMES*(PIXELS+769)){await reader.cancel();throw Error('Der Film ist zu groß.');}
-    chunks.push(value);
+    const before=size;size+=value.length;
+    if(size>(exact?.length??MAX_BYTES)){await reader.cancel();throw Error('Der Film ist zu groß.');}
+    if(exact)exact.set(value,before);else chunks.push(value);
    }
   }finally{reader.releaseLock();}
+  if(exact){if(exact.length!==size)throw Error('Ungültige Filmlänge.');return open(exact);}
   const bytes=new Uint8Array(size);let offset=0;
   for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   return open(bytes);
@@ -147,8 +150,8 @@ window.ResultFilm=(()=>{
   if(!local&&!installed)return;
   assets=new URL('../original/films/',script);
   fetch(new URL('films.json',assets)).then(r=>r.ok?r.json():null).then(data=>{
-   if(data?.version!==1||!Array.isArray(data.films)||data.films.length>24)return;
-   catalogue=new Map(data.films.filter(row=>row&&/^e_[dvajc](?:lost1|wint[1-3]|winpl)$/.test(row.id)&&
+   if(data?.version!==1||!Array.isArray(data.films)||data.films.length>25)return;
+   catalogue=new Map(data.films.filter(row=>row&&/^e_(?:outro|[dvajc](?:lost1|wint[1-3]|winpl))$/.test(row.id)&&
     row.video===row.id+'.zvf.gz'&&row.audio===row.id+'.ogg').map(row=>[row.id,row]));
   }).catch(()=>{});
  }
@@ -173,13 +176,16 @@ window.ResultFilm=(()=>{
   if(notify)pending.onFinish?.();
  }
  function offer(mission,won,network,{muted=false,volume=1,onFinish}={}){
-  const row=catalogue?.get(select(mission,won,network));
+  return offerClip(select(mission,won,network),{muted,volume,onFinish});
+ }
+ function offerClip(id,{muted=false,volume=1,onFinish}={}){
+  const row=catalogue?.get(id);
   if(!row)return false;
   finish(false);panel??=buildPanel();
   const pending={ctrl:new AbortController(),onFinish};current=pending;
   panel.layer.hidden=false;panel.status.textContent='Film wird geladen …';panel.resume.hidden=true;panel.screen.hidden=true;panel.skip.focus();
-  const audio=new Audio(new URL(row.audio,assets));audio.muted=muted;audio.volume=Math.max(0,Math.min(1,Number(volume)||0));
-  load(new URL(row.video,assets)).then(film=>{
+  const audio=new Audio(new URL(row.audio,assets));audio.preload='none';audio.muted=muted;audio.volume=Math.max(0,Math.min(1,Number(volume)||0));
+  load(new URL(row.video,assets),fetch,{signal:pending.ctrl.signal,rawBytes:row.rawBytes}).then(film=>{
    if(current!==pending)return;
    const start=()=>{panel.resume.hidden=true;panel.screen.hidden=false;panel.status.textContent='';
     play(panel.screen,audio,film,{signal:pending.ctrl.signal}).then(()=>{
@@ -195,5 +201,5 @@ window.ResultFilm=(()=>{
   return true;
  }
  prepare();
- return {open,timeline,load,paint,select,play,offer,enablePrivatePack:()=>prepare(true),cancel:()=>finish(false),stepMs:STEP};
+ return {open,timeline,load,paint,select,play,offer,offerOutro:options=>offerClip('e_outro',options),enablePrivatePack:()=>prepare(true),cancel:()=>finish(false),stepMs:STEP};
 })();

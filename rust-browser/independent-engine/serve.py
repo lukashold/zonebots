@@ -92,7 +92,7 @@ class Handler(SimpleHTTPRequestHandler):
         path=unquote(urlsplit(url).path)
         if path.startswith('/original/films/'):
             name=path.removeprefix('/original/films/')
-            if self.films is None or not (name=='films.json' or re.fullmatch(r'e_[dvajc](?:lost1|wint[1-3]|winpl)\.(?:zvf\.gz|ogg)',name)):
+            if self.films is None or not (name=='films.json' or re.fullmatch(r'e_(?:outro|[dvajc](?:lost1|wint[1-3]|winpl))\.(?:zvf\.gz|ogg)',name)):
                 return str(root/'missing')
             target=(self.films/name).resolve()
             return str(target) if target.is_relative_to(self.films) else str(root/'missing')

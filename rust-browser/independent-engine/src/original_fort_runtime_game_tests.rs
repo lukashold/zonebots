@@ -219,3 +219,28 @@ fn multiplayer_fort_orders_are_staged_and_consumed_in_actual_main_ticks(){
         if owner==1{assert!(cues[0]>0,"local losing side is still physically present");}
     }
 }
+
+#[test]
+#[ignore="requires locally approved original campaign data"]
+fn final_mission_fort_and_debris_finish_the_authored_victory(){
+    let data:Value=serde_json::from_str(&std::fs::read_to_string(std::env::var("NATIVE_FORT_CAMPAIGN").unwrap()).unwrap()).unwrap();
+    let mut mission=data["missions"][19].clone();
+    // Begin with one red unit on the enemy door in the otherwise unchanged map.
+    let u=mission["spawns"].as_array_mut().unwrap().iter_mut().find(|u|u["team"]==0&&u["type"]=="psycho").unwrap();u["x"]=json!(3440);u["y"]=json!(656);
+    let mut g=Game::new(19,1,29510);g.apply_original(&mission).unwrap();g.native_feedback.sound_enabled=0;
+    let b=g.buildings.iter().find(|b|b.team==0&&b.kind=="fort").unwrap();
+    g.native_view=Some(([((b.x+b.w/2.-568.)/2.).floor()as i16,((b.y+b.h-360.)/2.).floor()as i16],[568,360]));
+    let mut landed=false;
+    for frame in 2..=170{
+        g.step(0.059);
+        let scene=g.native_fort_scene_snapshot().unwrap();
+        if frame<170{assert_eq!(scene["frame"],frame);}
+        if let Some(camera)=scene["camera"].as_array(){g.native_view=Some(([camera[0].as_i64().unwrap()as i16,camera[1].as_i64().unwrap()as i16],[568,360]));}
+        let world=g.native_world.as_ref().unwrap();
+        assert!(world.effect_draws.len()<=2*world.effects.len(),"frame {frame}");
+        assert_eq!(world.fort_runtime.boundary,None,"frame {frame}");
+        landed|=g.native_ambient_animations.records.iter().any(|r|r.active()&&r.word(20)==5565&&r.word(22)==5589);
+        assert_eq!(g.winner,(frame==170).then_some(0));
+    }
+    assert!(landed,"original fort-debris landing animation was allocated");
+}

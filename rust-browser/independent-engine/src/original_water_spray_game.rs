@@ -1,4 +1,4 @@
-//!401560/402ce0 ->402230. Allocations share the existing late-FX pool.
+//!4011a0/401560/4015d0/402ce0 ->402230. Allocations share the late-FX pool.
 use crate::{Game,original_combat::OriginalRng};
 use super::{State,effects::{Particle,spray::{self,Context,Pool}}};
 struct World<'a>{state:&'a mut State,rng:&'a mut OriginalRng,cp_owner:Option<u8>}
@@ -21,7 +21,7 @@ impl Game{
  }
  pub(super) fn finish_native_water_expiry(&mut self,slot:usize){
   let Some(state)=&mut self.native_world else{return;};let Some(source)=state.effects.get(slot).and_then(Option::as_ref)else{return;};
-  state.effect_origin=[source.origin[0].wrapping_add(state.last_projection[0]).wrapping_sub(160),source.origin[1].wrapping_add(state.last_projection[1]).wrapping_sub(92)];state.effect_tint=9;state.effect_flags=128;state.effect_fade=128;state.effect_owner=0;state.effect_sprite=0;
+  state.effect_origin=[source.origin[0].wrapping_add(state.last_projection[0]).wrapping_sub(160),source.origin[1].wrapping_add(state.last_projection[1]).wrapping_sub(92)];state.effect_tint=match source.expiry{2=>22,9=>11,_=>9};state.effect_flags=128;state.effect_fade=128;state.effect_owner=0;state.effect_sprite=0;
   //The source remains allocated during all twelve attempts, even on failure.
   self.emit_native_water_spray(12);
   if let Some(p)=self.native_world.as_mut().and_then(|s|s.effects.get_mut(slot)).and_then(Option::as_mut){p.active=false;p.position[0]=-1000;}

@@ -18,6 +18,8 @@ FILMS = tuple(
     for suffix in (("lost1", "wint1", "wint2", "wint3") if world == "c"
                    else ("lost1", "wint1", "wint2", "wint3", "winpl"))
 )
+OUTRO = "e_outro"
+MAX_FRAMES = 1800
 WIDTH, HEIGHT = 320, 200
 PIXELS = WIDTH * HEIGHT
 JV_HEADER_SIZE = 104
@@ -31,7 +33,7 @@ def normalize(index: bytes, source: bytes):
     if not index.startswith(b"JV00") or len(index) < JV_HEADER_SIZE:
         raise ValueError("Unexpected movie header")
     width, height, count, period = struct.unpack_from("<4H", index, 80)
-    if (width, height) != (WIDTH, HEIGHT) or not 1 <= count <= 1200 or not 1 <= period <= 1000:
+    if (width, height) != (WIDTH, HEIGHT) or not 1 <= count <= MAX_FRAMES or not 1 <= period <= 1000:
         raise ValueError("Unexpected movie dimensions or timing")
     if len(index) != JV_HEADER_SIZE + count * FRAME_RECORD.size:
         raise ValueError("Incomplete movie index")
@@ -104,7 +106,9 @@ def pack_clip(source: Path, out: Path, stem: str, language: str, ffmpeg: str) ->
     scratch.replace(target)
     sound = out / f"{stem}.ogg"
     shutil.copyfile(audio, sound)
+    raw_bytes = PACK_HEADER.size + len(palettes) * (PIXELS + 1) + sum(len(palette) for palette in palettes)
     return {"id": stem, "frames": len(palettes), "frameMs": period, "video": target.name, "audio": sound.name,
+            "rawBytes": raw_bytes,
             "bytes": target.stat().st_size + sound.stat().st_size}
 
 
@@ -114,7 +118,9 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--ffmpeg", default=shutil.which("ffmpeg"))
     parser.add_argument("--language", choices=("de", "en", "es", "fr", "it"), default="de")
-    parser.add_argument("--clip", action="append", choices=FILMS)
+    parser.add_argument("--clip", action="append", choices=(*FILMS, OUTRO))
+    parser.add_argument("--include-epilogue", action="store_true", help="Also extract the local campaign outro")
+    parser.add_argument("--append", action="store_true", help="Keep other films in the output manifest")
     args = parser.parse_args()
     if not args.ffmpeg:
         parser.error("FFmpeg is required; set --ffmpeg to its executable path")
@@ -122,7 +128,23 @@ def main():
     if out.is_relative_to(source):
         parser.error("Choose an output folder outside the original installation")
     out.mkdir(parents=True, exist_ok=True)
-    entries = [pack_clip(source, out, stem, args.language, args.ffmpeg) for stem in dict.fromkeys(args.clip or FILMS)]
+    clips = list(args.clip or FILMS)
+    if args.include_epilogue:
+        clips.append(OUTRO)
+    manifest = out / "films.json"
+    old = {}
+    if args.append and manifest.is_file():
+        previous = json.loads(manifest.read_text(encoding="utf-8"))
+        if previous.get("version") != 1 or not isinstance(previous.get("films"), list):
+            parser.error("The existing film manifest cannot be appended to")
+        for entry in previous["films"]:
+            stem = entry.get("id")
+            if stem not in (*FILMS, OUTRO) or entry.get("video") != f"{stem}.zvf.gz" or entry.get("audio") != f"{stem}.ogg":
+                parser.error("Unexpected entry in the existing film manifest")
+            old[stem] = entry
+    for stem in dict.fromkeys(clips):
+        old[stem] = pack_clip(source, out, stem, args.language, args.ffmpeg)
+    entries = list(old.values())
     (out / "films.json").write_text(json.dumps({"version": 1, "films": entries}, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"clips": len(entries), "frames": sum(row["frames"] for row in entries),
                       "bytes": sum(row["bytes"] for row in entries)}))
