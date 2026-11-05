@@ -1,0 +1,54 @@
+Bounded Crane contact timing and reached work resources
+
+The Main5a080 position-context stage now runs cell10/69:4, the existing
+bound partial Crane terrain contact, then pattern20/8b/62, before54160.
+Constructor/generic refresh retains its existing behavior. The new Main
+wrapper requires the same current slot/generation/entity and an existing
+work auxiliary; it neither constructs a Foot DTO nor infers a rebind.
+
+The two late contact calls were removed: before44fcc0's tick and after
+movement inside Common. Source44f1e0 is not called by5c5c0/4502f0/44e520.
+There is one Main contact mutation, with no additional Common, movement,
+world pass or RNG authority. Existing constructor/entry/APC callsites are
+separate. This moves the existing partial/tainted adapter; it does not port
+all44e750 cancellation/UI branches or establish a complete work context.
+
+Both broad BUILD-work frame-count gates were removed: the phase59 handler
+and the lower accepted repair setup. known_builds, target/type/ownership/
+geometry gates remain. Only a reached Env.overlay lookup requires its actual
+frame/list and retains the existing missing-data boundary. Current86FF/FE
+skips the overlay but still executes the96 prefix and real Common. This is
+not a new Source-known86/FullWork admission; auxiliary values remain tainted.
+Canonical96 writer staging and historicalobserved57ff0_86ff are unchanged.
+
+Source evidence:72 actual Main callbacks,24 controlled chains of3, with
+full ROBOTS/EQUIPMENT, normalized640-word SINCOS and PHRASES materialized,
+actual433b30/44b740 initialization and explicit DF/register inputs. The
+materialized replay matches every observed output field, FNV4116476457,
+and has no uninitialized-read warnings.55f10 is a no-effect display boundary;
+sqrt/memcpy are intrinsic imports. MP avoids the external CRT. This is a
+bounded caller proof, not an original full mission/UI or wholeCommon proof.
+Public tests always execute its72 contact/work projections, FNV2141903685;
+no original JSON/media/raw frames are embedded.
+
+Actual unchanged authoredM14 ABI control: natural Tough->neutralCrane
+takeover remains122 callbacks in SP/MP. Crossing terrain50->47 at repair
+callback426 now keeps arm5826; the following callback may select5828.
+Previously the extra postCommon contact selected5828 during the crossing.
+Both old51 and this candidate complete the checked Bridge4 repair after623
+port callbacks, followed by150 stable continuation callbacks at600HP.
+623 is a port regression count, not a recording of original mission timing.
+The separate Host/Guest controller starts the order after130 takeover ticks,
+so its622 count has a different clock/input point and is not interchangeable.
+
+Deliberately omitting only BUILD work frames no longer blocks normal crane
+movement: after20 Move callbacks,1548/3148 reaches1548/3174 in SP/MP, as with
+full metadata. A reached missing overlay still stops at its concrete data
+boundary. The published private pack already contains these frames; omission
+is a controlled admission test, not an untouched-pack failure claim.
+
+tools/check-native-crane-contact.cjs WASM EXTERNAL_CAMPAIGN [JS_DIRECTORY]
+uses actual ABI/RPC, unchanged externalM14, ownership rejection, full/omitted
+work data and a Host/Guest pair with no guest simulation. Original UI warm
+stack/network admission, complete44e750 effects, wider86 lifecycle/knowledge,
+FullWork, arbitrary save/load/aliases, CRT lifetime and GPU parity stay open.

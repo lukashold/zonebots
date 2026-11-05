@@ -74,7 +74,17 @@ impl Game {
     ///4f572 copies the selected global movement pattern's current step to62.
     ///Call at the existing4f1e0 constructor/5a080 position-context boundary.
     pub(crate) fn refresh_native_pattern_step(&mut self,i:usize,tick:u64){
-        let Some(u)=self.units.get(i)else{return;};if !self.map.original||u.native_slot.is_none(){return;}let x=if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{coordinate(u.x)};let y=coordinate(u.y);let slot=u.native_slot.unwrap();let cell=((y as u32).wrapping_mul(8).wrapping_add(64)&0x7ff80).wrapping_add((x.wrapping_add(8)>>4)as u32);self.units[i].native_cell10=if x!=10000&&cell<0x4001{cell as i32}else{0};if x==10000{return;}if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags69|=4;}let u=&self.units[i];
+        self.refresh_native_pattern_context(i,tick,false);
+    }
+    ///5a080's4f1e0 stage: cell/69:4, Crane contact, then51d40/pattern62.
+    ///The generic constructor refresh deliberately has no contact callback.
+    pub(crate) fn refresh_native_main_pattern_step(&mut self,i:usize,tick:u64){
+        self.refresh_native_pattern_context(i,tick,true);
+    }
+    fn refresh_native_pattern_context(&mut self,i:usize,tick:u64,main_contact:bool){
+        let Some(u)=self.units.get(i)else{return;};if !self.map.original||u.native_slot.is_none(){return;}let x=if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){10000}else{coordinate(u.x)};let y=coordinate(u.y);let slot=u.native_slot.unwrap();let cell=((y as u32).wrapping_mul(8).wrapping_add(64)&0x7ff80).wrapping_add((x.wrapping_add(8)>>4)as u32);self.units[i].native_cell10=if x!=10000&&cell<0x4001{cell as i32}else{0};if x==10000{return;}if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags69|=4;}
+        if main_contact&&cell<0x4001{self.refresh_native_crane_main_contact(i);}
+        let u=&self.units[i];
         let control=u.original_combat.as_ref().map(|s|s.movement_control).unwrap_or_else(||original_combat::CombatState::new(&u.kind).movement_control);
         let code=self.native_terrain(coordinate(u.x)+8,coordinate(u.y)+8);
         let motion_index=(index(control,code)as i32+i32::from(u.motion_bonus)+i32::from(u.native_group_motion_bonus)).clamp(0,12)as usize;

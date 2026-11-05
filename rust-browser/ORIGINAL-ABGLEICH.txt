@@ -1,4 +1,4 @@
-Z / Rust-Wasm – aktueller Abgleichstand, 04.11.2026
+Z / Rust-Wasm – aktueller Abgleichstand, 05.11.2026
 
 ERGEBNIS
 Vollständige 1:1-Gleichheit ist nicht erreicht. Dieser Bericht ersetzt die
@@ -482,6 +482,41 @@ dieses Byte bleibt beim gemeinsamen Bewegungsbesitzer. Ein eigener Main-
 Ambientcaller ist tatsächlich vorhanden, braucht aber gesonderte Timer-/
 Missions-/CRT-Lebensdauer und seinen späten Aufrufpunkt. Fortcontroller,
 vollständige APC-Automatik und ganze identische Originalpartien bleiben offen.
+
+WEITERER ABGLEICHSBLOCK NOV05-R52
+Der vorhandene partielle Kran-Kontakt ist an den belegten Main-Aufrufpunkt
+verschoben; zwei überzählige spätere Kontakte sind entfernt. Unbenutzte
+Arbeitsframes sperren keine gewöhnliche Bewegung mehr. Die konkrete erreichte
+Overlaygrenze bleibt erhalten, ebenso die Herkunfts- und Generationsprüfungen.
+Der Kontaktabgleich schaltet keine vollständige86-/FullWork-Berechtigung frei.
+
+Der Main-Ambientcaller ist jetzt mit einem gemeinsamen Timer/Pendingzustand,
+dem vorhandenen CRT-Strom und dem späten Aufruf nach dem BUILD-Leser verbunden.
+Mastervarianten behalten denselben Welt-/Zufallsablauf; Kamerawechsel löschen
+diese nicht räumlichen Chancen nicht. Vollständiger Original-Seedguard,
+Ressourcen-/UI-Start und Netzwerksitzungen bleiben weitere Grenzen.
+
+Der reine APC447c20-Aufrufkern samt benannten Blättern ist aufgenommen, bleibt
+aber ohne Gameaktivierung. Neue Messungen materialisieren die tatsächliche
+SINCOS-Tabelle. Frühere normale Emissions-/Richtungsbehauptungen aus Aufbauten
+ohne diese Tabelle beziehungsweise mit anschließend zurückgesetzter Richtung
+sind damit nicht als vollständige Belege gültig. Alle alten Dateien bleiben
+erhalten;18 alte Wrapperfälle haben nachweislich keinen solchen Tabellenzugriff.
+Die neue Kopplung an physische65/B6-, Scanner-, Projektil- und Audiozustände
+ist noch abzuarbeiten.
+Ein weiterer Konstruktorabgleich korrigiert eine frühere Aussage: Der APC
+speichert8e10 nur vorübergehend; der folgende WORD8d=4-Schritt überschreibt
+das endgültige8e mit0. Bereits die alten vier APC-Aufnahmen zeigen0 und
+bleiben unverändert. Direkte Startgeschütze behalten ihren Konstruktorwert65=0.
+Auch diese zusätzlichen Teilbelege aktivieren noch keine vollständige APC-Logik.
+
+Der Fort-Abgleich wurde um96 vollständige kontrollierte Befehlsaufrufe mit
+aktiven numerischen UNIT-/Gruppen- und SP-/MP-Puffern erweitert. Ein korrigierter
+Import-ABI-Aufbau wiederholt136 bisherige Controllerfälle bytegleich; das sind
+keine zusätzlichen136 einzigartigen Szenen. Diese lokalen Belege aktivieren
+noch keinen vollständigen Fortcontroller und ersetzen keinen identischen
+Missionslauf. Der bisherige unmittelbare Siegerabschluss bleibt ein offener
+Portierungsbereich.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie

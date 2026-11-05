@@ -1,0 +1,86 @@
+Pure APC automatic caller candidate; NOT activated in Game.
+
+original_apc_automatic.rs ports447c20,4476f0,447970 and the control around
+447790. World/GateWorld/LeafWorld are explicit ordered reader/writer ports.
+The module owns no pool, cache, generation, epoch, raw header or shared global.
+It receives the existing OriginalRng by mutable reference and never seeds,
+copies or advances a second World RNG. Only its leaf ports consume RNG.
+
+Exact caller details: reload short-circuit; right/left/front/back scan order;
+side byte writes before live cached-header/range/gate reads; raw31 low-team
+test; multiplayer416160 short-circuit; signed17400 CP lookup with the ONE
+trail.error byte; source reload arithmetic; live21-byte roster reads from the
+captured group; FF-only skip; physical B6 modulo16; carrier8e Pyro admission;
+12-port budget; successful leaf invocation rather than allocation as the local
+success WORD; original integer muzzle tables and signed WORD wrapping.
+
+447790 control includes view/audio ordering, fresh shared saved-facing,46
+save/scatter/restore, source W6=65/W5=W39 writes through the canonical W/dummy
+port, heavy/flame/bullet selection, laser X AND Y offsets-7, output-pointer
+clear/read, returned bullet range increment and fresh shared-facing restore.
+The scatter, sound, warning/finite-emission and direct-manual bodies remain
+named ordered operations. Missing data returns a named Boundary with prior
+writes retained. There is no prefix-then-Legacy fallback or None-NoTarget guess.
+
+hardware_ref accepts controlled actual W-pool tokens and the source NIL/FFFF
+fallback contract. Invalid non-NIL tokens are boundaries, never guessed dummy
+records. The adapter must use the existing composite dummy order/attributes
+owner. Direct absolute aliases outside the declared domain are not promoted.
+
+NATIVE REPLAYS (private recordings, no copied original media in this patch)
+384 profile-derived realTrig calls ->512 leaf invocations, FNV4082334245.
+Their effective post58090 facing/reload are0, not eight directions.
+384 distinct numeric UNIT/W realTrig calls ->488 invocations, FNV1128899081.
+Those explicitly cover facing0..7/reload/roster holes/duplicate physical slots/
+Pyro admission and0/1/3/full finite capacities; not constructor-derived inputs.
+96 real enabled-audio leaf-port projections ->128 invocations, FNV3616920725.
+All192 UNIT bytes, W44/shared24/B6physical240 and five RNG words compare at
+caller return. The leaf-control replay additionally compares UNIT/W/shared/
+RNG directly BEFORE the actual emitter call, its exact arguments and final
+result, so an opaque post-emitter snapshot cannot mask a missing prefix.
+The actual scanner/scatter/emitter/audio bodies execute in Native recordings;
+their recorded results are supplied at the explicit Rust ports. This proves
+the ported caller/control projection, not a new Rust living-emitter adapter.
+96 actual416160/17400 cases match FNV1621652681, including MP/current-group/
+malformed-CP/error propagation. Existing narrower source/alias bounds apply.
+
+Private replay:
+  CARGO_TARGET_DIR=<work/parity-audit/v51-apc-kernel-target absolute path>
+  NATIVE_APC_REALTRIG_DIRECTORY=<work/parity-audit absolute path>
+  cargo test --manifest-path <candidate>/independent-engine/Cargo.toml
+    original_apc_automatic -- --nocapture
+Without the private directory, public deterministic gate/domain tests still
+run; the optional raw recordings are not bundled or fabricated.
+
+Additional Native enabled-audio closure uses the actual46e660 descriptors and
+an explicitly external mixer with controlled NULL PCM handle/returns-1 or3.
+All World/finite-pool/five-RNG results are identical to muted inputs. This is
+not a DSP/playback or warm unrepresented high-word proof. See the separate
+V51-APC-SINCOS-ERRATUM and V51-APC-REALTRIG-NUMERIC reports, which preserve old
+artifacts and correct old null-table and effective-facing scope claims.
+
+HARD PRECONDITIONS FOR A LATER GAME GRANT
+Wait for a fresh Root base after the existing Game240/96 integration. Extend
+THAT physical record using its existing epoch/upstream-generation/entity
+binding and per-field knowledge; do not add a second65/B6 pool or tombstone.
+Wire actual constructor/entry/weapon/removal/reuse writers proven separately.
+The current Common/manual447da0 positional passenger phases and automatic
+447c20 must migrate together to that ONE physical B6 authority, exactly once.
+Retain the existing447d50 wrapper/Common/manual owners and active-Dodge Legacy
+boundary. Cached58500/574c0 reads must use the same live/retired generation-
+bound raw owner and exact bucket membership, not fresh filtering or Web IDs.
+Bind scanner416160 to existing native_world.trail.error. Reuse canonical W,
+composite dummy, finite projectile/bullet pools and shared sound/global owners.
+Unknown240..254/alias/global/header contexts remain explicit unavailable data.
+No Game activation, native runtime claim or automatic fallback is authorized
+or implemented by this candidate.
+
+Constructor clarification from the later independent review:
+58090 transiently saves APC class10 to8e, but41bff0 then writes WORD8d=4
+at41c077, overwriting the final8e byte with0. The earlier metadata-profile
+recording already contains8d4/8e0 in all four APC13 cases; its raw bytes and
+goldens are unchanged. Do not treat the transient10 as the final constructor
+input, or add this constructor-only WORD write to later takeover callers.
+Separate controlled mode0/direct-gun constructors retain payload65=0 for
+the starting guns. These findings still require a joint physical-field Game
+binding; this pure kernel has not been activated by the additional review.

@@ -54,5 +54,9 @@ state tests cover import, generation, rebind, unknown warm state and reuse.
 Details of96 constructor knowledge, conservative legacy taint and ordered
 writer commits: ORIGINAL-KRAN-FELD96.txt.
 
+Main contact order and reached-overlay resource correction:
+ORIGINAL-KRAN-KONTAKT.txt. The623 value above is a port control count, not
+an original recorded mission timing. Existing phase/96 ownership is unchanged.
+
 Source UI warm-stack admission, move/stop interruption, arbitrary save/load,
 unproved 96 lifetime and broader GPU/RNG/body parity remain separate boundaries.

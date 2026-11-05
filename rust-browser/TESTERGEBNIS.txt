@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.082 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
+1.112 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen11 Programme anschließend).
-Doctests bestanden (0 vorhanden).93/93 Node-Prüfprogramme im aktuellen
-nov05-r51 bestanden, einschließlich aller20 privaten Missionen.
+Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
+nov05-r52 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 2b060b31b7215d78010ecbcc8ffa04e7e8762de0090803671c74c0c5b74017c2
+Wasm SHA256: 1a2c2711ee55f4fe7f0bc2fc9a3d80dea369f59ad691b9e401c2d530c7a037bb
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,33 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R52
+- Kran-Kontakt läuft jetzt im Main-Preambel nach Zelle/69:4 und vor dem
+  Bewegungsmuster. Die zwei späten Kontakte sind entfernt. Eine überfahrene
+  Kontaktgrenze aktiviert die Reparatur erst beim nächsten Einheitenaufruf.
+  Nicht verwendete BUILD-Arbeitsframes blockieren keine normale Kranbewegung
+  und keine gültige Reparaturannahme mehr; erreichte Overlaydaten bleiben nötig.
+  Konstruktor, Slotgeneration, Rendererbindung und tainted-Arbeitsgrenzen bleiben.
+- Ein gemeinsamer Main-Nachladezähler/Pendingzustand erzeugt originale
+  Hintergrundgeräusche. Lava und BUILD-Restauration liegen zwischen seinen
+  beiden CRT-Stufen. Ein einziger Controller-Rückgabewert steuert Leser und
+  spätes Audio. Pause, warmer Init und lokale Masterwerte sind getrennt geprüft.
+  Der vollständige Original-Seedguard und die gesamte Lade-/UI-Lebensdauer
+  sind dadurch nicht implementiert.
+- Der neue reine APC-Automatik-Kern besteht zehn Tests mit864 privaten
+  Caller-/Leaf-Projektionen und96 Sektor-Gatefällen. Seine Scanner-/Emitter-
+  Ports sind ausdrücklich benannt; er ist noch nicht in Game aktiviert.
+  Physische65/B6-Anbindung und gemeinsame Migration der manuellen/automatischen
+  Insassenfeuerpfade bleiben offen. Ältere Emissionsbelege mit fehlender
+  Trigonometrietabelle wurden eingegrenzt; die18 alten Wrapperfälle berühren
+  diese Tabelle nicht und bleiben innerhalb ihrer bisherigen Grenzen gültig.
+- Der zusammengeführte --locked-Release besteht1112 normale Rusttests,
+  zwölf separat ausgeführte Privatdiagnostiken und95 Node-Prüfprogramme.
+  Die neuen Kontakt- und Main-Audio-Programme laufen in der Gesamtprüfung.
+  MP-Build17 weist vorherige Simulationsstände vor Verbindungsbeginn zurück.
+Details: ORIGINAL-KRAN-KONTAKT.txt, ORIGINAL-MAIN-AMBIENT.txt und
+ORIGINAL-APC-AUTOMATIC-KERNEL.txt. Keine vollständige1:1-/GPU-/PCM-Aussage.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R51
 - Das interne Kranfeld96 liegt nur noch einmal im vorhandenen physischen

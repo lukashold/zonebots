@@ -1,0 +1,35 @@
+Originale Umgebungsgeräusche am Main-Callback
+
+Der Main-Ablauf besitzt einen gemeinsamen32-Bit-Nachladezähler und ein
+Pending-Byte. Bei leerem Zähler wird im Einzelspieler einmal der bestehende
+CRT-Zufallsstrom gelesen und1..128 geladen; im Mehrspieler wird1 geladen,
+ohne CRT-Aufruf. Der spätere Main-Abschnitt verbraucht Pending und wählt
+Sample90..100; Mehrspieler wählt91. Ohne erreichten späteren Abschnitt bleibt
+Pending erhalten. Die Auswahl geschieht auch bei stummem Audio einmalig.
+
+Lava und die späten Gebäuderestaurationen bleiben zwischen den beiden
+Zufallsstufen. Es gibt keinen Welt-, Produktions- oder Zufallslauf pro Hörer.
+Der eine vorhandene Controller-Rückgabewert wird für Leser und Audio benutzt:
+Some(0) erlaubt den späten Abschnitt, andere oder unbekannte Werte erhalten
+Pending. Der Audiofanout verwendet die vorhandenen lokalen Masterwerte,
+Descriptor-Zeitstempel, den gemeinsamen UIword und den jeweiligen Effektzähler.
+Diese Audiochance hat keine Kamera-, Besitzer-, Fort- oder Hardwarekontextmarke.
+
+Der Schedulingzustand bleibt beim bestehenden Inittransfer erhalten. Pause,
+UI-only-Callbacks, Audioeinstellungen und Audioepochen setzen ihn nicht zurück
+und spielen keine alte Chance beim Entstummen nach. Die vorhandene Quelle
+native_cosmetic_rng/nativeCosmeticSeed bleibt unverändert. Dieser Anschluss
+implementiert nicht den vollständigen46c510-Seedguard, Original-Winsock oder
+sämtliche UI-/Ressourceninitialisierungen.
+
+Gezielte Prüfung:13 Rusttests einschließlich zweier privater384-Zeilen-
+Originalprojektionen (2392318205/4056110389), echter Lava-Interposition,
+Robot-BUILD-Restauration und Controller-169->170-Grenze. Der neue Nodechecker
+führt tatsächliche App.rawCall/update-, Host-/Gast-, Wasm- und Audio.js-Pfade
+aus:23 kontrollierte Fälle mit Master/Kamera, Pause, warmem Init, Readiness,
+einmaliger Lieferung und verzögertem Decode. Seine WAV-Bytes werden lokal
+gelesen; der WebAudio-Decoder ist instrumentiert. Keine PCM-/Geräte-/GPU-
+oder vollständige Ganzspielgleichheit wird daraus abgeleitet.
+
+Originalaufnahmen und private Originaloracles sind keine öffentlichen Dateien.
+Die vollständigen Loader-/UI-/Netzwerksitzungsgrenzen bleiben getrennt.

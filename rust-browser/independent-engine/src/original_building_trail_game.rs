@@ -50,3 +50,4 @@ impl Game{
  }
 }
 #[cfg(test)]#[path="original_building_trail_game_tests.rs"]mod tests;
+#[cfg(test)]#[path="original_main_ambient_world_tests.rs"]mod main_ambient_tests;
