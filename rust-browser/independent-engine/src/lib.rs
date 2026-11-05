@@ -1071,6 +1071,7 @@ impl Game {
             // The original mission clock counts17 callbacks as one second.
             // Wall scheduling and simulation time are distinct quantities.
             self.step_update(1./17.);
+            self.finish_native_fort_peer_frame();
             if self.winner.is_some(){break;}
         }
     }
@@ -1118,6 +1119,7 @@ impl Game {
         if self.winner.is_some() {
             return;
         }
+        self.begin_native_fort_main();
         let dt = dt.clamp(0., 0.1);
         self.time += dt;
         let first_motion_tick=self.motion_tick+1;

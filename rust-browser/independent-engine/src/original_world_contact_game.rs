@@ -196,6 +196,7 @@ impl Game {
         }
         state.forts=self.buildings.iter().filter(|b|b.kind=="fort").map(|b|Fort{binding:b.id,base:b.raw_base.map(|p|[p.0 as i16,p.1 as i16]).unwrap_or_else(||native_point(b.x,b.y))}).collect();state.forts.sort_by_key(|f|(f.base[1],f.base[0]));state.forts.truncate(2);
         state.fort_runtime.enabled=state.forts.len()==2&&v["nativeWorldBuildings"].as_array().is_some_and(|rows|rows.len()==35);
+        if state.fort_runtime.enabled&&self.multiplayer{state.fort_runtime.peer_orders=Some(Default::default());}
         for b in v["bridges"].as_array().into_iter().flatten() { let id=number(b,"id",-1);if id<0{continue;}let hp=number(b,"hp",0)as i16;let flags=number(b,"nativeFlags15",if hp<=0{2}else{0})as u8;
             state.bridges.push(BridgeSlot{record:native::Bridge{position:native_point(b["x"].as_f64().unwrap_or(0.),b["y"].as_f64().unwrap_or(0.)),size:native_point(b["w"].as_f64().unwrap_or(0.),b["h"].as_f64().unwrap_or(0.)),hp:if hp<=0{-1}else{hp},maximum:number(b,"maxHp",600)as i16,flags15:flags},binding:id as usize,native_slot:number(b,"nativeSlot",number(b,"sourceOffset",id*26)/26)as usize,orientation:number(b,"nativeOrientation",0)as i16,retired_road:None,restored_terrain:Vec::new(),raw_tail:[0;32],native_work_owned:false}); }
         state.bridges.sort_by_key(|b|b.native_slot);
@@ -383,7 +384,7 @@ impl Game {
         self.native_world=Some(state);if let Some(rect)=collapse{self.collapse_native_units(rect,false);}let Some(state)=self.native_world.take()else{return;};
         let bases=std::array::from_fn(|i|state.forts.get(i).map(|f|f.base).unwrap_or([32767,32767]));let hp=std::array::from_fn(|i|state.forts.get(i).and_then(|f|self.buildings.iter().find(|b|b.id==f.binding)).map(|b|b.hp as i16).unwrap_or(0));
         let damage=native::fort_damage(origin,if (0..4).contains(&team){Some(team as u8)}else{None},fire_mode,bases,hp,i16::from(strength));
-        let scene_enabled=!self.multiplayer&&state.fort_runtime.enabled;
+        let scene_enabled=state.fort_runtime.enabled&&(!self.multiplayer||state.fort_runtime.peer_orders.is_some());
         let mut defeated=[None;2];
         for i in 0..state.forts.len(){if let Some(b)=self.buildings.iter_mut().find(|b|b.id==state.forts[i].binding){b.hp=f64::from(damage.hp[i]);if damage.destroyed[i]{if scene_enabled{defeated[i]=Some(if b.team==0{crate::original_fort_scene::DefeatedFort::Team0}else{crate::original_fort_scene::DefeatedFort::Team1});}else{self.winner=Some(1-b.team);}self.events.push(json!({"kind":"buildingLost","team":b.team,"id":b.id}));}}}
         self.native_world=Some(state);

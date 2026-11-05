@@ -4,7 +4,9 @@ use super::{Game,Value,json,original_combat,original_attack_click_game::Input};
 impl Game{
  pub(crate) fn try_native_human_attack_command(&mut self,v:&Value,ids:&[usize],team:i32)->bool{
   let kind=v["kind"].as_str().unwrap_or("move");
-  if !self.map.original||self.map.native_road_graph.is_none()||self.multiplayer||v["nativeEvent"]==false||!matches!(kind,"attack"|"attackBuilding"|"attackWall"|"attackBridge")||v.get("nativeClick").is_none(){return false;}
+  let fort_context=self.native_fort_sequence_enabled()&&kind=="attackBuilding"&&v["nativeAttackOnly"]!=true&&
+      v["target"].as_u64().is_some_and(|id|self.buildings.iter().any(|b|b.id as u64==id&&b.kind=="fort"));
+  if !self.map.original||self.map.native_road_graph.is_none()||self.multiplayer&&!fort_context||v["nativeEvent"]==false||!matches!(kind,"attack"|"attackBuilding"|"attackWall"|"attackBridge")||v.get("nativeClick").is_none(){return false;}
   let Some(point)=v["nativeClick"].as_array().filter(|p|p.len()==2).and_then(|p|Some([i16::try_from(p[0].as_i64()?).ok()?,i16::try_from(p[1].as_i64()?).ok()?]))else{return true;};
   if point[0]<0||point[1]<0||usize::from(point[0]as u16)>=self.map.width*16||usize::from(point[1]as u16)>=self.map.height*16{return true;}
   let eligible=ids.iter().filter_map(|id|self.units.iter().position(|u|u.id==*id&&u.team==team&&original_combat::alive(true,u.hp)&&!super::workshops::hidden(u))).collect::<Vec<_>>();
@@ -18,8 +20,7 @@ impl Game{
   //No workshop timer or absent saved-class/link byte is invented. These
   //typed unavailable-context cases retain the existing interaction backend.
   let decision=match self.classify_native_human_attack(primary,&input){Ok(d)=>d,Err(_)=>return false};
-  if self.native_fort_sequence_enabled()&&kind=="attackBuilding"&&v["nativeAttackOnly"]!=true&&!input.hardware&&decision.return_code!=0&&
-      v["target"].as_u64().is_some_and(|id|self.buildings.iter().any(|b|b.id as u64==id&&b.kind=="fort")){
+  if fort_context&&!input.hardware&&decision.return_code!=0{
    // 438cf0 continues to 4416b0 when the infantry attack classifier
    // returns nonzero for an ordinary context click. Retain the clicked
    // terrain coordinate, not the outside gate used for an attack approach.
@@ -28,6 +29,7 @@ impl Game{
    request.insert("x".into(),json!(i32::from(point[0])*2));request.insert("y".into(),json!(i32::from(point[1])*2));
    self.command(&command);return true;
   }
+  if self.multiplayer{return false;}
   let before=self.native_selection.clone();let mut groups=vec![];
   for &i in &eligible{if let Some(g)=self.units[i].native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref()).map(|m|m.group).filter(|&g|g!=255){if !groups.contains(&g){groups.push(g);}}}
   self.select_native_groups(&groups);

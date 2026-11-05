@@ -1,11 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.137 Rusttests und 40 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 95/95 Node-Prüfprogramme im
-aktuellen nov05-r60 bestanden, einschließlich aller 20 privaten Missionen.
+1.137 Rusttests und 43 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 96/96 Node-Prüfprogramme im
+aktuellen nov05-r61 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: bf3030dc4a52eb55a8646c52b95cf4be84e9317983dde52717083e5884826fee
+Wasm SHA256: d7a8041c1b370163566751414b4997384bdbfc4f1e7c3c71931c6e29ab9c9ece
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,6 +40,20 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R61
+- 768 Originalfälle prüfen Ergebnisuhr, Übertrag, Grenze und den
+  übersprungenen Takt. Der nächste Takt läuft nach der Ausblendung weiter.
+- 32 Paare von Originalinstanzen prüfen 192 fällige Fortbefehle und deren
+  Reihenfolge in den beiden Warteschlangen. In Mission 1 ist der Ablauf
+  über die Rust-Spielschleife in beiden Spielerrollen geprüft.
+- Normaler Wasm-Build mit echten Host- und Gast-APIs: Eine Teilauswahl des
+  Gasts marschiert durchs rote Tor. Host und Gast sehen ihr jeweiliges
+  Ergebnis und erhalten die zugehörigen Original-Funksprüche. Kameraziel,
+  Uhr und Ansichtswechsel sind mit lokaler Nachrichtenübergabe geprüft.
+- 32 Original-Kameraspuren prüfen den Schwenk vollständig und mit
+  ausgelassenen Zwischenständen. Der lokale Browser-Einstieg lädt Lobby
+  und Mission 1 mit Originalgrafik ohne Konsolenfehler.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R60
 - Einzelspieler: Beide Torseiten in allen 20 Originalmissionen starten die

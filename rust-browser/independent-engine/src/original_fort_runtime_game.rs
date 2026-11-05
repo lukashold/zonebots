@@ -1,7 +1,8 @@
 //! Game bindings for the fort queue. There is one scene counter, shared
 //! with unit feedback and rendering, and one team marker shared with cleanup.
 use super::{Game,fort_admission,fort_cleanup_game,effects::fort::Burst,json};
-use crate::original_fort_scene::{Action,Admission,AdmissionAction,AdmissionWorld,Context,DefeatedFort,Notice,Return,World,camera::Camera,orders};
+use crate::original_fort_scene::{Action,Admission,AdmissionAction,AdmissionWorld,Context,DefeatedFort,Notice,Return,World,camera::Camera,end::ScoreClock,orders};
+use orders::queue::{self,Dispatch,DrainWorld,PeerOrders};
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum Boundary {
@@ -11,6 +12,8 @@ pub(super) enum Boundary {
     Sweep(orders::game::Boundary),
     Pan(crate::original_fort_scene::game::PanBoundary),
     Camera(i16),
+    PeerCursor(queue::CursorBoundary),
+    PeerOrder(i16),
 }
 
 #[derive(Default)]
@@ -22,14 +25,34 @@ pub(super) struct Runtime {
     local_menu_flag:u8,
     local_defeat:u8,
     redraw:u8,
-    score_time:Option<f64>,
+    score_clock:ScoreClock,
     camera:Option<Camera>,
     last_camera:Option<[i16;2]>,
     pub(super) boundary:Option<Boundary>,
     door_boundary:Option<orders::game::Boundary>,
+    pub(super) peer_orders:Option<PeerOrders>,
+    peer_clock:i32,
+    peer_pan:Option<[i16;2]>,
 }
 
 struct Scene<'a>(&'a mut Game);
+
+struct PeerDispatch<'a>{game:&'a mut Game,clock:i32,bypass:u8}
+
+impl DrainWorld for PeerDispatch<'_>{
+    type Boundary=Boundary;
+    fn clock(&self)->i32{self.clock}
+    fn set_local_router(&mut self,value:u8){self.bypass=value;}
+    fn local_order(&mut self,order:Dispatch)->Result<(),Boundary>{
+        let Ok(slot)=u8::try_from(order.slot)else{return Err(Boundary::PeerOrder(order.slot));};
+        if slot>=240||order.forced!=1||order.opcode!=1||order.argument!=3||self.bypass!=1{return Err(Boundary::PeerOrder(order.slot));}
+        // Address the current physical slot, even if its original actor was
+        // replaced during the delay. An empty slot has no live Web recipient.
+        if !self.game.units.iter().any(|u|u.native_slot==Some(usize::from(slot))){return Ok(());}
+        self.game.accept_native_fort_forced_move(orders::Move{slot,target:order.target}).map_err(Boundary::Sweep)
+    }
+    fn release_dispatch_context(&mut self){}
+}
 
 impl Scene<'_> {
     fn registers(&self)->&Runtime{&self.0.native_world.as_ref().unwrap().fort_runtime}
@@ -46,6 +69,7 @@ impl World for Scene<'_> {
     fn mixer_loaded(&self)->bool{true}
     fn local_team(&self)->u8{self.0.native_feedback.local_team}
     fn notice_pending(&self,kind:Notice)->bool{
+        if self.0.multiplayer{return false;}
         let radio=&self.0.native_feedback.fort_radio;
         match kind{Notice::Win=>radio.win.flag!=0,Notice::Loss=>radio.loss.flag!=0}
     }
@@ -56,13 +80,19 @@ impl World for Scene<'_> {
     fn execute(&mut self,action:Action)->Result<bool,Boundary>{
         match action {
             Action::HaltMixer=>self.0.events.push(json!({"kind":"nativeFortHaltMixer"})),
-            Action::Notice{kind,local_team}=>self.0.native_feedback.fort_radio.arm(kind,local_team),
+            Action::Notice{kind,local_team}=>{
+                if self.0.multiplayer{let owner=self.registers().owner;self.0.arm_native_fort_result_radio(owner);}
+                else{self.0.native_feedback.fort_radio.arm(kind,local_team);}
+            },
             Action::SelectFort(index)=>self.registers_mut().selected=index,
             Action::RemoveTeam(team)=>self.0.remove_native_fort_team_actors(team).map_err(Boundary::Cleanup)?,
             Action::PanToFort{base}=>{
                 let request=self.0.prepare_native_fort_pan(base,0).map_err(Boundary::Pan)?;
-                let current=self.0.native_view.map_or([0,0],|(p,_)|p);
-                self.registers_mut().camera=Some(Camera{current,request,delta_eighth:[0,0],remaining:0,mode:0,target:current});
+                if self.0.multiplayer{self.registers_mut().peer_pan=Some(request);}
+                else{
+                    let current=self.0.native_view.map_or([0,0],|(p,_)|p);
+                    self.registers_mut().camera=Some(Camera{current,request,delta_eighth:[0,0],remaining:0,mode:0,target:current});
+                }
                 self.0.events.push(json!({"kind":"nativeFortDeselect"}));
             },
             Action::Disperse{base,reverse}=>{
@@ -80,8 +110,6 @@ impl World for Scene<'_> {
             },
             Action::RetireFortTeam=>{
                 let owner=self.registers().owner;
-                let time=self.0.time;
-                self.registers_mut().score_time.get_or_insert(time);
                 return self.0.retire_native_fort_team(owner).ok_or(Boundary::Fort(owner))?.map_err(|_|Boundary::Fort(owner));
             },
             Action::MarkSceneDirty=>self.0.native_world.as_mut().unwrap().fort_end.scene_dirty=1,
@@ -118,7 +146,42 @@ impl AdmissionWorld for Scene<'_> {
 
 impl Game {
     pub(crate) fn native_fort_sequence_enabled(&self)->bool{
-        !self.multiplayer&&self.native_world.as_ref().is_some_and(|w|w.fort_runtime.enabled)
+        self.native_world.as_ref().is_some_and(|w|w.fort_runtime.enabled&&(!self.multiplayer||w.fort_runtime.peer_orders.is_some()))
+    }
+
+    pub(crate) fn begin_native_fort_main(&mut self){
+        if !self.native_fort_sequence_enabled(){return;}
+        let world=self.native_world.as_mut().unwrap();
+        world.fort_runtime.score_clock.ui_callback(world.fort_end.scene_dirty);
+        if self.multiplayer {
+            world.fort_runtime.peer_clock=world.fort_runtime.peer_clock.wrapping_add(1);
+            let clock=world.fort_runtime.peer_clock;
+            let mut queues=world.fort_runtime.peer_orders.take().unwrap();
+            let result=queues.host.drain_due(&mut PeerDispatch{game:self,clock,bypass:0},true);
+            let runtime=&mut self.native_world.as_mut().unwrap().fort_runtime;
+            runtime.peer_orders=Some(queues);
+            if let Err(error)=result{runtime.boundary.get_or_insert(error);}
+        }
+        let world=self.native_world.as_mut().unwrap();
+        world.fort_end.begin_main();
+    }
+
+    pub(crate) fn stage_native_fort_peer_move(&mut self,command:orders::Move)->bool{
+        if !self.multiplayer{return false;}
+        let Some(world)=self.native_world.as_mut()else{return false;};
+        let runtime=&mut world.fort_runtime;
+        let Some(orders)=runtime.peer_orders.as_mut()else{return false;};
+        let input=|ring_selector|queue::Input{clock:runtime.peer_clock,selection_flag:0,auxiliary:0,selection_context:[0;12],ring_selector};
+        if let Err(e)=orders.stage(command,input(0),input(1)){runtime.boundary.get_or_insert(Boundary::PeerCursor(e));}
+        true
+    }
+
+    pub(crate) fn finish_native_fort_peer_frame(&mut self){
+        if !self.multiplayer{return;}
+        let Some(world)=self.native_world.as_mut()else{return;};
+        let runtime=&mut world.fort_runtime;
+        let Some(orders)=runtime.peer_orders.as_mut()else{return;};
+        if let Err(e)=orders.finish_callback(0){runtime.boundary.get_or_insert(Boundary::PeerCursor(e));}
     }
 
     pub(crate) fn admit_native_fort_defeat(&mut self,side:DefeatedFort,cause:i8){
@@ -187,14 +250,16 @@ impl Game {
 
     pub(crate) fn native_fort_scene_snapshot(&self)->Option<serde_json::Value>{
         let world=self.native_world.as_ref()?;
+        let frame=(0..4).map(|i|world.fort_scene_queue.counter(i)).find(|&n|n>0);
         self.native_fort_sequence_enabled().then(||json!({
             "active":self.native_feedback.scene_gate!=0,
-            "frame":(0..4).map(|i|world.fort_scene_queue.counter(i)).find(|&n|n>0),
+            "frame":frame,
             "camera":world.fort_runtime.last_camera,
-            "panning":world.fort_runtime.camera.is_some(),
+            "panRequest":world.fort_runtime.peer_pan,
+            "panning":world.fort_runtime.camera.is_some()||world.fort_runtime.peer_pan.is_some()&&frame.is_some_and(|n|(2..18).contains(&n)),
             "owner":world.fort_runtime.owner,
             "dirty":world.fort_end.scene_dirty!=0,
-            "scoreTime":world.fort_runtime.score_time,
+            "scoreTime":world.fort_runtime.score_clock.seconds,
             "boundary":world.fort_runtime.boundary.map(|e|format!("{e:?}")),
         }))
     }

@@ -1,4 +1,4 @@
-use super::{Dispatch,DrainWorld,Input,Move,Queue,Record,Route};
+use super::{Dispatch,DrainWorld,Input,Move,PeerOrders,Queue,Record,Route};
 use serde_json::Value;
 
 fn decode(value:&Value)->Vec<u8> {
@@ -32,7 +32,7 @@ fn original_fort_moves_match_both_raw_rings_and_warm_staging_rows() {
             assert_ne!(b(0),0);assert_eq!(b(1),0);
             let slot=((event[1].as_u64().unwrap()-0x5e30c8)/192) as u8;
             let result=queue.stage_forced_move(Move{slot,target:[a(15) as i16,a(16) as i16]},Input{
-                clock:0x10203040,sender:69,auxiliary:7,
+                clock:0x10203040,selection_flag:69,auxiliary:7,
                 selection_context:std::array::from_fn(|i|1000+id as u16+i as u16*101),ring_selector:b(2) as u16}).unwrap();
             match result {
                 Route::StageFull=>rejected+=1,
@@ -67,12 +67,12 @@ impl DrainWorld for Consumer {
     fn clock(&self)->i32 { self.clock }
     fn set_local_router(&mut self,bypass:u8) { self.bypass=bypass; }
     fn local_order(&mut self,order:Dispatch)->Result<(),Self::Boundary> {
-        self.sender=order.sender;
+        self.sender=order.selection_flag;
         self.forced=order.forced;
         self.local_mode=0;
-        let (ring,slot)=if order.sender>=30 {(1,order.sender-30)}else{(0,order.sender-10)};
+        let (ring,slot)=if order.selection_flag>=30 {(1,order.selection_flag-30)}else{(0,order.selection_flag-10)};
         self.stamps[ring*6+usize::from(slot)]=u32::MAX;
-        self.recorded.push(serde_json::json!([order.slot,order.sender,order.forced,self.bypass,order.opcode,
+        self.recorded.push(serde_json::json!([order.slot,order.selection_flag,order.forced,self.bypass,order.opcode,
             0x12340000u32|u32::from(order.target[0] as u16),0x56780000u32|u32::from(order.target[1] as u16),
             order.argument,order.auxiliary as u32,self.local_mode,self.stamps,order.selection_context]));
         if self.clock_change&&self.recorded.len()==1 { self.clock+=1; }
@@ -122,4 +122,50 @@ fn original_fort_order_consumer_matches_due_clock_physical_order_and_reentrant_c
         checked+=consumer.recorded.len();
     }
     assert_eq!(checked,78);
+}
+
+#[test]
+#[ignore="requires private original two-peer fort scheduling trace"]
+fn original_fort_orders_arrive_twice_in_physical_ring_order_after_twenty_ticks(){
+    struct Receiver{clock:i32,bypass:u8,seen:Vec<Value>}
+    impl DrainWorld for Receiver{
+        type Boundary=std::convert::Infallible;
+        fn clock(&self)->i32{self.clock}
+        fn set_local_router(&mut self,n:u8){self.bypass=n;}
+        fn local_order(&mut self,order:Dispatch)->Result<(),Self::Boundary>{
+            assert_eq!(self.bypass,1);assert_eq!((order.opcode,order.argument),(1,3));
+            let head=[i32::from(order.slot),i32::from(order.forced),i32::from(order.selection_flag),order.auxiliary,
+                i32::from(order.target[0]),i32::from(order.target[1])];
+            self.seen.push(serde_json::json!(head.into_iter().chain(order.selection_context.map(i32::from)).collect::<Vec<_>>()));
+            Ok(())
+        }
+        fn release_dispatch_context(&mut self){}
+    }
+    let path=std::env::var("NATIVE_FORT_MP_COUPLED_TRACE").expect("private trace path");
+    let text=std::fs::read_to_string(path).unwrap();
+    assert_eq!(text.lines().count(),32);
+    let mut calls=0;
+    for (id,line) in text.lines().enumerate(){
+        let v:Value=serde_json::from_str(line).unwrap();assert_eq!(v["id"],id);
+        let n=|key:&str|v[key].as_i64().unwrap();
+        let mut pair=PeerOrders::default();
+        pair.host.cursor=[n("cursor") as i16;2];
+        pair.host.staging=std::array::from_fn(|i|std::array::from_fn(|j|(id*13+(i*44+j)*7) as u8));
+        pair.guest=std::array::from_fn(|i|std::array::from_fn(|j|(id*13+31+(i*44+j)*7) as u8));
+        let input=|peer:usize|Input{clock:n("tick") as i32,selection_flag:if id/4%2==0{0}else{peer as u8+10},
+            auxiliary:(id*997+peer*37) as u16 ^ 0x8000,selection_context:std::array::from_fn(|i|(id*313+peer*79+i*137) as u16),ring_selector:peer as u16};
+        for slot in [0,1,100]{pair.stage(Move{slot,target:[380,if n("reverse")==0{100}else{700}]},input(0),input(1)).unwrap();}
+        assert_eq!(&pair.host.staging[..3],rows(&v["left"]));
+        assert_eq!(&pair.guest[..3],rows(&v["right"]));
+        pair.finish_callback(0).unwrap();assert_eq!((pair.host.count,pair.guest_count),(0,0));
+        assert_eq!(&pair.host.staging[..3],rows(&v["left"]));
+        assert_eq!(&pair.guest[..3],rows(&v["right"]));
+        let mut receiver=Receiver{clock:n("tick") as i32+19,bypass:0,seen:vec![]};
+        pair.host.drain_due(&mut receiver,true).unwrap();assert!(receiver.seen.is_empty());
+        receiver.clock+=1;
+        pair.host.drain_due(&mut receiver,true).unwrap();assert_eq!(receiver.bypass,0);
+        assert_eq!(receiver.seen.as_slice(),v["dispatches"].as_array().unwrap(),"case {id}");
+        calls+=receiver.seen.len();
+    }
+    assert_eq!(calls,192);
 }

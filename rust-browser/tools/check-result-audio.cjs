@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
-const app=fs.readFileSync(path.join(__dirname,'../dist/independent/app.js'),'utf8'),start=app.indexOf('function update(s)'),end=app.indexOf('\n function start()',start);assert(start>=0&&end>start);
+const app=fs.readFileSync(path.join(__dirname,'../dist/independent/app.js'),'utf8'),start=app.indexOf('let peerFortCamera='),end=app.indexOf('\n function start()',start);assert(start>=0&&end>start);
 const snapshot=(winner=null,clock=0)=>({winner,time:10,units:[],events:[],nativeUiClock:clock,map:{original:true,world:0}});
 function harness(network=false,initial=snapshot()){
  const nodes={},scenes=[],voices=[];let hudCalls=0;

@@ -31,3 +31,23 @@ fn original_fort_retirement_preserves_the_other_team_bytes_and_returns_continue(
         assert_eq!(row["rngUnchanged"],true);
     }
 }
+#[test]
+#[ignore="requires private source scoreboard callback trace"]
+fn original_score_clock_gates_one_pulse_and_main_clears_the_dirty_byte() {
+    use super::{Registers,ScoreClock};
+    let path=std::env::var("NATIVE_FORT_SCORE_TRACE").expect("private trace path");
+    let source=std::fs::read_to_string(path).unwrap();
+    assert_eq!(source.lines().count(),768);
+    for (i,line) in source.lines().enumerate(){
+        let r:serde_json::Value=serde_json::from_str(line).unwrap();
+        assert_eq!(r["id"],i);
+        let n=|key:&str,slot:usize|r[key][slot].as_i64().unwrap();
+        let mut clock=ScoreClock{subtick:n("before",0) as i16,seconds:n("before",1) as i32};
+        let mut registers=Registers{scene_dirty:n("before",2) as u8,..Default::default()};
+        clock.ui_callback(registers.scene_dirty);
+        assert_eq!([i64::from(clock.subtick),i64::from(clock.seconds),i64::from(registers.scene_dirty)],
+                   std::array::from_fn(|j|n("afterUi",j)),"UI row {i}");
+        if r["main"]==true{registers.begin_main();}
+        assert_eq!(i64::from(registers.scene_dirty),r["afterMain"].as_i64().unwrap(),"Main row {i}");
+    }
+}

@@ -8,6 +8,24 @@ pub(crate) struct Registers {
     pub palette_cursor: u8,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ScoreClock {
+    pub(crate) subtick:i16,
+    pub(crate) seconds:i32,
+}
+
+impl ScoreClock {
+    /// 46c736 runs before Main, with its previous dirty byte. Main then
+    /// resets the byte at 435af6, so stage 17 skips just one clock pulse.
+    pub(crate) fn ui_callback(&mut self,dirty:u8) {
+        if dirty!=0{return;}
+        self.subtick=self.subtick.wrapping_add(1);
+        if self.subtick<17{return;}
+        self.subtick=0;
+        if self.seconds<35999{self.seconds+=1;}
+    }
+}
+
 impl Default for Registers {
     fn default() -> Self { Self{scene_dirty:0,defeated_owner:0,palette_row:-1,palette_cursor:0} }
 }
@@ -17,6 +35,7 @@ impl Registers {
         self.scene_dirty=0;
         self.palette_row=-1;
     }
+    pub(crate) fn begin_main(&mut self){self.scene_dirty=0;}
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

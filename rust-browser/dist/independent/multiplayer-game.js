@@ -9,6 +9,7 @@
  const integer=(n,max=0xffffffff)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
  const audioContext=value=>typeof value==='string'&&/^(0|[1-9][0-9]{0,9}):(0|[1-9][0-9]{0,9})$/.test(value)&&value.split(':').every(n=>integer(+n));
  const audioView=value=>object(value)&&Object.keys(value).length===2&&['camera','size'].every(k=>Array.isArray(value[k])&&value[k].length===2&&value[k].every(n=>Number.isInteger(n)&&n>=-32768&&n<=32767))&&value.size.every(n=>n>0);
+ const nativePoint=p=>Array.isArray(p)&&p.length===2&&p.every(n=>Number.isInteger(n)&&n>=-32768&&n<=32767);
  const flip=n=>n===0?1:n===1?0:n;
  //41cfa0 selects baked red/blue banks, both with palette0. Guest color
  //mapping must retain each bank's own pixels/alpha; the banks are not exact
@@ -35,6 +36,7 @@
  }
  function validState(state,full=false){
   if(!object(state)||!Number.isFinite(state.time)||state.time<0||![null,0,1].includes(state.winner))return false;
+  if(state.nativeFortScene!==undefined){const f=state.nativeFortScene;if(!object(f)||typeof f.active!=='boolean'||typeof f.panning!=='boolean'||typeof f.dirty!=='boolean'||!integer(f.owner,2)||!integer(f.scoreTime,35999)||!(f.frame===null||integer(f.frame,169)&&f.frame>0)||!(f.camera===null||nativePoint(f.camera))||!(f.panRequest===null||nativePoint(f.panRequest))||!(f.boundary===null||typeof f.boundary==='string'&&f.boundary.length<=256))return false;}
   if(state.nativeUiClock!==undefined&&(!Number.isInteger(state.nativeUiClock)||state.nativeUiClock< -32768||state.nativeUiClock>32767))return false;
   if(state.nativePortraits!==undefined&&(!Array.isArray(state.nativePortraits)||state.nativePortraits.length!==2||!state.nativePortraits.every((p,i)=>object(p)&&p.recipientTeam===i&&integer(p.mode,4)&&Number.isInteger(p.message)&&p.message>=-2147483648&&p.message<=2147483647&&['phraseIndex','phraseCounter','phraseFrame'].every(k=>Number.isInteger(p[k])&&p[k]>=-32768&&p[k]<=32767)&&['nativeSlot','rawSpeakerSlot'].every(k=>p[k]===null||integer(p[k],239))&&(p.unitId===null||integer(p.unitId)))))return false;
   if(Array.isArray(state.events)&&!state.events.every(e=>!['nativeVoice','nativeSample'].includes(e?.kind)||e.nativeAudioId===undefined||typeof e.nativeAudioId==='string'&&/^[0-9]{1,20}$/.test(e.nativeAudioId)&&integer(e.recipientTeam,1)&&(e.actorTeam===null||integer(e.actorTeam,3))))return false;
@@ -91,7 +93,7 @@
   return true;
  }
  function validateAction(request,team,state,preview=false){
-  if(!object(request)||!state||!integer(team,1))return null;
+  if(!object(request)||!state||state.nativeFortScene?.active||!integer(team,1))return null;
   const op=request.op;if(preview?op!=='previewGun':!ACTIONS.has(op))return null;
   const result={op,team},position=()=>{
    const x=request.x,y=request.y,m=state.map;if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>m.width*32||y>m.height*32)return false;
@@ -109,6 +111,7 @@
    if(result.kind==='attackWall'&&(!own(result,'target')||!(state.walls||[]).some(w=>w.id===result.target&&w.hp>0)))return null;
    if(own(request,'x')||own(request,'y')){if(!position())return null;}
    if(own(request,'nativeClick')){const p=request.nativeClick,m=state.map;if(!['move','attack','attackBuilding','attackWall','attackBridge'].includes(result.kind)||!Array.isArray(p)||p.length!==2||!p.every(n=>integer(n,32767))||p[0]>=m.width*16||p[1]>=m.height*16)return null;result.nativeClick=[...p];if(own(request,'nativeFlagMode')){if(result.kind!=='move'||typeof request.nativeFlagMode!=='boolean')return null;result.nativeFlagMode=request.nativeFlagMode;}}
+   if(own(request,'nativeAttackOnly')){if(!['attack','attackBuilding','attackWall','attackBridge'].includes(result.kind)||typeof request.nativeAttackOnly!=='boolean'||!result.nativeClick)return null;result.nativeAttackOnly=request.nativeAttackOnly;}
    if(own(request,'nativePrimary')){if(!integer(request.nativePrimary)||!result.ids.includes(request.nativePrimary))return null;result.nativePrimary=request.nativePrimary;}
    if(own(request,'impactX')||own(request,'impactY')){const x=request.impactX,y=request.impactY,m=state.map;if(result.kind!=='attackBuilding'||![x,y].every(Number.isFinite)||x<0||y<0||x>m.width*32||y>m.height*32)return null;result.impactX=x;result.impactY=y;}
    if(['move','attackBridge','repairBridge'].includes(result.kind)&&!own(result,'x'))return null;

@@ -60,7 +60,9 @@ impl World for Local<'_> {
         // This port binds only the explicitly selected local forced branch.
         // The router's shared bypass/forced bytes are tested by the raw port.
     }
-    fn route_order(&mut self,command:Move)->Result<(),Boundary> { self.game.accept_native_fort_forced_move(command) }
+    fn route_order(&mut self,command:Move)->Result<(),Boundary> {
+        if self.game.stage_native_fort_peer_move(command){Ok(())}else{self.game.accept_native_fort_forced_move(command)}
+    }
 }
 
 #[cfg(test)]

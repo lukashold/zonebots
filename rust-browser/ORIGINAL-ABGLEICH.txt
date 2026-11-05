@@ -616,6 +616,23 @@ Spielschleife in Mission 1, ein Marsch bis zum Sieg mit dem normalen Wasm-Build,
 76 originale Team-Abbau-Kontexte und 128 originale Wrackeffekt-Kontexte.
 Die Mehrspieler-Partien verwenden weiterhin ihren bisherigen Abschluss.
 
+WEITERER ABGLEICHSBLOCK NOV05-R61
+Die Ergebnisuhr überspringt bei der Fort-Ausblendung den nächsten Takt.
+Danach läuft sie bis zum Ende weiter. Im Original wurden der Übertrag nach
+17 Takten und die Obergrenze von 35.999 Sekunden in 768 Fällen ausgeführt.
+
+In den zwei Spielerrollen der Originalkampagne läuft dieselbe Fort-Sequenz
+jetzt auch im Mehrspieler. Die automatischen Fortbefehle werden in zwei
+physischen Warteschlangen erst 20 Takte nach Einreihung ausgeführt. Die
+Reihenfolge bei einem Ringumlauf und 192 Befehlsaufrufe wurden mit 32
+Original-Doppelläufen verglichen. Beide Ansichten starten den Kameraschwenk
+von ihrer eigenen Position; auch mit übersprungenen Netzwerk-Schnappschüssen
+bleibt das Ziel korrekt. Funksprüche gehen getrennt an Sieger und Verlierer.
+
+Im normalen Browser-Build wurde der Fortmarsch des Gasts durch das rote Tor
+in Mission 1 bis zu beiden Ergebnisansichten geprüft. Das ist ein Test der
+Browser-Rollen mit lokaler Nachrichtenübergabe, kein Test über das Internet.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -645,8 +662,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
    maschinenanimationen sowie Palette und weitere Abschlusszweige sind offen.
-   Die Fort-Sequenz im Mehrspieler und die Kopplung der erzwungenen Befehle
-   an dessen Originaltakt sind noch nicht angebunden.
+   Die Ergebnis-Palette und die vollständigen Original-Ergebnisbildschirme
+   fehlen. Weiterläufe automatischer Befehle auf bereits freigegebenen
+   Original-Objektplätzen sind im Browser nicht allgemein rekonstruiert.
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem
    Zufallszustand sind nicht durchgehend gegen das Original aufgezeichnet.
 6. Online/LAN nutzt das eigene WebRTC-/Hostprotokoll. Das Originalnetzwerkprotokoll,
