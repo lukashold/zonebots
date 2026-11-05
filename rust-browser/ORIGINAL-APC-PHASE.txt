@@ -66,3 +66,10 @@ Die physische Anbindung aller65-/8e-Schreibstellen, vollständige Zielsuche,
 Warnungen und normale APC-Emissionsblätter bleiben offen. Der reine
 automatische APC-Kern wird hier nicht als vollständiger Game-Ersatz aktiviert.
 Dieser Schritt begründet keine vollständige1:1-Gleichheit.
+
+Ergänzung Nov05-R56: Das Aussteigen direkt besetzt angelegter APCs mit genau
+einem Fahrer braucht ebenfalls keine neue physische Einheit. 24 Originalfälle
+bei freiem Ausgang behalten Einheit, Gruppenzuordnung und B6. Die Version
+verwendet den vorhandenen Einheitenslot und denselben Zustand auch dann,
+wenn für die Infanterie erstmals eine Browser-Identität benötigt wird.
+Die Abdeckung gilt für diesen Einpersonenfall in SP und MP.

@@ -689,9 +689,21 @@ impl Game {
         //0041b210 returns allocation failure after the shared240-slot pool.
         // Hidden passengers retain slots; the driver's adapter duplicate does not.
         if self.map.original&&team>=0&&native_slot.is_none(){return;}
+        if self.map.original&&self.native_collision_masks.world!=Some(self.map.world as u8){self.native_collision_masks.initialize(self.map.world as u8);}
+        let index=self.push_unit_adapter(k,team,x,y,squad,crew,native_slot,d);
+        if self.map.original{if let Some(slot)=native_slot{self.initialize_native_selection_context(slot);}}
+        if self.map.original{self.initialize_native_walk_fields(index);self.refresh_native_pattern_step(index,self.motion_tick);if self.native_route_mode{if let Some(slot)=native_slot{let paths=self.native_routes.get_mut();paths.managed[slot]=true;paths.pool.links[slot]=Default::default();}}}
+        if self.map.original&&team>=0&&d.cls>0{self.allocate_native_hardware_record(index,d.cls==1);if d.cls==2&&native_slot.is_some(){let u=&mut self.units[index];u.native_counter84=-1;u.angle=native_math::angle(6);}}
+        if self.map.original&&d.cls>0{if let Some(slot)=native_slot{self.native_selection.contexts[slot].link28=if matches!(k,"jeep"|"crane"){Some(0x2084)}else{None};}}
+        if self.map.original&&native_slot.is_some(){self.initialize_native_collision_tables(index);if let Err(e)=self.initialize_native_terrain_tag(index){self.native_route_boundary=Some(e);}}
+        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(index);self.record_native_upstream_ctor(index);self.record_native_crane_ctor(index);self.record_native_start_gun_setup(index);}
+    }
+
+    ///Create the browser identity only. The caller either constructs the
+    ///physical slot or binds to one that is already alive.
+    fn push_unit_adapter(&mut self,k:&str,team:i32,x:f64,y:f64,squad:usize,crew:Option<Crew>,native_slot:Option<usize>,d:Stats)->usize{
         let id = self.next_id;
         self.next_id += 1;
-        if self.map.original&&self.native_collision_masks.world!=Some(self.map.world as u8){self.native_collision_masks.initialize(self.map.world as u8);}
         self.units.push(Unit {
             id,
             kind: k.into(),
@@ -724,12 +736,7 @@ impl Game {
             original_motion: None,
             path: VecDeque::new(),
         });
-        if self.map.original{if let Some(slot)=native_slot{self.initialize_native_selection_context(slot);}}
-        if self.map.original{self.initialize_native_walk_fields(self.units.len()-1);self.refresh_native_pattern_step(self.units.len()-1,self.motion_tick);if self.native_route_mode{if let Some(slot)=native_slot{let paths=self.native_routes.get_mut();paths.managed[slot]=true;paths.pool.links[slot]=Default::default();}}}
-        if self.map.original&&team>=0&&d.cls>0{self.allocate_native_hardware_record(self.units.len()-1,d.cls==1);if d.cls==2&&native_slot.is_some(){let u=self.units.last_mut().unwrap();u.native_counter84=-1;u.angle=native_math::angle(6);}}
-        if self.map.original&&d.cls>0{if let Some(slot)=native_slot{self.native_selection.contexts[slot].link28=if matches!(k,"jeep"|"crane"){Some(0x2084)}else{None};}}
-        if self.map.original&&native_slot.is_some(){self.initialize_native_collision_tables(self.units.len()-1);if let Err(e)=self.initialize_native_terrain_tag(self.units.len()-1){self.native_route_boundary=Some(e);}}
-        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(self.units.len()-1);self.record_native_upstream_ctor(self.units.len()-1);self.record_native_crane_ctor(self.units.len()-1);self.record_native_start_gun_setup(self.units.len()-1);}
+        self.units.len()-1
     }
     pub fn products(&self,b:&Building)->Vec<&'static str>{
       if !b.alive(self.map.original){return vec![];}

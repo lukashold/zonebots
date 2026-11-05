@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.127 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
+1.128 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen13 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r55 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r56 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 1b923d51bf1e946563de6c7ccb098638221012f46f132fcb7ce54be70cb3bfcb
+Wasm SHA256: c94b55eb5f9fb86a06717073835a98d03811f098cfc95161275af01bf93703aa
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,20 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R56
+- Ein direkt besetzt gestarteter APC behält beim Aussteigen den physischen
+  Fahrerplatz und seine bisherige Feuerphase. Der Browser legt bei Bedarf
+  eine Figur zum Anzeigen an; der physische Fahrer wird nicht neu erzeugt.
+- 24 Originalfälle mit gebundener Einpersonen-Gruppe, drei physischen Plätzen,
+  vier Phasen und SP/MP bestätigen den erhaltenen Platz und Feuerzähler.
+  Die Originalphase wird kontrolliert vorgegeben; im Rust-Test geht dem
+  Aussteigen ein tatsächlich ausgeführter APC-Schuss voraus.
+- 20 Transporttests, insgesamt 1128 normale Rusttests, 14 separat ausgeführte
+  Privatdiagnostiken und 95 Nodeprogramme bestanden. Die 38 Brückenabläufe in
+  beiden Modi bleiben geprüft. Multiplayer weist ältere Versionen ab.
+- Ein eigener Browserlauf bestätigt Start und laufende Partie; der Wasm-ABI
+  bleibt unverändert. Kein Bild-, Audio- oder vollständiger Partievergleich.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R55
 - Frisch erstellte Kanonen-, Raketen-, Gatling- und Haubitzengeschütze erhalten

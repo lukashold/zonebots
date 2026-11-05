@@ -557,6 +557,15 @@ gescheiterter Aufbauzustände werden damit nicht als behoben ausgegeben.
 1127 normale Rusttests,14 separat ausgeführte Diagnostiken und95 Nodeprogramme
 prüfen den Release. Details: ORIGINAL-STARTGESCHUETZE.txt.
 
+WEITERER ABGLEICHSBLOCK NOV05-R56
+Direkt besetzte APCs mit einem Fahrer behalten den physischen Einheitenplatz
+und dessen Feuerphase auch dann, wenn der Browser beim Ausstieg erstmals eine
+Infanteriefigur anlegen muss. Die frühere Korrektur erfasste bereits vorher
+eingestiegene Fahrer; beim direkt besetzt angelegten APC fiel der Nachbau noch
+in den normalen Konstruktor zurück. 24 Originalfälle und der Rust-Test nach
+einem echten APC-Schuss in SP und MP belegen den korrigierten Teilablauf.
+Weitere Feuerblätter, andere Besatzungsfälle und ganze Partien bleiben offen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

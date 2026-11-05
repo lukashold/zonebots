@@ -274,6 +274,12 @@ impl Game{
    //identity. Old saves lack it and need a single renderer allocation.
    self.units[index].native_slot=None;let mut ids=Vec::new();
    if let Some(i)=carrier.transport_actor.and_then(|id|self.transport_member_index(id)){let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;ids.push(u.id);}
+   else if carrier.kind=="apc"&&carrier.cargo.is_empty()&&carrier.native_slot.is_some(){
+    //59720 restores the existing UNIT after freeing W. A directly occupied
+    //APC needs a browser ID for its driver, not another physical41b210 event.
+    let i=self.push_unit_adapter(&driver.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None,carrier.native_slot,stats(&driver.kind));
+    let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;ids.push(u.id);
+   }
    else{for crew in std::iter::once(driver.clone()).chain(carrier.cargo.clone()).take(transport::CAPACITY){self.spawn(&crew.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None);let u=self.units.last_mut().unwrap();u.hp=crew.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=u.native_slot;ids.push(u.id);}}
    let origin=((carrier.x/2.).floor()as i32,(carrier.y/2.).floor()as i32);let Ok(mut group)=Boarding::new(carrier.id,carrier.squad,origin,direction,&ids)else{return true;};group.occupant=ids.first().copied();self.native_transports.push(group);self.native_transports.len()-1
   };
@@ -325,6 +331,20 @@ impl Game{
  fn occupied(g:&mut Game,carrier:usize){for _ in 0..240{g.step(0.059);if g.units.iter().any(|u|u.id==carrier&&u.team==0){return;}}panic!("squad never boarded APC");}
  fn authored_exit_field()->(Game,usize){let mut g=field();g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});g.map.native_terrain_plane=vec![0;16384];g.map.world=0;g.spawn("apc",0,640.,640.,2,None);let i=g.units.len()-1;g.import_native_world(&Value::Null);g.maintain_native_group_rosters();(g,i)}
  fn set_exit_code(g:&mut Game,cell:i16,code:u8){let cell=cell as u16 as usize;let(x,y)=(cell&127,cell>>7);g.map.native_terrain_plane[cell]=code;g.map.terrain_codes[y*g.map.width+x]=code;}
+ #[test]fn fresh_single_crew_apc_unload_reuses_the_live_unit_without_a_constructor(){
+  for mp in [false,true]{let(mut g,i)=authored_exit_field();g.multiplayer=mp;g.original_rng.multiplayer=mp;
+   let carrier=g.units[i].id;let slot=g.units[i].native_slot.unwrap();assert!(g.units[i].transport_actor.is_none()&&g.units[i].cargo.is_empty());
+   let generation=g.native_upstream_reactions.generation(slot).unwrap();
+   g.spawn("heavy",1,640.,544.,77,None);g.update_native_apc_auto_tail_legacy(i).unwrap();
+   assert!(g.events.iter().any(|e|e["weapon"]=="passenger"&&e["carrier"]==carrier));
+   let before=g.native_cranes.bound(slot,generation,carrier).unwrap().clone();assert_ne!(before.phase_b6,Some(slot as u8&15));
+   assert!(g.unload_native_hardware(i));assert_eq!(g.units[i].team,-1);assert_eq!(g.units[i].native_slot,None);
+   let foot=g.units.iter().find(|u|u.team==0&&u.native_slot==Some(slot)).unwrap();assert_eq!(foot.kind,"grunt");assert_ne!(foot.id,carrier);
+   let actual=g.native_upstream_reactions.generation(slot).unwrap();
+   assert_eq!((actual,g.native_cranes.phase_b6(slot,actual)),(generation,before.phase_b6),"a renderer exit must not execute41b210 again");
+   let after=g.native_cranes.bound(slot,generation,foot.id).unwrap();assert_eq!(after.field96,before.field96);assert_eq!(after.work9a,before.work9a);
+  }
+ }
  #[test]fn authored_exit_probes_native_two_by_two_and_diagonal_third_column_instead_of_web_building_rectangles(){
   for direction in 0..8{for(probe,offset)in[0i16,1,128,129,2,130].into_iter().enumerate(){let(mut g,i)=authored_exit_field();let base=2580i16.wrapping_add(transport::FOOTPRINT_CELL_OFFSETS[direction]);set_exit_code(&mut g,base.wrapping_add(offset),32);assert_eq!(g.transport_direction_clear(&g.units[i],"grunt",direction as u8,false),probe>=4&&direction&1==0,"direction{direction},probe{probe}");}}
   let(mut g,i)=authored_exit_field();let cell=2580+transport::FOOTPRINT_CELL_OFFSETS[0];for code in[9,38,39,42]{set_exit_code(&mut g,cell,code);g.map.world=0;assert!(g.transport_direction_clear(&g.units[i],"grunt",0,false));g.map.world=1;assert!(!g.transport_direction_clear(&g.units[i],"grunt",0,false));}
