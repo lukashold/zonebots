@@ -97,11 +97,11 @@ pub fn line_cells(a:Point,b:Point)->Vec<Point>{
 }
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Default)]
 pub struct Price{pub cost:i32,pub special_tiles:i16}
+#[path="original_road_raster.rs"]pub(crate) mod raster;
 ///0045cf90: the second and subsequent consecutive terrain prices>=10 are
 /// halved. This high-price-run state resets for each polyline leg, not tile.
-pub fn path_price(points:&[Point],mut terrain:impl FnMut(Point)->u8,mut price:impl FnMut(u8)->u8)->Price{
- let mut result=Price::default();for pair in points.windows(2){let mut high=false;for cell in line_cells(pair[0],pair[1]){let code=terrain(cell)&127;if matches!(code,40|52){result.special_tiles=result.special_tiles.wrapping_add(1);}let raw=price(code);let reduced=if high&&raw>=10{raw>>1}else{raw};result.cost=result.cost.wrapping_add(i32::from(reduced));high=raw>=10;}}
- result
+pub fn path_price(points:&[Point],terrain:impl FnMut(Point)->u8,price:impl FnMut(u8)->u8)->Price{
+ raster::Raster::default().price(points,terrain,price)
 }
 ///0043ba60: direct wins ties, except level-record5 disallows a direct alternative
 /// crossing more than one raw code40/52 sample. This does not assert passability.

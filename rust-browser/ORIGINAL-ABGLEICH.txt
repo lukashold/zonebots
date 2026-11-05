@@ -697,14 +697,31 @@ Texturen und Bitmap-Schriften direkt aus der eigenen Installation laden.
 Ohne Zusatz verwendet das Spiel die bereits vorhandene Menügrafik und
 nachgezeichnete Rahmen. Die zusätzliche Grafik bleibt lokal.
 
+WEITERER ABGLEICHSBLOCK NOV05-R66
+Beim Vergleich eines Konturwegs mit einer Straßenroute bleiben die
+Original-Rasterwerte auch nach einem abgebrochenen Versuch erhalten.
+240 Originalaufrufe der Wegkostenfunktion stimmen in den Kosten und den
+Rasterwörtern überein. 480 vollständige Vergleichsläufe stimmen im
+letzten gemeinsamen Rasterzustand und in der Wegentscheidung überein.
+
+Der Zwischenspeicher überspringt belegte Positionen hinter den ersten
+40 Einträgen. Bei vollständig belegtem Speicher bleibt das originale
+Abbruch- oder Kopierverhalten erhalten. Von 160 langen Testfällen
+stimmen 138 bis zum Ende; bei 22 beginnt das Original an derselben
+nachgewiesenen Stelle, andere Speicherfelder zu überschreiben. Diese
+Schreibfälle bleiben im Nachbau als Grenze markiert. Die 20 unveränderten
+Kampagnen-Straßennetze haben auf einfachen Wegen höchstens 30 Übergänge;
+die langen Fälle sind daher gezielte Grenztests, keine Partievergleiche.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
    sind noch nicht als identische Eingabespur nachgewiesen. Insbesondere die
    temporäre Straßenliste überlappt schon ab Record40 mit Endpointglobals,
    danach ab44 mit UNIT-/Worker-/Kandidatendaten. Die normale Kontur-zu-Straße-
-   Ersetzung ist für den geprüften Laufzeitumfang angebunden; weitergehende
-   Aliaszugriffe und die gemeinsame Raster-/Dummyautorität bleiben offen.
+   Ersetzung ist für den geprüften Laufzeitumfang angebunden, einschließlich
+   des Lesens belegter Speicherüberlappungen. Schreibende Überlappungen und
+   die gemeinsame Raster-/Dummyautorität über alle Aufrufer bleiben offen.
 2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
    Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist

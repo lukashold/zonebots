@@ -1,11 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.137 Rusttests und 48 separat ausgeführte Prüfungen mit lokalen Originaldaten
+1.137 Rusttests und 51 separat ausgeführte Prüfungen mit lokalen Originaldaten
 bestanden. Doctests bestanden (0 vorhanden). 99/99 Node-Prüfprogramme im
-Quellstand nov05-r65 bestanden, einschließlich aller 20 privaten Missionen.
+Quellstand nov05-r66 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: d9fb87e4009f9989ef62af58431b28145850adb967a169be11414034ddab078b
+Wasm SHA256: 65285649eb705fd37c9f65a58a4f050205f4ccf66f91623a3e65185304d77817
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,6 +40,16 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R66
+- 240 Originalaufrufe der Rasterkosten und 480 vollständige Vergleiche
+  von Kontur und Straße, einschließlich der Rasterwerte nach Abbrüchen.
+- Bei 160 langen synthetischen Wegen: 138 vollständige Übereinstimmungen,
+  einschließlich Straßenübernahme mit begrenzter Kopie, und 22 erkannte
+  erste Schreibzugriffe auf überlappende Felder. Die Schreibfälle werden
+  weiterhin als Grenze behandelt.
+- Die realen Kampagnenpfade werden über die vorhandenen Bewegungs- und
+  Kampagnentests weiter auf Ankunft, zulässigen Zustand und Abbrüche geprüft.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R65
 - 960 Originalfälle der Rangformel über alle 20 Missionen und signierte

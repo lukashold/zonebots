@@ -12,17 +12,28 @@ const SCRATCH:u32=0x004d1480;
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct ResultState{pub failed:bool,pub set_road_flag:bool,pub recorded:i8}
 #[derive(Clone,Debug)]pub struct Trace{pub records:[u32;80],pub recorded:i8,pub record_cursor:usize,pub endpoint_distances:Option<[i32;8]>,pub end:Option<road::RoadEndpoint>,pub begin:Option<road::RoadEndpoint>}
 impl Default for Trace{fn default()->Self{Self{records:[0;80],recorded:0,record_cursor:0,endpoint_distances:None,end:None,begin:None}}}
-struct Builder<'a>{nodes:&'a mut[Node],base:u32,temporary:bool,head:u32,cursor:u32,records:[u32;80],count:i8,record_cursor:usize,endpoint_distances:Option<[i32;8]>,end:Option<road::RoadEndpoint>,begin:Option<road::RoadEndpoint>}
+struct Builder<'a>{nodes:&'a mut[Node],base:u32,temporary:bool,alias_next:Option<&'a [u32;40]>,head:u32,cursor:u32,records:[u32;80],count:i8,record_cursor:usize,endpoint_distances:Option<[i32;8]>,end:Option<road::RoadEndpoint>,begin:Option<road::RoadEndpoint>}
 impl Builder<'_>{
  fn index(&self,link:u32)->Result<usize,Boundary>{let n=link.wrapping_sub(self.base);if n&7!=0||n/8>=self.nodes.len()as u32{return Err(Boundary::Node(link));}Ok((n/8)as usize)}
  fn node(&self,link:u32)->Result<Node,Boundary>{Ok(self.nodes[self.index(link)?])}
  fn node_mut(&mut self,link:u32)->Result<&mut Node,Boundary>{let n=self.index(link)?;Ok(&mut self.nodes[n])}
+ fn allocation_next(&self,i:usize)->Result<u32,Boundary>{
+  if let Some(node)=self.nodes.get(i){return Ok(node.next);}
+  if self.temporary{if let Some(next)=i.checked_sub(40).and_then(|slot|self.alias_next.and_then(|next|next.get(slot))){
+   // The endpoint search overwrites 40..43 before the allocator sees them.
+   return Ok(self.endpoint_distances.and_then(|dist|dist.get(2*(i-40)+1).copied()).map_or(*next,|n|n as u32));
+  }}
+  Err(Boundary::Node(self.base.wrapping_add(i as u32*8)))
+ }
  ///True is native AL=1. The new record and array pointer writes precede
  ///the80-entry overflow return, so failure is not an atomic operation.
  fn append(&mut self,p:Point)->Result<bool,Boundary>{
   let mut i=self.index(self.cursor)?;
-  while self.nodes[i].next!=FREE{i+=1;if (i as i16)>4800||self.temporary&&i>=80{return Ok(true);}if i>=self.nodes.len(){return Err(Boundary::Node(self.base.wrapping_add(i as u32*8)));}}
-  let address=self.base.wrapping_add(i as u32*8);self.nodes[i]=Node{point:[p.0,p.1],next:0};
+  while self.allocation_next(i)?!=FREE{i+=1;if (i as i16)>4800||self.temporary&&i>=80{return Ok(true);}}
+  let address=self.base.wrapping_add(i as u32*8);
+  // Free aliases require writes back to their owning candidate/global state.
+  // Occupied aliases can be skipped and a full physical scan can fail normally.
+  let Some(node)=self.nodes.get_mut(i)else{return Err(Boundary::Node(address));};*node=Node{point:[p.0,p.1],next:0};
   if address!=self.cursor{self.node_mut(self.cursor)?.next=address;let count=self.count as u8 as usize;if count>=80{return Err(Boundary::Node(address));}self.records[count]=self.cursor;self.record_cursor+=1;self.count=self.count.wrapping_add(1);self.cursor=address;if self.count as u8>=80{return Ok(true);}}
   Ok(false)
  }
@@ -50,13 +61,13 @@ impl Builder<'_>{
 }
 pub fn primary(nodes:&mut[Node],head:u32,start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{assemble(nodes,PRIMARY,false,head,start,graph,dimensions,terrain,flagged,price,level,compare)}
 fn assemble(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,compare:bool)->Result<ResultState,Boundary>{
- let mut trace=Trace::default();assemble_traced(nodes,base,temporary,head,start,graph,dimensions,terrain,flagged,price,level,compare,&mut trace)
+ let mut trace=Trace::default();assemble_traced(nodes,base,temporary,head,start,graph,dimensions,terrain,flagged,price,level,compare,None,&mut trace)
 }
-///43df20 owns exactly40 initialized scratch-next fields. Any attempted
-///41st access returns Node(address), retaining all prior writes and trace.
-pub fn scratch(nodes:&mut[Node;40],start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,trace:&mut Trace)->Result<ResultState,Boundary>{assemble_traced(nodes,SCRATCH,true,SCRATCH,start,graph,dimensions,terrain,flagged,price,level,false,trace)}
-fn assemble_traced(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8,level:i16,compare:bool,trace:&mut Trace)->Result<ResultState,Boundary>{
- let mut b=Builder{nodes,base,temporary,head,cursor:head,records:trace.records,count:0,record_cursor:0,endpoint_distances:None,end:None,begin:None};
+///43df20 clears forty slots. The allocator reads the next forty alias words
+///but only its first forty physical nodes are writable here.
+pub fn scratch(nodes:&mut[Node;40],alias_next:&[u32;40],start:Point,graph:&RoadGraph,dimensions:Point,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8,level:i16,trace:&mut Trace)->Result<ResultState,Boundary>{assemble_traced(nodes,SCRATCH,true,SCRATCH,start,graph,dimensions,terrain,flagged,price,level,false,Some(alias_next),trace)}
+fn assemble_traced(nodes:&mut[Node],base:u32,temporary:bool,head:u32,start:Point,graph:&RoadGraph,dimensions:Point,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8,level:i16,compare:bool,alias_next:Option<&[u32;40]>,trace:&mut Trace)->Result<ResultState,Boundary>{
+ let mut b=Builder{nodes,base,temporary,alias_next,head,cursor:head,records:trace.records,count:0,record_cursor:0,endpoint_distances:None,end:None,begin:None};
  let result=assemble_inner(&mut b,start,graph,dimensions,&mut terrain,&mut flagged,&mut price,level,compare);
  trace.records=b.records;trace.recorded=b.count;trace.record_cursor=b.record_cursor;trace.endpoint_distances=b.endpoint_distances;trace.end=b.end;trace.begin=b.begin;result
 }
