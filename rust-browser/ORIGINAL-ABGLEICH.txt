@@ -713,6 +713,14 @@ Schreibfälle bleiben im Nachbau als Grenze markiert. Die 20 unveränderten
 Kampagnen-Straßennetze haben auf einfachen Wegen höchstens 30 Übergänge;
 die langen Fälle sind daher gezielte Grenztests, keine Partievergleiche.
 
+Auch direkte UNIT-Wegbefehle benutzen jetzt dasselbe Raster wie die
+Umplanung nach einem Hindernis. Die Originalroutine schreibt bereits bei
+der Endpunktsuche; sie setzt den Sonderkachelzähler erst vor dem Vergleich
+mit der direkten Linie zurück. 192 weitere Originalaufrufe stimmen in
+Knotenpool, Verkettung, Wegflags und allen geprüften Rasterworten überein.
+Ein Spieltest koppelt beide Aufrufer und prüft, dass ein Nahzielabbruch den
+vom vorherigen Umplanen hinterlassenen Rasterzustand beibehält.
+
 FORTTRÜMMER UND LETZTER KAMPAGNENÜBERGANG
 Die Partikelroutine 4028a0 ruft beim Ablauf 403450 auf. Modus 4 landet auf
 trockenem Boden im ersten freien 48-Byte-Animationsplatz mit Weltgrafik und
@@ -721,6 +729,9 @@ der Explosion ohne Besitzer freigegeben. Modi 2 und 9 erzeugen zwölf
 Farbspritzer mit den Originalfarben 22 und 11. Die frühere Endlosschleife
 in einem reproduzierten Sieg von Mission 20 ist beseitigt. Der Wasm-Lauf
 und der Browser erreichen mit dem Originalgelände die Siegesauswertung.
+144 ausgeführte Ablauf-Callbacks bestätigen die warmen Animations- und
+Partikelslots sowie die Aufrufe für die Wasserlandung. Die Auswahl der
+Trümmergrafik verwendet die interne Weltnummer aus den Missionsdaten.
 
 144 Aufrufe der Originalroutine 437170 decken den Übergang nach der
 Auswertung ab. Nach dem letzten Einzelspielersieg folgt e_outro und die
@@ -736,7 +747,7 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    danach ab44 mit UNIT-/Worker-/Kandidatendaten. Die normale Kontur-zu-Straße-
    Ersetzung ist für den geprüften Laufzeitumfang angebunden, einschließlich
    des Lesens belegter Speicherüberlappungen. Schreibende Überlappungen und
-   die gemeinsame Raster-/Dummyautorität über alle Aufrufer bleiben offen.
+   die Raster-/Dummyautorität der übrigen Kollisionsaufrufer bleiben offen.
 2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
    Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist

@@ -55,7 +55,9 @@ impl Game{
   let allowed=|code|if u.kind=="tough"&&m.role<1{route::tough_leader_passable(code)}else{original_terrain::passable(code,self.map.world,profile)};
   let terrain=|p|self.route_terrain_code(p);let price=|c|if u.native_class7c!=1&&self.map.world==1&&c==9{12}else{original_terrain::route_cost(c,profile)};
   let active=self.native_path_active_slots();let mut paths=self.native_routes.borrow_mut();paths.managed[slot]=true;if assign_before{paths.pool.assign_primary(slot,goal_link,&active);}
-  let outcome=super::road::primary(&mut paths.pool.nodes,goal_link,start,graph,((self.map.width*16)as i16,(self.map.height*16)as i16),terrain,|c|!allowed(c),price,self.map.native_level_record,true);
+  let State{pool,road_scratch,..}=&mut *paths;
+  let input=crate::original_road_scratch::Input{actor:start,actor_token:0x5e30c8+slot as u32*192,vehicle:u.native_class7c==1,suppressed:false,dimensions:((self.map.width*16)as i16,(self.map.height*16)as i16),level:self.map.native_level_record};
+  let outcome=road_scratch.build_primary(&mut pool.nodes,goal_link,input,graph,terrain,|c|!allowed(c),price);
   let result=match outcome{Ok(result)=>result,Err(boundary)=>return Err(boundary)};
   if !assign_before{paths.pool.assign_primary(slot,goal_link,&active);}let view=anchors(&paths.pool,paths.pool.links[slot].primary);u.native_route_pending.set(None);u.native_secondary_route.set(false);Ok(Some((RouteResult::Path(view),result.set_road_flag)))
  }
@@ -144,6 +146,28 @@ impl Game{
 
  #[test]fn candidate_three_simplification_preserves_warm_price_y_when_roads_are_suppressed(){let native=std::env::var("NATIVE_CANDIDATE_THREE_ALIAS_ORACLE").ok().map(|p|std::fs::read_to_string(p).unwrap().lines().map(|s|serde_json::from_str::<crate::Value>(s).unwrap()).collect::<Vec<_>>());let mut row=0;for warm in 0..2{for kind in["grunt","medium"]{let(mut g,mut paths)=road_fixture(kind,(160,656),(1120,656),0);let slot=g.units[0].native_slot.unwrap();let candidate=paths.candidates[0].take();paths.candidates[3]=candidate;paths.headers.fill((255,-1));paths.headers[3]=(0,-3);g.units[0].native_flags9c=2;if warm!=0{for(i,b)in paths.road_scratch.frame.iter_mut().enumerate(){*b=(0x80+i*13)as u8;}}paths.road_scratch.pairs[0]=[1234,-2000];let old_rng=g.original_rng.words;let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};assert_eq!(env.finish(),Completion::Done);assert_eq!(g.native_route_boundary,None);assert_eq!(paths.road_scratch.pairs[0],[-1,-2000]);assert_eq!(g.original_rng.words,old_rng);assert!(paths.road_scratch.old_price.is_none());assert!(paths.headers[3].1<0);assert_eq!(paths.pool.links[slot].primary,0);if let Some(rs)=&native{let r=&rs[row];assert_eq!(i64::from(paths.road_scratch.pairs[0][0]),r["pricePairX"].as_i64().unwrap());assert_eq!(i64::from(paths.road_scratch.pairs[0][1]),r["pricePairY"].as_i64().unwrap());assert_eq!(serde_json::json!(paths.pool.points(paths.pool.links[slot].secondary)),r["points"]);assert_eq!(u64::from(paths.pool.links[slot].secondary),r["secondary"].as_u64().unwrap());}row+=1;}}assert_eq!(row,4);}
  #[test]fn real_profile_caller_matches_live_scratch_binding_and_real_head_adoption(){run_road_caller_dataset(false,"NATIVE_ROAD_SCRATCH_REAL_PROFILE_ORACLE");}
+ #[test]fn primary_and_contour_callers_share_the_game_raster_across_a_near_goal_exit(){
+  let(mut g,mut paths)=road_fixture("medium",(160,656),(1120,656),0);
+  paths.road_scratch.frame[..320].fill(0x67);
+  *g.native_routes.get_mut()=paths;
+  let unit=g.units[0].clone();let slot=unit.native_slot.unwrap();
+  assert!(matches!(g.plan_native_primary_route(&unit,2224.,1296.),Some(RouteResult::Path(_))));
+  let mut paths=std::mem::replace(g.native_routes.get_mut(),State::vacant());
+  assert!(paths.road_scratch.frame[..320].iter().all(|&b|b==0x67),"primary leaves the temporary node arena alone");
+  assert_eq!(paths.road_scratch.dword(364),paths.pool.links[slot].primary);
+  assert_eq!(paths.road_scratch.raster.destination,[70,41,0]);
+  let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};
+  assert_eq!(env.finish(),Completion::Done);
+  assert_eq!(g.native_route_boundary,None);
+  assert_eq!(paths.road_scratch.dword(364),crate::original_road_scratch::BASE);
+  assert!(paths.road_scratch.new_price.is_some());
+  let after_contour=paths.road_scratch.raster;
+  *g.native_routes.get_mut()=paths;
+  assert!(matches!(g.plan_native_primary_route(&unit,336.,1312.),Some(RouteResult::Path(_))));
+  let paths=g.native_routes.borrow();
+  assert_eq!(paths.road_scratch.raster,after_contour,"distance gate leaves the previous contour raster intact");
+  assert_eq!(paths.road_scratch.record_cursor,0x4d1340);
+ }
  #[test]fn controlled_permission_caller_matches_identical_table_values_in_game(){run_road_caller_dataset(true,"NATIVE_ROAD_SCRATCH_CONTROLLED_ORACLE");}
 
  #[test]#[ignore="requires private campaign input; sequential warm RNG/pools"]fn first_three_missions_keep_real_cached_removal_readers_in_the_main_loop(){let path=std::env::var("NATIVE_SOAK_CAMPAIGN").unwrap();let c:crate::Value=serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();crate::GAME.with(|s|*s.borrow_mut()=None);for mission in 0..3{let init=crate::request(crate::json!({"op":"init","mission":mission,"difficulty":1,"seed":9281+(mission+1)*151,"aiTeams":[0,1],"originalMission":c["missions"][mission]}));assert!(init["error"].is_null());crate::GAME.with(|state|{let mut state=state.borrow_mut();let g=state.as_mut().unwrap();for tick in 0..3000{if g.winner.is_some(){break;}g.step(0.1);assert_eq!(g.native_route_boundary,None,"M{} tick{} time{}",mission+1,tick,g.time);}});}}

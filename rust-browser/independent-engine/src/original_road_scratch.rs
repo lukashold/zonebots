@@ -27,6 +27,16 @@ impl State{
  fn nodes(&self)->[Node;40]{std::array::from_fn(|i|{let at=i*8;Node{point:[i16::from_le_bytes([self.frame[at],self.frame[at+1]]),i16::from_le_bytes([self.frame[at+2],self.frame[at+3]])],next:self.dword(at+4)}})}
  fn write_nodes(&mut self,nodes:&[Node;40]){for(i,n)in nodes.iter().enumerate(){let at=i*8;self.frame[at..at+2].copy_from_slice(&n.point[0].to_le_bytes());self.frame[at+2..at+4].copy_from_slice(&n.point[1].to_le_bytes());self.dword_set(at+4,n.next);}}
  fn pair(&mut self,index:usize,p:[i16;2],count:usize)->Result<(),Boundary>{let Some(out)=self.pairs.get_mut(index)else{return Err(Boundary::ContourBuffer{count,address:0x4d1780+index as u32*4});};*out=p;Ok(())}
+ ///The direct UNIT route and contour replacement share the native scratch
+ ///words; the primary call never clears the 40 temporary node records.
+ pub(crate) fn build_primary(&mut self,nodes:&mut[Node],head:u32,input:Input,graph:&RoadGraph,terrain:impl FnMut(Point)->u8,flagged:impl FnMut(u8)->bool,price:impl FnMut(u8)->u8)->Result<assembly::ResultState,assembly::Boundary>{
+  self.dword_set(352,input.actor_token);self.dword_set(364,head);
+  self.price_table=if input.vehicle{0x499ec8}else{0x499b98};
+  let result=assembly::primary(nodes,head,input.actor,graph,input.dimensions,terrain,flagged,price,input.level,true,&mut self.trace,&mut self.raster);
+  self.record_cursor=0x4d1340+self.trace.record_cursor as u32*4;
+  if let Some(distances)=self.trace.endpoint_distances{for(i,n)in distances.into_iter().enumerate(){self.dword_set(320+i*4,n as u32);}}
+  result
+ }
  ///No mission reset: known60430 does not clear this scratch domain.
  pub fn consider(&mut self,input:Input,packed:&[i16],graph:&RoadGraph,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8)->Result<Decision,Boundary>{
   self.old_price=None;self.new_price=None;self.partial_adoption_head=None;if input.suppressed{return Ok(Decision::Contour);}
@@ -36,24 +46,10 @@ impl State{
   //43bbe0's unconditional prefix precedes distance/endpoint failure.
   self.dword_set(352,input.actor_token);self.dword_set(364,BASE);self.price_table=if input.vehicle{0x499ec8}else{0x499b98};self.record_cursor=0x4d1340;
   let mut nodes=self.nodes();let alias_next=std::array::from_fn(|i|self.dword((40+i)*8+4));
-  let result=assembly::scratch(&mut nodes,&alias_next,input.actor,graph,input.dimensions,&mut terrain,&mut flagged,&mut price,input.level,&mut self.trace);self.write_nodes(&nodes);self.record_cursor=0x4d1340+self.trace.record_cursor as u32*4;
-  if let Some(distances)=self.trace.endpoint_distances{
-   for(i,n)in distances.into_iter().enumerate(){self.dword_set(320+i*4,n as u32);}
-   self.raster.road_endpoint((goal[0],goal[1]),self.trace.end.is_some_and(|e|e.already_on_road));
-   if self.trace.end.is_some(){self.raster.road_endpoint(input.actor,self.trace.begin.is_some_and(|e|e.already_on_road));}
-  }
+  let result=assembly::scratch(&mut nodes,&alias_next,input.actor,graph,input.dimensions,&mut terrain,&mut flagged,&mut price,input.level,&mut self.trace,&mut self.raster);self.write_nodes(&nodes);self.record_cursor=0x4d1340+self.trace.record_cursor as u32*4;
+  if let Some(distances)=self.trace.endpoint_distances{for(i,n)in distances.into_iter().enumerate(){self.dword_set(320+i*4,n as u32);}}
   let result=match result{Ok(r)=>r,Err(assembly::Boundary::Node(p))=>return Err(Boundary::ScratchAlias(p)),Err(assembly::Boundary::Region(r))=>return Err(Boundary::Region(r))};self.compare_mode=0;
   if result.failed{self.scratch_mode=0;return Ok(Decision::Contour);}
-  if result.recorded>5{
-   // The first prepared pair is overwritten by the final two predecessors.
-   let point=|back:usize|{
-    let address=self.trace.record_cursor.checked_sub(back).and_then(|i|self.trace.records.get(i)).copied().unwrap_or(0);
-    let delta=address.wrapping_sub(BASE);
-    if delta&7!=0||delta/8>=40{return Err(Boundary::ScratchAlias(address));}
-    let [x,y]=nodes[(delta/8)as usize].point;Ok((x,y))
-   };
-   self.raster.road_compaction(point(4)?,point(2)?);
-  }
   self.pairs[0]=[input.actor.0,input.actor.1];let mut points=Vec::new();let mut link=BASE;let mut seen=[false;40];
   while link!=0&&points.len()<39{let delta=link.wrapping_sub(BASE);if delta&7!=0||delta/8>=40{return Err(Boundary::ScratchAlias(link));}let i=(delta/8)as usize;if seen[i]{return Err(Boundary::ScratchCycle(link));}seen[i]=true;let n=nodes[i];points.push(n.point);self.pairs[points.len()]=n.point;self.pairs[points.len()+1]=[-1,-1];link=n.next;}
   let new_points=self.pairs[..points.len()+1].iter().map(|p|(p[0],p[1])).collect::<Vec<_>>();let new=self.raster.price(&new_points,&mut terrain,&mut price).cost;self.new_price=Some(new);self.scratch_mode=0;Ok(if new<old{Decision::Road(points)}else{Decision::Contour})

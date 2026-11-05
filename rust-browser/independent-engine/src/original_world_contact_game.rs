@@ -25,6 +25,9 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_water_spray_game.rs"] mod water_spray;
 #[path="original_bridge_sound_game.rs"] mod bridge_sound;
 #[path="original_bridge_effects_game.rs"]mod bridge_effects;
+#[cfg(test)]
+#[path="original_fort_debris_game_tests.rs"]
+mod fort_debris_game_tests;
 #[path="original_fort_effects_game.rs"]mod fort_effects;
 #[path="original_fort_admission_game.rs"]mod fort_admission;
 #[path="original_seasonal_game.rs"]mod seasonal_game;
@@ -608,7 +611,8 @@ impl Game {
         let Some(p)=self.native_world.as_mut().and_then(|s|s.effects[slot].as_mut())else{return;};
         if cell>0x3fff{p.position[0]=-1;p.expiry=0;return;}
         if !wet{
-            self.native_ambient_animations.spawn_fort_debris_landing(point,self.map.world,p.owner);
+            let world=self.map.wall_tile_lookup["nativeWorld"].as_u64().map(|n|n as usize).unwrap_or([0,3,1,4,2][self.map.world.min(4)]);
+            self.native_ambient_animations.spawn_fort_debris_landing(point,world,p.owner);
             p.active=false;p.position[0]=-1000;return;
         }
         p.active=false;p.position[0]=-1000;p.expiry=0;

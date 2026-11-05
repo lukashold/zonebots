@@ -30,4 +30,34 @@ if(trace){
  for(const n of finals){assert.equal(n.movie,'e_outro');assert.equal(n.movieMode,4);assert.equal(n.nextMission,1);assert.equal(n.movieStarts,n.media===0?0:1);}
  assert.ok(rows.filter(r=>r.mp).every(r=>r.movie!=='e_outro'));
 }
+const campaignFile=process.env.Z_PRIVATE_CAMPAIGN??path.join(__dirname,'../dist/original/campaign.json');
+if(fs.existsSync(campaignFile)){
+ const original=JSON.parse(fs.readFileSync(campaignFile,'utf8')).missions[19];
+ assert.equal(original.number,20);
+ const missionData=structuredClone(original),actor=missionData.spawns.find(u=>u.team===0&&u.type==='psycho');
+ assert.ok(actor);Object.assign(actor,{x:3440,y:656});
+ const wasm=new WebAssembly.Module(fs.readFileSync(path.join(__dirname,'../dist/independent/engine.wasm')));
+ const engine=new WebAssembly.Instance(wasm,{}).exports;
+ let camera=[0,0],map=null;
+ function send(payload){
+  const data=Buffer.from(JSON.stringify({compact:true,knownMapSeed:map?.seed,knownMapRevision:map?.revision,
+   nativeAudio:{soundEnabled:false},nativeView:{camera,size:[568,360]},...payload}));
+  const ptr=engine.alloc(data.length);
+  new Uint8Array(engine.memory.buffer,ptr,data.length).set(data);
+  let length;try{length=engine.run(ptr,data.length);}finally{engine.free(ptr,data.length);}
+  assert.ok(engine.memory.buffer.byteLength<64*1024*1024,'an expiring effect must not grow the Wasm heap without bound');
+  const state=JSON.parse(Buffer.from(new Uint8Array(engine.memory.buffer,engine.output(),length)).toString());
+  assert.equal(state.error,undefined);map=state.map??map;camera=state.nativeFortScene?.camera??camera;return state;
+ }
+ let state=send({op:'init',mission:19,difficulty:1,seed:29510,originalMission:missionData});
+ assert.equal(state.winner,null);
+ for(let frame=2;frame<=170;frame++){
+  state=send({op:'tick',dt:0.059});
+  assert.equal(state.nativeFortScene.boundary,null);
+  assert.equal(state.nativeFortScene.frame,frame<170?frame:null);
+  assert.equal(state.winner,frame<170?null:0);
+ }
+ assert.deepEqual(state.nativeFortResult,{losses:[0,14,0,0],points:20000,rank:9});
+ console.log('Shipping Wasm: authored Mission 20, one red robot on the original gate, all 169 fort ticks, bounded heap, 20,000 points.');
+}
 console.log('Campaign completion: final OK, optional original outro, skip/fallback, reset to mission 1, ordinary next/defeat/lobby.');
