@@ -19,6 +19,13 @@ FILMS = tuple(
                    else ("lost1", "wint1", "wint2", "wint3", "winpl"))
 )
 OUTRO = "e_outro"
+TRANSITIONS = ("e_intro2",) + tuple(
+    f"e_{world}{suffix}"
+    for world in WORLDS
+    for suffix in (("trav1", "trav2", "trav3") if world == "c"
+                   else ("plnt", "trav1", "trav2", "trav3"))
+)
+ALL_CLIPS = (*FILMS, OUTRO, *TRANSITIONS)
 MAX_FRAMES = 1800
 WIDTH, HEIGHT = 320, 200
 PIXELS = WIDTH * HEIGHT
@@ -30,7 +37,7 @@ RGB_TABLE = bytes((index * 255 // 63 if index < 64 else 0) for index in range(25
 
 def normalize(index: bytes, source: bytes):
     """Reorder the game's split packets for an external JV decoder."""
-    if not index.startswith(b"JV00") or len(index) < JV_HEADER_SIZE:
+    if index[:4] not in (b"JV00", b"JV05") or len(index) < JV_HEADER_SIZE:
         raise ValueError("Unexpected movie header")
     width, height, count, period = struct.unpack_from("<4H", index, 80)
     if (width, height) != (WIDTH, HEIGHT) or not 1 <= count <= MAX_FRAMES or not 1 <= period <= 1000:
@@ -64,7 +71,9 @@ def normalize(index: bytes, source: bytes):
     if offset != len(source):
         raise ValueError("Movie data size does not match its index")
     tail = 0 if index[103] & 64 else (index[103] >> 3) & 7
-    return index[:JV_HEADER_SIZE] + records + video, palettes, period, tail, index[103] & 7
+    # 431110 accepts the JV prefix. FFmpeg's demuxer requires JV00 even
+    # for the otherwise identical records in the GOG copy's e_dtrav1.
+    return b"JV00" + index[4:JV_HEADER_SIZE] + records + video, palettes, period, tail, index[103] & 7
 
 
 def pack_clip(source: Path, out: Path, stem: str, language: str, ffmpeg: str) -> dict:
@@ -105,7 +114,9 @@ def pack_clip(source: Path, out: Path, stem: str, language: str, ffmpeg: str) ->
                 previous = plane
     scratch.replace(target)
     sound = out / f"{stem}.ogg"
-    shutil.copyfile(audio, sound)
+    sound_scratch = out / f"{stem}.ogg.part"
+    shutil.copyfile(audio, sound_scratch)
+    sound_scratch.replace(sound)
     raw_bytes = PACK_HEADER.size + len(palettes) * (PIXELS + 1) + sum(len(palette) for palette in palettes)
     return {"id": stem, "frames": len(palettes), "frameMs": period, "video": target.name, "audio": sound.name,
             "rawBytes": raw_bytes,
@@ -118,8 +129,9 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--ffmpeg", default=shutil.which("ffmpeg"))
     parser.add_argument("--language", choices=("de", "en", "es", "fr", "it"), default="de")
-    parser.add_argument("--clip", action="append", choices=(*FILMS, OUTRO))
+    parser.add_argument("--clip", action="append", choices=ALL_CLIPS)
     parser.add_argument("--include-epilogue", action="store_true", help="Also extract the local campaign outro")
+    parser.add_argument("--include-transitions", action="store_true", help="Also extract the local campaign travel films")
     parser.add_argument("--append", action="store_true", help="Keep other films in the output manifest")
     args = parser.parse_args()
     if not args.ffmpeg:
@@ -131,6 +143,8 @@ def main():
     clips = list(args.clip or FILMS)
     if args.include_epilogue:
         clips.append(OUTRO)
+    if args.include_transitions:
+        clips.extend(TRANSITIONS)
     manifest = out / "films.json"
     old = {}
     if args.append and manifest.is_file():
@@ -139,7 +153,7 @@ def main():
             parser.error("The existing film manifest cannot be appended to")
         for entry in previous["films"]:
             stem = entry.get("id")
-            if stem not in (*FILMS, OUTRO) or entry.get("video") != f"{stem}.zvf.gz" or entry.get("audio") != f"{stem}.ogg":
+            if stem not in ALL_CLIPS or entry.get("video") != f"{stem}.zvf.gz" or entry.get("audio") != f"{stem}.ogg":
                 parser.error("Unexpected entry in the existing film manifest")
             old[stem] = entry
     for stem in dict.fromkeys(clips):

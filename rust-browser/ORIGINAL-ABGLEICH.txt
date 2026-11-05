@@ -739,6 +739,15 @@ Missionsauswahl wird auf 1 zurückgesetzt. Der Browser bietet den Epilog
 mit dem lokalen Zusatzpaket an und wechselt nach Ende oder Überspringen
 ins Hauptmenü. Die deutsche Ogg-Spur ist bytegleich zur lokalen GOG-Datei.
 
+KAMPAGNENFILME VOR DEM SPIELSTART
+720 ausgeführte Übergangsfälle aus 433ca0 bestätigen die Filmauswahl für
+alle Missionen, den vorherigen Planeten, Mehrspieler und fehlende Medien.
+Bei einem Planetenwechsel stammt der Film vom verlassenen Planeten.
+18 weitere Originalaufrufe bestätigen das Intro e_intro2 beim frischen
+Start von Mission 1. Im Browser startet nach dem Ende oder Überspringen
+die gewählte Mission; ohne lokale Filmdatei startet sie direkt. Die
+20 neuen Intro-/Reisefilme mit ihren deutschen Tonspuren bleiben lokal.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

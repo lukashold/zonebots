@@ -141,6 +141,16 @@ window.ResultFilm=(()=>{
    handle=requestAnimationFrame(update);
   });
  }
+ const campaignWorlds=[0,3,1,4,2],worldLetter='dacvj';
+ // 433ca0 uses the old planet for an interplanetary film, otherwise the
+ // destination mission's index within its planet. A file can be absent.
+ function selectTransition(mission,previousWorld=-1,network=false){
+  if(network||!Number.isInteger(mission)||mission<1||mission>=20)return null;
+  const group=mission>>2,world=campaignWorlds[group];
+  if(previousWorld===-1)previousWorld=campaignWorlds[(mission-1)>>2];
+  if(!Number.isInteger(previousWorld)||previousWorld<0||previousWorld>=campaignWorlds.length)return null;
+  return previousWorld===world?'e_'+worldLetter[world]+'trav'+(mission&3):'e_'+worldLetter[previousWorld]+'plnt';
+ }
  const script=typeof document==='undefined'?null:document.currentScript?.src;
  let assets=null,catalogue=null,panel=null,current=null;
  function prepare(installed=false){
@@ -150,8 +160,8 @@ window.ResultFilm=(()=>{
   if(!local&&!installed)return;
   assets=new URL('../original/films/',script);
   fetch(new URL('films.json',assets)).then(r=>r.ok?r.json():null).then(data=>{
-   if(data?.version!==1||!Array.isArray(data.films)||data.films.length>25)return;
-   catalogue=new Map(data.films.filter(row=>row&&/^e_(?:outro|[dvajc](?:lost1|wint[1-3]|winpl))$/.test(row.id)&&
+   if(data?.version!==1||!Array.isArray(data.films)||data.films.length>45)return;
+   catalogue=new Map(data.films.filter(row=>row&&/^e_(?:outro|intro2|[dvajc](?:lost1|wint[1-3]|winpl|trav[1-3])|[dvaj]plnt)$/.test(row.id)&&
     row.video===row.id+'.zvf.gz'&&row.audio===row.id+'.ogg').map(row=>[row.id,row]));
   }).catch(()=>{});
  }
@@ -173,6 +183,7 @@ window.ResultFilm=(()=>{
   if(!pending)return;
   current=null;
   pending.ctrl.abort();panel.layer.hidden=true;panel.resume.onclick=null;panel.resume.hidden=true;
+  for(const element of pending.inert)element.inert=false;
   if(notify)pending.onFinish?.();
  }
  function offer(mission,won,network,{muted=false,volume=1,onFinish}={}){
@@ -182,7 +193,8 @@ window.ResultFilm=(()=>{
   const row=catalogue?.get(id);
   if(!row)return false;
   finish(false);panel??=buildPanel();
-  const pending={ctrl:new AbortController(),onFinish};current=pending;
+  const pending={ctrl:new AbortController(),onFinish,inert:[]};current=pending;
+  for(const element of document.body.children)if(element!==panel.layer&&!element.inert){element.inert=true;pending.inert.push(element);}
   panel.layer.hidden=false;panel.status.textContent='Film wird geladen …';panel.resume.hidden=true;panel.screen.hidden=true;panel.skip.focus();
   const audio=new Audio(new URL(row.audio,assets));audio.preload='none';audio.muted=muted;audio.volume=Math.max(0,Math.min(1,Number(volume)||0));
   load(new URL(row.video,assets),fetch,{signal:pending.ctrl.signal,rawBytes:row.rawBytes}).then(film=>{
@@ -201,5 +213,7 @@ window.ResultFilm=(()=>{
   return true;
  }
  prepare();
- return {open,timeline,load,paint,select,play,offer,offerOutro:options=>offerClip('e_outro',options),enablePrivatePack:()=>prepare(true),cancel:()=>finish(false),stepMs:STEP};
+ return {open,timeline,load,paint,select,selectTransition,play,offer,offerOutro:options=>offerClip('e_outro',options),
+  offerTransition:(mission,previousWorld,options)=>offerClip(selectTransition(mission,previousWorld),options),
+  offerCampaignIntro:options=>offerClip('e_intro2',options),enablePrivatePack:()=>prepare(true),cancel:()=>finish(false),stepMs:STEP};
 })();

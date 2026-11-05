@@ -20,7 +20,7 @@ function run(){for(const network of[false,true])for(const winner of[0,1]){
 }
  const local=harness(),offers=[],stops=[];
  local.context.window={ResultFilm:{offer(...args){offers.push(args);return true;}}};
- local.context.muted=true;local.nodes.music={value:'0.65'};
+ local.context.muted=true;local.nodes.music={value:'65'};
  local.context.RadioAudio.haltNativeChannels=()=>stops.push('halt');
  const result={...snapshot(0),mission:3,nativeFortScene:{active:true,camera:null}};
  local.context.update(result);

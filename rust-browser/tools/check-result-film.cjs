@@ -5,7 +5,25 @@ const {ReadableStream}=require('node:stream/web');
 const zlib=require('node:zlib');
 const window={},source=fs.readFileSync(path.join(__dirname,'../dist/independent/result-film.js'),'utf8');
 vm.runInNewContext(source,{window,Uint8Array,Uint32Array,DataView,DecompressionStream});
-const {open,load,timeline,paint,select,stepMs}=window.ResultFilm;
+const {open,load,timeline,paint,select,selectTransition,stepMs}=window.ResultFilm;
+assert.equal(selectTransition(0),null);
+assert.equal(selectTransition(1),'e_dtrav1');
+assert.equal(selectTransition(4),'e_dplnt');
+assert.equal(selectTransition(8,3),'e_vplnt');
+assert.equal(selectTransition(19,2),'e_ctrav3');
+assert.equal(selectTransition(19,2,true),null);
+const transitionTrace=process.env.NATIVE_CAMPAIGN_START_FILM_TRACE;
+if(transitionTrace){
+ const rows=fs.readFileSync(transitionTrace,'utf8').trim().split(/\r?\n/).map(JSON.parse);
+ assert.equal(rows.length,720);
+ for(const n of rows){
+  const chosen=selectTransition(n.mission-1,n.before,n.mp!==0);
+  assert.equal(chosen,n.movie||null,JSON.stringify(n));
+  assert.equal(n.next,chosen===null?18:n.media===2?20:34);
+  assert.equal(n.played,chosen!==null&&n.media!==0?1:0);
+  if(n.played){assert.equal(n.playMode,2);assert.equal(n.playFlag,255);assert.equal(n.movieMode,1);}
+ }
+}
 const pixels=320*200,header=Buffer.alloc(14);
 header.write('ZVF1');header.writeUInt16LE(320,4);header.writeUInt16LE(200,6);
 header.writeUInt16LE(4,8);header.writeUInt16LE(84,10);header[12]=2;

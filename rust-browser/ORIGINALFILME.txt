@@ -4,12 +4,15 @@ Die Browser-Fassung kann nach einem Sieg oder einer Niederlage den
 Originalfilm der jeweiligen Mission starten. Nach der Siegesauswertung in
 Mission 20 folgt zusätzlich der Kampagnen-Epilog. Mehrspieler-Partien
 wechseln wie im Original direkt zur Auswertung.
+Mit den zusätzlichen Reisefilmen beginnt ein neues Spiel in Mission 1
+mit dem Kampagnen-Intro. Bei späteren Missionen wählt das Spiel den
+Reisefilm oder den Abschiedsfilm des vorherigen Planeten.
 
 Das Zusatzpaket wird aus der vorhandenen GOG-Installation erzeugt. Die
 Spieldateien müssen nicht in den Browser geladen werden. Benötigt werden
 Python und FFmpeg. Unter Windows im Projektordner ausführen:
 
-  python tools/extract-original-result-films.py --include-epilogue --out C:\Z-Originalfilme
+  python tools/extract-original-result-films.py --include-epilogue --include-transitions --out C:\Z-Originalfilme
   python independent-engine/serve.py --films C:\Z-Originalfilme --port 8768
 
 Falls FFmpeg nicht im Suchpfad liegt, beim ersten Befehl zusätzlich
@@ -23,6 +26,9 @@ automatische Tonwiedergabe, lässt sich der Film per Klick starten.
 Den Epilog startet „OK“ in der letzten Auswertung. Danach geht es ins
 Hauptmenü; ein neues Spiel beginnt wieder mit Mission 1. Ein vorhandenes
 Filmpaket lässt sich mit --clip e_outro --append ergänzen.
+Reisefilme und Intro können mit --clip e_intro2 --include-transitions
+--append ergänzt werden. Ohne den passenden Film startet die Mission
+direkt. Die Lautstärke folgt dem Regler „Musik“; „Ton aus“ bleibt wirksam.
 
 Der lokale Filmserver bindet an 127.0.0.1. Das Zusatzpaket und die
 Originalfilme gehören nicht zum öffentlichen Git-Repository.
