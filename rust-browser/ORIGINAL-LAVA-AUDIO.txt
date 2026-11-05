@@ -1,0 +1,72 @@
+LAVA122: ORIGINALER AUDIOANSCHLUSS
+================================
+Begrenzter Stand05.11.2026, kein Nachweis vollstaendiger Spielgleichheit.
+
+406880 gibt seinen berechneten Punkt vor dem spaeteren+96-Zeichenschritt an
+eine einzige typisierte Audiochance. Der vorhandene Listenerzustand nutzt
+SoundID122 im ausgewaehlten Originalbank-Deskriptor, UIwort680d08, Enabled-
+Mastergate und Erfolgszaehler. Im Volcan-Bank heisst die Datei VBIRD1;120 ist
+die Deskriptor-Mindestdifferenz, kein eigener Spieltick-Timer.
+
+Game.native_lava_sound_tick einschliesslich Default/Warmtransfer und der
+alte nativeEffectSound122-Publisher sind entfernt. Es gibt keinen zweiten
+Lava-Timer, Gate-, Zyklus-, Counter- oder Settingsbesitzer. Die vorhandenen
+Deskriptorstempel bleiben bei Missionen/Import/Settings warm. Der separate
+Late-BUILD-Missionsreset und andere Audiofamilien werden nicht veraendert.
+
+Der32x60-Lavapool, sein Zeichnen, Bewegen, Erschrecken, Burst und Allokieren
+laufen einmal. SP behaelt exakt den einen kosmetischen C-rand-Aufruf nur bei
+kanonisch sichtbarem Akteur, auch bei stummem Master. MP verwendet dafuer wie
+das Original0 und keinen C-rand-Aufruf. Nur die MP-Audiochance liegt vor der
+kanonischen Sichtpruefung, damit jede lokale Kamera sie getrennt pruefen kann.
+Die Welt-/Draw-Sicht und spaeteren Weltaktionen werden dafuer nicht wiederholt.
+
+Lava hat ein eigenes signed16-Sichtfenster: lower-128 bis upper, inklusive.
+Die Hardware-Pufferung-48/+32 und die fruehere Browser-120WEBpixel-Regel sind
+hier falsch. Die akzeptierte Browserkamera beschreibt die volle Canvasflaeche
+(lower0,upper=size). Nichtnull-Minima des Original-Clips sind als reine Eingabe
+geprueft, ihre Laufzeitautoritaet/Transport bleibt eine ausdrueckliche Grenze.
+Das ist keine Behauptung, dass das Original immer Clipminima0 verwendet.
+
+Gastkamera/Master/Generation kommen aus dem bestehenden Listenertransport;
+fehlende Sicht ist unavailable, kein Hostfallback. nativeSample verwendet die
+vorhandenen Empfaenger-IDs und den bestehenden Kontext. Spaete Kamera-, Master-
+oder Sitzungswechsel koennen wartende alte Clips verwerfen. Sie rollen keinen
+Originaldeskriptor zurueck, erzeugen keine Nachholtoene und stoppen keinen
+bereits laufenden Clip allein wegen eines Kamera-/Sitzungswechsels.
+
+PRUEFUNG
+784 echte406f80/406880/46e6d0/46e660-Aufrufe: Akteurbytes,1920erPoolhash,
+Zeichenqueue, UIstempel, Counter und Reihenfolge feldgleich, Signatur1990701227.
+Darunter16 Faelle mit20 echten405350-Konstruktionen. C-rand und SDL-Mixer sind
+aufgezeichnete externe Leaves; die neuen784 Prefixfaelle halten den Frametimer
+positiv und behaupten keine neue vollstaendige Hazard-/GPU-Ausfuehrung.
+Bestehende16384 Lavapool-/RNG-Schritte sowie Constructor-/Drawgoldens bleiben
+gruen.15 gezielte Lava- und21 Audio-Rusttests sind gruen (teilweise ueberlappend).
+Private Sourcezeilen werden nur mit explizitem NATIVE_LAVA_AUDIO_TRACE geladen.
+
+check-native-lava-audio.cjs prueft eine klar markierte KONTROLLIERTE64x64-
+Volcan-Startszene, keine Originalmission: seed985, realer20-Lava-Startup,
+130UI-only-Callbacks, danach echte App/Host/Gast/Wasm-Callbacks. Keine direkten
+Record-/Ereignis-/Timer-Injektionen. Unveraenderte Basis777 verpasst7 der16
+berechtigten Empfaengerkombinationen am ersten Maincallback; Kandidat gibt
+einen122 pro nahem, unmuted Listener frei, weit/stumm keinen.11/20 Beforetests
+sind rot,20/20 Aftertests gruen. Weitere echte Faelle:120 pausierte UIcallbacks,
+wirklich wartende Host- UND Gast-Dekodierung vor Kameraveraenderung, Unmute
+erst am naechsten echten Callback und neue MP-Sitzung bei warmem Deskriptor.
+
+4160 oeffentliche Welt-/Lava-/FX-/Zeichenqueue-Zustaende und alle UIuhren sind
+bei gleicher Startszene vor/nachher identisch. Kein privater Wasm-RNG-Leseexport
+wird daraus behauptet; rohe RNG/CRT-/Poolfelder pruefen Rust-/Sourcefaelle.
+24 Hardware-,18 Spatial-,19 Late-,14 Session- und20 MP-Nachbarfaelle bleiben
+gruen. Gast simuliert nie. App/audio.js/multiplayer-game.js-Laufzeit unveraendert.
+Die Aftertests lesen private WAV-Dateien und pruefen echten Audio.js-Lade-/
+Auswahl-/Gain-/BufferSource.start-Code mit Platzhalter-decodeAudioData, keinen
+PCM-Decoder/Geraetemixer-/Lautsprecher-/Netzwerk- oder GPU-Gleichheitsnachweis.
+
+Fortcontroller, Common58592b, Crane12, Radar/GROUP64, Ressourceloader-/allgemeine
+Clip-/Weltculling-Lebenslaeufe bleiben eigene Grenzen. Historische Audio-
+Schnittberichte schlossen Lava122 aus ihrem damaligen Umfang aus; dieser
+separate Anschluss ersetzt ausschliesslich deren verbliebenen Lava-Hinweis.
+Originalressourcen, rohe Decompilation, Oraclezeilen, eigene Wasms/Targets und
+private Testspuren sind nicht im oeffentlichen Quellcodedelta enthalten.

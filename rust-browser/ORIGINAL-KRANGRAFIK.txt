@@ -1,18 +1,22 @@
 Original crane graphics:55f10 ->455820
 
 The live class1/family36 picture now retains three native layers at the actual
-UNIT display callback. Body frame32, shared hardwareW21, existing Crane.work9a,
+UNIT display callback. Body frame32, shared hardwareW21, canonical Game9a,
 palette64&98 and ruined-BUILD-before-live-BUILD clipping drive the picture.
 44fa40 BUILD work uses six rows; the Bridge80 branch uses four or six rows
 from the corresponding original direction list. Both retain the earlier
 callback and shared queue order.
 No animation RNG is repeated by a snapshot or frontend drawing.
 
-Fresh41b210 allocation proves9a0;438cf0 explicitly writesFF. A provenance bit
-on the existing Crane state records these known writes. An unknown warm or
-recrewed actor does not acquire an invented9a default. Such input, invalid
-signedW21, and negative GL scissor heights retain named nativeCraneBoundary
-metadata and the compatibility artwork. No second9a value is stored.
+Fresh41b210 allocation proves9a0. The single240-slot Game pool retains that
+phase-only receipt even before NativeWorld exists. Generic imports do not
+construct units. Physical generation and mission reset distinguish slot reuse;
+actual57ff0 preserves9a/writes86FF, and entry/unload rebind renderer identity.
+The normal455820 getter needs this known9a, not a complete work context.
+Unknown warm phases, invalid signedW21 and negative GL scissor heights retain
+named boundaries. Existing phase59 auxiliary playability data stays explicitly
+tainted; it does not claim source-known96/saved/B1 or full native59 parity.
+No second9a value is persisted. Details: ORIGINAL-KRAN-ZUSTAND.txt.
 
 Verification:2048 executed native draw chains,1305 visible compositions;
 the helper checks headers/warm descriptors/clipping/mask writes/raster inputs.

@@ -25,7 +25,7 @@ impl lava::World for Game{
  fn terrain(&self,cell:i16)->u8{let i=cell as u16 as usize;let(x,y)=(i&127,i>>7);let raw=self.map.native_terrain_plane.get(i).copied().unwrap_or(127);if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x).copied().unwrap_or(127)&127|raw&128}else{raw}}
  fn scare(&mut self,point:[i16;2]){self.scare_native_lava(point);}
  fn burst(&mut self,point:[i16;2]){self.native_lava_burst(point);}
- fn sound(&mut self,point:[i16;2]){let now=self.motion_tick as i16;if now.wrapping_sub(self.native_lava_sound_tick).wrapping_abs()<120{return;}self.native_lava_sound_tick=now;self.events.push(json!({"kind":"nativeEffectSound","sound":122,"sample":"VBIRD1","x":i32::from(point[0])*2,"y":i32::from(point[1])*2}));}
+ fn sound(&mut self,chance:lava::SoundChance){self.emit_native_lava_audio(chance);}
 }
 
 #[cfg(test)]mod tests{
@@ -33,5 +33,5 @@ impl lava::World for Game{
  fn field()->Game{let mut g=Game::new(0,1,17);g.map.original=true;g.map.world=1;g.units.clear();g.native_view=Some(([0,0],[320,200]));g.native_lava=Default::default();g.spawn_native_lava(LavaSeed{position:[150,160],template:0,size:2,interval:128});g}
  #[test]fn visible_volcanic_actor_uses_separate_crt_random_stream(){let mut g=field();let rng=g.original_rng.words;g.update_native_lava();assert_eq!(g.original_rng.words,rng);assert_eq!(g.native_cosmetic_rng,2745024);assert_eq!(g.native_lava_visuals().len(),1);let mut g=field();g.multiplayer=true;let rng=g.original_rng.words;g.update_native_lava();assert_eq!(g.native_cosmetic_rng,1);assert_eq!(g.original_rng.words,rng);assert_eq!(g.native_lava_visuals().len(),1);}
  #[test]fn offscreen_volcanic_actor_does_not_consume_cosmetic_random(){let mut g=field();g.native_view=Some(([10000,10000],[320,200]));g.update_native_lava();assert_eq!(g.native_cosmetic_rng,1);assert!(g.native_lava_visuals().is_empty());}
- #[test]fn original_vbird_sound_descriptor_has_120_callback_spacing(){let mut g=field();for tick in [0,119,120,121,239,240]{g.motion_tick=tick;lava::World::sound(&mut g,[150,160]);}assert_eq!(g.events.iter().filter(|e|e["sample"]=="VBIRD1").count(),2);}
+
 }

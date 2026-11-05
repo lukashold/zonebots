@@ -93,3 +93,9 @@ per-camera world-culling or lifetime guarantee is implied: audio sees the once
 reached canonical World trace. Full source initial-world/quiet lifecycle, all
 reentrant FX-prefix leaves, browser transport latency and device sound behavior
 remain separately bounded. Missing inputs are diagnostics, not invented values.
+
+FOLLOW-UP05.11.2026: The separate ORIGINAL-LAVA-AUDIO.txt slice now connects
+Lava122 to the existing listener descriptor/UIword/Enabled owner and removes
+its legacy publisher. The paragraph above describes this earlier gate/cycle
+slice, not a remaining Lava runtime publisher. No second4d18ee/cycle owner was
+introduced, and its other declared boundaries remain separate.

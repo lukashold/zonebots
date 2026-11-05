@@ -3,6 +3,7 @@
 use crate::{Game,json};
 #[path="original_spatial_audio.rs"]pub(crate) mod spatial;
 #[path="original_late_build_audio.rs"]pub(crate) mod late_build;
+#[path="original_lava_audio.rs"]pub(crate) mod lava;
 #[derive(Clone,Copy,Debug)]pub struct Descriptor{pub id:i16,pub clip:&'static str,pub minimum:i16,pub initial:i16}
 include!("native_sound_data.rs");
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Gate{Direct,Enabled,Notice(bool)}

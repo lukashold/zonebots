@@ -180,6 +180,7 @@ impl Game{
   //58090 operates on the same native UNIT; its renderer identity alone changes.
   let c=&mut self.units[ci];c.native_terrain_tag63=driver.native_terrain_tag63;c.native_contact6f=driver.native_contact6f;c.native_contact70=driver.native_contact70;c.native_wait72=driver.native_wait72;c.native_contact_pausebc=driver.native_contact_pausebc;
   if source_hardware.is_some(){self.refresh_native_collision_tables(ci,Some(driver.native_class7c));}
+  if let Some(slot)=driver.native_slot{self.rebind_native_crane_identity(slot,driver.id,group.carrier);}
   self.units[ai].native_slot=None;
   self.units[ai].native_hardware_slot=None;
   for member in &group.members{if let Some(slot)=self.units.iter().find(|u|u.id==member.id).and_then(|u|u.native_slot.or(u.native_transport_slot)){self.native_group_rosters.record_transport_flags(slot,0,0x18);self.native_group_rosters.record_contact_target(slot,0);}}
@@ -285,7 +286,7 @@ impl Game{
    if Some(m.id)==actor{u.native_slot=carrier.native_slot.or(u.native_transport_slot);u.hp=driver.hp;u.grenades=carrier.grenades;u.native_class7c=driver_class;u.native_range4=Some(restored_range4);u.native_route_flip.set(carrier.native_route_flip.get());u.native_route_road_replaced.set(carrier.native_route_road_replaced.get());u.native_secondary_route.set(carrier.native_secondary_route.get());u.native_flags64=carrier.native_flags64;u.native_mask98=carrier.native_mask98;u.native_flags9c=carrier.native_flags9c;u.native_order5c=carrier.native_order5c;u.native_target46=carrier.native_target46;u.native_trait7a=carrier.native_trait7a;u.native_cyclea0=carrier.native_cyclea0;u.native_reload7b=carrier.native_reload7b;u.native_bucket38=carrier.native_bucket38;u.native_initiative_scan=carrier.native_initiative_scan;u.native_footprint18=carrier.native_footprint18;u.native_permission1c=carrier.native_permission1c;u.native_terrain_tag63=carrier.native_terrain_tag63;u.native_contact6f=carrier.native_contact6f;u.native_contact70=carrier.native_contact70;u.native_wait72=carrier.native_wait72;u.native_contact_pausebc=carrier.native_contact_pausebc;if let Some(state)=u.original_combat.as_mut(){if let Some(current)=carrier.original_combat.as_ref(){state.aim_skill=current.aim_skill;state.fire_rate=current.fire_rate;state.projectile_speed=current.projectile_speed;}}}
    else if u.native_slot.is_none(){u.native_slot=u.native_transport_slot;}
   }}
-  if let Some((slot,actor))=carrier.native_slot.zip(actor){self.native_group_rosters.remap_entity(slot,carrier.id,actor);self.remap_native_pursuit_identity(carrier.id,actor);}
+  if let Some((slot,actor))=carrier.native_slot.zip(actor){self.native_group_rosters.remap_entity(slot,carrier.id,actor);self.rebind_native_crane_identity(slot,carrier.id,actor);self.remap_native_pursuit_identity(carrier.id,actor);}
   self.events.push(json!({"kind":"unloaded","team":carrier.team,"unitId":carrier.id,"memberIds":group.members.iter().map(|m|m.id).collect::<Vec<_>>()}));
   self.native_transports.insert(gi,group);self.sync_native_world();if let Some(object)=self.native_object_slot(carrier.id){self.set_native_object_sprite_offset(object,(direction*5)as i8);if matches!(direction,0|1|7){self.set_native_object_animation(object,0,1);}}true
  }

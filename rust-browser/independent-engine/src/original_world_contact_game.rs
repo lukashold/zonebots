@@ -7,6 +7,7 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_world_effects.rs"] mod effects;
 #[path="original_building_trail.rs"]mod trail;
 #[path="original_crane_building.rs"]mod crane;
+#[path="original_crane_state.rs"]pub(crate) mod crane_state;
 #[path="original_crane_building_game.rs"]mod crane_game;
 #[path="original_crane_bridge.rs"]mod crane_bridge;
 #[path="original_crane_bridge_game.rs"]mod crane_bridge_game;
@@ -46,12 +47,12 @@ pub(crate) struct ScanObject{pub slot:u8,pub position:[i16;2],pub bucket12:u8,pu
 pub struct State {
     ///Raw4d18c8, written only by43ea80. A miss and a mission import preserve it.
     order_object_pointer:u32,
-    trail:trail::State,trail_draws:Vec<Value>,direct_palette:Option<u8>,trail_main_result:Option<u8>,trail_scenes:[i32;4],cranes:Vec<Option<crane::Crane>>,crane_frames:Vec<Vec<[i16;4]>>,bridge_crane_frames:Vec<Vec<Vec<[i16;4]>>>,bridge_repair_ready:bool,ruin_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,alive_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,effect_world_suppression:u8,effect_world_mask4f:u8,effect_wall_mask43:u8,effect_quality:i8,
+    trail:trail::State,trail_draws:Vec<Value>,direct_palette:Option<u8>,trail_main_result:Option<u8>,trail_scenes:[i32;4],crane_frames:Vec<Vec<[i16;4]>>,bridge_crane_frames:Vec<Vec<Vec<[i16;4]>>>,bridge_repair_ready:bool,ruin_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,alive_stamps:std::collections::BTreeMap<i8,(u32,usize,usize,Vec<u8>)>,effect_world_suppression:u8,effect_world_mask4f:u8,effect_wall_mask43:u8,effect_quality:i8,
     objects: Vec<Option<ObjectSlot>>, buildings: Vec<BuildingSlot>, bridges: Vec<BridgeSlot>,retired_workshop_alias25:Option<super::original_retired_workshop::Alias>,retired_preamble_offset21_24:Option<i8>,
     forts: Vec<Fort>, suppress_objects: u8, effects:Vec<Option<effects::Particle>>, effect_cp_tints:Vec<Option<u8>>,effect_draws:Vec<(usize,effects::Draw,Option<u8>)>,effect_view:Option<([i16;2],[i16;4])>,effect_tint:u8,effect_owner:u8,effect_maximum:i8,effect_origin:[i16;2],effect_flags:u8,effect_fade:u8,effect_sprite:i16,effect_suppression:u8,bridge_fx:effects::bridge::Raw,last_projection:[i16;2],quiet_blasts:bool,fragments:building_fragments::State,fort_fragments:fort_fragments::State,seasonal_cps:Option<seasonal_game::CpPool>,
 }
 impl State {
-    fn empty() -> Self { Self { order_object_pointer:0,trail:Default::default(),trail_draws:vec![],direct_palette:None,trail_main_result:None,trail_scenes:[-1;4],cranes:vec![None;240],crane_frames:vec![],bridge_crane_frames:vec![],bridge_repair_ready:false,ruin_stamps:Default::default(),alive_stamps:Default::default(),effect_world_suppression:0,effect_world_mask4f:0,effect_wall_mask43:0,effect_quality:0, objects: vec![None;200],retired_workshop_alias25:None,retired_preamble_offset21_24:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],quiet_blasts:false,fragments:Default::default(),fort_fragments:Default::default(),seasonal_cps:None } }
+    fn empty() -> Self { Self { order_object_pointer:0,trail:Default::default(),trail_draws:vec![],direct_palette:None,trail_main_result:None,trail_scenes:[-1;4],crane_frames:vec![],bridge_crane_frames:vec![],bridge_repair_ready:false,ruin_stamps:Default::default(),alive_stamps:Default::default(),effect_world_suppression:0,effect_world_mask4f:0,effect_wall_mask43:0,effect_quality:0, objects: vec![None;200],retired_workshop_alias25:None,retired_preamble_offset21_24:None, buildings: Vec::new(), bridges: Vec::new(), forts: Vec::new(), suppress_objects:0,effects:vec![None;500],effect_cp_tints:vec![None;500],effect_draws:Vec::new(),effect_view:None,effect_tint:0,effect_owner:0,effect_maximum:0,effect_origin:[0,0],effect_flags:0,effect_fade:0,effect_sprite:0,effect_suppression:0,bridge_fx:Default::default(),last_projection:[0,0],quiet_blasts:false,fragments:Default::default(),fort_fragments:Default::default(),seasonal_cps:None } }
     fn free(&self) -> Option<usize> { self.objects.iter().position(|s|s.as_ref().is_none_or(|s|!s.active)) }
     ///43ecf0/43eee0 and58a40 do not write raw+0x26. Only58af0's
     ///destroyed-hardware branches replace this warm byte with RNG&3.

@@ -12,10 +12,15 @@ impl Record{
 }
 #[derive(Clone,Copy,Debug)]pub struct Draw{pub slot:usize,pub position:[i16;2],pub sprite:i16,pub palette:i8,pub mode:u8,pub parameter:u8,pub offset:i8}
 #[derive(Clone,Copy,Debug)]pub struct View{pub camera:[i16;2],pub lower:[i16;2],pub upper:[i16;2]}
+///Only406880's pre+96 audio stage. No record/World/allocator is duplicated.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct SoundChance{pub point:[i16;2]}
+///Lava uses signed16 subtraction, lower-128 and inclusive upper (no+32).
+pub fn visible(point:[i16;2],view:View)->bool{let screen=[point[0].wrapping_sub(view.camera[0]),point[1].wrapping_sub(view.camera[1])];(0..2).all(|i|i32::from(screen[i])>=i32::from(view.lower[i])-128&&screen[i]<=view.upper[i])}
+
 pub trait World{
  fn random(&mut self)->u32;fn cosmetic_random(&mut self)->u32;fn multiplayer(&self)->bool;
  fn view(&self)->View;fn bounds(&self)->[i16;2];fn native_world(&self)->u8;fn resource_present(&self)->bool;
- fn terrain(&self,cell:i16)->u8;fn scare(&mut self,point:[i16;2]);fn burst(&mut self,point:[i16;2]);fn sound(&mut self,point:[i16;2]);
+ fn terrain(&self,cell:i16)->u8;fn scare(&mut self,point:[i16;2]);fn burst(&mut self,point:[i16;2]);fn sound(&mut self,chance:SoundChance);
 }
 pub struct State{pub records:[Record;32],pub draws:Vec<Draw>}
 impl Default for State{fn default()->Self{Self{records:std::array::from_fn(|_|Record::default()),draws:Vec::new()}}}
@@ -51,9 +56,13 @@ fn advance_record(r:&mut Record,w:&mut impl World,draws:&mut Vec<Draw>)->bool{
   if flags&24==0{if flags&32==0{r.word(16).wrapping_add(i16::from(r.byte(41)as i8))}else{point[0]=point[0].wrapping_add(4);point[1]=point[1].wrapping_add(4);r.word(34).wrapping_add(i16::from(r.byte(41)as i8))}}
   else{point[1]=point[1].wrapping_add(4);if matches!(r.byte(40),64|192){point[0]=point[0].wrapping_add(4);}r.word(32).wrapping_add(i16::from(r.byte(41)as i8))}
  }else{r.word(8).wrapping_add(i16::from(r.byte(40)>>6))};
- let view=w.view();let screen=[point[0].wrapping_sub(view.camera[0]),point[1].wrapping_sub(view.camera[1])];
- if (0..2).all(|i|i32::from(screen[i])>=i32::from(view.lower[i])-128&&screen[i]<=view.upper[i]){
-  let random=if w.multiplayer(){0}else{w.cosmetic_random()};if random&127==0{w.sound(point);}
+ let view=w.view();let multiplayer=w.multiplayer();
+ //MP's rand branch is identically0. Lift only this audio opportunity before
+ //canonical culling; its listener evaluates the source window separately.
+ //SP keeps its original one visible CRT draw, including when master is off.
+ if multiplayer{w.sound(SoundChance{point});}
+ if visible(point,view){
+  if !multiplayer&&w.cosmetic_random()&127==0{w.sound(SoundChance{point});}
   let mut mode=0;let mut palette=(r.byte(48)&3)as i8;let mut parameter=0;let mut offset=(r.byte(47)as i8).wrapping_sub(64);
   if r.byte(48)&12!=0{mode=33;palette=0;point[1]=point[1].wrapping_add(96);offset=(r.byte(47)as i8).wrapping_sub(96);if r.byte(48)&4!=0{mode=49;parameter=r.byte(46);}if r.word(28)!=0{palette=((r.word(28)as u16>>1)as i8).wrapping_neg();}}
   draws.push(Draw{slot:0,position:point,sprite,palette,mode,parameter,offset});
@@ -85,7 +94,7 @@ fn advance_record(r:&mut Record,w:&mut impl World,draws:&mut Vec<Draw>)->bool{
   fn multiplayer(&self)->bool{self.rng.multiplayer}fn view(&self)->View{View{camera:[10000,10000],lower:[0,0],upper:[320,200]}}
   fn bounds(&self)->[i16;2]{[1024,768]}fn native_world(&self)->u8{3}fn resource_present(&self)->bool{true}
   fn terrain(&self,cell:i16)->u8{if cell>=0&&self.scenario&1!=0{2}else{0}}
-  fn scare(&mut self,_:[i16;2]){self.random();}fn burst(&mut self,_:[i16;2]){}fn sound(&mut self,_:[i16;2]){panic!("offscreen")}
+  fn scare(&mut self,_:[i16;2]){self.random();}fn burst(&mut self,_:[i16;2]){}fn sound(&mut self,c:SoundChance){assert!(!visible(c.point,self.view()),"offscreen reference has no audible native window");}
  }
  #[test]fn all_16384_complete_native_volcanic_pool_steps_match_bytes_and_rng(){
   let mut hash=2166136261u32;let mut count=0;
@@ -102,7 +111,7 @@ fn advance_record(r:&mut Record,w:&mut impl World,draws:&mut Vec<Draw>)->bool{
   let mut init_hash=2166136261u32;for scenario in 0..512u32{let mut pool=State::default();for(slot,r)in pool.records.iter_mut().enumerate(){for(j,b)in r.bytes.iter_mut().enumerate(){*b=((slot*60+j)as u32*17+scenario*13)as u8;}r.set_word(0,if slot<scenario as usize%33{100+slot as i16}else{-1});}pool.spawn([500-scenario as i16,600+scenario as i16],(scenario>>4&1)as u8,(scenario*7)as u8,(scenario*11)as u8,(scenario%5)as u8,scenario>>3&1!=0);let h=pool.records.iter().flat_map(|r|r.bytes).fold(2166136261u32,|h,b|(h^u32::from(b)).wrapping_mul(16777619));for n in [scenario,h]{init_hash=(init_hash^n).wrapping_mul(16777619);}}
   let mut draw_hash=2166136261u32;for scenario in 0..1024u32{let mut r=Record::default();for(i,v)in[(0,150),(2,160),(8,6014),(16,4318),(32,4338),(34,4354)]{r.set_word(i,v);}r.set_byte(40,(scenario*17)as u8);r.set_byte(41,(scenario%6)as u8);r.set_byte(42,2);r.set_byte(47,(scenario*13)as u8);r.set_byte(46,(scenario*7)as u8);r.set_byte(48,[0,1,2,3,4,8,12,68][scenario as usize%8]);r.set_byte(49,[0,8,16,32,64][scenario as usize/8%5]);r.set_word(28,[-1,0,2,34,256][scenario as usize/40%5]);let mut world=Fixture{scenario,rng:OriginalRng{words:[1+scenario,2,3,4,5],multiplayer:true}};let mut draws=vec![];
    //The proof viewport is onscreen; only sound's external sink is isolated.
-   struct Onscreen<'a>(&'a mut Fixture);impl World for Onscreen<'_>{fn random(&mut self)->u32{self.0.random()}fn cosmetic_random(&mut self)->u32{panic!("multiplayer skips C rand")}fn multiplayer(&self)->bool{true}fn view(&self)->View{View{camera:[12,20],lower:[0,0],upper:[320,200]}}fn bounds(&self)->[i16;2]{[1024,768]}fn native_world(&self)->u8{3}fn resource_present(&self)->bool{true}fn terrain(&self,c:i16)->u8{self.0.terrain(c)}fn scare(&mut self,_:[i16;2]){panic!("first frame only")}fn burst(&mut self,_:[i16;2]){panic!("first frame only")}fn sound(&mut self,_:[i16;2]){}}
+   struct Onscreen<'a>(&'a mut Fixture);impl World for Onscreen<'_>{fn random(&mut self)->u32{self.0.random()}fn cosmetic_random(&mut self)->u32{panic!("multiplayer skips C rand")}fn multiplayer(&self)->bool{true}fn view(&self)->View{View{camera:[12,20],lower:[0,0],upper:[320,200]}}fn bounds(&self)->[i16;2]{[1024,768]}fn native_world(&self)->u8{3}fn resource_present(&self)->bool{true}fn terrain(&self,c:i16)->u8{self.0.terrain(c)}fn scare(&mut self,_:[i16;2]){panic!("first frame only")}fn burst(&mut self,_:[i16;2]){panic!("first frame only")}fn sound(&mut self,_:SoundChance){}}
    advance_record(&mut r,&mut Onscreen(&mut world),&mut draws);assert_eq!(draws.len(),1);let d=draws[0];for n in [scenario,d.position[0]as u32,d.position[1]as u32,d.sprite as u32,d.palette as i32 as u32,u32::from(d.mode),u32::from(d.parameter),d.offset as i32 as u32]{draw_hash=(draw_hash^n).wrapping_mul(16777619);}
   }
   assert_eq!(init_hash,803941086,"ZNativeLavaInitDrawOracle512 source405350 pool images");assert_eq!(draw_hash,2845882592,"ZNativeLavaInitDrawOracle1024 visible406880 queue records");

@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.057 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
+1.073 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen11 Programme anschließend).
-Doctests bestanden (0 vorhanden).91/91 Node-Prüfprogramme im aktuellen
-nov05-r49b bestanden, einschließlich aller20 privaten Missionen.
+Doctests bestanden (0 vorhanden).93/93 Node-Prüfprogramme im aktuellen
+nov05-r50 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 043dab2dca2d36c5974b6902c7e43e8c359b7d015ab7e7fe99a9d4b08155b7d3
+Wasm SHA256: c293498c0712017612a1859db7cbf9f52c0d6bd9969e2bf0c976014e51fec364
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -42,6 +42,37 @@ UMFANG
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
 
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R50
+- Kranphase9a bleibt in genau einem generations- und missionsgebundenen
+  Gamepool mit240 Slots. Die echte Konstruktorinitialisierung gilt schon vor
+  Worldimport. Übernahme und Rendererwechsel erhalten denselben physischen
+  Datensatz. Generischer Import erzeugt keine angeblichen Konstruktorwerte.
+  Arbeits-Hilfsdaten bleiben ausdrücklich unvollständig; die57ff0-Beobachtung
+  ist keine Berechtigung für beliebige aktuelle86-/96-Arbeitsdaten.
+- Im unveränderten M14-Missionsanfang erscheint der übernommene Kran bereits
+  vor einem Reparaturauftrag mit drei normalen Layern, in SP und Browser-MP.
+  Vier generierte, zwei authored und ein Host-/Gast-RPC-Fall prüfen den neuen
+  Release. Alle38 Brückenreparaturen bestehen weiterhin.512 ursprüngliche
+  Konstruktor-/Übernahme-Feldprojektionen und die bisherigen2048 Zeichenfälle
+  behalten ihren ausdrücklich beschriebenen Umfang.
+- Lava122 bewertet Kamera, lokalen Master und Deskriptorstempel im vorhandenen
+  AudioState. Der frühere Spieltickersatzzähler ist entfernt. Der Welt-/Pool-
+  und Zufallsablauf wird nicht pro Zuhörer wiederholt.784 Originalfälle und
+  die bisherigen16384 Lava-Poolschritte sind geprüft.20 tatsächliche App-
+  Endpunkte umfassen Host/Gast, entfernte Kamera, Stummschaltung, Pause und
+  verspätete Decoderantworten.4160 öffentliche Welt-/FX-/Queue-/UIuhr-Frames
+  stimmen im engen Vorher-/Nachhervergleich überein.
+- Alle93 Node-Prüfprogramme,1073 normale Rusttests und12 separat ausgeführte
+  Privatdiagnostiken bestehen mit demselben gebauten Release. Zusätzliche
+ 14 generierte und14 authored Bodenangriffe sowie zwei Host-/Gast-RPCs sind
+  bestanden. Sieben tatsächliche Commonzustände passieren14 RPCs und14 Draws;
+  zwei APCzustände passieren vier RPCs und vier Draws. Eine eigene unsichtbare
+  Browserprüfung startet M14/Normal/Originalgrafik ohne Warnungen oder Fehler.
+  Das laufende Nutzerfenster bleibt unberührt. Kein neuer GPU-/FPS-/PCM-Beleg.
+Details: ORIGINAL-KRAN-ZUSTAND.txt und ORIGINAL-LAVA-AUDIO.txt.
+Vollständige APC-Automatik, Kranarbeits-Readsets, Fortcontroller und die übrigen
+Grenzen des Abgleichberichts bleiben offen.
+
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R49
 - APC56 läuft über den einmaligen Common-Wrapper447d50, mit erhaltenen
   post-Common-Zielwörtern und genau einem bestehenden automatischen Insassenteil.
@@ -70,8 +101,8 @@ ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R49
   Der gesamte20-Missionen-Soak und alle38 privaten Brückenreparaturen bestehen.
 Details: ORIGINAL-HARDWARE-COMMON.txt, ORIGINAL-KONTEXT-BODENANGRIFF.txt,
 ORIGINAL-WERKSTATT.txt und ORIGINAL-LATE-BUILD-AUDIO.txt.
-Offen bleiben unter anderem Kran-Übernahmeprovenienz, vollständige APC-Automatik,
-Lava122, Fortcontroller und die im Abgleichbericht benannten globalen Grenzen.
+Zum damaligen Stand R49 waren Kran-Übernahmeprovenienz, vollständige APC-Automatik,
+Lava122 und Fortcontroller offen. Die Änderungen von R50 stehen darüber.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV04-R48
 - Das frühere globale Explosionsgate4d18ee und der Zyklus4a6f4e gehören jetzt

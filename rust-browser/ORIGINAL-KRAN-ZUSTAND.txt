@@ -1,0 +1,52 @@
+Bounded crane phase provenance (slice A)
+
+Game.native_cranes owns the single persistent 240-slot pool. NativeWorld has
+no crane pool. A phase belongs to a physical identity (mission epoch plus the
+existing upstream slot generation) and an explicit renderer binding. Only the
+real fresh 41b210 constructor receipt establishes known 9a=0. That receipt
+survives world=None and world import. A fresh foot record contains only the
+known phase and has no work auxiliary. A duplicate receipt or import is not a
+second constructor. Actual 57ff0 retains 9a, writes 86=FF and uses the existing
+owner for 28=2084. Entry, ordinary unload, APC occupation and APC unload rebind
+the same physical record. Death or a kind/entity change does not infer a fresh
+byte. New construction and explicit mission reset invalidate the old identity.
+
+The regular 55f10/455820 getter needs known 9a only. It does not require 86/96,
+saved 92/94, period 87 or B1. Its three normal layers do not establish the six
+work-overlay rows. FF/FE are negative signed phases and select arm frame 0.
+
+Crane is a transient kernel view, never the persistent pool record. Existing
+phase-59 playability retains an explicitly tainted auxiliary in the SAME
+record, with no second phase field. 57ff0 preserves existing auxiliary values
+except its actual 86=FF and the old decoded target invalidated by 28=2084. No
+foot record uses Crane::default; there is no full-work promotion. The auxiliary
+does not claim raw 96, saved/B1 or period knowledge. An unowned warm phase stays
+unknown to rendering. Its previous compatibility continuation can use an
+explicitly unproven value, which cannot become known 0. A mismatched renderer
+cannot erase or adopt another binding's known physical phase. This slice does
+not close the full native phase-59, idle or repair-context lifecycle.
+
+Actual 41b210 allocation and 50be0->57ff0 projection: 512 original images,
+public fixed FNV 1473382597; an optional private trace checks every selected
+field. The complete 512-image trace FNV 664664325 stays separate and unchanged.
+The 2048 original 55f10/455820 draw chains are unchanged. Other phase-59,
+Common and Bridge kernels retain their existing leaf/readset boundaries.
+
+Untouched mission 14: the authored Tough at 1312/3360 enters the authored
+neutral crane at 1536/3136 on callback 122, in SP and MP. Actor coordinates,
+metadata and rosters are not edited. Before this fix the normal row reported
+missingWork9a. After it has three native layers, including source arm sprite
+5826, before any repair order. Real bridge 4 still completes after 623 repair
+callbacks, followed by 150 continuation callbacks, with 600 HP and no route
+boundary. The existing private M14 BUILD fixture and all 19 original destroyed
+bridge diagnostics in both modes retain their geometry and work, retreat,
+arrival and job assertions.
+
+tools/check-native-crane-phase.cjs WASM [EXTERNAL_CAMPAIGN] always runs four
+generated native ABI cases. An optional unchanged external campaign adds
+SP/MP M14 takeover/repair and a real host/guest palette/RPC check. The guest
+never simulates. No Original assets or raw traces are embedded. Separate
+state tests cover import, generation, rebind, unknown warm state and reuse.
+
+Source UI warm-stack admission, move/stop interruption, arbitrary save/load,
+unproved 96 lifetime and broader GPU/RNG/body parity remain separate boundaries.
