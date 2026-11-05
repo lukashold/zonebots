@@ -518,6 +518,24 @@ noch keinen vollständigen Fortcontroller und ersetzen keinen identischen
 Missionslauf. Der bisherige unmittelbare Siegerabschluss bleibt ein offener
 Portierungsbereich.
 
+WEITERER ABGLEICHSBLOCK NOV05-R53
+Manuelles und automatisches APC-Feuer verwenden jetzt denselben physischen
+B6-Wert pro Soldat. Seine Slot-/Generationsherkunft bleibt beim Ein- und
+Aussteigen erhalten; eine tatsächliche Neukonstruktion setzt SlotAND15.
+Die lebende rohe GROUP-Liste ersetzt den bisherigen Cargo-/Sitzplatzersatz
+für diese Phasenschritte. FF-Lücken, wiederholte physische Einträge und die
+manuelle vorzeichenbehaftete Anzahl sind berücksichtigt. Nach einer Grenze
+bleiben frühere Schreibschritte bestehen; Common schiebt keine zweite
+automatische Fortsetzung nach.
+384 zusätzliche kontrollierte Originaldurchläufe erreichen echte manuelle
+und Emissionsfunktionen unter ihrem Geschwindigkeit0-Schutz. Die separate
+Rust-Game-Projektion vergleicht B6/Reload/RNG bei vollem bestehendem Pool.
+Diese unterschiedlichen Blattbedingungen beweisen keine ganzen identischen
+Emissionen. Zielsuche,65/8e und die normalen Emissionsblätter bleiben offen;
+der reine automatische Kern ist weiterhin kein vollständiger Game-Ersatz.
+Details: ORIGINAL-APC-PHASE.txt. Der Hauptstand besteht1124 normale Rusttests,
+13 separat ausgeführte Privatdiagnostiken und95 Node-Prüfprogramme.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

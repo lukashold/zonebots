@@ -304,6 +304,20 @@ impl Game{
   for _ in 0..180{g.step(0.059);if g.native_transports.is_empty(){break;}}
   assert!(g.native_transports.is_empty());for(id,hp)in ids.iter().zip(old){let u=g.units.iter().find(|u|u.id==*id).unwrap();assert_eq!(u.hp,hp);assert_eq!(u.squad,3);assert!(!workshops::hidden(u));assert!(u.transport_carrier.is_none());}
  }
+ #[test]fn physical_apc_phase_survives_actual_boarding_renderer_rebind_and_unload(){
+  let mut g=field();let(carrier,ids)=board(&mut g);
+  let slots=ids.iter().map(|id|g.units[g.transport_member_index(*id).unwrap()].native_slot.unwrap()).collect::<Vec<_>>();
+  let generations=slots.iter().map(|&s|g.native_upstream_reactions.generation(s).unwrap()).collect::<Vec<_>>();
+  for &slot in &slots{g.advance_native_apc_phase(slot as u8).unwrap();}
+  let phases=slots.iter().zip(&generations).map(|(&s,&generation)|g.native_cranes.phase_b6(s,generation).unwrap()).collect::<Vec<_>>();
+  occupied(&mut g,carrier);let ci=g.transport_member_index(carrier).unwrap();
+  assert_eq!(g.units[ci].native_slot,Some(slots[0]));
+  assert_eq!(g.native_cranes.bound(slots[0],generations[0],carrier).unwrap().phase_b6,Some(phases[0]));
+  assert!(g.unload_native_vehicle(ci));for _ in 0..180{g.step(0.059);if g.native_transports.is_empty(){break;}}
+  assert!(g.native_transports.is_empty());
+  for ((&slot,&generation),&expected) in slots.iter().zip(&generations).zip(&phases){assert_eq!(g.native_cranes.phase_b6(slot,generation),Some(expected));}
+  assert!(g.native_cranes.bound(slots[0],generations[0],ids[0]).is_some());
+ }
  #[test]fn destroying_the_occupied_carrier_removes_its_hidden_roster(){
   let mut g=field();let(carrier,ids)=board(&mut g);for _ in 0..180{g.step(0.059);if g.units.iter().any(|u|u.id==carrier&&u.team==0){break;}}
   g.units.iter_mut().find(|u|u.id==carrier).unwrap().hp=-1.;g.step(0.059);assert!(g.native_transports.is_empty());assert!(ids.iter().all(|id|g.units.iter().all(|u|u.id!=*id)));

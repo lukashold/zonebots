@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.112 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
-(alle38 Brückenfälle in einem Programm, die übrigen11 Programme anschließend).
+1.124 Rusttests bestanden;13 Privatdiagnostiken separat erfolgreich ausgeführt
+(alle38 Brückenfälle in einem Programm, die übrigen12 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r52 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r53 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 1a2c2711ee55f4fe7f0bc2fc9a3d80dea369f59ad691b9e401c2d530c7a037bb
+Wasm SHA256: 6991edd7376ccf007772d91504cd3e9027a7546e9c65375d3bf305b860ec9424
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -42,6 +42,32 @@ UMFANG
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
 
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R53
+- Beide APC-Feuerwege verwenden denselben physischen SoldatenwertB6 in der
+  vorhandenen UNIT-Generationstabelle. Konstruktion setzt SlotAND15; Ein-/
+  Aussteigen, Rendererbindung und Arbeitsansichten setzen ihn nicht zurück.
+  Rohe GROUP-Lücken, doppelte physische IDs und die unterschiedliche manuelle/
+  automatische Listenlänge bleiben erhalten. Ein Fehler nach einem geschriebenen
+  Präfix startet keine zweite automatische Fortsetzung. Die alte Sitzplatz-
+  Speicherung bleibt ausschließlich in ausdrücklich kontrollierten Tests lokal.
+-384 neue tatsächliche Originalaufrufe prüfen alle240 B6-Werte, Actor/GROUP/W,
+  Nachladen, fünf RNG-Wörter und die Reihenfolge der erreichten Funktionen.
+  Diese Aufrufe benutzen den tatsächlichen Geschwindigkeit0-Schutz. Der separate
+  Rust-Game-Vergleich prüft B6/Reload/RNG mit seinem vollen bestehenden Pool;
+  diese unterschiedlichen Blattbedingungen sind kein gleicher Emitterbeleg.
+  Projektionen FNV545449656 und1723361704;58 gezielte APC-Tests bestanden.
+- Finaler Hauptstand:1124 normale Rusttests,13 tatsächlich separat ausgeführte
+  Privatdiagnostiken und95 Node-Prüfprogramme. Darin38 Brückenabläufe aus19
+  Missionen für SP/MP. Sieben Commonzustände passieren14 RPCs/14 Draws;
+  zwei APCzustände vier RPCs/vier Draws. Normaler Wasm-ABI unverändert,
+  keine privaten Diagnosegetter. MP-Build18 weist ältere Simulationsstände ab.
+- Eigener frisch geladener Hintergrundtab: Originalgrafik, M19 Bridge Game,
+  Normal, HUD0:02; keine erfassten Konsolenwarnungen/-fehler. Tab geschlossen,
+  laufende Benutzerpartie nicht bedient. Kein neuer Screenshot-/GPU-/PCM- oder
+  Frameratenbeleg. Die genehmigten privaten Ressourcen sind unverändert.
+Details: ORIGINAL-APC-PHASE.txt. Physische65-/8e-Anbindung, vollständige APC-
+Zielsuche/Emissionsblätter und Fortcontroller bleiben weiterhin offen.
+
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R52
 - Kran-Kontakt läuft jetzt im Main-Preambel nach Zelle/69:4 und vor dem
   Bewegungsmuster. Die zwei späten Kontakte sind entfernt. Eine überfahrene
@@ -58,8 +84,8 @@ ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R52
 - Der neue reine APC-Automatik-Kern besteht zehn Tests mit864 privaten
   Caller-/Leaf-Projektionen und96 Sektor-Gatefällen. Seine Scanner-/Emitter-
   Ports sind ausdrücklich benannt; er ist noch nicht in Game aktiviert.
-  Physische65/B6-Anbindung und gemeinsame Migration der manuellen/automatischen
-  Insassenfeuerpfade bleiben offen. Ältere Emissionsbelege mit fehlender
+  Zum damaligen Stand blieben physische65/B6-Anbindung und die gemeinsame
+  Migration der beiden Insassenfeuerpfade offen; B6 ist im BlockR53 ergänzt. Ältere Emissionsbelege mit fehlender
   Trigonometrietabelle wurden eingegrenzt; die18 alten Wrapperfälle berühren
   diese Tabelle nicht und bleiben innerhalb ihrer bisherigen Grenzen gültig.
 - Der zusammengeführte --locked-Release besteht1112 normale Rusttests,

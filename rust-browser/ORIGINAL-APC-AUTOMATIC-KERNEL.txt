@@ -59,21 +59,23 @@ not a DSP/playback or warm unrepresented high-word proof. See the separate
 V51-APC-SINCOS-ERRATUM and V51-APC-REALTRIG-NUMERIC reports, which preserve old
 artifacts and correct old null-table and effective-facing scope claims.
 
-HARD PRECONDITIONS FOR A LATER GAME GRANT
-Wait for a fresh Root base after the existing Game240/96 integration. Extend
-THAT physical record using its existing epoch/upstream-generation/entity
-binding and per-field knowledge; do not add a second65/B6 pool or tombstone.
-Wire actual constructor/entry/weapon/removal/reuse writers proven separately.
-The current Common/manual447da0 positional passenger phases and automatic
-447c20 must migrate together to that ONE physical B6 authority, exactly once.
-Retain the existing447d50 wrapper/Common/manual owners and active-Dodge Legacy
-boundary. Cached58500/574c0 reads must use the same live/retired generation-
-bound raw owner and exact bucket membership, not fresh filtering or Web IDs.
-Bind scanner416160 to existing native_world.trail.error. Reuse canonical W,
-composite dummy, finite projectile/bullet pools and shared sound/global owners.
-Unknown240..254/alias/global/header contexts remain explicit unavailable data.
-No Game activation, native runtime claim or automatic fallback is authorized
-or implemented by this candidate.
+CURRENT GAME BINDING AND REMAINING PRECONDITIONS
+Round53 separately migrates BOTH living manual/automatic legacy callers to
+one physical B6 field in the existing Game240 record, with its existing epoch
+and upstream generation. The old positional arrays are test-only controlled
+projections. No second phase pool or tombstone is introduced. See the separate
+ORIGINAL-APC-PHASE report and its deliberately bounded Source/Game controls.
+This does NOT activate this entire pure automatic kernel in Game.
+
+Physical65 and all saved-class8e writers/readers still need joint binding.
+The current selection-context saved8e authority must be migrated or reused,
+never shadowed by a second known byte. Preserve constructor-only overlapping
+WORD8d writes and ordinary later takeover as distinct operations. Retain the
+existing447d50/Common/manual owners and active-Dodge boundary. Cached58500/
+574c0 queries must use the same live/retired generation-bound raw owner and
+exact buckets. Reuse native_world.trail.error, canonical W/composite dummy,
+finite projectile/bullet pools and shared sound/global owners. Out-of-domain
+or unavailable headers remain boundaries. No partial kernel then legacy replay.
 
 Constructor clarification from the later independent review:
 58090 transiently saves APC class10 to8e, but41bff0 then writes WORD8d=4

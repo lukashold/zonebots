@@ -12,7 +12,7 @@ impl Game{
   match action{
    Action::Absent=>return Ok(false),Action::Waiting=>{},
    Action::AimTarget=>{self.update_native_hardware_unit_target(index)?;return Ok(true);},
-   Action::FireApc=>{if u.crew.is_none(){return Err(Boundary::MissingHardwareProfile);}self.fire_native_apc_point(index,(i32::from(state.point[0]),i32::from(state.point[1])),usize::MAX);},
+   Action::FireApc=>{if u.crew.is_none(){return Err(Boundary::MissingHardwareProfile);}self.fire_native_apc_point(index,(i32::from(state.point[0]),i32::from(state.point[1])),usize::MAX)?;},
    Action::Fire=>{self.native_hardware_pool[hardware].attributes.bytes[21]=state.turret;self.ensure_native_hardware(index);self.units[index].native_hardware.as_mut().unwrap().turret=state.turret;self.units[index].aim=crate::native_math::angle(state.turret);for shot in super::shots(state){self.emit_native_hardware_point_projectile(index,shot)?;}self.set_native_hardware_reload(index,state.reload7b as u8);self.sync_native_group_order(index);},
   }if action==Action::FireApc{self.native_hardware_common.gate=1;}if common_gate.map_or(action==Action::FireApc||attributes.byte(23)&3==0,|g|g||action==Action::FireApc){self.sync_native_group_order(index);}Ok(true)
  }

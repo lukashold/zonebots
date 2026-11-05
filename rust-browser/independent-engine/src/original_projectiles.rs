@@ -303,7 +303,7 @@ impl Game {
     /// Point orders share the unit weapon's windup and allocator. No damage is
     /// committed here; the world geometry at the eventual impact decides it.
     pub(crate) fn fire_native_ground(&mut self,index:usize,point:(f64,f64),target:usize,grenade:bool)->bool {
-        if !grenade&&self.units[index].kind=="apc"{return self.fire_native_apc_point(index,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32),target);}
+        if !grenade&&self.units[index].kind=="apc"{return match self.fire_native_apc_point(index,((point.0/2.).floor()as i32,(point.1/2.).floor()as i32),target){Ok(made)=>made,Err(e)=>{self.native_route_boundary=Some(e);false}};}
 
         if let Some(made)=self.update_native_ground_flame(index){return made;}
         //Synthetic/CLI maps lack the authored457020/44a040 caller. Preserve

@@ -2,6 +2,9 @@
 //! Aiming, opening a hatch, and releasing its secondary weapon are distinct
 //! transitions. The renderer consumes these states instead of guessing from time.
 use serde::{Serialize,Deserialize};
+use crate::original_path_contact::game::Boundary;
+#[path="original_apc_phase_game.rs"]
+mod apc_phase;
 use super::{Game,Unit,stats,native_math,original_combat::{self,Attack}};
 
 #[derive(Clone,Serialize,Deserialize)]
@@ -15,7 +18,6 @@ pub struct State {
     #[serde(skip)] scan:u8,
     #[serde(skip)] scan_flip:bool,
     #[serde(skip)] apc_target:Option<usize>,
-    #[serde(skip)] pub(crate) passenger_phase:[u8;21],
 }
 impl State {
     pub(crate)fn mirror_common_hatch(&mut self,body:u8,frame:i8,motion:i8,timer:i8,debounce:i8){self.hatch_body=body&15;self.hatch_frame=frame;self.hatch_motion=motion;self.hatch_timer=timer;self.debounce=debounce;}
@@ -24,7 +26,7 @@ impl State {
     ///when that same actor enters or leaves a neutral hardware descriptor.
     pub(crate) fn remap_target(&mut self,previous:usize,current:usize){if self.apc_target==Some(previous){self.apc_target=Some(current);}}
     pub fn new(turret:u8,hatch_frame:i8)->Self{Self{turret,hatch_frame,hatch_body:0,hatch_motion:0,
-        aim_timer:15,hatch_timer:0,body_motion:0,debounce:0,scan:0,scan_flip:false,apc_target:None,passenger_phase:[0;21]}}
+        aim_timer:15,hatch_timer:0,body_motion:0,debounce:0,scan:0,scan_flip:false,apc_target:None}}
     ///58500 owns raw71:8 and77. Keep the old adapter's flip mirror in step
     ///when this source entry point is used; no second scan cursor is created.
     pub(crate) fn raw_scan_direction(&mut self,flags71:&mut u8,class:u8,facing:u8,relative:u8)->u8{
@@ -71,6 +73,14 @@ impl State {
         }
         false
     }
+
+}
+// Historical controlled burst projections only; no runtime phase owner.
+#[cfg(test)]
+struct BurstProjection { passenger_phase:[u8;21] }
+#[cfg(test)]
+impl BurstProjection {
+    fn new(_turret:u8,_frame:i8)->Self{Self{passenger_phase:[0;21]}}
     fn apc_ports(&mut self,passengers:&[(bool,bool)],mask:u8,direction:usize)->Vec<(usize,usize,[i32;2])>{
         let mut ports=Vec::new();let mut seat=0;
         for (member,&(alive,pyro)) in passengers.iter().take(21).enumerate(){
@@ -95,6 +105,7 @@ impl State {
         members
     }
 }
+
 fn apc_reload(rate:u8,manual:bool)->u8{if manual{100u8.wrapping_sub(rate)}else{150u8.wrapping_sub(rate>>1).wrapping_sub(rate)}}
 fn apc_manual_unit_target(kind:&str)->bool{kind=="tough"}
 fn apc_shooter(carrier:&Unit,kind:&str)->Unit{
@@ -166,21 +177,21 @@ impl Game {
                 let direction=native_math::direction(point.0-((u.x/2.).floor()as i32+14),point.1-((u.y/2.).floor()as i32+12));
                 let ready=self.native_hardware_ready(&u);let h=self.units[index].native_hardware.as_mut().unwrap();let release=h.aim(direction,self.motion_tick&1!=0,ready);
                 self.units[index].aim=native_math::angle(h.turret);
-                if release{self.fire_native_apc_point(index,point,target.id);}
+                if release{if let Err(e)=self.fire_native_apc_point(index,point,target.id){self.native_route_boundary=Some(e);return;}}
             }
         }else{self.units[index].native_hardware.as_mut().unwrap().apc_target=None;}
-        self.run_native_apc_auto_tail_legacy(index,u,driver);
+        if let Err(e)=self.run_native_apc_auto_tail_legacy(index,u,driver){self.native_route_boundary=Some(e);}
     }
     ///Existing447c20 approximation only. Owned56 calls this after its one
     ///Common; the old UI-target prefix stays outside this shared entry.
-    pub(crate)fn update_native_apc_auto_tail_legacy(&mut self,index:usize){
+    pub(crate)fn update_native_apc_auto_tail_legacy(&mut self,index:usize)->Result<(),Boundary>{
         self.ensure_native_hardware(index);
-        let Some(driver)=self.units[index].crew.clone()else{return;};
+        let Some(driver)=self.units[index].crew.clone()else{return Ok(());};
         let u=self.units[index].clone();
-        self.run_native_apc_auto_tail_legacy(index,u,driver);
+        self.run_native_apc_auto_tail_legacy(index,u,driver)
     }
-    fn run_native_apc_auto_tail_legacy(&mut self,index:usize,u:Unit,driver:super::Crew){
-        if !self.native_hardware_ready(&self.units[index]){return;}
+    fn run_native_apc_auto_tail_legacy(&mut self,index:usize,u:Unit,driver:super::Crew)->Result<(),Boundary>{
+        if !self.native_hardware_ready(&self.units[index]){return Ok(());}
         let mut targets:[Option<Unit>;4]=[None,None,None,None];
         for side in [1,3,0,2]{
             //004476f0 first scans without a weapon-range cutoff, then checks
@@ -190,18 +201,25 @@ impl Game {
                 dx*dx+dy*dy<=((stats(&driver.kind).range/2.)as i64).pow(2)
             });
         }
-        if targets.iter().all(Option::is_none){return;}
+        if targets.iter().all(Option::is_none){return Ok(());}
         let rate=u.original_combat.as_ref().map(|s|s.fire_rate).unwrap_or(80);
         self.set_native_hardware_reload(index,apc_reload(rate,false));
         let weapon_kind=driver.kind.clone();
-        let passengers=std::iter::once(driver).chain(u.cargo.clone()).take(21).collect::<Vec<_>>();
-        let mask=targets.iter().enumerate().fold(0,|m,(side,t)|m|if t.is_some(){1<<side}else{0});
         let direction=usize::from(original_combat::facing(u.angle));
-        // The native carrier owns one weapon class (+8e) and damage field
-        // (+65) for the whole roster, even if a compatibility save mixes crews.
-        let active=passengers.iter().map(|p|(p.hp>=0.,weapon_kind=="pyro")).collect::<Vec<_>>();
-        let ports=self.units[index].native_hardware.as_mut().unwrap().apc_ports(&active,mask,direction);
-        for (_member,side,offset) in ports{
+        let group=self.native_apc_phase_group(index)?;
+        let mut seat=0usize;
+        for role in 0..21 {
+            let member=self.native_apc_phase_member(group,role)?;
+            if member==255{continue;}
+            // Source447cf6 writes physical B6 before its Pyro/port gates.
+            // No HP predicate or cargo-position phase can substitute for it.
+            let phase=self.advance_native_apc_phase(member)?;
+            if weapon_kind=="pyro"&&phase>=10{continue;}
+            while seat<12&&targets[seat%4].is_none(){seat+=1;}
+            if seat==12{return Ok(());}
+            let side=seat%4;
+            let table=match side{0=>super::native_weapon_data::APC_FRONT,1=>super::native_weapon_data::APC_RIGHT,2=>super::native_weapon_data::APC_BACK,_=>super::native_weapon_data::APC_LEFT};
+            let offset=table[direction*3+seat/4];
             let target=targets[side].as_ref().unwrap();
             let mut origin=((u.x/2.).floor()as i32+offset[0]-6,(u.y/2.).floor()as i32+offset[1]-6);
             let shooter=apc_shooter(&u,&weapon_kind);
@@ -217,23 +235,32 @@ impl Game {
                 _=>{attack.bullet=true;if weapon_kind=="laser"{origin.1-=7;}self.emit_native_bullet(&shooter,origin,point,range,weapon_kind=="laser",attack)},
             };
             if emitted{self.events.push(serde_json::json!({"kind":"shot","type":weapon_kind,"weapon":"passenger","carrier":u.id,"x":origin.0*2,"y":origin.1*2,"team":u.team}));}
+            seat+=1;
+            if seat==12{return Ok(());}
         }
+        Ok(())
     }
     ///00447da0: forced Tough/Pyro point fire uses the carrier anchor for every
     /// passenger, independent two-axis jitter, and the separate manual phase gate.
     /// The browser currently exposes directed unit fire for Tough crews only.
-    pub(crate) fn fire_native_apc_point(&mut self,index:usize,point:(i32,i32),target:usize)->bool{
-        if self.units[index].kind!="apc"||!self.native_hardware_ready(&self.units[index]){return false;}
-        let u=self.units[index].clone();let Some(driver)=u.crew.as_ref()else{return false;};
-        if !matches!(driver.kind.as_str(),"tough"|"pyro"){return false;}
+    pub(crate) fn fire_native_apc_point(&mut self,index:usize,point:(i32,i32),target:usize)->Result<bool,Boundary>{
+        if self.units[index].kind!="apc"||!self.native_hardware_ready(&self.units[index]){return Ok(false);}
+        let u=self.units[index].clone();let Some(driver)=u.crew.as_ref()else{return Ok(false);};
+        if !matches!(driver.kind.as_str(),"tough"|"pyro"){return Ok(false);}
         if self.native_hardware_common.apc_scope==1{if let Some(slot)=u.native_slot{self.native_common_legacy.push((slot as u8,crate::original_hardware_common::LegacyCall::ApcManual447da0));}}
         self.ensure_native_hardware(index);
-        let passengers=std::iter::once(driver.clone()).chain(u.cargo.clone()).take(21).collect::<Vec<_>>();
-        let active=passengers.iter().map(|p|(p.hp>=0.,driver.kind=="pyro")).collect::<Vec<_>>();
-        let members=self.units[index].native_hardware.as_mut().unwrap().apc_manual_members(&active);
+        let group=self.native_apc_phase_group(index)?;
         let origin=((u.x/2.).floor()as i32,(u.y/2.).floor()as i32);
         let shooter=apc_shooter(&u,&driver.kind);let mut emitted=false;
-        for _member in members{
+        let mut role=0usize;
+        //447da0 uses its captured GROUP's live signed count, unlike the
+        //automatic fixed21 scan. Holes and duplicate physical slots persist.
+        while (role as i32)<i32::from(self.native_group_rosters.pool[usize::from(group)].roster[18] as i8){
+            let member=self.native_apc_phase_member(group,role)?;role+=1;
+            if member==255{continue;}
+            let phase=self.advance_native_apc_phase(member)?;
+            if driver.kind=="pyro"&&phase>=4{continue;}
+
             let x=(point.0 as i16).wrapping_add((self.native_random()&15)as i16-8)as i32;
             let y=(point.1 as i16).wrapping_add((self.native_random()&15)as i16-8)as i32;
             let mut attack=Attack::from_unit(&shooter,target,stats(&driver.kind).damage,native_math::angle(native_math::direction(x-origin.0,y-origin.1)));attack.bullet=false;
@@ -244,7 +271,7 @@ impl Game {
             }
         }
         self.set_native_hardware_reload(index,apc_reload(u.original_combat.as_ref().map(|s|s.fire_rate).unwrap_or(80),true));
-        emitted
+        Ok(emitted)
     }
     pub(crate) fn update_native_hardware(&mut self,index:usize){
         if !self.map.original||self.units[index].team<0||stats(&self.units[index].kind).cls==0{return;}
@@ -338,7 +365,7 @@ mod tests{
     fn apc_ports_match_1512_emitted_muzzles_and_360_native_bursts(){
         let mut shots=2166136261;let mut bursts=2166136261;
         for direction in 0..8{for mask in 1..16{for passengers in [1,6,21]{
-            let mut state=State::new(0,-1);let ports=state.apc_ports(&vec![(true,false);passengers],mask,direction);
+            let mut state=BurstProjection::new(0,-1);let ports=state.apc_ports(&vec![(true,false);passengers],mask,direction);
             for (shot,&(_,side,offset))in ports.iter().enumerate(){hash(&mut shots,&[direction as i32,i32::from(mask),passengers as i32,shot as i32,side as i32,500+offset[0]-6,600+offset[1]-6]);}
             hash(&mut bursts,&[direction as i32,i32::from(mask),passengers as i32,ports.len()as i32,150-(80>>1)-80]);
         }}}
@@ -347,7 +374,7 @@ mod tests{
     #[test]
     fn apc_pyro_gate_matches_all_sixteen_native_passenger_phases(){
         let mut h=2166136261;
-        for phase in 0..16{let mut state=State::new(0,-1);state.passenger_phase[0]=phase;
+        for phase in 0..16{let mut state=BurstProjection::new(0,-1);state.passenger_phase[0]=phase;
             let ports=state.apc_ports(&[(true,true)],15,0);
             hash(&mut h,&[i32::from(phase),i32::from(state.passenger_phase[0]),ports.len()as i32,150-(90>>1)-90]);
         }
@@ -357,7 +384,7 @@ mod tests{
     fn apc_manual_bursts_match_2240_native_projectiles_and_384_reload_phase_states(){
         let mut shots=2166136261;let mut bursts=2166136261;
         for class in [3,15]{for multi in 0..2{for passengers in [1,6,21]{for phase in 0..16{for facing in [0,3]{
-            let mut state=State::new(0,-1);state.passenger_phase.fill(phase);
+            let mut state=BurstProjection::new(0,-1);state.passenger_phase.fill(phase);
             let mut rng=original_combat::OriginalRng{words:[1,2,3,4,5],multiplayer:multi!=0};
             let members=state.apc_manual_members(&vec![(true,class==15);passengers]);
             for (shot,_)in members.iter().enumerate(){
@@ -400,12 +427,27 @@ mod tests{
         for _ in 0..10{g.step(0.059);}assert!(g.units[0].y>320.);
         assert_eq!(original_combat::facing(g.units[0].angle),4);assert_eq!(original_combat::facing(g.units[0].aim),2);
     }
+    // These compatibility weapon tests now supply physical passengers. Merely
+    // appending renderer cargo is not a source GROUP or a UNIT allocation.
+    fn physical_passengers(g:&mut Game,kinds:&[&str]){
+        let carrier=g.units[0].clone();
+        for kind in kinds {
+            g.spawn(kind,carrier.team,carrier.x,carrier.y,carrier.squad,None);
+            let u=g.units.last_mut().unwrap();
+            let mut a=crate::original_transport::Animation::approach(0);
+            a.phase=crate::original_transport::Phase::Inside;a.visible=false;
+            u.native_transport=Some(a);u.transport_carrier=Some(carrier.id);
+            u.native_transport_slot=u.native_slot;u.native_phase35=62;
+        }
+        g.maintain_native_group_rosters();
+    }
     #[test]
     fn game_apc_passengers_use_separate_shots_and_their_own_weapon_families(){
         for kind in ["grunt","tough","pyro","laser"]{
             let mut g=field();g.spawn("apc",0,320.,320.,1,Some(super::super::Crew{kind:kind.into(),hp:100.}));
             g.units[0].cargo=vec![super::super::Crew{kind:kind.into(),hp:100.};5];g.units[0].hold_position=true;
             g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
+            physical_passengers(&mut g,&[kind;5]);
             g.step(0.059);let events=g.events.iter().filter(|e|e["kind"]=="shot"&&e["weapon"]=="passenger").collect::<Vec<_>>();
             assert_eq!(events.len(),6,"{kind}");assert!(events.iter().all(|e|e["type"]==kind&&e["carrier"]==g.units[0].id));
             assert!(!g.events.iter().any(|e|e["kind"]=="shot"&&e["team"]==0&&e["weapon"]=="primary"));
@@ -426,7 +468,8 @@ mod tests{
         let mut g=field();g.spawn("apc",0,1000.,1200.,1,Some(super::super::Crew{kind:"tough".into(),hp:100.}));
         g.units[0].cargo=vec![super::super::Crew{kind:"tough".into(),hp:100.};20];g.units[0].original_combat.as_mut().unwrap().fire_rate=70;
         g.original_rng=original_combat::OriginalRng{words:[1,2,3,4,5],multiplayer:false};
-        assert!(g.fire_native_apc_point(0,(800,900),200));assert_eq!(g.projectiles.len(),21);
+        physical_passengers(&mut g,&["tough";20]);
+        assert!(g.fire_native_apc_point(0,(800,900),200).unwrap());assert_eq!(g.projectiles.len(),21);
         assert!(g.projectiles.iter().all(|p|p.x==1000.&&p.y==1200.));assert_eq!(g.units[0].native_reload7b,30);assert_eq!(g.units[0].cooldown,30.*0.059);
         assert_eq!(g.events.iter().filter(|e|e["weapon"]=="passenger").count(),21);
     }
@@ -435,6 +478,7 @@ mod tests{
         let mut g=field();g.spawn("apc",0,320.,320.,1,Some(super::super::Crew{kind:"laser".into(),hp:60.}));
         g.units[0].cargo=vec![super::super::Crew{kind:"grunt".into(),hp:30.},super::super::Crew{kind:"pyro".into(),hp:80.}];
         g.units[0].hold_position=true;g.spawn("heavy",1,320.,160.,2,None);g.units[1].hold_position=true;g.units[1].cooldown=10000.;g.units[1].native_reload7b=127;
+        physical_passengers(&mut g,&["grunt","pyro"]);
         g.step(0.059);let shots=g.events.iter().filter(|e|e["weapon"]=="passenger").collect::<Vec<_>>();
         assert_eq!(shots.len(),3);assert!(shots.iter().all(|e|e["type"]=="laser"));assert!(g.bullets.iter().all(|b|b.laser));assert!(g.projectiles.is_empty());
     }

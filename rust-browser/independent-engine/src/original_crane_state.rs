@@ -78,6 +78,9 @@ impl Auxiliary {
 pub struct Record {
     pub identity: Identity,
     pub entity: usize,
+    /// Physical UNIT B6. A warm/phase-only record has no constructor receipt.
+    /// It belongs to this same epoch/generation record, not an APC seat.
+    pub(crate) phase_b6: Option<u8>,
     pub work9a: u8,
     pub work9a_known: bool,
     pub field96: Field96,
@@ -103,6 +106,7 @@ impl Record {
         Self {
             identity,
             entity,
+            phase_b6: None,
             work9a,
             work9a_known: known,
             // A phase-only warm record cannot infer a constructor96 receipt.
@@ -199,6 +203,7 @@ impl State {
             return;
         }
         let mut r = Record::phase(key, entity, 0, true);
+        r.phase_b6 = Some((slot as u8) & 15);
         r.field96 = Field96::fresh();
         if crane {
             r.initializer57ff0();
@@ -212,6 +217,26 @@ impl State {
             .get(slot)?
             .as_ref()
             .filter(|r| r.identity == self.key(generation) && r.entity == entity)
+    }
+    /// Raw GROUP membership addresses physical slots, including repeated and
+    /// inactive members. Renderer rebinding does not change their B6 byte.
+    pub fn phase_b6(&self, slot: usize, generation: u64) -> Option<u8> {
+        self.slots.get(slot)?.as_ref()
+            .filter(|r| r.identity == self.key(generation))?.phase_b6
+    }
+    pub fn advance_phase_b6(&mut self, slot: usize, generation: u64) -> Option<u8> {
+        let key = self.key(generation);
+        let r = self.slots.get_mut(slot)?.as_mut().filter(|r| r.identity == key)?;
+        let next = r.phase_b6?.wrapping_add(1) & 15;
+        r.phase_b6 = Some(next);
+        Some(next)
+    }
+    #[cfg(test)]
+    pub(crate) fn seed_phase_b6(&mut self, slot: usize, generation: u64, value: u8) {
+        let key = self.key(generation);
+        let r = self.slots.get_mut(slot).and_then(Option::as_mut)
+            .filter(|r| r.identity == key).expect("explicit current physical fixture");
+        r.phase_b6 = Some(value);
     }
     pub fn phase9a(&self, slot: usize, generation: u64, entity: usize) -> Option<u8> {
         self.bound(slot, generation, entity)

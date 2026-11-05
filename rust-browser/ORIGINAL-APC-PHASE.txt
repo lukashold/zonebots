@@ -1,0 +1,58 @@
+APC-PHASENWERT B6: GEMEINSAME PHYSISCHE ZUORDNUNG
+
+Der Phasenwert gehört zum physischen Soldaten. Er wird beim tatsächlichen
+Anlegen seiner UNIT mit Slotnummer AND15 initialisiert. Manuelles und
+automatisches APC-Feuer verändern dieselbe Instanz. Ein anderer Sitzplatz,
+Rendererwechsel, Ein-/Aussteigen und die Kran-Arbeitsansicht setzen ihn nicht
+zurück. Eine tatsächliche neue Slotgeneration initialisiert ihn erneut.
+
+Die bestehende zentrale Tabelle der240 physischen UNIT-Generationen enthält
+jetzt zusätzlich den bekannten B6-Wert. Es gibt keine zweite APC-Tabelle und
+keinen dauerhaften Wert pro Sitzplatz. Ein warmes Arbeitsobjekt ohne
+Konstruktorbeleg bekommt keinen erfundenen bekannten Wert. Die bisherigen
+Werte96/9a und ihre unabhängigen Nachweisgrenzen bleiben erhalten.
+
+Beide Feuerwege lesen die tatsächliche GROUP-Liste. NurFF bedeutet dort
+"überspringen". Doppelte physische Einträge zählen denselben Wert mehrfach
+weiter; ein zusätzliches HP-Kriterium wird nicht eingeführt. Die Schreibweise
+ist zuerst (B6+1)AND15, dann das jeweilige Pyro-Gatter. Automatisch werden21
+Einträge geprüft; manuell bestimmt die lebende vorzeichenbehaftete GROUP-
+Anzahl die Schleife. Der bisherige automatische Ziel-/Waffenadapter bleibt
+als solcher benannt. Einträge240..254 oder fehlende Konstruktorbelege melden
+eine Grenze; ein bereits geschriebener Präfix wird nicht erneut ausgeführt.
+Common gibt diesen Fehler an den APC56-Aufrufer weiter, der dann keine
+automatische Fortsetzung nachschiebt.
+
+PRÜFUNG AM ORIGINAL
+Zusätzlich zu den erhaltenen Konstruktor- und automatischen Aufzeichnungen
+wurde der tatsächliche manuelle447da0-Ablauf mit erreichten447970- und
+4648a0/464a20-Funktionen in384 kontrollierten Kontexten ausgeführt:
+2 Klassen,16 Phasen,6 Listen-/Anzahlformen und Einzel-/Mehrspielermodus.
+Die Liste enthält Löcher, doppelte physische Slots und inaktive Einträge.
+768 Rohaufnahmen enthalten alle240 B6-Werte, den Actor, GROUP, W und die
+fünf RNG-Wörter. Der unabhängige Prüfer vergleicht die erfassten Bytes und
+die tatsächliche Reihenfolge der erreichten Funktionen.
+1.600 physische Phasenschritte,1.000 erreichte Emissionsaufrufe;
+256 wiederholte physische Einträge. Gesamtprojektion FNV545449656;
+B6/Reload/RNG-Projektion FNV1723361704.
+
+Diese Originaldurchläufe verwenden ausdrücklich Geschwindigkeit0: Der
+tatsächliche Emissionsschutz kehrt ohne Projektilallokation zurück. Das ist
+kein Nachweis für normale Projektilgeschwindigkeit oder einen ganzen Kampf.
+Der gesonderte Rust-Game-Vergleich prüft B6/Reload/RNG gegen dieselben384
+Aufnahmen. Sein vorhandener voller Projektilpool liefert normale erfolglose
+Allokationen. Die beiden unterschiedlichen Blattbedingungen werden nicht
+als gleiche Emissionsimplementierung ausgegeben. Originalaufnahmen und
+Originaldateien bleiben außerhalb des öffentlichen Code-Repositorys.
+
+Weitere Tests prüfen echte Ein-/Aussteigeabläufe, Rendererbindung,
+Slotwiederverwendung, beide Pyro-Gatter, volle Pools und den Abbruch nach
+einem bereits ausgeführten Eintrag. Historische Burst-Prüfsummen bleiben
+unverändert in ausdrücklich testlokalen kontrollierten Projektionen;
+diese Arrays initialisieren keine lebenden Soldaten.
+
+WEITER OFFEN
+Die physische Anbindung aller65-/8e-Schreibstellen, vollständige Zielsuche,
+Warnungen und normale APC-Emissionsblätter bleiben offen. Der reine
+automatische APC-Kern wird hier nicht als vollständiger Game-Ersatz aktiviert.
+Dieser Schritt begründet keine vollständige1:1-Gleichheit.

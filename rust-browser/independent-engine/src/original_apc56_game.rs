@@ -13,5 +13,5 @@ impl super::World for Env<'_>{type Error=Boundary;
  fn common(&mut self)->Result<(),Boundary>{#[cfg(test)]TRACE.with(|v|v.borrow_mut().push((self.index,"Common")));self.game.native_hardware_common_body(self.index)}
  fn words(&self)->[i16;2]{let u=&self.game.units[self.index];[u.native_target42,u.native_target46]}
  fn restore_words(&mut self,value:[i16;2]){let u=&mut self.game.units[self.index];u.native_target42=value[0];u.native_target46=value[1];}
- fn legacy_automatic(&mut self)->Result<(),Boundary>{#[cfg(test)]TRACE.with(|v|v.borrow_mut().push((self.index,"LegacyAutomatic")));if let Some(slot)=self.game.units[self.index].native_slot{self.game.native_common_legacy.push((slot as u8,LegacyCall::ApcAuto447c20));}self.game.update_native_apc_auto_tail_legacy(self.index);Ok(())}
+ fn legacy_automatic(&mut self)->Result<(),Boundary>{#[cfg(test)]TRACE.with(|v|v.borrow_mut().push((self.index,"LegacyAutomatic")));if let Some(slot)=self.game.units[self.index].native_slot{self.game.native_common_legacy.push((slot as u8,LegacyCall::ApcAuto447c20));}self.game.update_native_apc_auto_tail_legacy(self.index)}
 }
