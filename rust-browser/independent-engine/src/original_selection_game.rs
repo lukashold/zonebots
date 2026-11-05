@@ -1,5 +1,8 @@
 //! Native selection/dispersal bridge. The browser supplies selection events
 //! explicitly; a command's flat entity list is not silently made into a row.
+#[cfg(test)]
+#[path="original_startgun_context_tests.rs"]
+mod startgun_context_tests;
 use super::{Game,original_combat,original_orders_game::{self as orders,Event},original_selection as native,original_world_contact as world};
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub(crate) struct PreparedMove{pub index:usize,pub event:Event,pub anchor:[i16;2]}
 impl Game{
@@ -7,6 +10,16 @@ impl Game{
  ///for a fresh native UNIT allocation, never a group split or identity rebind.
  pub(crate) fn initialize_native_selection_context(&mut self,slot:usize){if let Some(c)=self.native_selection.contexts.get_mut(slot){*c=native::SourceContext{icon_a8:Some(0xabb),link28:Some(0),saved_class8e:Some(0)};}}
  pub(crate) fn record_native_selection_saved_class(&mut self,slot:usize,class:u8){if let Some(c)=self.native_selection.contexts.get_mut(slot){c.saved_class8e=Some(class);}}
+ ///41ad30 enters582c0 only after real W allocation. This fresh-constructor
+ ///receipt is separate from later takeover, which saves the incoming robot.
+ pub(crate) fn record_native_start_gun_setup(&mut self,index:usize){
+  if !self.map.original{return;}
+  let Some(u)=self.units.get(index)else{return;};
+  let Some(slot)=u.native_slot.filter(|&s|s<240)else{return;};
+  if u.native_class7c!=2||!u.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s)).is_some_and(|w|w.live_marker==0){return;}
+  let class=match u.kind.as_str(){"cannon"=>2,"missile"=>4,"gatling"=>5,"howitzer"=>6,_=>return};
+  self.record_native_selection_saved_class(slot,class);
+ }
  pub(crate) fn record_native_selection_link(&mut self,slot:usize,link:Option<u32>){if let Some(c)=self.native_selection.contexts.get_mut(slot){c.link28=link;}}
  ///438740 propagates the raw icon across all21 slots only for a leader.
  pub(crate) fn record_native_selection_icon(&mut self,index:usize,icon:u16){let Some(slot)=self.units.get(index).and_then(|u|u.native_slot)else{return;};let mut slots=vec![slot];if let Some(m)=self.native_group_rosters.members[slot].as_ref().filter(|m|m.role== -1){if let Some(g)=self.native_group_rosters.pool.get(usize::from(m.group)){slots.extend((0..21).filter_map(|role|g.member(role)).map(usize::from));}}for slot in slots{if let Some(c)=self.native_selection.contexts.get_mut(slot){c.icon_a8=Some(icon);}}}

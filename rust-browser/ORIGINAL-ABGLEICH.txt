@@ -546,6 +546,17 @@ Der ursprüngliche Fehltest und die Originalaufzeichnungen bleiben erhalten.
 prüfen den Release. Das schließt weder die übrigen APC-Blätter noch den
 Fortcontroller oder einen vollständigen identischen Missionsablauf ab.
 
+WEITERER ABGLEICHSBLOCK NOV05-R55
+Die vier frischen Geschützarten behalten nun ihre unterschiedlichen gespeicherten
+Typen2/4/5/6. Die bisherige einheitliche Null ist nach erfolgreicher tatsächlicher
+Hardwareallokation korrigiert; ein voller Pool wird nicht als erfolgreicher
+Aufbau behandelt. Der bestehende Auswahlkontext bleibt der einzige8e-Speicher.
+96 neue tatsächlich ausgeführte Originalkonstruktoren belegen den ausgewählten
+Umfang. Der Rust-Game-Vergleich prüft8e, Allokation und RNG; übrige Unterschiede
+gescheiterter Aufbauzustände werden damit nicht als behoben ausgegeben.
+1127 normale Rusttests,14 separat ausgeführte Diagnostiken und95 Nodeprogramme
+prüfen den Release. Details: ORIGINAL-STARTGESCHUETZE.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

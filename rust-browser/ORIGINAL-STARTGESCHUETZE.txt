@@ -1,0 +1,46 @@
+GESPEICHERTER TYP FRISCHER GESCHÜTZE
+
+Der tatsächliche Startkonstruktor41ad30 übernimmt die Geschützklasse aus der
+aufgebauten Klassentabelle. Erst nach erfolgreicher Hardwareallokation tritt
+er in582c0 ein. Dort wird der vorherige Typ in8e gespeichert, bevor7c zur
+gemeinsamen Geschützklasse2 wird. Kanone, Raketen-, Gatling- und Haubitzen-
+geschütz erhalten deshalb in8e die vier Werte2/4/5/6.
+
+Der bisherige Game-Start behielt für alle vier Typen die anfängliche Null.
+Jetzt schreibt ausschließlich der frische Startpfad nach realer erfolgreicher
+Hardwareallokation in die bereits vorhandene Auswahlkontext-Instanz. Es gibt
+keinen zweiten8e-Speicher. Ohne gültigen physischen Slot oder ohne zugeteilten
+Hardwareplatz wird kein erfolgreicher Aufbau nachgebildet.
+
+Spätere Übernahmen bleiben ein eigener Vorgang: Sie speichern weiter die
+Klasse des einsteigenden Roboters. Import, Gruppenpflege und Rendererwechsel
+spielen den Startkonstruktor nicht erneut ab. Eine echte neue Belegung setzt
+den Auswahlkontext zunächst wieder wie1b210 zurück.
+
+ORIGINALVERGLEICH
+96 tatsächliche vollständige41ad30-Aufrufe prüfen vier Typen, logische
+Startplätze0/17, physische Plätze0/17/239, Einzel-/Mehrspielermodus und einen
+freien beziehungsweise vollen vorhandenen Hardwarepool. Die aufgerufenen
+Originalfunktionen einschließlich Allokation laufen tatsächlich; keine
+Spiel-, Allokations- oder RNG-Rückgabe wird ersetzt. ROBOTS und die korrekt
+normalisierte SINCOS-Tabelle sind materialisiert. Dies sind kontrollierte
+Konstruktoraufrufe, kein natürlicher kompletter Missionsstart.
+
+192 Rohaufnahmen belegen die erfasste Klassentabelle, ausgewählte UNIT-Felder,
+Hardwarepoolzustände und alle fünf RNG-Wörter.48 erfolgreiche Fälle erreichen
+582c0;48 volle Fälle erreichen es nicht und behalten8e0. Die unabhängige
+Projektion hat FNV1135924840. Originalaufnahmen bleiben außerhalb von GitHub.
+
+Der separate Rust-Game-Vergleich prüft in denselben96 Kontexten gezielt8e,
+Allokationserfolg und RNG. Zwei weitere Tests prüfen die Konstruktorwerte,
+spätere Klassenänderungen und Slotwiederverwendung. Der ursprüngliche Fehler
+ist vor der Laufzeitkorrektur reproduziert; seine fehlgeschlagenen Tests sind
+getrennt erhalten.
+
+GRENZEN
+Die übrigen Felder eines gescheiterten Originalaufbaus sind dadurch nicht
+vollständig in Game nachgebildet: Unter anderem7c/35/39 unterscheiden sich
+in solchen kontrollierten Grenzfällen. Es gibt keinen unabhängigen vollständigen
+UNIT-/W-/Globalzustandsvergleich aller Startabläufe. Allgemeine65-/8e-Aliasse,
+APC-Zielsuche und normale Emissionsblätter bleiben weitere Arbeit.
+Diese Korrektur begründet keine vollständige1:1-Gleichheit.

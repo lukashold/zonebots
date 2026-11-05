@@ -729,7 +729,7 @@ impl Game {
         if self.map.original&&team>=0&&d.cls>0{self.allocate_native_hardware_record(self.units.len()-1,d.cls==1);if d.cls==2&&native_slot.is_some(){let u=self.units.last_mut().unwrap();u.native_counter84=-1;u.angle=native_math::angle(6);}}
         if self.map.original&&d.cls>0{if let Some(slot)=native_slot{self.native_selection.contexts[slot].link28=if matches!(k,"jeep"|"crane"){Some(0x2084)}else{None};}}
         if self.map.original&&native_slot.is_some(){self.initialize_native_collision_tables(self.units.len()-1);if let Err(e)=self.initialize_native_terrain_tag(self.units.len()-1){self.native_route_boundary=Some(e);}}
-        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(self.units.len()-1);self.record_native_upstream_ctor(self.units.len()-1);self.record_native_crane_ctor(self.units.len()-1);}
+        if self.map.original&&native_slot.is_some(){self.record_native_workshop_ctor(self.units.len()-1);self.record_native_upstream_ctor(self.units.len()-1);self.record_native_crane_ctor(self.units.len()-1);self.record_native_start_gun_setup(self.units.len()-1);}
     }
     pub fn products(&self,b:&Building)->Vec<&'static str>{
       if !b.alive(self.map.original){return vec![];}

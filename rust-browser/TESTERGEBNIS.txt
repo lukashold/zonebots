@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.125 Rusttests bestanden;13 Privatdiagnostiken separat erfolgreich ausgeführt
-(alle38 Brückenfälle in einem Programm, die übrigen12 Programme anschließend).
+1.127 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
+(alle38 Brückenfälle in einem Programm, die übrigen13 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r54 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r55 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 95bdcf9d8a12ad790b03fcb70530d776c9ef46cc3924f7e7be6ddc10ecab9258
+Wasm SHA256: 1b923d51bf1e946563de6c7ccb098638221012f46f132fcb7ce54be70cb3bfcb
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,29 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R55
+- Frisch erstellte Kanonen-, Raketen-, Gatling- und Haubitzengeschütze erhalten
+  nach erfolgreicher Hardwareallokation ihre originalen gespeicherten Typen
+  2/4/5/6. Der vorhandene Auswahlkontext bleibt die einzige8e-Instanz. Ein
+  gescheiterter Aufbau erhält keinen erfolgreichen Typ; spätere Übernahmen,
+  Import und Gruppenpflege wiederholen den Startschritt nicht.
+-96 tatsächliche Originalkonstruktoren mit freien/vollen Hardwarepools belegen
+  die ausgewählten Felder und unveränderten fünf RNG-Wörter, FNV1135924840.
+  Der separate Rust-Game-Vergleich prüft8e/Allokation/RNG in denselben96 Fällen;
+  er behauptet keine vollständige Gleichheit gescheiterter Konstruktoren.
+  Zwei neue normale Tests und ein tatsächlich ausgeführter Privatvergleich
+  bestehen. Die zwei vorher fehlgeschlagenen Reproduktionen bleiben erhalten.
+- Finaler Release:1127 normale Rusttests,14 tatsächlich ausgeführte private
+  Diagnostiken und95 Nodeprogramme bestanden.38 Brückenabläufe aus19 Missionen
+  bleiben geprüft. Normaler Wasm-ABI ohne Diagnosegetter; MP-Build20 weist ältere
+  Simulationsstände ab. Sieben Commonzustände passieren14 RPCs/14 Draws, zwei
+  APCzustände vier RPCs/vier Draws.
+- Eigener frischer Browserlauf: M10 The Wall, Normal, Originalgrafik, Kanone
+  ausgewählt und HUD0:10; keine erfassten Konsolenwarnungen/-fehler. Eigener
+  Tab geschlossen, Benutzerpartie unberührt. Kein neuer GPU-/PCM-/Frameratenbeleg.
+Details: ORIGINAL-STARTGESCHUETZE.txt. Die weitergehenden offenen Bereiche
+im Abgleichbericht sind durch diesen ausgewählten Konstruktorwert nicht erledigt.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R54
 - Der lebende Laser-APC versetzt seinen Abschusspunkt jetzt auf beiden Achsen
