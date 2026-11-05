@@ -1,7 +1,7 @@
 //! Ordered45c5c0 common caller. All path, contact, hardware and random storage
 //! remains with its existing owner. These are adapter outcomes, not native EAX.
 #[path="original_hardware_common_game.rs"]mod game;
-#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct Shared{pub saved_control06:u8,pub gate:u8,pub movement_byte:u8}
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]pub struct Shared{pub saved_control06:u8,pub gate:u8,pub movement_byte:u8,pub apc_scope:u8}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Boundary{MissingActor,MissingMember,MissingContext,MissingLine(usize),MissingObjects,HatchRelease(u8),AutomaticTarget(u8),MissingLoopSlot(u8),ObjectOrder(u8),ApcSideFire,#[cfg(test)]CrtPrefix}
 #[derive(Clone,Copy,Debug,Default)]pub struct Frame{pub role:i8,pub control:u8,pub pattern:u8,pub remaining:i16,pub frame:i16,pub timer:i8,pub flags31:u8,pub flags69:u8,pub counter68:i8}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Write{ElevationZero,Gate(bool),SaveControl(u8),Control(u8),Counter(i8),PhaseNine,FrameTimer(i16,i8)}
@@ -23,4 +23,4 @@ pub fn expanded_view(point:[i16;2],camera:[i16;2],size:[i16;2])->bool{let q=std:
 
 ///Existing coupled leaves retained for playability; these are not whole-caller
 ///Source proofs and are deliberately separate from fatal missing-raw boundaries.
-#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum LegacyCall{Broadcast15fb0,Secondary5b210,Dodge44f730}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum LegacyCall{Broadcast15fb0,Secondary5b210,Dodge44f730,ApcAuto447c20,ApcManual447da0}

@@ -2,8 +2,8 @@ Original hardware common caller - bounded implementation
 
 The shared owner handles native table phases9/10/53/54/55/58. Phase60 keeps
 the default RET. Crane59 delegates only its common body; its separate work
-machine/Bridge80 remain separately owned. APC56 stays with the existing
-coupled passenger caller. Active64:40 with an existing Dodge segment stays
+machine/Bridge80 remain separately owned. APC56 now uses the separate
+447d50 wrapper described below. Active64:40 with an existing Dodge segment stays
 once with its existing caller; managed hardware completion now uses the
 actual51170/52960/52810 handoff, not an estimated Vec remaining distance.
 
@@ -39,7 +39,8 @@ Runtime CRT reuses its independently verified kernel/stream.
 Existing live15fb0 broadcast and5b210 secondary backend are reached exactly
 once, explicitly marked nativeCommonLegacy, and excluded from new whole
 return counts. Their wider coupled selector/scatter/sound/allocator gaps
-remain. Active Dodge and APC56 also remain explicitly legacy. A real main
+remain. Active Dodge and the APC automatic passenger leaf remain explicitly
+legacy. A real main
 AI71:10 near-enemy regression reaches primary projectiles; a separate hatch
 regression emits exactly one secondary bullet after the known counter writes.
 
@@ -82,3 +83,40 @@ run separately. Seven actual Rust Main snapshots pass14 guest RPC and14
 OriginalDisplay callbacks. No fullsuite,Wasm build or publication was performed
 for this candidate. These observations do not convert Legacy leafs into whole
 original-caller proofs.
+
+APC56 bounded caller migration (447d50 A+B)
+-----------------------------------------
+The managed class1 APC phase56 entry now sets9/guard1, calls the existing
+Common exactly once, saves the post-Common WORD42/46, calls the extracted
+Legacy automatic tail once, restores the two words, then writes56/guard0.
+The guard is one process byte in the existing Common shared owner. No W,
+passenger,scan,RNG or target pool was added. Named Common boundaries preserve
+their known prefix; no automatic/no-target result is invented on error.
+
+The old UI/manual update_native_apc prefix is outside the owned56 entry.
+Manual69:20 and unit-target firing use the existing Common owners. The callback
+marker excludes the generic second movement/contact and footer point pass.
+An active64:40/native_dodge retains its existing exclusive coupled Legacy
+caller, then the verified51170/52960/52810 handoff; no line is reconstructed.
+Frozen units stop before this wrapper and preserve its warm guard byte.
+
+Native evidence:18 controlled actual447d50 cases,14 complete returns and4
+honest CRT/final-emitter prefixes. The14 complete cases compare projected
+UNIT192/W44/group72 and all5 RNG words. The files named WrapperCtor execute
+formation/collision initialization41b950/44f1e0, not41ba00/632378: W44 is an
+explicit input. The evidence is not a hardware-constructor or wholeMain proof.
+The historical1512muzzles/360bursts/16Pyro and2240manualshots/384phase-state
+assertions remain unchanged and retain their original recorded Leaf boundaries.
+
+The automatic tail is still Legacy: cached scan semantics,cargo-vs-native
+roster/HP admission,positional passengerPhase/B6,damage65 and final emitter/
+RNG coupling have not been replaced by exact shared raw owners. Existing
+Common Legacy broadcast/secondary/dodge and its named read boundaries remain.
+Neither wrapper integration nor a passing live shot makes those Leaf chains
+whole-original proofs. No second W/crew/RNG authority is used.
+
+Focused coverage includes realMain exactly-once Common/automatic/point,
+post-movement shot origins,manualunit/reload/fullpool/Pyro gates, SP/MP,
+Frozen, warmmission guard transfer and existing Dodge completion. Actual
+Rust Main phase56 rows pass guestRPC and OriginalDisplay unchanged. These
+changes do not establish complete game or APC equality with the original.

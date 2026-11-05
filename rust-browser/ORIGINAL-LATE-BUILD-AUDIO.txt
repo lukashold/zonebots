@@ -1,0 +1,67 @@
+ORIGINALABGLEICH: SPAETE GEBAEUDE-/BRUECKENGERAEUSCHE
+====================================================
+Begrenzter Implementierungsstand, 05.11.2026. Dieser Abschnitt ersetzt nicht
+den gesamten Original-Menue-, Fort-, Grafik- oder Audio-Controller.
+
+584968 ist ein 32-Bit-Audiotimer fuer den spaeten 40e9d0-Reader. Er liegt jetzt
+genau einmal pro bestehendem Zuhoerer in original_audio::State.late_build_clock.
+Der fruehere World.trail.sound_clock samt Laufzeitzugriffen ist entfernt.
+Der bereits portierte Explosions-Gate/Zyklus bleibt ein eigener, unveraenderter
+Sourcezustand. Es wird weder ein zweiter Timer noch ein Game-Schatten angelegt.
+
+Der Reader, Reparaturauftraege, Gebaeudewiederherstellung, Bruecken-HP,
+Terrain, Partikel und Zufall laufen weiterhin nur einmal im Host/Offline-Spiel.
+Audiochancen entstehen an den tatsaechlichen Stufen: Frame7, nach450260 fuer
+BUILD und nach dem letzten pending/HP/Flag-Schritt fuer Bridge80. Die aktuelle
+rohe Zielposition wird erst dort gelesen; kein Web-Bildrechteck ersetzt sie.
+Fehlende Ziel-/Restorebindung bleibt eine ausdrueckliche Eingabegrenze.
+
+Je Zuhoerer gelten signed16-Viewport, eigener Master, dieselbe Direct-
+Deskriptorfreigabe und genau ein Erfolgszaehler. Frame7 verlangt Timer0, beide
+Abschlussstufen ignorieren den alten Timer. Ein sichtbarer Versuch setzt100
+auch bei Master0/Deskriptorablehnung; das Readerende macht daraus99. Jedes
+andere ungleich0-DWORD dekrementiert ebenfalls, einschliesslich80000000.
+Leerer Reader und fehlende lokale Sicht verhindern das End-DEC nicht. Ein
+uebersprungener Reader, UI-only-Pause und Settingswechsel dekrementieren nicht.
+Nur der belegte Missions-Initialisierungspunkt setzt beide Listener-Timer0.
+
+Die vorhandene Audio-Settings-/Epoch-/Sequenz-/Kameraautoritaet wird benutzt.
+Ein Gast simuliert nicht. Vor gueltiger Gastkamera ist seine Chance unavailable;
+kein Hostkamera-Fallback. Eine neue akzeptierte Kamerageneration verwirft nur
+noch wartende kontextgebundene Samples, stoppt keine laufenden Quellen und
+spielt keine verbrauchten Chancen nach. Remote-Kamera ist der zuletzt akzeptierte
+Browserzustand, kein Nachweis originaler Netzwerk-/Frame-Synchronitaet.
+
+PRUEFUNG
+448 gekoppelte native Reader sowie8 leere Reader,8 Initpraefixe und12 echte
+Main-Callerfenster; Timer-/Stamp-/Counter-/Stage-Felder gegen Originalausfuehrung.
+Die externe Quelle bleibt privat. Lokale Rust-Tests verwenden explizite
+NATIVE_LATE_BUILD_AUDIO_TRACE / NATIVE_LATE_BUILD_AUDIO_MAIN fuer diese Daten.
+12 gezielte Late-/Game-Tests,185 World-Nachbartests (9 separate ignorierte
+Assetdiagnostiken) und11 Audio-Tests sind gruen. Vorhandene1536+128 native
+Explosionsfaelle bleiben unveraendert gruen.
+
+check-native-late-build-audio.cjs verlangt die explizite private Root38-M14-
+Bruecke1-Szene: --scene oder Z_NATIVE_LATE_AUDIO_SCENE. Kein synthetischer
+Ersatz. Tatsaechliche App/Host/Gast/Wasm-Reparatur mit seed985 und festem Date:
+16 Sicht/Master-Kombinationen plus Pause12UI/Resume, wartende Dekodierung mit
+Kamera-RPC und Masterwechsel.19/19 gruen. Die unveraenderte Basis ist13/19 rot;
+7 Kombinationen hatten tatsaechlich falsche Empfaenger, weitere Fehler betreffen
+fehlenden Kontext und spaete Ausgabe nach Kamerawechsel.
+
+18 korrespondierende natuerliche Reparaturen:9000 rohe Welt-/RNG-/W44-/64Job-/
+HP-/Flag-/Pfad-/CRT-Zustaende sowie alle UI-Uhren stimmen vor/nachher ueberein.
+Private reine Lesegetter aendern kein einziges oeffentliches Paket in18 Basis-
+und19 Kandidatenlaeufen.18 Spatial-,24 Hardware-,14 Session- und20 MP-
+Endpunkttests bleiben gruen. Die natuerliche Reparatur endet unveraendert am
+Callback376. Die neuen Audiotimer werden dabei pro Leser genau einmal bewegt.
+
+GRENZEN
+Kein Fortdestruktor-/Lava122-/Radar-/GROUP64-/Common58592b-/Crane12-Port in
+diesem Schnitt.423140-Controller/Endspiel folgt weiterhin dem bestehenden
+begrenzt modellierten Caller; die12 Fenster legen dessen Rueckgabewert offen
+fest. Keine allgemeine Kamera-Culling-,GPU-/Scissor-,SDK-/Geraetemixer- oder
+PCM-Dekodiergleichheit: Die Tests lesen echte private WAV-Dateien, instrumentieren
+Audio.js-Auswahl/Gain/BufferSource.start aber mit decodeAudioData-Platzhalter.
+Originalmedien, rohe Decompilation und private Oracle-Daten gehoeren nicht zum
+Quellcodedelta. Dieser Stand ist kein Nachweis vollstaendiger Spielgleichheit.

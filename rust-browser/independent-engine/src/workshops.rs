@@ -50,12 +50,21 @@ impl Game {
         let total=self.sectors.iter().filter(|s|s.counts_for_production).count();
         original_stats::rate(b.hp,b.max_hp,owned,total)
     }
-    fn workshop_path(&self,u:&Unit,b:&Building)->Option<VecDeque<(f64,f64)>> {
+    fn workshop_path(&self,u:&Unit,b:&Building)->Option<(VecDeque<(f64,f64)>,bool)> {
         let p=stage(b,self.map.original);
         if !self.navigation_point_clear(&u.kind,p.0,p.1){return None;}
-        if (u.x-p.0).hypot(u.y-p.1)<1e-6 {return Some(VecDeque::new());}
+        if (u.x-p.0).hypot(u.y-p.1)<1e-6 {return Some((VecDeque::new(),false));}
         let path=self.route_unit(u,p.0,p.1);
-        path.back().filter(|q|(q.0-p.0).hypot(q.1-p.1)<0.5).map(|_|path.clone())
+        path.back().filter(|q|(q.0-p.0).hypot(q.1-p.1)<0.5).map(|_|(path.clone(),true))
+    }
+    fn resume_workshop_approach(&mut self,index:usize) {
+        //route_unit committed the finite head, but does not run52810. Start
+        //that same head once; Vec waypoints and a synthetic MOVE are not the
+        //native hardware's inline525a0/W17 movement authority.
+        if self.map.original&&self.native_route_mode&&self.native_world.is_some()&&self.map.native_road_graph.is_some()
+            &&self.owns_native_route(index)&&self.has_native_route(index) {
+            self.resume_native_reset_path(index);
+        }
     }
     pub(crate) fn begin_workshop(&mut self,index:usize,target:usize)->bool {
         let u=self.units[index].clone();
@@ -64,11 +73,12 @@ impl Game {
         if u.workshop.as_ref().is_some_and(|s|s.building_id==target){return true;}
         // Cancel an old hidden job before planning the new approach.
         self.cancel_workshop(index);
-        let Some(path)=self.workshop_path(&self.units[index],&b)else{return false;};
+        let Some((path,planned))=self.workshop_path(&self.units[index],&b)else{return false;};
         let total=work_for(u.hp,u.max_hp);
         let unit=&mut self.units[index];unit.order="repairVehicle".into();unit.target=Some(target);
         unit.dest=Some(stage(&b,self.map.original));unit.path=path;unit.initiative=None;unit.march_resume=None;unit.pursuit=None;unit.hold_position=false;
         unit.workshop=Some(State{building_id:target,native_slot:None,phase:"approach".into(),remaining:total,total,seconds:None,progress:0.,tick_clock:0.,heal_ticks:0,admitting:false});
+        if planned{self.resume_workshop_approach(index);}
         true
     }
     fn release_workshop_position(&mut self,index:usize,building:usize) {
@@ -168,7 +178,7 @@ impl Game {
         let front=stage(&b,self.map.original);
         if (u.x-front.0).hypot(u.y-front.1)>1e-6 {
             if self.units[index].path.is_empty() {
-                if let Some(path)=self.workshop_path(&u,&b){self.units[index].path=path;self.units[index].dest=Some(front);}
+                if let Some((path,planned))=self.workshop_path(&u,&b){self.units[index].path=path;self.units[index].dest=Some(front);if planned{self.resume_workshop_approach(index);}}
                 else{self.cancel_workshop(index);return false;}
             }
             state.phase="approach".into();self.units[index].workshop=Some(state);return false;

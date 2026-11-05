@@ -12,6 +12,50 @@ fn field(kind:&str)->(Game,usize) {
 }
 fn get(g:&Game,id:usize)->&Unit{g.units.iter().find(|u|u.id==id).unwrap()}
 fn get_mut(g:&mut Game,id:usize)->&mut Unit{g.units.iter_mut().find(|u|u.id==id).unwrap()}
+fn managed_field()->(Game,usize){
+ let(mut g,id)=field("apc");
+ g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});
+ g.map.native_terrain_plane=vec![0;16384];g.import_native_world(&Value::Null);g.maintain_native_group_rosters();g.native_route_mode=true;
+ let slot=get(&g,id).native_slot.unwrap();g.native_routes.get_mut().managed[slot]=true;(g,id)
+}
+#[test]
+fn managed_workshop_plan_starts_its_existing_head_once_without_a_move_event(){
+ let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();let slot=g.units[index].native_slot.unwrap();let w=g.units[index].native_hardware_slot.unwrap();
+ g.units[index].native_flags64|=8;g.native_group_rosters.members[slot].as_mut().unwrap().flags69|=128;
+ let(raw,flags69)=(g.units[index].native_order5c,g.native_group_rosters.members[slot].as_ref().unwrap().flags69);let flags64=g.units[index].native_flags64;
+ assert!(g.begin_workshop(index,7));assert_eq!(g.units[index].native_order5c,raw);assert_eq!(g.units[index].native_flags64&8,flags64&8);assert_eq!(g.native_group_rosters.members[slot].as_ref().unwrap().flags69,flags69);
+ assert_ne!(g.native_hardware_pool[w].order.field17&1,0);assert!(g.units[index].native_remaining48>0);let line=g.units[index].original_motion.as_ref().unwrap().source_line_fields();let link=g.native_routes.borrow().pool.links[slot].primary;assert_ne!(link,0);assert_eq!(g.native_routes.borrow().pool.points(link).last(),Some(&[280,240]));
+ assert!(!g.update_workshop(index,0.059));assert!(g.begin_workshop(index,7));assert_eq!(g.native_routes.borrow().pool.links[slot].primary,link);assert_eq!(g.units[index].original_motion.as_ref().unwrap().source_line_fields(),line);
+}
+#[test]
+fn managed_workshop_actual_replan_resumes_the_new_head_and_arrival_does_not_restart(){
+ let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();let slot=g.units[index].native_slot.unwrap();let w=g.units[index].native_hardware_slot.unwrap();assert!(g.begin_workshop(index,7));
+ g.clear_native_attack_paths(index);assert_eq!(g.native_hardware_pool[w].order.field17&1,0);assert!(!g.has_native_route(index));assert!(!g.update_workshop(index,0.059));assert!(g.has_native_route(index));assert_ne!(g.native_hardware_pool[w].order.field17&1,0);assert!(g.units[index].native_remaining48>0);
+ let line=g.units[index].original_motion.as_ref().unwrap().source_line_fields();let links=g.native_routes.borrow().pool.links[slot];g.units[index].x=544.;g.units[index].y=464.;assert!(g.update_workshop(index,0.059));assert!(g.units[index].workshop.as_ref().unwrap().admitting);assert_eq!(g.native_routes.borrow().pool.links[slot],links);assert_eq!(g.units[index].original_motion.as_ref().unwrap().source_line_fields(),line);
+}
+#[test]
+fn managed_workshop_at_stage_or_failed_plan_never_starts_an_uncommitted_line(){
+ for full in [false,true]{let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();let slot=g.units[index].native_slot.unwrap();let w=g.units[index].native_hardware_slot.unwrap();if full{for n in &mut g.native_routes.get_mut().pool.nodes[..4800]{n.next=0;}}else{g.units[index].x=544.;g.units[index].y=464.;}
+ assert_eq!(g.begin_workshop(index,7),!full);assert_eq!(g.native_hardware_pool[w].order.field17&1,0);assert_eq!(g.units[index].native_remaining48,0);assert!(g.units[index].original_motion.is_none());assert_eq!(g.native_routes.borrow().pool.links[slot].primary,0);if full{assert_eq!(g.units[index].order,"guard");assert!(g.units[index].workshop.is_none());}}
+}
+#[test]
+fn failed_managed_workshop_replan_cancels_without_starting_a_missing_head(){
+ let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();let w=g.units[index].native_hardware_slot.unwrap();assert!(g.begin_workshop(index,7));g.clear_native_attack_paths(index);for n in &mut g.native_routes.get_mut().pool.nodes[..4800]{n.next=0;}let line=g.units[index].original_motion.as_ref().map(|m|m.source_line_fields());let remaining=g.units[index].native_remaining48;
+ assert!(!g.update_workshop(index,0.059));assert!(g.units[index].workshop.is_none());assert_eq!(g.units[index].order,"guard");assert!(!g.has_native_route(index));assert_eq!(g.native_hardware_pool[w].order.field17&1,0);assert_eq!(g.units[index].original_motion.as_ref().map(|m|m.source_line_fields()),line);assert_eq!(g.units[index].native_remaining48,remaining);
+}
+#[test]
+fn cancelling_a_managed_workshop_approach_keeps_the_accepted_native_stop(){
+ let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();assert!(g.begin_workshop(index,7));g.command(&json!({"kind":"stop","ids":[id]}));assert_eq!(g.units[index].native_order5c,4);let line=g.units[index].original_motion.as_ref().unwrap().source_line_fields();assert!(!g.update_workshop(index,0.059));assert!(g.units[index].workshop.is_none());assert_eq!(g.units[index].original_motion.as_ref().unwrap().source_line_fields(),line);assert_eq!(g.units[index].native_order5c,4);
+}
+#[test]
+fn unmanaged_and_nonoriginal_workshop_approaches_keep_their_existing_movement_owner(){
+ for original in [false,true]{let(mut g,id)=field("apc");g.map.original=original;let index=g.units.iter().position(|u|u.id==id).unwrap();let w=g.units[index].native_hardware_slot.unwrap();let before=(g.native_hardware_pool[w].order.field17,g.units[index].native_remaining48);assert!(!g.owns_native_route(index));assert!(g.begin_workshop(index,7));assert!(!g.units[index].path.is_empty());assert!(g.units[index].original_motion.is_none());assert_eq!((g.native_hardware_pool[w].order.field17,g.units[index].native_remaining48),before);}
+}
+#[test]
+fn disabled_native_route_mode_does_not_resume_a_stale_managed_head(){
+ let(mut g,id)=managed_field();let index=g.units.iter().position(|u|u.id==id).unwrap();let slot=g.units[index].native_slot.unwrap();let w=g.units[index].native_hardware_slot.unwrap();let stale=g.native_routes.get_mut().pool.allocate_goal([400,400]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=stale;g.native_route_mode=false;
+ assert!(g.begin_workshop(index,7));assert_eq!(g.native_routes.borrow().pool.links[slot].primary,stale);assert_eq!(g.native_hardware_pool[w].order.field17&1,0);assert!(g.units[index].original_motion.is_none());assert_eq!(g.units[index].native_remaining48,0);
+}
 fn start(g:&mut Game,id:usize){g.command(&json!({"kind":"repairVehicle","ids":[id],"target":7}));}
 fn reach_repair(g:&mut Game,id:usize){for _ in 0..2000{if get(g,id).workshop.as_ref().is_some_and(|s|s.phase=="repairing"){return;}g.step(0.1);}panic!("vehicle did not enter workshop: {}",serde_json::to_string(get(g,id)).unwrap());}
 fn finish(g:&mut Game,id:usize)->usize{let mut completed=0;for _ in 0..4000{g.events.clear();g.step(0.1);completed+=g.events.iter().filter(|e|e["kind"]=="vehicleRepaired").count();if get(g,id).workshop.is_none(){return completed;}}panic!("workshop did not complete");}

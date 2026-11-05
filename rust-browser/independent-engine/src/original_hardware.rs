@@ -169,6 +169,17 @@ impl Game {
                 if release{self.fire_native_apc_point(index,point,target.id);}
             }
         }else{self.units[index].native_hardware.as_mut().unwrap().apc_target=None;}
+        self.run_native_apc_auto_tail_legacy(index,u,driver);
+    }
+    ///Existing447c20 approximation only. Owned56 calls this after its one
+    ///Common; the old UI-target prefix stays outside this shared entry.
+    pub(crate)fn update_native_apc_auto_tail_legacy(&mut self,index:usize){
+        self.ensure_native_hardware(index);
+        let Some(driver)=self.units[index].crew.clone()else{return;};
+        let u=self.units[index].clone();
+        self.run_native_apc_auto_tail_legacy(index,u,driver);
+    }
+    fn run_native_apc_auto_tail_legacy(&mut self,index:usize,u:Unit,driver:super::Crew){
         if !self.native_hardware_ready(&self.units[index]){return;}
         let mut targets:[Option<Unit>;4]=[None,None,None,None];
         for side in [1,3,0,2]{
@@ -215,6 +226,7 @@ impl Game {
         if self.units[index].kind!="apc"||!self.native_hardware_ready(&self.units[index]){return false;}
         let u=self.units[index].clone();let Some(driver)=u.crew.as_ref()else{return false;};
         if !matches!(driver.kind.as_str(),"tough"|"pyro"){return false;}
+        if self.native_hardware_common.apc_scope==1{if let Some(slot)=u.native_slot{self.native_common_legacy.push((slot as u8,crate::original_hardware_common::LegacyCall::ApcManual447da0));}}
         self.ensure_native_hardware(index);
         let passengers=std::iter::once(driver.clone()).chain(u.cargo.clone()).take(21).collect::<Vec<_>>();
         let active=passengers.iter().map(|p|(p.hp>=0.,driver.kind=="pyro")).collect::<Vec<_>>();

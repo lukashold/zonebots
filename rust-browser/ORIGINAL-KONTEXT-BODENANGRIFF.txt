@@ -1,0 +1,90 @@
+NATIVER KONTEXTAUFTRAG MAUER / BRUECKE -- ACCEPTEDGROUND
+
+Umfang und Korrektur des Erstbefunds
+----------------------------------
+Der aktuelle originale SP-Mauspfad mit nativeClick war bereits funktionsfaehig:
+Mission17/Wall131 und Mission7/Wall407 registrieren2, durchlaufen52b70 und
+zerstoeren die Mauer durch echte Geschosse. Er wird durch diesen Patch nicht
+umklassifiziert. Die erste Diagnose ohne nativeClick war zu breit, wenn sie als
+Fehler dieses SP-Mauspfads verstanden wurde.
+
+Der bestaetigte Fehler betrifft den angenommenen Browser-Kontextauftrag ohne
+Human-Classifierbesuch sowie den MP-Pfad (dort ist der SP-Humanbridge bewusst
+abgeschaltet): attackWall/attackBridge setzten lediglich Browsertarget/path.
+Der bereits vor dem generischen Angriff besuchte native Commoncaller uebernahm
+class1 und beendete den Callback;5c blieb0, Geschosse/HP-Aenderung blieben aus.
+Originaldaten/Graph/Actor-/AI-/BUILD-Bindungen waren im Nachweis unveraendert.
+
+Diese Schicht bildet ausdruecklich eine Browser-AcceptedGround-Grenze. Sie ist
+kein Beweis, dass die gesamte Original-Human-UI oder originale Netzwerkadmission
+bereits nachgebaut sei.
+
+Quellen und vorhandene Owner
+---------------------------
+*441d80 erzeugt fuer menschliche Hardware-Boden-/Destructibleklicks2.52b70
+ schreibt W.target14/16,31:10,61=3 und fuerclass1 seine belegte52500-Folge.
+*449470 liefert bei einem literal point ausser Reichweite0 zurueck. Es wurde
+ KEIN neuer Approach in diesen Zweig geschrieben. Schuss-/Streuungs-/Range-
+ und Abbruchregeln des bestehenden Hardwarecallers bleiben unveraendert.
+*437a60 erzeugt12 aus44d920 automatischem physischem Kontakt. Dessen69:20-
+ Punktfeuer ist ein anderer Caller und wird hier nicht als Humanfire benutzt.
+*Der existierende53290-Owner fuer5/[3456,x]/y prueft den originalen Boden- /
+ Bruecken- /Destructiblekontakt, bindet bei Bedarf4490b0 an endliche Pfade,
+ schreibt das existierende W-Ziel und laesst Common/45b050 wirklich feuern.
+ Diese bereits vorhandene Semantik benutzt auch attackBuilding. Sie ist der
+ gewaehlte Unterbau fuer den angenommenen mobilen Browser-Kontextauftrag.
+*Feste class2 benutzt2 und seinen vorhandenen52b70-/Gun-Fire-Owner. Ein fernes
+ festes Geschuetz erhaelt keinen erfundenen Move oder Approach.
+
+Implementierung
+---------------
+Nach den bestehenden Team-/Lebens-/Waffen-/Zielpruefungen und vor generischem
+Browsercleanup bindet accept_native_context_ground den aktuellen angenommenen
+Auftrag. Nur originale verwaltete NativeSlots mit Graph, nativeRouteMode und
+vorhandenem W werden uebernommen. nativeEvent:false wird nicht abgefangen.
+Die Walladresse benutzt den gleichen Mittelpunkt wie AttackCommand.intent;
+Bridge behaelt den validierten realen Klickpunkt. Kein zweiter W-/Path-/HP-
+Owner und keine DummyUnit werden angelegt. Die eigentliche54160-Ausfuehrung
+bleibt einmalig im folgenden UNIT-Callback. Aktive Line/48/Heads/W/Dodge-
+Felder werden nicht zuvor geloescht oder rekonstruiert.
+GraphNone, nicht verwaltete Einheiten und fehlende native Daten behalten ihren
+bisher expliziten Adapter. Immobilitaet, Geschossrange, unveraenderliche Klippen,
+Mauerschutt und Waffenberechtigung werden nicht durch Spezialschaden umgangen.
+
+Pruefung
+--------
+Vorher: unveraendertes48-Wasm0d71b8f2..., M17Medium2528/1280 Wall131 und
+M7Light1120/3104 Wall407: Backend und MP5c0/HP1/keinSchuss fuer120Callbacks.
+SP mit app-shaped nativeClick dagegen bereits2/echteZerstoerung.
+
+Nachher:5 unconditional Game-Tests, darunter7 Hardwaretypen, W-/Lineerhalt bis
+Dispatch, echte feste Geschossfreigaben, feste Ziele ausser Reichweite ohne
+Bewegung/Schuss, Team-/Weapon-/Rubble-/Missingtarget-Gates, nativeEvent:false
+und explizite GraphNone-/unmanaged-Kompatibilitaet. Die assetgebundene Testgruppe
+ist separat ignored und verlangt Z_NATIVE_CAMPAIGN.
+
+12 authored Gamefaelle: nahe M17/131 und M7/407, ferne M17/114 und M7/351,
+Bruecken M6/0 und M19/2, jeweils SP-Backend und MP. Alle Originalmissionen samt
+Metadaten bleiben unveraendert; Wtarget, endlicheHeads/Bewegung bei Fernzielen,
+echte Geschosse und HP-Impact werden geprueft, nativeRouteBoundary=None.
+Wasm:14 generierte Native-ABI-Faelle fuer beide Teams,14 authoredFaelle inkl.
+2 unveraenderter SP-nativeClick2-Regressionen,2 tatsaechliche Host/Guest-RPC-
+Laeufe auf originalen M17/M3-Units mit repliziertem Mauerfall und GuestRuns0.
+Es ist ein app-shaped ABI-/RPC-Nachweis, keine behauptete Live-Browseraufnahme.
+
+Unveraenderte Numeric-Sourcekerne wurden erneut geprueft:53290/768Caller-
+Branchrecords(FNV2482801987; Query-/Path-/Idle-Leaves explizite Eingaben),
+Hardware-/Fixedcaller16384Records(FNV644034610; Spatial-/Allocator-Leaves
+explizite Eingaben), Pointcaller8192(FNV1208336219; getrennter12-Pfad),
+441940/441d80Classifier1024Sequenzen und1280Geometryrecords. Dies ist KEIN
+neuer Originalbeweis fuer die Browser-Eingabeentscheidung selbst.
+
+Werkzeuge
+---------
+Normal: cargo test original_accepted_ground::tests
+Privat: Z_NATIVE_CAMPAIGN=absoluter/campaign.json und derselbe Testfilter mit
+-- --ignored --nocapture. Keine Ressourcen werden in Quelltests eingebettet.
+ABI/RPC: node tools/check-native-context-ground.cjs ABSOLUTER_WASM [CAMPAIGN]
+Ohne CAMPAIGN laufen die14 generierten Nativefaelle immer. Mit CAMPAIGN folgen
+die unveraenderten authoredMissionen, SP-nativeClick und beide RPC-Laeufe.
+Die privaten Trace-/Vorher-/Nachherdateien liegen ausserhalb des Repositories.

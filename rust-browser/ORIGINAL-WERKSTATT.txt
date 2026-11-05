@@ -173,3 +173,15 @@ und benachbarten Rohbytes (Signatur3747195133). Der frühere natürliche
 Eigene Game-Regressions prüfen natürliche kurze Restarbeit, Besitzerwechsel,
 lebendes und nicht materialisiertes OBJECT25, W-/UNIT-Recycling, Dummy,
 Audiozulassung und den tatsächlichen nächsten Game.step ohne Wiederbelebung.
+
+ENDLICHER ANFAHRTSWEG NOV05-R49
+Der explizite Browserauftrag behält seine bisherige Ziel-/Portalvalidierung.
+Nach einem wirklich angenommenen nativen Wegplan startet er denselben Kopf
+einmal über52810; eine echte Neuplanung tut dies ebenfalls. Ankunft, volle
+Pools, fehlgeschlagene Planung und ausgeschalteter Modus erzeugen keinen
+Ersatzkopf. Rohauftrag und alte Zielmodusbits werden dabei nicht umgeschrieben.
+Die Vec bleibt eine Ansicht; W17 und die Inlinebewegung haben ihre vorhandenen
+nativen Schreiber. Sieben neue Tests und alle21 unveränderten Wasm-Standorte
+prüfen den Übergang. Der vollständige Standortbericht ist bytegleich mit der
+vorherigen funktionierenden Baseline. Dies belegt die beschriebenen Felder,
+keine vollständige Original-Weltspur oder originale UI-Werkstattadmission.

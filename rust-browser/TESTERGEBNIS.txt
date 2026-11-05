@@ -1,12 +1,12 @@
-Prüfstand 04.11.2026 – gebauter Rust/Wasm-Release
+Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.021 Rusttests bestanden;11 Privatdiagnostiken separat erfolgreich ausgeführt
-(alle38 Brückenfälle in einem Programm, die übrigen10 Programme anschließend).
-Doctests bestanden (0 vorhanden).88/88 Node-Prüfprogramme im aktuellen
-nov04-r48 bestanden, einschließlich aller20 privaten Missionen.
+1.057 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
+(alle38 Brückenfälle in einem Programm, die übrigen11 Programme anschließend).
+Doctests bestanden (0 vorhanden).91/91 Node-Prüfprogramme im aktuellen
+nov05-r49b bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 0d71b8f2db7f62c12160796b923709aa7aece4fbd51ab6b162a6ef12ffea5b37
+Wasm SHA256: 043dab2dca2d36c5974b6902c7e43e8c359b7d015ab7e7fe99a9d4b08155b7d3
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,37 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R49
+- APC56 läuft über den einmaligen Common-Wrapper447d50, mit erhaltenen
+  post-Common-Zielwörtern und genau einem bestehenden automatischen Insassenteil.
+  18 Originalfälle umfassen14 vollständige kontrollierte Rückgaben und vier
+  bezeichnete Präfixe. Automatische Scanner-/B6-/65-/Emitterteile bleiben Legacy.
+- Angenommene Mauer-/Brückenaufträge erreichen im Backend und Browser-MP die
+  vorhandenen nativen Bewegungs-/Feueraufrufer.14 generierte und14 authored
+  Wasmfälle sowie zwei Host-/Gast-RPCs prüfen echte Geschosse, Schaden und
+  Fernannäherung. Der bereits funktionierende SP-Mauspfad behält Humanbefehl2.
+- Der Werkstattauftrag startet nach seinem vorhandenen endlichen Wegplan und
+  nach echter Neuplanung genau einmal52810. Sieben neue Tests prüfen den
+  Übergang, Abbruch, Ankunft, Poolmangel und Kompatibilität. Alle21 unveränderten
+  Werkstattfälle bestehen; die Ergebnisberichte stimmen mit der alten Baseline
+  überein. Native BUILD-Arbeit und der Browser-Portaladapter bleiben getrennt.
+- Späte BUILD-/Brückentöne44/46 verwenden einen DWORD-Timer je vorhandenem
+  AudioState. Der alte World-Timer ist entfernt.448 Originalreader,8 Leer- und
+  8 Missionspräfixe sowie12 Mainfenster prüfen Zulassung, Reihenfolge und Ende.
+  19 tatsächliche App-/Host-/Gastfälle prüfen Kameras/Master, Pause und verspätete
+  Decoderantworten.9.000 rohe Welt-/RNG-/W-/Job-/Pfadzustände bleiben im engen
+  Vorher-/Nachhervergleich gleich.23.448 Pakete belegen die neutralen Leseprobes.
+- Der Audiotest fixiert seine Startdaten und vergleicht500 Welt-/UIuhr-Frames
+  zwischen Mastervarianten; Eintritt folgt dem wirklichen Kampfschaden. Seine
+  Reparaturdauer und Tonempfänger bleiben streng geprüft.
+- Der neue öffentliche Wasm-Test führt die exakte M14-Brücke1-Szene in SP/MP
+  durch Arbeit, Rückzug und späte Jobs zur Reparatur nach376 Callbacks.
+  Der gesamte20-Missionen-Soak und alle38 privaten Brückenreparaturen bestehen.
+Details: ORIGINAL-HARDWARE-COMMON.txt, ORIGINAL-KONTEXT-BODENANGRIFF.txt,
+ORIGINAL-WERKSTATT.txt und ORIGINAL-LATE-BUILD-AUDIO.txt.
+Offen bleiben unter anderem Kran-Übernahmeprovenienz, vollständige APC-Automatik,
+Lava122, Fortcontroller und die im Abgleichbericht benannten globalen Grenzen.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV04-R48
 - Das frühere globale Explosionsgate4d18ee und der Zyklus4a6f4e gehören jetzt

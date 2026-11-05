@@ -401,6 +401,38 @@ späte BUILD-/Bridge584968-Töne und weitere Audiocaller bleiben getrennt offen.
 Der frühere Medium-Konstruktorbeleg der Stopp-Probe ist durch korrigierte
 Originaldaten ersetzt; die Ergebnisse zum Linienerhalt bleiben bestätigt.
 
+WEITERER ABGLEICHSBLOCK NOV05-R49
+Der normale APC56-Wrapper besucht Common einmal, sichert dessen aktuelle
+Zielwörter und führt den verbleibenden automatischen Legacyteil einmal aus.
+Es gibt keinen zweiten generischen Bewegungs-/Punktfeuerdurchlauf. Aktives
+Ausweichen bleibt im beschriebenen bestehenden gekoppelten Pfad.14 vollständige
+kontrollierte Originalrückgaben und vier Präfixe belegen den Wrapperumfang.
+Die vollständige automatische Ziel-/Insassensteuerung bleibt ein Folgeblock.
+
+Mauer-/Brücken-Kontextaufträge im Backend und Browser-MP werden jetzt an die
+vorhandenen nativen Befehls-/Weg-/Schussaufrufer gebunden. Mobile Einheiten
+benutzen den bestehenden Boden-Approach; feste Geschütze behalten ihren
+stationären Zweig. Der funktionierende SP-Mausklassifizierer bleibt erhalten.
+Dies ist eine bezeichnete Browseradmission, keine vollständig portierte UI.
+Der explizite Werkstattauftrag startet seinen schon geplanten nativen Weg über
+den vorhandenen52810-Aufruf. Alle21 unveränderten Standortfälle bestehen mit
+denselben Berichtsergebnissen wie zuvor. Portal-/Auftragsdarstellung und native
+BUILD-Reparatur behalten ihre jeweils beschriebenen Verantwortlichkeiten.
+
+Späte BUILD-/Brückentöne verwenden jetzt lokale AudioState-Timer und die
+vorhandenen Kamerametadaten. Welt, Arbeit, Rückzug, Jobpool und RNG laufen
+einmal.19 tatsächliche Host-/Gastfälle und die beschriebenen Originalpräfixe
+belegen diesen Umfang. Ein frischer öffentlicher Wasm-Test repariert die exakte
+M14-Brücke1-Szene in SP und MP nach376 Callbacks. Geräte-/PCM- und vollständige
+sichtabhängige Weltlebensdauer sind dadurch nicht bewiesen.
+
+Der weitere Abgleich hat konkrete Folgepunkte: Die normale M14-Kranübernahme
+verliert derzeit die Provenienz des bekannten9a-Bytes beim Rendererwechsel;
+ein anschließender Reparaturauftrag verdeckt die vorherige Darstellungslücke.
+Lava122 benutzt noch einen Spieltickersatzzähler. Fortverlust setzt derzeit
+den Browsersieg sofort; der originale mehrstufige Controller ist noch nicht
+angebunden. Diese Punkte sind in R49 ausdrücklich nicht als erledigt gewertet.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

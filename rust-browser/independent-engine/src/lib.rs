@@ -22,6 +22,7 @@ mod original_fragment_blast;
 mod original_bridge_sound;
 mod original_hardware;
 mod original_hardware_common;
+mod original_apc56;
 mod original_groups;
 mod original_contacts;
 mod native_ai_scoring;
@@ -70,6 +71,7 @@ mod original_lava_game;
 mod original_group_lifecycle;
 mod original_group_game;
 mod original_orders_game;
+mod original_accepted_ground;
 mod original_selection;
 mod original_selection_game;
 mod original_attack_click;
@@ -783,7 +785,7 @@ impl Game {
       for b in v["nativeWorldBuildings"].as_array().into_iter().flatten(){if let Some(id)=b["buildingId"].as_u64(){self.native_factory_flags6.insert(id as usize,b["flags6"].as_u64().unwrap_or(0)as u8);}}
       self.ensure_production();
       self.original_ai=v["nativeAi"]["decisionControl"].as_i64().filter(|n|(0..=255).contains(n)).map(|n|original_ai::Clock::new(n as i8 as i16));
-      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_crane_constructors();self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{self.initialize_native_group_descriptor(team as i32,team as usize*100+slot as usize+1,gid as usize);}}}self.initialize_native_feedback();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
+      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_crane_constructors();self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{self.initialize_native_group_descriptor(team as i32,team as usize*100+slot as usize+1,gid as usize);}}}self.initialize_native_feedback();self.reset_native_late_build_audio_for_mission();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
       Ok(())
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if (!self.map.original||self.map.native_road_graph.is_none())&&gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let(health,maximum)=self.native_work_health(b);let rate=original_stats::rate(health,maximum,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
@@ -880,6 +882,10 @@ impl Game {
                     _=>None,
                 };if let Some(event)=event{native_event_registered=self.record_native_order_event(i,event);}
             }
+            //The contextual browser backend (including multiplayer) has no
+            //441d80 mouse-classifier visit. Bind its accepted ground target
+            //to the existing native command/approach owners, before cleanup.
+            if v["nativeEvent"]!=false&&self.accept_native_context_ground(i,kind,target,v["x"].as_f64().zip(v["y"].as_f64())){continue;}
             //Accepted4 only records the command here. The next54160/52d90
             //visit owns its native writes; it preserves inline movement and
             //finite heads. Browser captions must not erase half that state.
@@ -1165,6 +1171,7 @@ impl Game {
             self.units[i].cooldown = (self.units[i].cooldown-dt).max(0.);
             if self.units[i].cooldown<1e-9 {self.units[i].cooldown=0.;}
             if self.units[i].native_factory_exit.is_none(){self.dispatch_recorded_native_order(i);}
+            if self.dispatch_native_apc56(i){break 'unit;}
             if self.dispatch_native_hardware_common(i){break 'unit;}
             if self.map.original&&self.units[i].native_slot.is_some()&&!self.owns_native_crane_handler(i){match self.dispatch_native_occupancy_state(i){Ok(true)=>break 'unit,Ok(false)=>{},Err(e)=>{self.native_route_boundary=Some(e);break 'unit;}}}
             if self.update_native_feedback_pose(i){break 'unit;}
@@ -1712,3 +1719,5 @@ fn original_tank_origin_offset(kind:&str,boarding:bool)->(f64,f64) {
 
 #[cfg(test)]
 mod accepted4_tests;
+
+#[cfg(test)]mod original_apc56_tests;

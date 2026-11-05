@@ -26,6 +26,7 @@ use std::collections::{BTreeSet,VecDeque};
 #[path="original_bridge_effects_game.rs"]mod bridge_effects;
 #[path="original_seasonal_game.rs"]mod seasonal_game;
 #[cfg(test)]#[path="original_spatial_audio_game_tests.rs"]mod spatial_audio_tests;
+#[cfg(test)]#[path="original_late_build_audio_game_tests.rs"]mod late_build_audio_tests;
 
 #[derive(Clone)]
 struct ObjectSlot {

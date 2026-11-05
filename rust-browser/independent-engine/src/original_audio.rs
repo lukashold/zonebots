@@ -2,11 +2,12 @@
 //!Playback uses private PCM assets; source filenames are metadata only.
 use crate::{Game,json};
 #[path="original_spatial_audio.rs"]pub(crate) mod spatial;
+#[path="original_late_build_audio.rs"]pub(crate) mod late_build;
 #[derive(Clone,Copy,Debug)]pub struct Descriptor{pub id:i16,pub clip:&'static str,pub minimum:i16,pub initial:i16}
 include!("native_sound_data.rs");
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Gate{Direct,Enabled,Notice(bool)}
-#[derive(Clone,Debug)]pub struct State{pub last:[Vec<i16>;5],pub effect_counter:i16,pub notice_counter:i16,pub opportunity_gate:u8,pub explosion_cycle:u8,pub(crate) opportunity_boundary:Option<spatial::Boundary>}
-impl Default for State{fn default()->Self{Self{last:std::array::from_fn(|bank|BANKS[bank].iter().map(|d|d.initial).collect()),effect_counter:0,notice_counter:0,opportunity_gate:0,explosion_cycle:0,opportunity_boundary:None}}}
+#[derive(Clone,Debug)]pub struct State{pub last:[Vec<i16>;5],pub effect_counter:i16,pub notice_counter:i16,pub opportunity_gate:u8,pub explosion_cycle:u8,pub late_build_clock:u32,pub(crate) opportunity_boundary:Option<spatial::Boundary>}
+impl Default for State{fn default()->Self{Self{last:std::array::from_fn(|bank|BANKS[bank].iter().map(|d|d.initial).collect()),effect_counter:0,notice_counter:0,opportunity_gate:0,explosion_cycle:0,late_build_clock:0,opportunity_boundary:None}}}
 impl State{
  pub fn admit(&mut self,bank:usize,mut id:i16,clock:i16,gate:Gate,enabled:bool)->Option<Descriptor>{
   if matches!(gate,Gate::Enabled|Gate::Notice(_))&&!enabled{return None;}if let Gate::Notice(fort_alive)=gate{if !fort_alive{return None;}id=196;}

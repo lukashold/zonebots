@@ -14,17 +14,17 @@ impl Job{
 }
 #[derive(Clone,Debug)]pub struct State{
  pub arena:Vec<u8>,pub jobs:[Job;64],pub headers:[Option<u32>;35],
- pub error:u8,pub boundary:Option<Boundary>,pub sound_clock:u32,
+ pub error:u8,pub boundary:Option<Boundary>,
  pub height_global:u32,pub angle_global:u32,
  pub builds:Vec<[u8;88]>,pub known_builds:[bool;35],pub bridge_headers:Vec<(u32,Vec<u8>)>,
 }
-impl Default for State{fn default()->Self{Self{arena:vec![0;BLOCK*4],jobs:[Job([0;24]);64],headers:[None;35],error:0,boundary:None,sound_clock:0,height_global:0,angle_global:0,builds:vec![[0;88];35],known_builds:[false;35],bridge_headers:vec![]}}}
+impl Default for State{fn default()->Self{Self{arena:vec![0;BLOCK*4],jobs:[Job([0;24]);64],headers:[None;35],error:0,boundary:None,height_global:0,angle_global:0,builds:vec![[0;88];35],known_builds:[false;35],bridge_headers:vec![]}}}
 #[derive(Clone,Copy,Debug)]pub struct View{pub camera:[i16;2],pub size:[i16;2],pub clip_min:[i16;2],pub quality:i8,pub world_base:i16}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Draw{pub position:[i16;2],pub screen:[i16;2],pub sprite:i16,pub angle:u8,pub height_global:u32}
-#[derive(Clone,Debug,Default)]pub struct Playback{pub draws:Vec<Draw>,pub restore:Option<Job>,pub bridge_complete:Option<Job>,pub sound:Option<i16>,pub complete:bool,pub visible:bool}
+#[derive(Clone,Debug,Default)]pub struct Playback{pub draws:Vec<Draw>,pub restore:Option<Job>,pub bridge_complete:Option<Job>,pub frame:Option<i8>,pub complete:bool}
 pub fn header(kind:i8)->Option<(u32,u8)>{Some(match kind{0=>(0x5befd0,10),1=>(0x5bc83c,12),4=>(BASE,23),8=>(0x5c1764,8),_=>return None})}
 impl State{
- pub fn mission_reset(&mut self){self.jobs.fill(Job([0;24]));self.headers.fill(None);self.known_builds.fill(false);self.sound_clock=0;self.boundary=None;}
+ pub fn mission_reset(&mut self){self.jobs.fill(Job([0;24]));self.headers.fill(None);self.known_builds.fill(false);self.boundary=None;}
  ///45fcb0 initializes ONLY0x299 dwords, then expands80-byte disk fields.
  ///Remaining bytes of late slots survive the prefix fill until source writes.
  pub fn load_buildings(&mut self,disk:&[[u8;80]]){for n in 0..0x299*4{self.builds[n/88][n%88]=255;}for(slot,d)in disk.iter().take(35).enumerate(){let b=&mut self.builds[slot];b[..22].copy_from_slice(&d[..22]);for(to,from)in[(28,26),(30,28),(54,52),(60,57),(80,73)]{b[to..to+2].copy_from_slice(&d[from..from+2]);}for(to,from)in[(36,34),(40,38),(44,42),(76,69)]{let mut v=i32::from(d[from+3]as i8);for n in(0..3).rev(){v=v.wrapping_mul(256).wrapping_add(i32::from(d[from+n]as i8));}b[to..to+4].copy_from_slice(&v.to_le_bytes());}for(to,from)in[(52,50),(53,51),(56,54),(57,55),(58,56),(62,59),(68,64),(69,65),(70,66),(71,67),(72,68),(82,75),(83,76),(84,77),(85,78)]{b[to]=d[from];}self.known_builds[slot]=true;}}
@@ -45,20 +45,18 @@ impl State{
  pub fn free_job(&self)->Option<usize>{self.jobs.iter().position(|j|j.ptr(0)==0)}
  ///44fcc0's arrived BUILD branch. The caller owns the actual59 work/arrival.
  pub fn birth(&mut self,building:u32,position:[i16;2],head:u32,actor:u32)->Result<Option<usize>,Boundary>{let Some(slot)=self.free_job()else{return Ok(None);};let frame=self.read(head.wrapping_add(11),1)?[0];let j=&mut self.jobs[slot];j.set_ptr(0,head);j.set_ptr(4,building);j.set(8,position[0]);j.set(10,position[1]);j.0[12]=frame;j.set_ptr(16,actor);j.set(20,0);Ok(Some(slot))}
- pub fn playback(&mut self,slot:usize,v:View,target_position:Option<[i16;2]>)->Result<Playback,Boundary>{
+ pub fn playback(&mut self,slot:usize,v:View)->Result<Playback,Boundary>{
   let mut out=Playback::default();let j=&mut self.jobs[slot];let h=j.ptr(0);if h==0{return Ok(out);}if j.word(20)!=0{j.set(20,j.word(20).wrapping_sub(1));return Ok(out);}
-  j.0[12]=j.0[12].wrapping_sub(1);let job=*j;let frame=i16::from(job.0[12]as i8);let count=(self.word(h)?as u16&127)as usize;
+  j.0[12]=j.0[12].wrapping_sub(1);let job=*j;let frame=i16::from(job.0[12]as i8);out.frame=Some(frame as i8);let count=(self.word(h)?as u16&127)as usize;
   let from=h.wrapping_add(12).wrapping_add((i32::from(frame)*count as i32*10)as u32);let rows=self.read(from,count*10)?.to_vec();let anchor=[self.word(h.wrapping_add(6))?,self.word(h.wrapping_add(8))?];
   for r in rows.chunks_exact(10){self.angle_global=u32::from(r[6]);self.height_global=(self.height_global&0xffff0000)|u32::from(if v.quality>2{r[7]as i8 as i16 as u16}else{0});let x=i16::from_le_bytes([r[0],r[1]]);let y=i16::from_le_bytes([r[2],r[3]]);let mut sprite=i16::from_le_bytes([r[4],r[5]]);if x==0&&y==0&&sprite==0{continue;}
    let p=[x.wrapping_sub(anchor[0]).wrapping_add(job.word(8)),y.wrapping_sub(anchor[1]).wrapping_add(job.word(10))];let s=[p[0].wrapping_sub(v.camera[0]),p[1].wrapping_sub(v.camera[1])];
    if s[0].wrapping_add(200)>v.clip_min[0]&&i32::from(s[0].wrapping_add(200))-270<i32::from(v.size[0])&&s[1].wrapping_add(200)>v.clip_min[1]&&i32::from(s[1].wrapping_add(200))-270<i32::from(v.size[1]){if sprite<=16{sprite=sprite.wrapping_add(v.world_base);}out.draws.push(Draw{position:p,screen:s,sprite,angle:r[6],height_global:self.height_global});}
   }
-  let visible=target_position.is_some_and(|p|{let s=[p[0].wrapping_sub(v.camera[0]),p[1].wrapping_sub(v.camera[1])];s[0]>=-48&&i32::from(s[0])<=i32::from(v.size[0])+32&&s[1]>=-48&&i32::from(s[1])<=i32::from(v.size[1])+32});
-  if frame==7&&visible&&self.sound_clock==0{out.sound=Some(44);self.sound_clock=100;}
-  out.visible=visible;if frame==1{if self.word(h)?as u16&128!=0{out.bridge_complete=Some(job);}else{out.restore=Some(job);if visible{out.sound=Some(46);self.sound_clock=100;}}out.complete=true;}Ok(out)
+  if frame==1{if self.word(h)?as u16&128!=0{out.bridge_complete=Some(job);}else{out.restore=Some(job);}out.complete=true;}Ok(out)
  }
+
  pub fn complete(&mut self,slot:usize,head:u32)->Result<(),Boundary>{self.jobs[slot].set_ptr(0,0);let end=self.read(head.wrapping_add(10),1)?[0];self.write(head.wrapping_add(11),&[end])}
- pub fn end_reader(&mut self){if self.sound_clock!=0{self.sound_clock=self.sound_clock.wrapping_sub(1);}}
 }
 ///4020f0 is distinct from403090/FallingObject, including its zero-spin fix.
 pub fn construct(record:&mut[u8;44],mut rng:impl FnMut()->u32){record[23]=0;record[10]=((rng()&31)as i8-16)as u8;record[11]=((rng()&31)as i8-16)as u8;record[12]=(-4i8).wrapping_sub((rng()&3)as i8)as u8;let spin=(rng()&63)as i16-32;record[28..30].fill(0);record[30..32].copy_from_slice(&(if spin==0{6}else{spin}).to_le_bytes());record[13]=4;record[14]=4;record[18..20].copy_from_slice(&400i16.to_le_bytes());record[20..22].copy_from_slice(&3i16.to_le_bytes());}
