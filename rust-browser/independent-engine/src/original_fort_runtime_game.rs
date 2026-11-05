@@ -26,6 +26,7 @@ pub(super) struct Runtime {
     local_defeat:u8,
     redraw:u8,
     score_clock:ScoreClock,
+    tally:crate::original_fort_score::Tally,
     applied_palette:Option<u8>,
     drawn_palette:Option<u8>,
     camera:Option<Camera>,
@@ -149,6 +150,23 @@ impl AdmissionWorld for Scene<'_> {
 impl Game {
     pub(crate) fn native_fort_sequence_enabled(&self)->bool{
         self.native_world.as_ref().is_some_and(|w|w.fort_runtime.enabled&&(!self.multiplayer||w.fort_runtime.peer_orders.is_some()))
+    }
+
+    pub(crate) fn record_native_fort_group_loss(&mut self,team:u8,pointer:u32){
+        if !self.native_fort_sequence_enabled(){return;}
+        self.native_world.as_mut().unwrap().fort_runtime.tally.retire(team,pointer);
+    }
+
+    pub(crate) fn native_fort_result_snapshot(&self)->Option<serde_json::Value>{
+        let winner=self.winner?;
+        if !self.native_fort_sequence_enabled(){return None;}
+        let runtime=&self.native_world.as_ref()?.fort_runtime;
+        let tally=&runtime.tally;
+        let points=(!self.multiplayer&&winner==0&&!tally.unknown_value).then(||{
+            crate::original_fort_score::score(self.mission+1,runtime.score_clock.seconds,
+                tally.opponent_losses(0),tally.by_team[0],0).map(|result|result.points)
+        }).flatten();
+        Some(json!({"losses":tally.by_team.map(|loss|loss.count),"points":points}))
     }
 
     pub(crate) fn begin_native_fort_main(&mut self){

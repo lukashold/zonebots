@@ -36,7 +36,7 @@ impl Game{
  ///1b5d0's descriptor48 write. The caller must be an actual authored or
  ///produced group construction;4b2f0 hardware reform deliberately omits it.
  pub(crate) fn initialize_native_group_descriptor(&mut self,team:i32,squad:usize,gid:usize)->bool{
-  let Some(&descriptor)=self.native_group_descriptors48.get(gid)else{return false;};self.native_group_rosters.record_constructed_descriptor(team,squad,descriptor);true
+  let Some(&descriptor)=self.native_group_descriptors48.get(gid)else{return false;};self.native_group_rosters.record_constructed_descriptor(team,squad,Some(descriptor),gid);true
  }
  ///41c090 after the fresh zeroed UNIT/selection context and hardware class
  ///initializer, before1b5d0 registers a leader/follower. The raw role is0.

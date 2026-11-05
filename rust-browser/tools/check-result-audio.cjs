@@ -30,6 +30,17 @@ function run(){for(const network of[false,true])for(const winner of[0,1]){
  assert.equal(offers[0][3].muted,true);assert.equal(offers[0][3].volume,.65);
  local.context.update({...result,nativeUiClock:1});assert.equal(offers.length,1);
  offers[0][3].onFinish();assert.deepEqual(local.scenes,[['movie',0],['victory',0]]);
+ const scores=harness(),records=new Map(),element=()=>({children:[],append(...items){this.children.push(...items);}});
+ scores.context.document={createElement:element};
+ scores.context.localStorage={getItem:k=>records.get(k)??null,setItem:(k,v)=>records.set(k,v)};
+ scores.nodes.result=element();
+ scores.context.update({...snapshot(0),mission:0,nativeFortResult:{losses:[2,5,0,0],points:8900}});
+ assert.equal(scores.nodes.result.children[0].children[0].textContent,'Gruppen verloren · Eigene 2 : Gegner 5');
+ assert.equal(scores.nodes.result.children[0].children[1].textContent,'Punkte 8900 · Bestwert 8900');
+ scores.context.state=null;scores.nodes.result=element();
+ scores.context.update({...snapshot(0),mission:0,nativeFortResult:{losses:[1,1,0,0],points:7200}});
+ assert.equal(scores.nodes.result.children[0].children[1].textContent,'Punkte 7200 · Bestwert 8900');
+ assert.equal(records.get('z.native.fort.best.v1:0'),'8900');
  console.log('Result audio passed: actual App.update, offline/network, local cinematic, repeated UI states and pause/HUD.');
 }
 module.exports={harness};if(require.main===module)run();

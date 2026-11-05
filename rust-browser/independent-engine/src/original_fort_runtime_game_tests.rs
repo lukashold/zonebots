@@ -29,6 +29,39 @@ fn enter(g:&mut Game,actor:i32,door_code:u8){
 
 #[test]
 #[ignore="requires locally approved original campaign data"]
+fn original_result_counts_eliminated_groups_and_values_authored_and_factory_rosters(){
+    let path=std::env::var("NATIVE_FORT_CAMPAIGN").expect("private campaign path");
+    let data:Value=serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut g=load(&data["missions"][0]);
+    let factory=g.buildings.iter().find(|b|b.kind=="fort"&&b.team==1).unwrap().id;
+    let produced_squad=g.next_id;
+    g.spawn_native_factory_group(factory,"grunt",1);
+    g.maintain_native_group_rosters();
+    for (step,squad) in [101,produced_squad].into_iter().enumerate(){
+        let roster=g.native_group_rosters.group_slot(1,squad).unwrap();
+        assert_eq!(g.native_group_rosters.pool[roster].active_rinfo(),crate::original_group_lifecycle::authored_rinfo(2));
+        let members=g.units.iter().enumerate().filter_map(|(i,u)|(u.team==1&&u.squad==squad).then_some(i)).collect::<Vec<_>>();
+        assert_eq!(members.len(),3);
+        for (i,member) in members.into_iter().rev().enumerate(){
+            assert!(g.native_remove_actor(member,false,false));
+            let tally=&g.native_world.as_ref().unwrap().fort_runtime.tally;
+            let expected=step as i16+i16::from(i==2);
+            assert_eq!(tally.by_team[1].count,expected,"group {squad}, removal {i}");
+            assert_eq!(tally.by_team[1].value,i32::from(expected)*1062);
+            assert!(!tally.unknown_value);
+        }
+    }
+    assert!(g.native_fort_result_snapshot().is_none());
+    g.native_world.as_mut().unwrap().fort_runtime.score_clock.seconds=60;
+    g.winner=Some(0);
+    let s=g.native_fort_result_snapshot().unwrap();
+    assert_eq!(s["losses"],json!([0,2,0,0]));
+    assert_eq!(s["points"],8965);
+    g.winner=Some(1);assert!(g.native_fort_result_snapshot().unwrap()["points"].is_null());
+}
+
+#[test]
+#[ignore="requires locally approved original campaign data"]
 fn original_campaign_fort_door_arms_the_full_battle_scene() {
     let path=std::env::var("NATIVE_FORT_CAMPAIGN").expect("private campaign path");
     let data:Value=serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();

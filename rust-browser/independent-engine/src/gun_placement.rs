@@ -152,8 +152,14 @@ impl Game {
         let kind = result.kind.as_deref().unwrap();
         let index = self.buildings.iter().position(|b| b.id == id).unwrap();
         self.buildings[index].ready_guns.remove(slot);
-        self.spawn(kind, team, result.x, result.y, self.next_id, None);
+        let squad=self.next_id;
+        self.spawn(kind, team, result.x, result.y, squad, None);
         self.units.last_mut().unwrap().fort_id = result.fort_id;
+        if self.map.original{
+            if let Some(product)=super::original_stats::PRODUCTS.iter().find(|p|p.0==kind){
+                self.native_group_rosters.record_constructed_descriptor(team,squad,None,product.1);
+            }
+        }
         self.events.push(json!({"kind":"placed","team":team,"type":kind,"factory":id,"x":result.x,"y":result.y}));
         result
     }

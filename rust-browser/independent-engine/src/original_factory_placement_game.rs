@@ -85,6 +85,8 @@ impl Game{
   self.spawn(kind,1,f64::from(anchor[0])*2.,f64::from(anchor[1])*2.,squad,None);let unit=self.units.get_mut(index).filter(|u|u.squad==squad)?;unit.fort_id=fort;unit.cooldown=0.;unit.native_class7c=class;unit.native_phase35=phase;
   //4a69f3=1 bypasses formation initialization: preserve the allocator's stale
   //mask fields (fresh native pool0/0), unlike an ordinary factoryexitFF mask.
-  self.native_group_rosters.record_direct_placement_group(1,squad);Some(index)
+  self.native_group_rosters.record_direct_placement_group(1,squad);
+  if let Some(gid)=product(kind){self.native_group_rosters.record_constructed_descriptor(1,squad,None,usize::from(gid));}
+  Some(index)
  }
 }

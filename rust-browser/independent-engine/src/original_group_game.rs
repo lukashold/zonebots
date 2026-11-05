@@ -21,7 +21,7 @@ pub struct State{
     contact_claims:Box<[i8;240]>,
     claim_controls:Box<[life::ClaimControl;240]>,
     produced_formations:BTreeMap<(i32,usize),u8>,
-    constructed_descriptors:BTreeMap<(i32,usize),u8>,
+    constructed_descriptors:BTreeMap<(i32,usize),(Option<u8>,[u8;4])>,
     direct_placements:BTreeSet<(i32,usize)>,
     last_tick:Option<u64>,
     last_cooldown_tick:Option<u64>,
@@ -120,9 +120,12 @@ impl State{
     }
     ///A proven1b5d0 event can precede the browser's deferred registration.
     ///Apply its48 descriptor once on that new binding, never on later reform.
-    pub fn record_constructed_descriptor(&mut self,team:i32,squad:usize,descriptor:u8){
-        if let Some(slot)=self.group_slot(team,squad){self.pool[slot].roster[65]=descriptor;}
-        else{self.constructed_descriptors.insert((team,squad),descriptor);}
+    pub fn record_constructed_descriptor(&mut self,team:i32,squad:usize,descriptor:Option<u8>,gid:usize){
+        let Some(rinfo)=life::authored_rinfo(gid)else{return;};
+        if let Some(slot)=self.group_slot(team,squad){
+            self.pool[slot].set_active_rinfo(rinfo);
+            if let Some(descriptor)=descriptor{self.pool[slot].roster[65]=descriptor;}
+        }else{self.constructed_descriptors.insert((team,squad),(descriptor,rinfo));}
     }
     /// Authored starting groups already registered by the 4b7b0 adapter.
     pub fn record_starting_group_rinfo(&mut self,team:i32,squad:usize,gid:usize){
@@ -154,7 +157,7 @@ fn member_from_unit(u:&Unit,old:Option<&life::Member>)->life::Member{
 }
 
 impl State{
-    fn remove_member(&mut self,slot:usize,g:&mut Game)->Option<(u8,u8)>{
+    fn remove_member(&mut self,slot:usize,g:&mut Game,death:bool)->Option<(u8,u8)>{
         let mut old=self.members[slot].take()?;
         let credited=crate::original_group_reward::clear_target_reports(self.pool.iter_mut().map(|group| &mut group.roster), slot as u8);
         let removed_team=old.flags31&3;
@@ -166,6 +169,7 @@ impl State{
         let source_group=&mut self.pool[source];source_group.roster[19+role]=255;source_group.roster[18]=source_group.roster[18].wrapping_sub(1);
         old.role=0;old.group=255;old.flags31&=!8;old.flags69&=!0x80;
         let emptied=source_group.roster[18]==0;
+        let mut retired=emptied;
         if emptied{
             source_group.cooldown=200;source_group.roster[9]&=!1;
             source_group.roster[40..42].copy_from_slice(&old.position[0].to_le_bytes());source_group.roster[42..44].copy_from_slice(&old.position[1].to_le_bytes());
@@ -200,7 +204,11 @@ impl State{
                     if let Some(member)=self.members[usize::from(p.leader)].as_ref(){unit.native_phase35=member.promotion.phase;}
                     if let Some(order)=inherited{unit.order=order.order;unit.target=order.target;unit.dest=order.dest;unit.path=order.path;unit.march_resume=order.march_resume;unit.original_motion=None;unit.moving=!unit.path.is_empty();}
                 }
-            }
+            }else{retired=true;}
+        }
+        if death&&retired{
+            let pointer=u32::from_le_bytes(source_group.roster[..4].try_into().unwrap());
+            g.record_native_fort_group_loss(removed_team,pointer);
         }
         self.entities[slot]=None;self.snapshots[slot]=None;self.before_removal[slot]=None;self.primary_orders[slot]=None;
         // A retained group exits before the reward when a follower is lost or the leader is promoted.
@@ -259,7 +267,7 @@ impl Game{
             // Fixed gun 450db0 keeps the old GROUP+0 through the fresh 4b2f0
             // allocation. Its portrait name is separate from this raw profile.
             let profile=(unit.native_class7c==2).then(||state.pool.get(usize::from(member.group)).and_then(life::GroupSlot::active_rinfo)).flatten();
-            state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.remove_member(slot,self);member.role=0;member.group=255;member.flags31&=!8;member.contact_order=0;member.flags69&=!128;
+            state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.remove_member(slot,self,false);member.role=0;member.group=255;member.flags31&=!8;member.contact_order=0;member.flags69&=!128;
             let sector=self.native_strategy.as_ref().and_then(|s|s.sector_pointer(unit.x,unit.y));let target=life::allocate_single(&mut state.pool,&mut member,0,sector,false)?;if let Some(profile)=profile{state.pool[target].set_cached_rinfo(profile);}
             let squad=self.units.iter().map(|u|u.squad).max().unwrap_or(0)+1;self.units[index].squad=squad;self.units[index].formation=None;state.bind(unit.team,squad,target);state.entities[slot]=Some(unit.id);state.snapshots[slot]=Some(OrderSnapshot::of(&self.units[index]));state.members[slot]=Some(member);state.current_roster=Some(target);Some(target)
         })();state.refresh_formations(self);self.native_group_rosters=state;result
@@ -283,7 +291,7 @@ impl Game{
             if let Some(slot)=u.native_slot.filter(|&slot|slot<240){live.entry(slot).or_insert(index);}
         }
         let missing=(0..240).filter(|&slot|state.members[slot].is_some()&&!live.contains_key(&slot)).collect::<Vec<_>>();
-        for slot in missing{state.remove_member(slot,self);state.contact_claims[slot]=-1;state.contact_targets[slot]=None;}
+        for slot in missing{state.remove_member(slot,self,false);state.contact_claims[slot]=-1;state.contact_targets[slot]=None;}
         for(slot,index)in live{
             let unit=self.units[index].clone();
             if let Some(object)=unit.transport_carrier.or_else(||matches!(unit.order.as_str(),"enter"|"board").then_some(unit.target).flatten()).and_then(|id|self.native_object_slot(id)){state.record_contact_target(slot,object);}
@@ -295,7 +303,7 @@ impl Game{
                 //APC changes the Web entity backing the SAME native member.
                 //Other occupied hardware executes native detach/reallocate.
                 if changed_entity&&unit.kind=="apc"{let group=usize::from(previous.as_ref().unwrap().group);state.bind(unit.team,unit.squad,group);}
-                else{state.remove_member(slot,self);}
+                else{state.remove_member(slot,self,false);}
             }
             let old=state.members[slot].as_ref();let mut member=member_from_unit(&unit,old);member.reserved_object=state.contact_target(slot).map(usize::from);
             if old.is_none(){
@@ -309,7 +317,10 @@ impl Game{
                     let produced=state.produced_formations.remove(&(unit.team,unit.squad));
                     state.pool[target].roster[8]=if produced.is_some(){255}else{unit.formation_layout};state.pool[target].roster[0x3c]=produced.unwrap_or(unit.formation_layout);
                 }
-                if let Some(descriptor)=state.constructed_descriptors.remove(&(unit.team,unit.squad)){state.pool[target].roster[65]=descriptor;}
+                if let Some((descriptor,rinfo))=state.constructed_descriptors.remove(&(unit.team,unit.squad)){
+                    state.pool[target].set_active_rinfo(rinfo);
+                    if let Some(descriptor)=descriptor{state.pool[target].roster[65]=descriptor;}
+                }
             }
             state.entities[slot]=Some(unit.id);state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.members[slot]=Some(member);
         }
@@ -324,7 +335,7 @@ impl Game{
         let Some(slot)=self.units.get(index).and_then(|u|u.native_slot).filter(|&slot|slot<240)else{return;};
         let mut state=std::mem::take(&mut self.native_group_rosters);
         state.snapshots[slot]=Some(state.primary_snapshot(slot,&self.units[index]));
-        let credited=state.remove_member(slot,self);
+        let credited=state.remove_member(slot,self,true);
         state.refresh_formations(self);self.native_group_rosters=state;
         if let Some((leader,removed_team))=credited {
             self.native_retirement_credit_notice(usize::from(leader),removed_team);

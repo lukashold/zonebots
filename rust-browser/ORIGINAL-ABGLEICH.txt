@@ -660,6 +660,25 @@ Filmuhr und Tonausgabe bei beliebigen Browserbedingungen.
 
 Die Einrichtung ohne Upload der GOG-Dateien steht in ORIGINALFILME.txt.
 
+WEITERER ABGLEICHSBLOCK NOV05-R64
+Die Fort-Auswertung zählt verlorene Gruppen erst, wenn das letzte Mitglied
+entfernt wird. Die Auflösung einer Gruppe beim Einsteigen zählt nicht als
+Verlust. Die Auswertung liest den aktiven Wertverweis der entfernten Gruppe.
+Bei neu benannten Fahrzeuggruppen verweist dieser auf den Namensspeicher;
+der dort gespeicherte alte Gruppenverweis zählt für diese Auswertung nicht.
+
+Die Punkteformel nutzt die Originalfaktoren pro Mission, die signierten
+Wertdifferenzen und die eingefrorene Original-Ergebnisuhr. Der Browser
+zeigt die Gruppenzahl für die jeweilige Perspektive und speichert den
+Bestwert pro Einzelspielmission lokal. Im Mehrspieler gibt es keine Punkte.
+2.310 Fälle der Original-Punktefunktion und 168 der Verlustbewertung wurden
+mit den jeweiligen Rust-Ergebnissen verglichen. Echte Mission-1-Aufträge im
+fertigen Wasm erreichten die Fort-Auswertung: mit verbliebenem Schützentrupp,
+nach dem Einsteigen in einen Jeep sowie aus beiden Mehrspielerperspektiven.
+108 ausgeführte Gruppenallokationen unterscheiden den Namensverweis,
+den zwischengespeicherten alten Verweis und den Wertverweis in den drei
+Originalzweigen. Der Aufbau des Original-Ergebnisbildschirms bleibt offen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

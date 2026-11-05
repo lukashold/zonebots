@@ -71,6 +71,7 @@ mod original_lava;
 mod original_lava_game;
 mod original_group_lifecycle;
 mod original_group_reward;
+mod original_fort_score;
 mod original_group_game;
 mod original_orders_game;
 mod original_accepted_ground;
@@ -796,7 +797,7 @@ impl Game {
       for b in v["nativeWorldBuildings"].as_array().into_iter().flatten(){if let Some(id)=b["buildingId"].as_u64(){self.native_factory_flags6.insert(id as usize,b["flags6"].as_u64().unwrap_or(0)as u8);}}
       self.ensure_production();
       self.original_ai=v["nativeAi"]["decisionControl"].as_i64().filter(|n|(0..=255).contains(n)).map(|n|original_ai::Clock::new(n as i8 as i16));
-      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{let squad=team as usize*100+slot as usize+1;self.initialize_native_group_descriptor(team as i32,squad,gid as usize);if team==0{self.native_group_rosters.record_starting_group_rinfo(0,squad,gid as usize);}}}}self.initialize_native_feedback();self.reset_native_late_build_audio_for_mission();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
+      self.native_production_limit=v["nativeProduction"]["teamUnitLimit"].as_u64().and_then(|n|u8::try_from(n).ok()).map(|n|n as i8).unwrap_or(50);self.native_strategy=original_strategy::State::from_mission(v);self.import_native_world(v);self.initialize_native_factory_constructors(v);self.initialize_native_scene_display(v);self.initialize_native_ambient()?;self.maintain_native_group_rosters();for group in v["startingGroups"].as_array().into_iter().flatten(){if let (Some(team),Some(slot),Some(gid))=(group["team"].as_i64(),group["slot"].as_u64(),group["groupId"].as_u64()){if (0..4).contains(&team)&&gid<19{let squad=team as usize*100+slot as usize+1;self.initialize_native_group_descriptor(team as i32,squad,gid as usize);}}}self.initialize_native_feedback();self.reset_native_late_build_audio_for_mission();self.native_route_mode=self.map.native_road_graph.is_some()&&self.native_world.is_some();if self.native_route_mode{for u in &self.units{if let Some(slot)=u.native_slot{self.native_routes.get_mut().managed[slot]=true;}}}
       Ok(())
     }
     pub fn remaining_seconds(&self,b:&Building)->Option<u32>{let k=b.product.as_deref()?;if self.map.original&&b.completion_ticks>0{return Some(0);}if (!self.map.original||self.map.native_road_graph.is_none())&&gun_placement::is_gun(k)&&b.ready_guns.len()>=gun_placement::READY_GUN_CAPACITY{return None;}if !self.map.original{return Some(((1.-b.progress)*stats(k).seconds)as u32);}let owned=self.sectors.iter().filter(|s|s.owner==b.team&&s.counts_for_production).count();let total=self.sectors.iter().filter(|s|s.counts_for_production).count();let(health,maximum)=self.native_work_health(b);let rate=original_stats::rate(health,maximum,owned,total);if rate==0{return None;}Some((b.remaining_work.unwrap_or(original_stats::workload(k)as f64).max(0.)/(rate*17)as f64)as u32)}
@@ -1580,6 +1581,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
     });
     if g.map.original{value["nativeRouteBoundary"]=g.native_route_boundary.map(|b|format!("{b:?}")).into();value["nativeCommonLegacy"]=json!(g.native_common_legacy.iter().map(|(slot,reason)|json!({"slot":slot,"reason":format!("{reason:?}")})).collect::<Vec<_>>());value["nativeUiClock"]=json!(g.native_feedback.ui_clock);}
     if let Some(scene)=g.native_fort_scene_snapshot(){value["nativeFortScene"]=scene;}
+    if let Some(result)=g.native_fort_result_snapshot(){value["nativeFortResult"]=result;}
     if g.map.original&&!g.multiplayer{
         let f=&g.native_feedback;let speaker=f.display_speaker.and_then(|slot|g.units.iter().rfind(|u|u.native_slot==Some(slot)));
         value["nativePortrait"]=json!({"mode":f.portrait_mode,"message":f.current_message,"phraseIndex":f.phrase_index,"phraseCounter":f.phrase_counter,"phraseFrame":f.phrase_frame,"unitId":speaker.map(|u|u.id),"nativeSlot":f.display_speaker,"rawSpeakerSlot":f.speaker});
