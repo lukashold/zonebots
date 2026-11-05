@@ -578,6 +578,15 @@ Die menschlichen Kampagnen-Startgruppen tragen ihren belegten Profilwert.
 Andere Profilquellen, besetzte Fehlzustände und das separate Gruppennamen-
 Verhalten im Original sind damit nicht vollständig rekonstruiert.
 
+WEITERER ABGLEICHSBLOCK NOV05-R58
+Direkt besetzte leichte, mittlere und schwere Panzer, Raketenwerfer, Jeeps
+und Kräne behalten beim Aussteigen den physischen Fahrerplatz samt Gruppe
+und Feuerphase. Der Browser legt bei Bedarf nur die anzuzeigende Figur an.
+Der korrigierte Teilablauf ist mit 36 ausgeführten Originalfällen und einem
+Rust-Test einschließlich früherer freier Plätze belegt. Die originale
+Familienkennung des ausgestiegenen Fahrers und ihre vollständige Darstellung
+sind durch diese Korrektur der Einheitenidentität nicht abgeglichen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

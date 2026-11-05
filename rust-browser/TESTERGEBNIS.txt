@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.130 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
+1.131 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen13 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r57 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r58 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 1493b07b4726cf7c32dc803aecdec6b7abde37e024a905a806e07160f0625124
+Wasm SHA256: 9e95af4b9b63d3ab0578c5fb516bccde1c2c70c98a4d6ce4487759a41bfec8cc
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,17 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R58
+- Beim Aussteigen aus sechs weiteren direkt besetzten Fahrzeugtypen bleibt
+  die bisherige physische Einheit erhalten. Auch ein früherer freier Platz
+  erhält keine neue Einheit. Gruppe und Feuerphase bleiben bestehen.
+- 36 Originalfälle mit vollständigem Startkonstruktor in SP/MP; der Rust-Test
+  prüft zusätzlich die freie und belegte frühere Position für alle sechs Typen.
+- 21 Transporttests, insgesamt 1.131 Rusttests, 14 ausgeführte Privatdiagnostiken
+  und 95 Nodeprogramme bestanden. Eigener Browserlauf: Heavy Metal, Auswahl
+  schwerer Panzer, Aussteigen wechselt auf Grunt, keine Konsolenfehler.
+  Bild, Ton und ganze Partien sind damit nicht 1:1 abgeglichen.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R57
 - Beim Aussteigen aus einem frisch besetzten festen Geschütz auf freiem

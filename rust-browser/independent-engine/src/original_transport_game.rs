@@ -270,13 +270,13 @@ impl Game{
   //Renderer-only driver allocation below must not hide that live pointer.
   self.park_native_hardware_for_unload(index,&carrier);
   let gi=if let Some(gi)=self.native_transports.iter().position(|g|g.carrier==carrier.id&&g.occupant.is_some()){gi}else{
-   // Ordinary conversions retain the original robot as an inactive Web
-   //identity. Old saves lack it and need a single renderer allocation.
+   // A later takeover retains an inactive browser identity for the driver.
+   // A directly crewed vehicle can need its first infantry adapter here.
    self.units[index].native_slot=None;let mut ids=Vec::new();
    if let Some(i)=carrier.transport_actor.and_then(|id|self.transport_member_index(id)){let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;ids.push(u.id);}
-   else if carrier.kind=="apc"&&carrier.cargo.is_empty()&&carrier.native_slot.is_some(){
-    //59720 restores the existing UNIT after freeing W. A directly occupied
-    //APC needs a browser ID for its driver, not another physical41b210 event.
+   else if matches!(carrier.kind.as_str(),"apc"|"medium"|"heavy"|"light"|"launcher"|"jeep"|"crane")&&carrier.cargo.is_empty()&&carrier.native_slot.is_some(){
+    //59720 restores the existing UNIT after freeing W. The new browser ID
+    //must use that slot without allocating over it or a lower vacant slot.
     let i=self.push_unit_adapter(&driver.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None,carrier.native_slot,stats(&driver.kind));
     let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;ids.push(u.id);
    }
@@ -329,7 +329,8 @@ impl Game{
   g.units.iter_mut().find(|u|u.id==carrier).unwrap().hp=-1.;g.step(0.059);assert!(g.native_transports.is_empty());assert!(ids.iter().all(|id|g.units.iter().all(|u|u.id!=*id)));
  }
  fn occupied(g:&mut Game,carrier:usize){for _ in 0..240{g.step(0.059);if g.units.iter().any(|u|u.id==carrier&&u.team==0){return;}}panic!("squad never boarded APC");}
- fn authored_exit_field()->(Game,usize){let mut g=field();g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});g.map.native_terrain_plane=vec![0;16384];g.map.world=0;g.spawn("apc",0,640.,640.,2,None);let i=g.units.len()-1;g.import_native_world(&Value::Null);g.maintain_native_group_rosters();(g,i)}
+ fn authored_exit_field()->(Game,usize){authored_vehicle_exit_field("apc")}
+ fn authored_vehicle_exit_field(kind:&str)->(Game,usize){let mut g=field();g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});g.map.native_terrain_plane=vec![0;16384];g.map.world=0;g.spawn(kind,0,640.,640.,2,None);let i=g.units.len()-1;g.import_native_world(&Value::Null);g.maintain_native_group_rosters();(g,i)}
  fn set_exit_code(g:&mut Game,cell:i16,code:u8){let cell=cell as u16 as usize;let(x,y)=(cell&127,cell>>7);g.map.native_terrain_plane[cell]=code;g.map.terrain_codes[y*g.map.width+x]=code;}
  #[test]fn fresh_single_crew_apc_unload_reuses_the_live_unit_without_a_constructor(){
   for mp in [false,true]{let(mut g,i)=authored_exit_field();g.multiplayer=mp;g.original_rng.multiplayer=mp;
@@ -343,6 +344,27 @@ impl Game{
    let actual=g.native_upstream_reactions.generation(slot).unwrap();
    assert_eq!((actual,g.native_cranes.phase_b6(slot,actual)),(generation,before.phase_b6),"a renderer exit must not execute41b210 again");
    let after=g.native_cranes.bound(slot,generation,foot.id).unwrap();assert_eq!(after.field96,before.field96);assert_eq!(after.work9a,before.work9a);
+  }
+ }
+ #[test]fn direct_vehicle_exit_does_not_construct_in_the_driver_slot_or_an_earlier_free_slot(){
+  for (kind,gid) in [("medium",1),("heavy",5),("light",7),("launcher",9),("jeep",11),("crane",16)]{
+   for mp in [false,true]{for hole in [false,true]{
+    let(mut g,i)=authored_vehicle_exit_field(kind);g.multiplayer=mp;g.original_rng.multiplayer=mp;
+    if hole{g.units[0].hp=-1.;g.maintain_native_group_rosters();}
+    let carrier=g.units[i].id;let slot=g.units[i].native_slot.unwrap();let hardware=g.units[i].native_hardware_slot.unwrap();
+    assert_eq!(slot,1);assert!(g.units[i].transport_actor.is_none()&&g.units[i].cargo.is_empty());
+    let generations=[0,1].map(|s|g.native_upstream_reactions.generation(s));let generation=generations[1].unwrap();
+    g.native_cranes.seed_phase_b6(slot,generation,9);g.native_group_rosters.record_starting_group_rinfo(0,2,gid);
+    let group=g.native_group_rosters.group_slot(0,2).unwrap();let profile=g.native_group_rosters.pool[group].active_rinfo();
+    g.native_group_rosters.observe_unit_context(slot);let rng=g.original_rng.words;
+    assert!(g.unload_native_hardware(i));assert_eq!(g.units[i].team,-1);assert_eq!(g.native_hardware_pool[hardware].live_marker,-1);
+    let foot=g.units.iter().find(|u|u.team==0&&u.native_slot==Some(slot)).unwrap();
+    assert_ne!(foot.id,carrier);assert_eq!((foot.native_class7c,foot.native_phase35,foot.native_range4),(0,64,Some(0)));
+    assert_eq!([0,1].map(|s|g.native_upstream_reactions.generation(s)),generations,"{kind}, MP={mp}, earlier vacancy={hole}");
+    assert_eq!(g.native_cranes.bound(slot,generation,foot.id).unwrap().phase_b6,Some(9));
+    assert_eq!(g.native_group_rosters.group_slot(0,2),Some(group));
+    assert_eq!(g.native_group_rosters.pool[group].active_rinfo(),profile);assert_eq!(g.original_rng.words,rng);
+   }}
   }
  }
  #[test]fn authored_exit_probes_native_two_by_two_and_diagonal_third_column_instead_of_web_building_rectangles(){
