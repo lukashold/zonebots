@@ -1,11 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.137 Rusttests und 43 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 96/96 Node-Prüfprogramme im
-aktuellen nov05-r61 bestanden, einschließlich aller 20 privaten Missionen.
+1.137 Rusttests und 44 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 97/97 Node-Prüfprogramme im
+aktuellen nov05-r62 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: d7a8041c1b370163566751414b4997384bdbfc4f1e7c3c71931c6e29ab9c9ece
+Wasm SHA256: b569d544f2a79a78b987b3d50f8b0d69faa976b4e3fc7869407be3a975917168
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,6 +40,18 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R62
+- 1.376 ausgeführte Original-Schritte prüfen die Fort-Palettenzeile, den
+  signed-byte Richtungswechsel und die Invalidierung der betroffenen Textur.
+- Der Browser-Renderer reproduziert die RGB-Werte aller 84 Zeilen aus vier
+  Original-Farbtabellen. Unbeschädigte, benachbarte und teamfarbene Pixel
+  bleiben davon unberührt. Die Farbdaten für alle fünf Welten werden lokal
+  aus den Original-PNGs extrahiert.
+- Beide Fortausgänge in Mission 1 laufen durch die Rust-Spielschleife.
+  Der normale Wasm-Build prüft dieselben Farbstufen beim Host und Gast;
+  der Gast sieht alle 21 Stufen trotz ausgelassener Zwischenstände.
+  Der lokale Browser-Einstieg lädt Mission 1 ohne Konsolenfehler.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R61
 - 768 Originalfälle prüfen Ergebnisuhr, Übertrag, Grenze und den

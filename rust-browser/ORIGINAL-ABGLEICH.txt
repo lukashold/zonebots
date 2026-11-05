@@ -633,6 +633,17 @@ Im normalen Browser-Build wurde der Fortmarsch des Gasts durch das rote Tor
 in Mission 1 bis zu beiden Ergebnisansichten geprüft. Das ist ein Test der
 Browser-Rollen mit lokaler Nachrichtenübergabe, kein Test über das Internet.
 
+WEITERER ABGLEICHSBLOCK NOV05-R62
+Das Original animiert beim Abschluss 21 Palettenfarben der ersten
+zerstörten Fort-Grafik. Die anderen Fortteile behalten ihre Farben.
+Der Browser liest die Ausgangsfarben aus den Original-Karten-PNGs aller
+fünf Welten. Die Farben für den gezeichneten Takt werden wie im Original
+aus dem vorherigen Kopiervorgang übernommen. Einzelspieler und beide
+Mehrspieler-Ansichten verwenden dieselbe Zeile für denselben Zustand.
+Geprüft sind 1.376 Original-Schritte sowie alle 84 Zeilen aus vier
+ausgeführten Original-Farbtabellen. Die Ergebnisbildschirme und Filme
+sind noch nicht im Browser eingebunden.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -661,9 +672,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    Funkereignisse sind damit nicht durchgehend
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
-   maschinenanimationen sowie Palette und weitere Abschlusszweige sind offen.
-   Die Ergebnis-Palette und die vollständigen Original-Ergebnisbildschirme
-   fehlen. Weiterläufe automatischer Befehle auf bereits freigegebenen
+   maschinenanimationen und weitere Abschlusszweige sind offen. Die
+   vollständigen Original-Ergebnisbildschirme fehlen. Weiterläufe
+   automatischer Befehle auf bereits freigegebenen
    Original-Objektplätzen sind im Browser nicht allgemein rekonstruiert.
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem
    Zufallszustand sind nicht durchgehend gegen das Original aufgezeichnet.

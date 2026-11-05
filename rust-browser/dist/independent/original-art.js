@@ -19,7 +19,31 @@ window.OriginalArt=(()=>{
  const dir=a=>((Math.round((a+Math.PI/2)/(Math.PI/4))%8)+8)%8;
  function cv(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
  // Native palette4 maps faction16..31 to neutral grayscale80..95 (0040bb50/00465cb0).
- function sprite(id,world,team=0,fortBannerSwap=false){const key=`${id}:${world}:${team}${fortBannerSwap?':fortBannerSwap':''}`;if(cache.has(key))return cache.get(key);const f=manifest.frames[id];if(!f||!f.w||!f.h)return null;const c=cv(f.w,f.h),ctx=c.getContext('2d'),img=ctx.createImageData(f.w,f.h),pal=manifest.palettes[world]||manifest.palettes[0];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){const at=((f.y+y)*atlas.width+f.x+x)*4;let index=pixels[at];if(!pixels[at+3])continue;if(fortBannerSwap){if(index>=16&&index<32)index+=16;else if(index>=32&&index<48)index-=16;}else if(index>=16&&index<32)index=team<0?index+64:Number.isInteger(team)&&team>=0&&team<4?index+team*16:index;const p=(y*f.w+x)*4;img.data[p]=team===255?255:pal[index*3];img.data[p+1]=team===255?255:pal[index*3+1];img.data[p+2]=team===255?255:pal[index*3+2];img.data[p+3]=255;}ctx.putImageData(img,0,0);cache.set(key,c);return c;}
+ function sprite(id,world,team=0,fortBannerSwap=false,fortResultRow=null){
+  const resultColors=fortResultRow===null?null:manifest.fortResultPalettes?.[world];
+  const key=`${id}:${world}:${team}${fortBannerSwap?':fortBannerSwap':''}${resultColors?':fortResult'+fortResultRow:''}`;
+  if(cache.has(key))return cache.get(key);
+  const f=manifest.frames[id];if(!f||!f.w||!f.h)return null;
+  const c=cv(f.w,f.h),ctx=c.getContext('2d'),img=ctx.createImageData(f.w,f.h),pal=manifest.palettes[world]||manifest.palettes[0];
+  for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+   const at=((f.y+y)*atlas.width+f.x+x)*4;let index=pixels[at];
+   if(!pixels[at+3])continue;
+   if(fortBannerSwap){if(index>=16&&index<32)index+=16;else if(index>=32&&index<48)index-=16;}
+   else if(index>=16&&index<32)index=team<0?index+64:Number.isInteger(team)&&team>=0&&team<4?index+team*16:index;
+   const p=(y*f.w+x)*4;
+   if(team===255)img.data[p]=img.data[p+1]=img.data[p+2]=255;
+   else if(resultColors&&index>=165&&index<=185){
+    const src=(index-165-fortResultRow)*3;
+    img.data[p]=src<0?76:resultColors[src];
+    img.data[p+1]=src<0?0:resultColors[src+1];
+    img.data[p+2]=src<0?0:resultColors[src+2];
+   }else{
+    const src=index*3;img.data[p]=pal[src];img.data[p+1]=pal[src+1];img.data[p+2]=pal[src+2];
+   }
+   img.data[p+3]=255;
+  }
+  ctx.putImageData(img,0,0);cache.set(key,c);return c;
+ }
  function paletteForUnit(u){return Number.isInteger(u.nativeDrawPalette)?u.nativeDrawPalette:u.team;}
  function centered(ctx,id,u,map,offsetY=0){const im=sprite(id,map.world,paletteForUnit(u));if(!im)return false;ctx.drawImage(im,Math.round(u.x-im.width),Math.round(u.y-im.height+offsetY),im.width*2,im.height*2);return true;}
  function neutralSprite(u){return Number.isInteger(u.nativeObjectSprite)?u.nativeObjectSprite:manifest?.neutralUnits?.[u.type];}
@@ -132,8 +156,13 @@ window.OriginalArt=(()=>{
   }
  }
  function repairOverlay(ctx,row,map){if(!ready||!map?.original||!Number.isInteger(row.team)||row.team<0||row.team>3)return false;const descriptor=manifest.buildings?.repair?.[worlds[map.world]];return Boolean(descriptor&&native(ctx,descriptor.overlay,row.x,row.y,map,row.team));}
- function building(ctx,b,time,map){if(!ready||!map.original)return false;const world=worlds[map.world],dead=b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?b.nativeFortDestroyed:b.hp<=0;
-  if(b.kind==='fort'){const base=FORT[world][dead?1:0],orientation=b.orientation==='north'?4:0,anchor=b.rawBase?[b.rawBase[0]*2,b.rawBase[1]*2]:[b.x,b.y];for(const [i,x,y]of [[0,0,16],[1,120,16],[orientation+2,0,0],[orientation+3,120,0],[orientation+4,0,112],[orientation+5,120,112]]){const im=sprite(base+i,map.world,b.team);if(im)ctx.drawImage(im,anchor[0]+x*2,anchor[1]+y*2,im.width*2,im.height*2);}return true;}
+ function building(ctx,b,time,map,fortPaletteRow=null){if(!ready||!map.original)return false;const world=worlds[map.world],dead=b.kind==='fort'&&typeof b.nativeFortDestroyed==='boolean'?b.nativeFortDestroyed:b.hp<=0;
+  if(b.kind==='fort'){const base=FORT[world][dead?1:0],orientation=b.orientation==='north'?4:0,anchor=b.rawBase?[b.rawBase[0]*2,b.rawBase[1]*2]:[b.x,b.y];for(const [i,x,y]of [[0,0,16],[1,120,16],[orientation+2,0,0],[orientation+3,120,0],[orientation+4,0,112],[orientation+5,120,112]]){
+   // The original invalidates only the texture of the first damaged part.
+   const row=dead&&i===0?(fortPaletteRow??0):null;
+   const im=sprite(base+i,map.world,b.team,false,row);
+   if(im)ctx.drawImage(im,anchor[0]+x*2,anchor[1]+y*2,im.width*2,im.height*2);
+  }return true;}
   const descriptor=manifest.buildings?.[b.kind]?.[world];if(!descriptor)return false;if(!buildingPart(ctx,dead?descriptor.destroyed:descriptor.intact,b,map))return false;
   if(dead){teamOverlay(ctx,b,map,descriptor,true);return true;}
   if(b.kind!=='repair')teamOverlay(ctx,b,map,descriptor,false);machinery(ctx,b,time,map,descriptor);return true;
@@ -220,6 +249,6 @@ window.OriginalArt=(()=>{
  function nativeEffects(ctx,items,map){if(!ready||!map?.original)return false;for(const f of items){if(f.primitive==='colorPoint'){colorPoint(ctx,f,map);continue;}if((f.source==='buildingTrail'||f.source==='native4666c0')&&f.nativeInheritedPalette&&!nativePalettes.has(ctx))continue;const palette=f.nativeInheritedPalette?(nativePalettes.get(ctx)??0):f.nativeWhitePalette?255:f.team??0;if(!f.nativeInheritedPalette)selectNativePalette(ctx,palette);const bannerSwap=f.nativeFortBannerSwap===true&&f.source==='fortBanner'&&f.sprite>=1234&&f.sprite<=1241;const im=sprite(f.sprite,map.world,palette,bannerSwap);if(!im)continue;if((f.scale??1)===1&&!(f.rotation||0)){ctx.drawImage(im,Math.round(f.x),Math.round(f.y),im.width*2,im.height*2);continue;}const padded=n=>{let v=8;while(v<n)v*=2;return v;};const w=padded(im.width),h=padded(im.height);ctx.save();ctx.translate(Math.round(f.x+w),Math.round(f.y+h));ctx.rotate(f.rotation||0);ctx.scale(f.scale??1,f.scale??1);ctx.drawImage(im,-w,-h,im.width*2,im.height*2);ctx.restore();}return true;}
  function fires(ctx,items,map){if(!ready||!map?.original)return false;for(const f of items)native(ctx,f.sprite,f.x,f.y,map,null);return true;}
  function effects(ctx,fx,time,map){if(!ready||!map.original)return false;for(const f of fx){if(f.kind!=='explosion')continue;const seq=f.radius>=26?[473,479]:[395,406],id=seq[0]+Math.min(seq[1]-seq[0],Math.floor(f.age/f.life*(seq[1]-seq[0]+1))),im=sprite(id,map.world);if(im)ctx.drawImage(im,f.x-im.width,f.y-im.height,im.width*2,im.height*2);}return true;}
- async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
+ async function load(){const base=assetBase;const r=await fetch(new URL('sprites.json?v=fort-result-palette-1',base));if(!r.ok)return false;manifest=await r.json();[atlas,tiles]=await Promise.all(['sprites.png','tiles.png'].map(name=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=new URL(name,base);})));const c=cv(atlas.width,atlas.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(atlas,0,0);pixels=x.getImageData(0,0,c.width,c.height).data;ready=true;return true;}
  return {load,selectNativePalette,nativePalette:ctx=>nativePalettes.get(ctx)??0,unit,unitBounds,attackBounds,jeepLayers,vehicleLayers,fortGuns,building,repairOverlay,production,productionText,clock,clockText,terrain,flag,flagShadows,flagBounds,captureCursor,captureHand,entryCursor,entryArrow,attackCursor,attackMarker,workshopCursor,workshopMarker,bullets,projectiles,blasts,fires,nativeEffects,effects,object,objectShadows,objectDepth,crate,crateBounds,get ready(){return ready;}};
 })();

@@ -26,6 +26,8 @@ pub(super) struct Runtime {
     local_defeat:u8,
     redraw:u8,
     score_clock:ScoreClock,
+    applied_palette:Option<u8>,
+    drawn_palette:Option<u8>,
     camera:Option<Camera>,
     last_camera:Option<[i16;2]>,
     pub(super) boundary:Option<Boundary>,
@@ -164,6 +166,7 @@ impl Game {
         }
         let world=self.native_world.as_mut().unwrap();
         world.fort_end.begin_main();
+        world.fort_runtime.drawn_palette=world.fort_runtime.applied_palette;
     }
 
     pub(crate) fn stage_native_fort_peer_move(&mut self,command:orders::Move)->bool{
@@ -219,12 +222,18 @@ impl Game {
     pub(super) fn advance_native_fort_scene_queue(&mut self)->Option<u8>{
         let world=self.native_world.as_mut()?;
         if world.fort_runtime.boundary.is_some(){return None;}
+        world.fort_end.advance_palette();
         let mut queue=std::mem::take(&mut world.fort_scene_queue);
         let result=queue.advance(&mut Scene(self));
         let world=self.native_world.as_mut().unwrap();
         world.fort_scene_queue=queue;
         match result {
-            Ok(Return::Continue)=>Some(0),
+            Ok(Return::Continue)=>{
+                if let Some(row)=world.fort_end.palette_copy_row(){
+                    world.fort_runtime.applied_palette=Some(row);
+                }
+                Some(0)
+            },
             Ok(Return::Terminal)=>{
                 let owner=world.fort_runtime.owner;
                 if matches!(owner,1|2){self.winner=Some(i32::from(2-owner));}
@@ -260,6 +269,7 @@ impl Game {
             "owner":world.fort_runtime.owner,
             "dirty":world.fort_end.scene_dirty!=0,
             "scoreTime":world.fort_runtime.score_clock.seconds,
+            "paletteRow":world.fort_runtime.drawn_palette,
             "boundary":world.fort_runtime.boundary.map(|e|format!("{e:?}")),
         }))
     }

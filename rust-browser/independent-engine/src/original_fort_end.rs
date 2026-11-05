@@ -36,6 +36,25 @@ impl Registers {
         self.palette_row=-1;
     }
     pub(crate) fn begin_main(&mut self){self.scene_dirty=0;}
+
+    /// Main advances the signed selector before the scene callback. The
+    /// callback itself sets row 20 on the first retirement frame.
+    pub(crate) fn advance_palette(&mut self) {
+        if self.defeated_owner==0{return;}
+        self.palette_row=self.palette_row.wrapping_add(self.palette_cursor as i8);
+        if self.palette_row<0{
+            self.palette_row=0;
+            self.palette_cursor=self.palette_cursor.wrapping_neg();
+        }else if self.palette_row>=20{
+            self.palette_cursor=self.palette_cursor.wrapping_neg();
+        }
+    }
+
+    /// The late palette copy runs after drawing and only for a continuing
+    /// battle. Normal fort scenes produce no selector outside rows 0..20.
+    pub(crate) fn palette_copy_row(&self)->Option<u8>{
+        u8::try_from(self.palette_row).ok().filter(|&row|row<=20)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

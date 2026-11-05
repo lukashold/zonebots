@@ -71,10 +71,29 @@ def write_manifest(source,out):
     write_json(out/'manifest.json',dict(source=str(source),files=files),indent=2)
     return files
 
+def fort_result_palettes(source):
+    """Read RGB indices 165..185 of each world's second indexed block PNG."""
+    palettes=[]
+    for number in (1,5,9,13,17):
+        raw=(source/f'LEVEL{number:02}.MAP').read_bytes()
+        name=raw[0x277f:0x278d].split(b'\0',1)[0].decode('ascii')
+        if Path(name).name!=name or not name.lower().endswith('.lbm'):
+            raise ValueError(f'Unexpected block name in mission {number}: {name!r}')
+        name=Path(name).with_suffix('.png')
+        file=source/name
+        if not file.is_file():file=source/'PNG'/name
+        with Image.open(file) as image:
+            palette=image.getpalette('RGB')
+            if image.mode!='P' or palette is None or len(palette)!=768:
+                raise ValueError(f'No 256-color palette in {file}')
+            palettes.append(palette[165*3:186*3])
+    return palettes
+
 def refresh_metadata(source,out):
     """Update the existing private atlas metadata, preserving artwork and maps."""
     path=out/'sprites.json';data=json.loads(path.read_text(encoding='utf-8'))
     data.update(executable_metadata(source))
+    data['fortResultPalettes']=fort_result_palettes(source)
     write_json(path,data,separators=(',',':'))
     write_manifest(source,out)
     print(json.dumps(dict(sprites=data['count'],metadataOnly=True)))
@@ -106,7 +125,7 @@ def extract(source,out):
             pixels=blk[i*256:(i+1)*256];rgba=bytes(channel for p in pixels for channel in (*palette[p*3:p*3+3],255));tile=Image.frombytes('RGBA',(16,16),rgba)
             tiles.paste(tile,((i%32)*16,world*256+(i//32)*16))
     tiles.save(out/'tiles.png',optimize=True)
-    metadata=dict(count=count,frames=frames,palettes=palettes,sourceSha256=hashlib.sha256(raw).hexdigest(),**executable_metadata(source))
+    metadata=dict(count=count,frames=frames,palettes=palettes,fortResultPalettes=fort_result_palettes(source),sourceSha256=hashlib.sha256(raw).hexdigest(),**executable_metadata(source))
     write_json(out/'sprites.json',metadata,separators=(',',':'))
     files=write_manifest(source,out)
     print(json.dumps(dict(sprites=count,atlas=atlas.size,bytes=sum(f['bytes']for f in files),files=files)))

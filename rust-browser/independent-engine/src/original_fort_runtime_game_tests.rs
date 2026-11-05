@@ -76,6 +76,15 @@ fn original_campaign_fort_door_arms_the_full_battle_scene() {
             }
             if frame==15{assert_eq!(w.fort_runtime.redraw,1);}
             if frame>=17{assert_eq!(w.fort_end.defeated_owner,owner);}
+            if let Some((applied,drawn))=match frame{
+                16=>Some((None,None)),17=>Some((Some(20),None)),
+                18=>Some((Some(19),Some(20))),37=>Some((Some(0),Some(1))),
+                38=>Some((Some(0),Some(0))),39=>Some((Some(1),Some(0))),
+                58=>Some((Some(20),Some(19))),59=>Some((Some(19),Some(20))),
+                _=>None,
+            }{
+                assert_eq!((w.fort_runtime.applied_palette,w.fort_runtime.drawn_palette),(applied,drawn),"palette at frame {frame}");
+            }
             result_radio+=g.events.iter().filter(|e|e["kind"]=="nativeVoice"&&matches!(e["message"].as_u64(),Some(0x0a3d..=0x0a42|0x0b43..=0x0b45))).count();
         }
         assert_eq!(panning,16);
