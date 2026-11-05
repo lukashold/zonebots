@@ -232,7 +232,7 @@ impl Game {
                         let o=super::native_weapon_data::APC_FLAME[direction];origin.0+=o[0];origin.1+=o[1];super::original_projectiles::Kind::Flame};
                     attack.bullet=false;self.emit_native_projectile(&shooter,origin,point,kind,15,range-8,attack)
                 },
-                _=>{attack.bullet=true;if weapon_kind=="laser"{origin.1-=7;}self.emit_native_bullet(&shooter,origin,point,range,weapon_kind=="laser",attack)},
+                _=>{attack.bullet=true;if weapon_kind=="laser"{origin.0-=7;origin.1-=7;}self.emit_native_bullet(&shooter,origin,point,range,weapon_kind=="laser",attack)},
             };
             if emitted{self.events.push(serde_json::json!({"kind":"shot","type":weapon_kind,"weapon":"passenger","carrier":u.id,"x":origin.0*2,"y":origin.1*2,"team":u.team}));}
             seat+=1;
@@ -481,5 +481,27 @@ mod tests{
         physical_passengers(&mut g,&["grunt","pyro"]);
         g.step(0.059);let shots=g.events.iter().filter(|e|e["weapon"]=="passenger").collect::<Vec<_>>();
         assert_eq!(shots.len(),3);assert!(shots.iter().all(|e|e["type"]=="laser"));assert!(g.bullets.iter().all(|b|b.laser));assert!(g.projectiles.is_empty());
+    }
+    #[test]
+    fn live_laser_apc_muzzles_apply_both_native_axis_offsets_for_all_ports(){
+        // Actual447790 ->464cf0 recordings independently show (-7,-7)
+        // for saved class16. Exercise the living legacy adapter separately
+        // from the already verified pure caller/leaf projection.
+        for direction in 0..8 {
+            let mut g=field();g.spawn("apc",0,896.,896.,1,Some(crate::Crew{kind:"laser".into(),hp:60.}));
+            g.units[0].angle=native_math::angle(direction);physical_passengers(&mut g,&["grunt";12]);
+            for (n,(dx,dy)) in [(-1,-1),(0,-1),(1,-1),(-1,0),(1,0),(-1,1),(0,1),(1,1)].into_iter().enumerate(){
+                g.spawn("heavy",1,896.+f64::from(dx)*64.,896.+f64::from(dy)*64.,100+n,None);
+            }
+            g.update_native_apc_auto_tail_legacy(0).unwrap();
+            let shots=g.events.iter().filter(|e|e["weapon"]=="passenger").collect::<Vec<_>>();
+            assert_eq!(shots.len(),12,"direction{direction}");assert_eq!(g.bullets.len(),12);
+            for (port,shot) in shots.iter().enumerate(){
+                let table=match port%4{0=>crate::native_weapon_data::APC_FRONT,1=>crate::native_weapon_data::APC_RIGHT,2=>crate::native_weapon_data::APC_BACK,_=>crate::native_weapon_data::APC_LEFT};
+                let offset=table[usize::from(direction)*3+port/4];
+                assert_eq!((shot["x"].as_i64().unwrap(),shot["y"].as_i64().unwrap()),
+                    (i64::from(448+offset[0]-6-7)*2,i64::from(448+offset[1]-6-7)*2),"direction{direction}/port{port}");
+            }
+        }
     }
 }

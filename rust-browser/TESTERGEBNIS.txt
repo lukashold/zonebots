@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.124 Rusttests bestanden;13 Privatdiagnostiken separat erfolgreich ausgeführt
+1.125 Rusttests bestanden;13 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen12 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r53 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r54 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 6991edd7376ccf007772d91504cd3e9027a7546e9c65375d3bf305b860ec9424
+Wasm SHA256: 95bdcf9d8a12ad790b03fcb70530d776c9ef46cc3924f7e7be6ddc10ecab9258
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,24 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R54
+- Der lebende Laser-APC versetzt seinen Abschusspunkt jetzt auf beiden Achsen
+  um sieben native Pixel. Vorher fehlte die X-Korrektur: Der erste geprüfte
+  Strahl startete bei906/874 statt892/874 Browserpixeln. Der Fehler ist vor
+  der Laufzeitänderung reproduziert und sein fehlgeschlagener Test erhalten.
+-16 vorhandene tatsächliche Original-Laseraufrufe belegen den Versatz-7/-7
+  zwischen447790 und464cf0 sowie den abschließenden Laser-Globalreset.
+  Ein zusätzlicher lebender Game-Test prüft zwölf Schussöffnungen in acht
+  Richtungen, insgesamt96 Abschusspunkte. Das ist ein gezielter Argument-/
+  Geometrievergleich, kein neuer vollständiger Originalpartievergleich.
+- Finaler Release:1125 normale Rusttests,13 tatsächlich ausgeführte private
+  Diagnostiken und95 Node-Prüfprogramme bestanden. Normaler Wasm-ABI bleibt
+  ohne Diagnosegetter; MP-Build19 weist ältere Simulationsstände ab.
+  Eigener frischer Browserlauf: Originalgrafik, M18 Mayhem, Normal, HUD0:17,
+  keine erfassten Konsolenwarnungen/-fehler. Der eigene Tab ist geschlossen,
+  die Benutzerpartie unberührt. Kein neuer GPU-/Pixel-/PCM-/Frameratenbeleg.
+Details: ORIGINAL-APC-PHASE.txt. Die übrigen offenen Bereiche bleiben offen.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R53
 - Beide APC-Feuerwege verwenden denselben physischen SoldatenwertB6 in der

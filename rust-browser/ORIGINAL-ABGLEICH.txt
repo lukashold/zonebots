@@ -536,6 +536,16 @@ der reine automatische Kern ist weiterhin kein vollständiger Game-Ersatz.
 Details: ORIGINAL-APC-PHASE.txt. Der Hauptstand besteht1124 normale Rusttests,
 13 separat ausgeführte Privatdiagnostiken und95 Node-Prüfprogramme.
 
+WEITERER ABGLEICHSBLOCK NOV05-R54
+Ein reproduzierter Laser-APC-Abschussversatz ist korrigiert: Der lebende
+Adapter hatte nur die Y-Achse um7 native Pixel verändert.16 tatsächliche
+Originalaufrufe belegen denselben-7/-7-Versatz auf beiden Achsen. Jetzt sind
+auch im Game alle96 geprüften Öffnungs-/Richtungskombinationen richtig.
+Der ursprüngliche Fehltest und die Originalaufzeichnungen bleiben erhalten.
+1125 normale Rusttests,13 ausgeführte Privatdiagnostiken und95 Nodeprogramme
+prüfen den Release. Das schließt weder die übrigen APC-Blätter noch den
+Fortcontroller oder einen vollständigen identischen Missionsablauf ab.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

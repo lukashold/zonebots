@@ -51,6 +51,16 @@ einem bereits ausgeführten Eintrag. Historische Burst-Prüfsummen bleiben
 unverändert in ausdrücklich testlokalen kontrollierten Projektionen;
 diese Arrays initialisieren keine lebenden Soldaten.
 
+ZUSÄTZLICHE LASER-KORREKTUR
+Der zuvor fehlende X-Versatz im lebenden automatischen Laser-APC ist ergänzt.
+16 vorhandene tatsächliche Originalaufrufe mit gespeicherter Klasse16 zeigen
+für die an464cf0 übergebenen Koordinaten-7 auf BEIDEN Achsen. Der reine
+Blattkern hatte diesen Ablauf bereits richtig; sein lebender Legacy-Adapter
+war an dieser Stelle abgewichen. Der neue Game-Test prüft alle zwölf
+Schussöffnungen in acht Richtungen. Der erste Punkt lag zuvor14 Browserpixel
+zu weit rechts; Fehltest und erfolgreiche Korrektur sind getrennt erhalten.
+Diese Änderung macht den restlichen Legacy-Emitter nicht vollständig identisch.
+
 WEITER OFFEN
 Die physische Anbindung aller65-/8e-Schreibstellen, vollständige Zielsuche,
 Warnungen und normale APC-Emissionsblätter bleiben offen. Der reine
