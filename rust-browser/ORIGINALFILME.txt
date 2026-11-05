@@ -1,0 +1,24 @@
+Z – ORIGINALFILME IM LOKALEN SPIEL
+
+Die Browser-Fassung kann nach einem Sieg oder einer Niederlage den
+Originalfilm der jeweiligen Mission starten. Mehrspieler-Partien
+wechseln wie im Original direkt zur Auswertung.
+
+Das Zusatzpaket wird aus der vorhandenen GOG-Installation erzeugt. Die
+Spieldateien müssen nicht in den Browser geladen werden. Benötigt werden
+Python und FFmpeg. Unter Windows im Projektordner ausführen:
+
+  python tools/extract-original-result-films.py --out C:\Z-Originalfilme
+  python independent-engine/serve.py --films C:\Z-Originalfilme --port 8768
+
+Falls FFmpeg nicht im Suchpfad liegt, beim ersten Befehl zusätzlich
+--ffmpeg mit dem vollständigen Pfad zur ausführbaren Datei angeben.
+Mit --language lässt sich die Originaltonspur wählen. Deutsch ist die
+Voreinstellung. Der Server öffnet die lokale Spielseite im Browser.
+
+Der Film startet nach dem Fort-Abschluss. Mit Escape oder „Film
+überspringen“ geht es zur Auswertung. Blockiert der Browser die
+automatische Tonwiedergabe, lässt sich der Film per Klick starten.
+
+Der lokale Filmserver bindet an 127.0.0.1. Das Zusatzpaket und die
+Originalfilme gehören nicht zum öffentlichen Git-Repository.

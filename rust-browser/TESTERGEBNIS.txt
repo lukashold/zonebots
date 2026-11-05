@@ -2,8 +2,8 @@ Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
 1.137 Rusttests und 44 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 97/97 Node-Prüfprogramme im
-aktuellen nov05-r62 bestanden, einschließlich aller 20 privaten Missionen.
+bestanden. Doctests bestanden (0 vorhanden). 98/98 Node-Prüfprogramme im
+Quellstand nov05-r63 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
 Wasm SHA256: b569d544f2a79a78b987b3d50f8b0d69faa976b4e3fc7869407be3a975917168
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
@@ -40,6 +40,19 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R63
+- 480 Originalfälle für die Auswahl von Sieges- und Niederlagenfilmen;
+  alle 20 Missionen und beide Mehrspieler-Rollen sind enthalten.
+- Das optionale lokale Paket enthält 24 Filme mit insgesamt 7.905
+  Bildzuständen und deutschen Originaltonspuren. Standbilder und Wechsel
+  der Farbpalette bleiben erhalten.
+- Mission 1: Beide Filme liefen im Browser bis zum letzten Bild.
+  Der echte Fort-Auftrag löste den Siegesfilm im Spiel aus, „Film
+  überspringen“ kehrte ohne Konsolenfehler zur Auswertung zurück.
+- Die lokale Serverprüfung bestätigt, dass das Filmpaket nur auf
+  ausdrücklichen Start über 127.0.0.1 und nie mit --lan angeboten wird.
+  Der Rust/Wasm-Release ist gegenüber nov05-r62 bytegleich.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R62
 - 1.376 ausgeführte Original-Schritte prüfen die Fort-Palettenzeile, den

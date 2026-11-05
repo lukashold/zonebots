@@ -17,5 +17,19 @@ function run(){for(const network of[false,true])for(const winner of[0,1]){
  context.paused=false;context.update(snapshot(winner,17));assert.equal(context.paused,true,'A completed game remains paused');assert.equal(voices.length,1);
  context.state=null;context.update(snapshot(winner,0));assert.equal(voices.length,2,'A freshly loaded game state may announce its result');
  context.update(snapshot(null,1));context.update(snapshot(winner,2));assert.equal(voices.length,3,'A later winner transition is a new result');context.update(snapshot(1-winner,3));assert.equal(voices.length,4,'A changed winner receives the corresponding result');
-}console.log('Result audio passed: actual App.update, repeated UI-only/winner states, offline/network, both winners, fresh game/transition, unchanged pause/buttons/HUD.');}
+}
+ const local=harness(),offers=[],stops=[];
+ local.context.window={ResultFilm:{offer(...args){offers.push(args);return true;}}};
+ local.context.muted=true;local.nodes.music={value:'0.65'};
+ local.context.RadioAudio.haltNativeChannels=()=>stops.push('halt');
+ const result={...snapshot(0),mission:3,nativeFortScene:{active:true,camera:null}};
+ local.context.update(result);
+ assert.deepEqual(local.scenes,[['movie',0]]);
+ assert.deepEqual(stops,['halt']);assert.equal(local.voices.length,0);
+ assert.deepEqual(offers[0].slice(0,3),[3,true,false]);
+ assert.equal(offers[0][3].muted,true);assert.equal(offers[0][3].volume,.65);
+ local.context.update({...result,nativeUiClock:1});assert.equal(offers.length,1);
+ offers[0][3].onFinish();assert.deepEqual(local.scenes,[['movie',0],['victory',0]]);
+ console.log('Result audio passed: actual App.update, offline/network, local cinematic, repeated UI states and pause/HUD.');
+}
 module.exports={harness};if(require.main===module)run();

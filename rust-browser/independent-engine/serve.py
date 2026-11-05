@@ -1,7 +1,7 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from functools import partial
-import mimetypes, argparse, webbrowser, os, subprocess, sys, json, socket
+import mimetypes, argparse, webbrowser, os, subprocess, sys, json, socket, re
 from urllib.parse import unquote,urlsplit
 root = Path(__file__).resolve().parents[1] / 'dist' / 'independent'
 mimetypes.add_type('application/wasm', '.wasm')
@@ -50,6 +50,15 @@ def ensure_original_pack(game):
     if not all((private / name).is_file() for name in ('sprites.png', 'sprites.json', 'tiles.png')):
         jobs.append(('artwork', repo / 'tools' / 'extract-original-art.py',
                      ['--source', str(game), '--out', str(private)]))
+    elif (game / 'PNG' / 'DESERT2.png').is_file():
+        try:
+            colors = json.loads((private / 'sprites.json').read_text(encoding='utf-8')).get('fortResultPalettes', [])
+            result_palette_current = len(colors) == 5 and all(len(row) == 63 for row in colors)
+        except (OSError, ValueError, TypeError, AttributeError):
+            result_palette_current = False
+        if not result_palette_current:
+            jobs.append(('fort result palette', repo / 'tools' / 'extract-original-art.py',
+                         ['--source', str(game), '--out', str(private), '--metadata-only']))
     if not (private / 'audio.json').is_file():
         jobs.append(('audio', repo / 'tools' / 'extract-original-audio.py',
                      ['--source', str(game), '--out', str(private)]))
@@ -74,8 +83,18 @@ def ensure_original_pack(game):
             ) from error
 
 class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, films=None, **kwargs):
+        self.films = films
+        super().__init__(*args, **kwargs)
+
     def translate_path(self,url):
         path=unquote(urlsplit(url).path)
+        if path.startswith('/original/films/'):
+            name=path.removeprefix('/original/films/')
+            if self.films is None or not (name=='films.json' or re.fullmatch(r'e_[dvajc](?:lost1|wint[1-3]|winpl)\.(?:zvf\.gz|ogg)',name)):
+                return str(root/'missing')
+            target=(self.films/name).resolve()
+            return str(target) if target.is_relative_to(self.films) else str(root/'missing')
         if path.startswith('/original/'):
             base=root.parent/'original';target=(base/path[len('/original/'):]).resolve()
             return str(target) if target.is_relative_to(base.resolve()) else str(root/'missing')
@@ -84,13 +103,17 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == '__main__':
     p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8765);p.add_argument('--no-browser',action='store_true')
     p.add_argument('--lan',action='store_true',help='Allow other devices on your local network to load this game; binds all local interfaces')
+    p.add_argument('--films',type=Path,help='Local result film pack for a loopback game')
     p.add_argument('--game','--zdir',dest='game',type=Path,default=Path(os.environ.get('Z_GAME_DIR',r'C:\GOG Games\Z')),help='Local Z installation for automatic extraction of missing original art/maps')
     args=p.parse_args()
+    films=args.films.expanduser().resolve() if args.films else None
+    if films is not None and (args.lan or not (films/'films.json').is_file()):
+        p.error('--films requires a film pack with films.json and a local loopback game')
     ensure_original_pack(args.game.expanduser().resolve())
     bind='0.0.0.0' if args.lan else '127.0.0.1'
-    server=ThreadingHTTPServer((bind,args.port),partial(Handler,directory=str(root)))
+    server=ThreadingHTTPServer((bind,args.port),partial(Handler,directory=str(root),films=films))
     port=server.server_port
-    url=f'http://127.0.0.1:{port}/';print(url,flush=True)
+    url=f'http://127.0.0.1:{port}/' + ('?original-films=1' if films else '');print(url,flush=True)
     if args.lan:
         print('LAN mode: other devices on this network can load this game and its local resource pack.',flush=True)
         try:

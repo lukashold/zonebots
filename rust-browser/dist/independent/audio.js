@@ -28,7 +28,7 @@ window.RadioAudio=(()=>{
   const scale=enabled?1:0;if(ctx){effectsBus.gain.setTargetAtTime(levels.effects*.65*scale,ctx.currentTime,.025);voiceBus.gain.setTargetAtTime(levels.voice*.9*scale,ctx.currentTime,.025);}
   if(music)music.volume=Math.min(1,levels.music*.55*scale*(speaking?.22:1));
  }
- function musicTrack(){return scene==='battle'?(manifest?.worldMusic?.[world]||'AA16'):({menu:'ipOPTIONS16',briefing:'ipBATTLE16',victory:'ipWIN',defeat:'ipLOSE'}[scene]||'ipOPTIONS16');}
+ function musicTrack(){return scene==='movie'?null:scene==='battle'?(manifest?.worldMusic?.[world]||'AA16'):({menu:'ipOPTIONS16',briefing:'ipBATTLE16',victory:'ipWIN',defeat:'ipLOSE'}[scene]||'ipOPTIONS16');}
  function syncMusic(){
   if(!manifest||!unlocked)return;
   const key=musicTrack(),alternatives=manifest.music?.[key]||[];

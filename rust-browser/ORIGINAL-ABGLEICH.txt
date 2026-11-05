@@ -644,6 +644,22 @@ Geprüft sind 1.376 Original-Schritte sowie alle 84 Zeilen aus vier
 ausgeführten Original-Farbtabellen. Die Ergebnisbildschirme und Filme
 sind noch nicht im Browser eingebunden.
 
+WEITERER ABGLEICHSBLOCK NOV05-R63
+Die lokale Browser-Fassung startet den passenden Originalfilm nach dem
+Fort-Abschluss im Einzelspiel. Die Auswahl wurde in 480 ausgeführten
+Originalfällen für alle 20 Missionen und beide Spielerrollen verglichen.
+Der Mehrspieler startet wie im Original keinen solchen Film.
+
+Das optionale Paket umfasst 24 Filme. Der Decoder bewahrt Standbilder,
+indizierte Bilddaten, Wechsel der Farbpalette und die getrennte
+Originaltonspur. Zwei Filme aus Mission 1 liefen bis zum letzten Bild
+im Browser. Im laufenden Spiel wurde zudem der automatische Start des
+Siegesfilms und die Rückkehr zur Auswertung nach „Film überspringen“
+getestet. Dies belegt noch keinen vollständigen Gleichlauf der
+Filmuhr und Tonausgabe bei beliebigen Browserbedingungen.
+
+Die Einrichtung ohne Upload der GOG-Dateien steht in ORIGINALFILME.txt.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -679,8 +695,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem
    Zufallszustand sind nicht durchgehend gegen das Original aufgezeichnet.
 6. Online/LAN nutzt das eigene WebRTC-/Hostprotokoll. Das Originalnetzwerkprotokoll,
-   Originalspielstände und Videos sind nicht implementiert. macOS-Hardware und
-   tatsächliche Lautsprecherausgabe wurden nicht separat geprüft.
+   Originalspielstände und weitere Zwischensequenzen fehlen. Die Ergebnisfilme
+   sind mit einem lokalen Zusatzpaket verfügbar. macOS-Hardware und tatsächliche
+   Lautsprecherausgabe wurden nicht separat geprüft.
 Der aktuelle Stand darf deshalb weder als fehlerfrei noch als 1:1 beworben werden.
 
 BEREITSTELLUNG
