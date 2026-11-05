@@ -18,7 +18,7 @@ impl Game{
  ///the records of any already completed41d110 pass. During normal Main,
  ///the current UNIT's capture is therefore visible to the later FLAG pass.
  pub(crate) fn rebuild_native_scene_flags(&mut self){if !self.map.original{return;}if !self.native_display.flags_initialized{self.native_display.flag_seeds=self.fallback_display_flag_seeds();self.native_display.flags_initialized=true;}let seeds=self.display_flag_colors(&self.native_display.flag_seeds);self.native_display.flags.rebuild(&seeds);}
- fn native_flag_view(&self)->flag::View{let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));flag::View{camera,size,frame:self.native_flag_frame,mode:self.native_display.scene_mode,forts:self.native_fort_bases().map(|f|f.map(Some)).unwrap_or([None,None]),fort_visible:self.native_display.fort_visible}}
+ fn native_flag_view(&self)->flag::View{let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));flag::View{camera,size,frame:self.native_flag_frame,mode:self.native_feedback.scene_gate,forts:self.native_fort_bases().map(|f|f.map(Some)).unwrap_or([None,None]),fort_visible:self.native_display.fort_visible}}
  fn flag_rows(pool:&mut flag::Pool,view:flag::View,seeds:&[FlagSeed])->Vec<(Record,Value)>{let mut out=Vec::new();pool.submit(view,|record,kind,slot|{let source=["flag","flagShadow","fortBanner","fortBannerShadow"][usize::from(kind)];let id=if kind<2{seeds.get(slot).map_or(slot,|s|s.sector)}else{slot};let mut row=plain(record,source,id);row["nativeSlot"]=json!(slot);out.push((record,row));});out}
  pub(crate) fn project_native_flag_display(&self)->Vec<(Record,Value)>{let mut pool=self.native_display.flags.clone();let seeds=if self.native_display.flags_initialized{self.native_display.flag_seeds.clone()}else{let seeds=self.fallback_display_flag_seeds();pool.rebuild(&self.display_flag_colors(&seeds));seeds};Self::flag_rows(&mut pool,self.native_flag_view(),&seeds)}
  pub(crate) fn capture_native_flag_display(&mut self){if !self.native_display.flags_initialized{self.rebuild_native_scene_flags();}let view=self.native_flag_view();let rows=Self::flag_rows(&mut self.native_display.flags,view,&self.native_display.flag_seeds);self.native_display.flags_before=Some(rows);}
@@ -36,7 +36,7 @@ impl Game{
  pub(crate) fn set_native_display_fort_state(&mut self,owner:usize,value:u8){if let Some(f)=self.native_display.fort_visible.get_mut(owner){*f=value;}}
  ///The separate native cutscene controller owns622cc0. Ordinary battles
  ///retain0;1..15 draw only fort banners,>=16 omit the complete flag pass.
- pub(crate) fn set_native_display_scene_mode(&mut self,mode:i32){self.native_display.scene_mode=mode;}
+ pub(crate) fn set_native_display_scene_mode(&mut self,mode:i32){self.native_feedback.scene_gate=mode;}
 }
 #[cfg(test)]mod tests{
  use super::*;

@@ -19,7 +19,17 @@ impl Game{
  pub(crate)fn begin_native_owner4_main(&mut self){if let Some(s)=&mut self.native_world{s.trail_draws.clear();}}
  ///460430 initializes all four scene headers to-1.423140 returns0 without
  ///a child callback when all are-1/0; active cutscene handlers remain explicit.
- pub(crate)fn native_trail_scene_result(&mut self)->Option<u8>{let s=self.native_world.as_mut()?;if self.native_display.scene_mode!=0&&s.trail_scenes.iter().all(|v|*v== -1){s.trail.boundary=Some(trail::Boundary{address:0x622b90,length:80});return None;}for(i,v)in s.trail_scenes.iter_mut().enumerate(){if *v==-1||*v==0{continue;}*v=v.wrapping_add(1);if *v==170{*v=-1;return Some(1);}s.trail.boundary=Some(trail::Boundary{address:0x622b90+i as u32*20,length:20});return None;}Some(0)}
+ // Keep the existing Main boundary until all live scene actions are bound.
+ // Its fixture counters now occupy the real four-record queue layout.
+ pub(crate)fn native_trail_scene_result(&mut self)->Option<u8>{
+  let s=self.native_world.as_mut()?;
+  if self.native_feedback.scene_gate!=0&&(0..4).all(|i|s.fort_scene_queue.counter(i)==-1){s.trail.boundary=Some(trail::Boundary{address:0x622b90,length:80});return None;}
+  for i in 0..4{let counter=s.fort_scene_queue.counter(i);if matches!(counter,-1|0){continue;}
+   let next=counter.wrapping_add(1);s.fort_scene_queue.store_counter(i,if next==170{-1}else{next});
+   if next==170{return Some(1);}s.trail.boundary=Some(trail::Boundary{address:0x622b90+i as u32*20,length:20});return None;
+  }
+  Some(0)
+ }
 
  pub(super)fn import_native_trail_buildings(&mut self,v:&Value){let Some(rows)=v["nativeWorldBuildings"].as_array().filter(|v|v.len()==35)else{return;};let disk=(0..35).map(|i|{let row=rows.iter().find(|r|r["nativeSlot"].as_u64()==Some(i))?;let bytes=row["nativeDisk80"].as_array().filter(|r|r.len()==80)?;let mut out=[0;80];for(b,v)in out.iter_mut().zip(bytes){*b=u8::try_from(v.as_u64()?).ok()?;}Some(out)}).collect::<Option<Vec<_>>>();if let(Some(s),Some(d))=(&mut self.native_world,disk){s.trail.load_buildings(&d);}}
  pub(super)fn initialize_native_trail_build_constructor(&mut self,slot:usize,f:crate::original_factory::ConstructorFields){let Some(s)=&mut self.native_world else{return;};if slot>=35||!s.trail.known_builds[slot]{return;}let Some(r)=s.buildings.get(slot)else{return;};let Some(ordinal)=s.fragments.bindings[slot]else{return;};let b=&mut s.trail.builds[slot];raw_set(b,0,r.record.position[0]);raw_set(b,2,r.record.position[1]);b[4]=r.record.kind as u8;raw_set(b,30,r.record.hp);raw_set(b,28,r.record.hp);b[32..36].fill(0);b[58]=f.door3a as u8;for n in[10,54,60]{raw_set(b,n,0);}raw_set(b,8,-1);b[17..22].fill(0);b[53]=2;b[7]=255;b[82..87].fill(255);b[6]&=224;b[57]=0;b[69]=0;b[40..48].fill(0);b[76..80].fill(255);let timer=raw_word(b,80);if timer!=-1{b[76..80].copy_from_slice(&i32::from(timer).wrapping_mul(1700).to_le_bytes());}let p=FRAGMENTS+ordinal as u32*900;b[24..28].copy_from_slice(&p.to_le_bytes());b[64..68].copy_from_slice(&p.to_le_bytes());b[6]=f.flags6;if let Some(n)=f.style5{b[5]=n;}if let Some(n)=f.field10{b[16]=n;}b[17]=f.field11;if let Some(n)=f.clock3e{b[62]=n;}b[69]=f.state45;if let Some(n)=f.remaining24{b[36..40].copy_from_slice(&n.to_le_bytes());}if let Some(p)=self.native_strategy.as_ref().and_then(|st|st.sector_pointer(f64::from(r.record.position[0])*2.,f64::from(r.record.position[1])*2.)){b[32..36].copy_from_slice(&p.to_le_bytes());}}

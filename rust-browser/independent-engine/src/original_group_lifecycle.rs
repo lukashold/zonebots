@@ -262,7 +262,7 @@ pub fn split_last_follower(groups:&mut[GroupSlot;GROUP_SLOTS],units:&mut[Member]
     let member=&mut units[index];let name=groups[source].roster[..4].to_vec();
     clear_path(member);
     //4b1b0 clears every roster's remembered opponent equal to this native unit.
-    for g in groups.iter_mut(){if g.roster[59]==id{g.roster[59]=255;}}
+    crate::original_group_reward::clear_target_reports(groups.iter_mut().map(|group| &mut group.roster), id);
     let release_reservation=if member.flags31&8!=0{member.flags31&=!8;member.contact_order=0;member.reserved_object}else{None};
     member.flags69&=!0x80;
     groups[source].roster[19+role as usize]=255;

@@ -154,16 +154,19 @@ fn member_from_unit(u:&Unit,old:Option<&life::Member>)->life::Member{
 }
 
 impl State{
-    fn remove_member(&mut self,slot:usize,g:&mut Game){
-        let Some(mut old)=self.members[slot].take()else{return;};let source=usize::from(old.group);
-        if source>=240{return;}
-        let role=if old.role==-1{0}else if old.role>0{old.role as usize}else{return;};
-        if role>20||self.pool[source].member(role)!=Some(slot as u8){return;}
+    fn remove_member(&mut self,slot:usize,g:&mut Game)->Option<(u8,u8)>{
+        let mut old=self.members[slot].take()?;
+        let credited=crate::original_group_reward::clear_target_reports(self.pool.iter_mut().map(|group| &mut group.roster), slot as u8);
+        let removed_team=old.flags31&3;
+        let source=usize::from(old.group);
+        if source>=240{return None;}
+        let role=if old.role==-1{0}else if old.role>0{old.role as usize}else{return None;};
+        if role>20||self.pool[source].member(role)!=Some(slot as u8){return None;}
         if old.flags31&8!=0{if let Some(object)=old.reserved_object.and_then(|slot|u8::try_from(slot).ok()){g.release_native_object(object);}}
-        for group in self.pool.iter_mut(){if group.roster[59]==slot as u8{group.roster[59]=255;}}
         let source_group=&mut self.pool[source];source_group.roster[19+role]=255;source_group.roster[18]=source_group.roster[18].wrapping_sub(1);
         old.role=0;old.group=255;old.flags31&=!8;old.flags69&=!0x80;
-        if source_group.roster[18]==0{
+        let emptied=source_group.roster[18]==0;
+        if emptied{
             source_group.cooldown=200;source_group.roster[9]&=!1;
             source_group.roster[40..42].copy_from_slice(&old.position[0].to_le_bytes());source_group.roster[42..44].copy_from_slice(&old.position[1].to_le_bytes());
         }else if role>0{source_group.roster[9]|=0x40;}
@@ -200,6 +203,8 @@ impl State{
             }
         }
         self.entities[slot]=None;self.snapshots[slot]=None;self.before_removal[slot]=None;self.primary_orders[slot]=None;
+        // A retained group exits before the reward when a follower is lost or the leader is promoted.
+        credited.filter(|_| emptied).map(|leader| (leader,removed_team))
     }
     fn refresh_formations(&self,g:&mut Game){
         for(group_slot,group)in self.pool.iter().enumerate(){
@@ -318,7 +323,18 @@ impl Game{
     pub(crate) fn remove_original_group_member(&mut self,index:usize){
         let Some(slot)=self.units.get(index).and_then(|u|u.native_slot).filter(|&slot|slot<240)else{return;};
         let mut state=std::mem::take(&mut self.native_group_rosters);
-        state.snapshots[slot]=Some(state.primary_snapshot(slot,&self.units[index]));state.remove_member(slot,self);state.refresh_formations(self);self.native_group_rosters=state;
+        state.snapshots[slot]=Some(state.primary_snapshot(slot,&self.units[index]));
+        let credited=state.remove_member(slot,self);
+        state.refresh_formations(self);self.native_group_rosters=state;
+        if let Some((leader,removed_team))=credited {
+            self.native_retirement_credit_notice(usize::from(leader),removed_team);
+            // A credited UNIT with a live roster can use the ordinary reward.
+            // If the retired UNIT credits itself, GROUP FF addresses the raw
+            // object arena instead. That alias is not a browser roster.
+            if let Some(recipient)=self.units.iter().rposition(|u|u.native_slot==Some(usize::from(leader))) {
+                self.reward_native_group_aim(recipient);
+            }
+        }
     }
     ///Capture before a crew-kill/damage handler clears the original order.
     ///Removal/promotion consumes this snapshot before later empty-path mirrors.
@@ -532,6 +548,52 @@ impl Game{
         for i in 0..3{g.spawn("grunt",1,200.+i as f64*32.,200.,101,None);}
         for u in &mut g.units{u.order="move".into();}
         g.maintain_native_group_rosters();g
+    }
+    #[test]
+    fn last_reporter_gets_aim_and_only_its_listener_hears_the_cue_after_a_whole_group_is_removed(){
+        for (mp, blocked, survivor_in_target_group) in [(false,false,false),(true,false,false),(true,true,false),(false,false,true)] {
+            let mut g=field();
+            g.units.clear();g.native_group_rosters=State::default();g.multiplayer=mp;
+            g.original_rng.multiplayer=mp;
+            g.spawn("grunt",1,480.,400.,15,None);
+            g.spawn("grunt",0,320.,320.,20,None);
+            g.spawn("grunt",0,352.,320.,21,None);
+            g.spawn("grunt",0,384.,320.,21,None);
+            if survivor_in_target_group {g.spawn("grunt",1,512.,400.,15,None);}
+            g.maintain_native_group_rosters();g.sync_native_world();
+            g.native_feedback.local_team=0;g.native_feedback.scene_gate=i32::from(blocked);
+            g.native_feedback.sound_enabled=1;g.native_feedback.ui_clock=30;
+            g.native_listener_audio.guest_feedback.local_team=1;
+            g.native_listener_audio.guest_feedback.sound_enabled=1;
+            let victim=g.units[0].native_slot.unwrap();
+            let report=g.native_group_rosters.group_slot(0,20).unwrap();
+            let last=g.native_group_rosters.group_slot(0,21).unwrap();
+            g.native_group_rosters.pool[report].roster[59]=victim as u8;
+            g.native_group_rosters.pool[last].roster[59]=victim as u8;
+            for unit in &mut g.units[1..4] {unit.original_combat.as_mut().unwrap().aim_skill=60;}
+            let cosmetic=g.native_cosmetic_rng;
+            g.events.clear();
+            assert!(g.native_remove_actor(0,false,false));
+            assert_eq!(g.native_group_rosters.pool[report].roster[59],255);
+            assert_eq!(g.native_group_rosters.pool[last].roster[59],255);
+            let expected=if survivor_in_target_group {60}else{75};
+            assert_eq!(g.units[1..4].iter().map(|u|u.original_combat.as_ref().unwrap().aim_skill).collect::<Vec<_>>(),[60,expected,expected]);
+            assert_eq!(&g.native_group_rosters.pool[last].roster[66..68],if survivor_in_target_group {&[0,0]}else{&[170,1]});
+            let voices:Vec<_>=g.events.iter().filter(|event|event["kind"]=="nativeVoice").collect();
+            let audible=!blocked&&!survivor_in_target_group;
+            assert_eq!(voices.len(),usize::from(audible));
+            if audible {
+                let voice=voices[0];
+                assert_eq!(voice["unitId"],g.units[2].id);
+                assert_eq!(voice["team"],0);
+                assert_eq!(voice["playAudio"],true);
+                let next=cosmetic.wrapping_mul(214013).wrapping_add(2531011);
+                let message=if mp {0x728}else{0x728+((next>>16)&0x7fff)%7};
+                assert_eq!(voice["message"],message);
+                assert_eq!(voice["clip"],format!("ROB{}",40+message-0x728));
+                assert_eq!(g.native_cosmetic_rng,if mp{cosmetic}else{next});
+            } else {assert_eq!(g.native_cosmetic_rng,cosmetic);}
+        }
     }
     #[test]fn mission_reset_matches_native_roster_clear_and_preserves_every_unwritten_strategy_byte(){
         let hash=|values:Vec<u32>|values.into_iter().fold(2166136261u32,|h,n|(h^n).wrapping_mul(16777619));let mut values=Vec::new();

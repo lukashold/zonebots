@@ -49,7 +49,7 @@ fn masters(g:&mut Game,enabled:[bool;2]){if g.multiplayer{g.set_native_listener_
 }
 
 #[test]fn main_ambient_ui_pause_wrap_settings_and_scene_mode_do_not_reset_scheduler(){
- for mp in[false,true]{for start in[32762i16,-6,130]{let mut g=field(mp);g.native_feedback.ui_clock=start;g.native_main_ambient=State{reload:0xffffffff,pending:255};let state=g.native_main_ambient;let crt=g.native_cosmetic_rng;g.native_audio.opportunity_gate=255;g.native_audio.explosion_cycle=7;g.native_audio.late_build_clock=99;for _ in 0..12{g.step_native_ui_only(1./17.);}masters(&mut g,[false,true]);g.native_display.scene_mode=16;assert_eq!(g.native_main_ambient,state);assert_eq!(g.native_cosmetic_rng,crt);assert_eq!(g.native_feedback.ui_clock,start.wrapping_add(12));assert_eq!((g.native_audio.opportunity_gate,g.native_audio.explosion_cycle,g.native_audio.late_build_clock),(255,7,99));assert!(samples(&g).is_empty());}}
+ for mp in[false,true]{for start in[32762i16,-6,130]{let mut g=field(mp);g.native_feedback.ui_clock=start;g.native_main_ambient=State{reload:0xffffffff,pending:255};let state=g.native_main_ambient;let crt=g.native_cosmetic_rng;g.native_audio.opportunity_gate=255;g.native_audio.explosion_cycle=7;g.native_audio.late_build_clock=99;for _ in 0..12{g.step_native_ui_only(1./17.);}masters(&mut g,[false,true]);g.native_feedback.scene_gate=16;assert_eq!(g.native_main_ambient,state);assert_eq!(g.native_cosmetic_rng,crt);assert_eq!(g.native_feedback.ui_clock,start.wrapping_add(12));assert_eq!((g.native_audio.opportunity_gate,g.native_audio.explosion_cycle,g.native_audio.late_build_clock),(255,7,99));assert!(samples(&g).is_empty());}}
 }
 
 #[test]fn main_ambient_master_variants_keep_one_actual_world_and_shared_crt_trace(){

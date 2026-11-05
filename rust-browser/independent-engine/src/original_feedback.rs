@@ -2,15 +2,20 @@
 #[path="original_feedback_game.rs"]mod game;
 pub const UNDER_ATTACK:[u16;5]=[0x419,0x41b,0x41c,0x41e,0x41f];
 pub const CANNOT_REACH:u16=0x725;
+pub const RETIREMENT_CREDIT:[u16;7]=[0x728,0x729,0x72a,0x72b,0x72c,0x72d,0x72e];
+pub const VOICE_SAMPLES:[i16;13]=[152,154,155,157,158,164,167,168,169,170,171,172,173];
 #[derive(Clone)]pub struct State{
  pub scene_gate:i32,pub local_team:u8,pub portraits_enabled:u8,pub portrait_mode:u8,pub interruptible:u8,
  pub current_message:i32,pub next_mode:i32,pub next_message:i32,pub speaker:Option<usize>,pub display_speaker:Option<usize>,
  pub attack_dirty:bool,pub attack_membership:[u8;240],pub attacked_groups:Vec<(u8,u8,i32)>,
- pub sound_enabled:u8,pub ui_clock:i16,pub phrase_counter:i16,pub phrase_frame:i16,pub phrase_length:i16,pub phrase_index:i16,pub double_portrait_advance:bool,pub start_clock:i32,pub last_voice_ticks:[i16;6],
+ pub sound_enabled:u8,pub ui_clock:i16,pub phrase_counter:i16,pub phrase_frame:i16,pub phrase_length:i16,pub phrase_index:i16,pub double_portrait_advance:bool,pub start_clock:i32,pub last_voice_ticks:[i16;VOICE_SAMPLES.len()],
 }
-impl Default for State{fn default()->Self{Self{scene_gate:0,local_team:0,portraits_enabled:1,portrait_mode:0,interruptible:0,current_message:0,next_mode:0,next_message:0,speaker:None,display_speaker:None,attack_dirty:false,attack_membership:[0;240],attacked_groups:vec![],sound_enabled:0,ui_clock:0,phrase_counter:0,phrase_frame:0,phrase_length:0,phrase_index:-1,double_portrait_advance:false,start_clock:0,last_voice_ticks:[0;6]}}}
+impl Default for State{fn default()->Self{Self{scene_gate:0,local_team:0,portraits_enabled:1,portrait_mode:0,interruptible:0,current_message:0,next_mode:0,next_message:0,speaker:None,display_speaker:None,attack_dirty:false,attack_membership:[0;240],attacked_groups:vec![],sound_enabled:0,ui_clock:0,phrase_counter:0,phrase_frame:0,phrase_length:0,phrase_index:-1,double_portrait_advance:false,start_clock:0,last_voice_ticks:[0;VOICE_SAMPLES.len()]}}}
 #[derive(Clone,Copy)]pub struct Voice{pub clip:&'static str,pub phrase:u8,pub length:i16,pub maximum:u8}
-pub fn voice(message:u16)->Option<(usize,Voice)>{let(index,clip,phrase,length,maximum)=match message{0x419=>(0,"ROB25",22,67,66),0x41b=>(1,"ROB27",24,70,94),0x41c=>(2,"ROB28",25,69,71),0x41e=>(3,"ROB30",27,73,68),0x41f=>(4,"ROB31",26,67,60),0x725=>(5,"ROB37",30,65,59),_=>return None};Some((index,Voice{clip,phrase,length,maximum}))}
+pub fn voice(message:u16)->Option<(usize,Voice)>{let(index,clip,phrase,length,maximum)=match message{0x419=>(0,"ROB25",22,67,66),0x41b=>(1,"ROB27",24,70,94),0x41c=>(2,"ROB28",25,69,71),0x41e=>(3,"ROB30",27,73,68),0x41f=>(4,"ROB31",26,67,60),0x725=>(5,"ROB37",30,65,59),
+0x728=>(6,"ROB40",50,48,47),0x729=>(7,"ROB41",52,52,49),0x72a=>(8,"ROB42",53,53,53),
+0x72b=>(9,"ROB43",54,46,45),0x72c=>(10,"ROB44",55,76,77),0x72d=>(11,"ROB45",56,44,45),
+0x72e=>(12,"ROB46",57,68,68),_=>return None};Some((index,Voice{clip,phrase,length,maximum}))}
 impl State{
  ///33ca0 keeps the UI clock and auxiliary globals across mission loads.
  ///46a650(2,0) preserves the old phrase pointer and its counter.

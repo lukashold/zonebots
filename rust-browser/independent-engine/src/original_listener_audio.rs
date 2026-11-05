@@ -15,15 +15,22 @@ pub(crate) struct State {
 }
 impl Default for State{fn default()->Self{let mut feedback=original_feedback::State::default();feedback.local_team=1;Self{guest_feedback:feedback,guest_audio:Default::default(),guest_radars:[None;35],hardware_views:[None,None],active:None,sequence:0}}}
 impl Game{
+ fn swap_native_listener_feedback(&mut self){
+  let active=&mut self.native_feedback;let guest=&mut self.native_listener_audio.guest_feedback;
+  // Scene progress is a world register. Keep it in the active Game field
+  // while the listener's portrait/notice fields change places.
+  std::mem::swap(&mut active.scene_gate,&mut guest.scene_gate);
+  std::mem::swap(active,guest);
+ }
  ///Select audio-only state, never a second world callback or RNG stream.
  pub(crate) fn for_native_listeners(&mut self,mut f:impl FnMut(&mut Self)){
   if !self.multiplayer||self.native_listener_audio.active.is_some(){f(self);return;}
   self.native_listener_audio.active=Some(0);f(self);
   let clock=self.native_feedback.ui_clock;
-  std::mem::swap(&mut self.native_feedback,&mut self.native_listener_audio.guest_feedback);
+  self.swap_native_listener_feedback();
   std::mem::swap(&mut self.native_audio,&mut self.native_listener_audio.guest_audio);
   self.native_listener_audio.active=Some(1);self.native_feedback.ui_clock=clock;f(self);
-  std::mem::swap(&mut self.native_feedback,&mut self.native_listener_audio.guest_feedback);
+  self.swap_native_listener_feedback();
   std::mem::swap(&mut self.native_audio,&mut self.native_listener_audio.guest_audio);
   self.native_listener_audio.active=None;
  }
@@ -64,6 +71,14 @@ impl Game{
  use super::*;use crate::original_audio::Gate;
  fn game()->Game{let mut g=Game::new(0,1,43);g.map.original=true;g.multiplayer=true;g.ai_teams.clear();g.native_feedback.ui_clock=500;g.initialize_native_feedback();g.set_native_listener_settings(&json!({"0":{"soundEnabled":true},"1":{"soundEnabled":true}}));g}
  fn recipients(g:&Game)->Vec<u64>{g.events.iter().filter(|e|e["kind"]=="nativeSample").map(|e|e["recipientTeam"].as_u64().unwrap()).collect()}
+ #[test]fn fort_scene_gate_blocks_feedback_of_both_listeners_without_swapping_the_world_value(){
+  let mut g=game();g.native_feedback.scene_gate=16;
+  g.for_native_listeners(|g|{g.admit_native_feedback(4,crate::original_feedback::CANNOT_REACH);});
+  assert_eq!(g.native_feedback.scene_gate,16);assert_eq!(g.native_portrait(0)["message"],0);assert_eq!(g.native_portrait(1)["message"],0);
+  g.native_feedback.scene_gate=0;
+  g.for_native_listeners(|g|{g.admit_native_feedback(4,crate::original_feedback::CANNOT_REACH);});
+  assert_eq!(g.native_portrait(0)["message"],0x725);assert_eq!(g.native_portrait(1)["message"],0x725);
+ }
  #[test]fn listener_master_enabled_direct_notice_and_caller_fort_are_distinct(){let mut g=game();g.set_native_listener_settings(&json!({"0":{"soundEnabled":false}}));assert!(g.emit_native_sample(16,Gate::Enabled));assert_eq!(recipients(&g),[1]);g.events.clear();assert!(g.emit_native_sample(125,Gate::Direct));assert_eq!(recipients(&g),[0,1]);g.events.clear();assert!(!g.emit_native_sample(196,Gate::Notice(false)));assert!(g.events.is_empty());g.native_display.fort_visible=[255,2];g.emit_native_workshop_sample(193,Some(1));assert!(g.events.is_empty());g.set_native_listener_settings(&json!({"0":{"soundEnabled":true},"1":{"soundEnabled":false}}));g.emit_native_workshop_sample(193,Some(1));assert_eq!(recipients(&g),[0]);assert_eq!(g.events[0]["actorTeam"],1);assert_eq!(g.events[0]["clip"],"COMP06");assert_eq!((g.native_audio.notice_counter,g.native_listener_audio.guest_audio.notice_counter),(1,0));}
  #[test]fn simultaneous_listeners_have_independent_stamps_and_unique_once_ids(){let mut g=game();assert!(g.emit_native_sample(16,Gate::Enabled));assert_eq!(recipients(&g),[0,1]);let ids=g.events.iter().map(|e|e["nativeAudioId"].clone()).collect::<Vec<_>>();assert_ne!(ids[0],ids[1]);g.events.clear();assert!(!g.emit_native_sample(16,Gate::Enabled));g.advance_native_ui_callback();assert!(g.emit_native_sample(16,Gate::Enabled));assert_eq!(recipients(&g),[0,1]);assert!(!ids.contains(&g.events[0]["nativeAudioId"]));}
  #[test]fn signed_ui_wrap_minimum_twelve_and_mute_do_not_replay_or_stamp_disabled_calls(){for start in[32762i16,-6,500]{let mut g=game();g.native_feedback.ui_clock=start;g.native_listener_audio.guest_feedback.ui_clock=start;g.native_audio.last[0].fill(start);g.native_listener_audio.guest_audio.last[0].fill(start);g.set_native_listener_settings(&json!({"1":{"soundEnabled":false}}));for _ in 0..11{g.step_native_ui_only(1./17.);assert!(!g.emit_native_sample(125,Gate::Enabled));}assert_eq!(g.native_listener_audio.guest_audio.last[0],vec![start;g.native_audio.last[0].len()]);g.step_native_ui_only(1./17.);assert!(g.emit_native_sample(125,Gate::Enabled));assert_eq!(recipients(&g),[0]);g.events.clear();g.set_native_listener_settings(&json!({"1":{"soundEnabled":true}}));assert!(g.events.is_empty(),"changing master cannot replay an old opportunity");assert!(g.emit_native_sample(125,Gate::Enabled));assert_eq!(recipients(&g),[1],"only a new actual caller opportunity is admitted");assert_eq!(g.native_feedback.ui_clock,g.native_listener_audio.guest_feedback.ui_clock);}}

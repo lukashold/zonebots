@@ -42,10 +42,26 @@ impl Game{
  ///46e850 and457020's identical inline admission have no world query.
  pub(crate) fn native_cannot_reach_feedback(&mut self,index:usize){self.for_native_listeners(|g|g.native_cannot_reach_feedback_for_listener(index));}
  fn native_cannot_reach_feedback_for_listener(&mut self,index:usize){let Some(u)=self.units.get(index)else{return;};let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref())else{return;};let f=&self.native_feedback;if feedback::path_feedback_allowed(false,false,f.scene_gate,f.current_message,f.local_team,m.flags31){self.native_feedback.speaker=u.native_slot;self.admit_native_feedback(4,feedback::CANNOT_REACH);}}
+ /// The speaker is the reporting group's leader, not necessarily the
+ /// source of the last projectile. Only its own listener can hear this cue.
+ pub(crate) fn native_retirement_credit_notice(&mut self,slot:usize,removed_team:u8){
+  let Some(owner)=self.native_group_rosters.members.get(slot).and_then(Option::as_ref).map(|m|m.flags31&3)else{return;};
+  self.for_native_listeners(|game|game.native_retirement_credit_for_listener(slot,owner,removed_team));
+ }
+ fn native_retirement_credit_for_listener(&mut self,slot:usize,owner:u8,removed_team:u8){
+  let f=&self.native_feedback;
+  if f.scene_gate!=0||owner!=f.local_team||owner==removed_team{return;}
+  self.native_feedback.speaker=Some(slot);
+  let choice=if self.multiplayer{0}else{usize::from(self.native_cosmetic_random())%7};
+  self.admit_native_feedback(4,feedback::RETIREMENT_CREDIT[choice]);
+ }
  pub(crate) fn admit_native_feedback(&mut self,kind:i16,message:u16)->bool{
-  if !feedback::admit(&mut self.native_feedback,kind,message as i16){return false;}if self.native_feedback.portraits_enabled!=0{let speaker=self.native_feedback.speaker.or(self.native_selected_slot);self.native_feedback.speaker=speaker;self.native_feedback.display_speaker=speaker;}let Some((index,voice))=feedback::voice(message)else{return true;};self.native_feedback.select_voice(voice);let play_audio=self.native_feedback.portraits_enabled==1&&self.native_feedback.sound_enabled!=0&&self.admit_native_sample([152,154,155,157,158,164][index],crate::original_audio::Gate::Direct).is_some();if play_audio{self.native_feedback.last_voice_ticks[index]=self.native_feedback.ui_clock;self.native_audio.notice_counter=self.native_audio.notice_counter.wrapping_add(1)&3;}let unit=self.native_feedback.speaker.and_then(|slot|self.units.iter().rfind(|u|u.native_slot==Some(slot)));let actor=unit.map(|u|u.team);let mut event=json!({"kind":"nativeVoice","message":message,"clip":voice.clip,"portraitType":kind,"phraseIndex":voice.phrase,"phraseLength":voice.length,"maximum":voice.maximum,"playAudio":play_audio,"team":unit.map_or(i32::from(self.native_feedback.local_team),|u|u.team),"unitId":unit.map(|u|u.id),"nativeSlot":self.native_feedback.speaker});self.tag_native_audio_event(&mut event,actor);self.events.push(event);true
+  if !feedback::admit(&mut self.native_feedback,kind,message as i16){return false;}if self.native_feedback.portraits_enabled!=0{let speaker=self.native_feedback.speaker.or(self.native_selected_slot);self.native_feedback.speaker=speaker;self.native_feedback.display_speaker=speaker;}let Some((index,voice))=feedback::voice(message)else{return true;};self.native_feedback.select_voice(voice);let play_audio=self.native_feedback.portraits_enabled==1&&self.native_feedback.sound_enabled!=0&&self.admit_native_sample(feedback::VOICE_SAMPLES[index],crate::original_audio::Gate::Direct).is_some();if play_audio{self.native_feedback.last_voice_ticks[index]=self.native_feedback.ui_clock;self.native_audio.notice_counter=self.native_audio.notice_counter.wrapping_add(1)&3;}let unit=self.native_feedback.speaker.and_then(|slot|self.units.iter().rfind(|u|u.native_slot==Some(slot)));let actor=unit.map(|u|u.team);let mut event=json!({"kind":"nativeVoice","message":message,"clip":voice.clip,"portraitType":kind,"phraseIndex":voice.phrase,"phraseLength":voice.length,"maximum":voice.maximum,"playAudio":play_audio,"team":unit.map_or(i32::from(self.native_feedback.local_team),|u|u.team),"unitId":unit.map(|u|u.id),"nativeSlot":self.native_feedback.speaker});self.tag_native_audio_event(&mut event,actor);self.events.push(event);true
  }
 }
+#[cfg(test)]
+#[path="original_retirement_notice_tests.rs"]
+mod retirement_notice_tests;
 #[cfg(test)]mod tests{
  use super::*;use crate::{original_group_game,Value};
  fn field()->Game{let mut g=Game::new(0,1,17);g.map.original=true;g.map.width=64;g.map.height=64;g.map.tiles=vec![0;4096];g.map.terrain_codes=vec![0;4096];g.map.native_terrain_plane=vec![0;16384];g.map.bridge_base=vec![-1;4096];g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.sectors.clear();g.native_world=None;g.ai_teams.clear();g.native_group_rosters=original_group_game::State::default();g.native_feedback=Default::default();g.native_feedback.initialize_for_mission();g.native_feedback.sound_enabled=1;g.native_feedback.ui_clock=100;g.native_view=Some(([0,0],[100,100]));g.spawn("grunt",0,640.,640.,1,None);g.spawn("grunt",1,704.,640.,2,None);g.maintain_native_group_rosters();g.import_native_world(&Value::Null);g.events.clear();g}

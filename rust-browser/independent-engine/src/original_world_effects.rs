@@ -2,6 +2,7 @@
 //!The viewport is explicit because native sprite phases advance only on draw.
 #[path="original_water_spray.rs"]pub(crate) mod spray;
 #[path="original_bridge_effects.rs"]pub(crate) mod bridge;
+#[path="original_fort_effects.rs"]pub(crate) mod fort;
 use crate::original_audio::spatial::Chance;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Kind{Hit,DirectHit,Destroyed,FallingObject(i16),CrateBurst,Poof{sprite:i16,maximum:i8},Fragment{sprite:i16,maximum:i8},AmbientFragment(i16)}

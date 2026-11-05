@@ -587,6 +587,20 @@ Rust-Test einschließlich früherer freier Plätze belegt. Die originale
 Familienkennung des ausgestiegenen Fahrers und ihre vollständige Darstellung
 sind durch diese Korrektur der Einheitenidentität nicht abgeglichen.
 
+WEITERER ABGLEICHSBLOCK NOV05-R59
+Der Abgleich zur Gruppenauflösung bestätigt die letzte passende Meldung
+aus einem belegten Gruppenplatz. Der Zielbonus wirkt auf die Mitglieder
+dieser Gruppe; die Reihenfolge wiederholter Einträge bleibt erhalten.
+Der Funkspruch wird im Einzelspiel aus sieben Originalaufnahmen gewählt.
+Im Mehrspieler nutzt der Originalpfad die erste davon und der Browser
+ordnet die Meldung dem berechtigten Empfänger zu. Ein laufender Spruch
+kann die neue Meldung unterdrücken.
+Fort-Bausteine für Warteschlange, Kamera-Ziel, Trümmer und Gelände wurden
+separat gegen das Original abgeglichen. Der Browser startet noch nicht die
+vollständige Fort-Sequenz. Sonderfälle ohne regulären Gruppenplatz greifen
+im Original auf gemeinsam genutzte Objektbytes zu; dafür fehlt die volle
+Anbindung im Spiel.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

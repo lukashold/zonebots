@@ -4,12 +4,21 @@ use crate::original_audio::main_ambient::{State as Ambient,Late};
 fn field(mp:bool)->Game{let mut g=crate::original_audio::main_ambient::tests::field(mp);g.map.world=0;g.import_native_world(&Value::Null);g.maintain_native_group_rosters();for m in g.native_group_rosters.members.iter_mut().flatten(){m.flags69|=64;}g}
 fn ambient(g:&Game)->Vec<i16>{g.events.iter().filter_map(|e|e["sampleId"].as_i64().filter(|id|(90..=100).contains(id)).map(|id|id as i16)).collect()}
 
+#[test]fn importing_a_mission_retires_fort_records_without_erasing_their_warm_payloads(){
+ let mut g=field(false);
+ let before=std::array::from_fn(|slot|std::array::from_fn(|byte|(slot*37+byte*11)as u8));
+ g.native_world.as_mut().unwrap().fort_scene_queue.0=before;
+ g.import_native_world(&Value::Null);
+ let queue=&g.native_world.as_ref().unwrap().fort_scene_queue;
+ for (slot,old) in before.iter().enumerate(){assert_eq!(queue.counter(slot),-1);assert_eq!(&queue.0[slot][4..],&old[4..]);}
+}
+
 #[test]fn main_ambient_main_reuses_one_terminal_controller_result_instead_of_consuming_pending(){
- let mut g=field(false);g.native_world.as_mut().unwrap().trail_scenes[0]=169;g.step(0.059);assert_eq!(g.native_world.as_ref().unwrap().trail_scenes[0],-1);assert_eq!(g.native_world.as_ref().unwrap().trail_main_result,Some(1));assert_eq!(g.native_main_ambient,Ambient{reload:39,pending:1});assert_eq!(g.native_cosmetic_rng,2531011,"only the Prefix CRT draw, no late draw after AL1");assert!(ambient(&g).is_empty());
+ let mut g=field(false);g.native_world.as_mut().unwrap().fort_scene_queue.store_counter(0,169);g.step(0.059);assert_eq!(g.native_world.as_ref().unwrap().fort_scene_queue.counter(0),-1);assert_eq!(g.native_world.as_ref().unwrap().trail_main_result,Some(1));assert_eq!(g.native_main_ambient,Ambient{reload:39,pending:1});assert_eq!(g.native_cosmetic_rng,2531011,"only the Prefix CRT draw, no late draw after AL1");assert!(ambient(&g).is_empty());
 }
 
 #[test]fn main_ambient_main_does_not_turn_unavailable_controller_into_a_zero_result(){
- let mut g=field(false);g.native_display.scene_mode=16;g.step(0.059);assert_eq!(g.native_world.as_ref().unwrap().trail_main_result,None);assert_eq!(g.native_main_ambient.pending,1);assert_eq!(g.native_cosmetic_rng,2531011);assert!(ambient(&g).is_empty());assert_eq!(g.finish_native_main_ambient(None),Late::Unavailable);assert_eq!(g.native_main_ambient.pending,1);
+ let mut g=field(false);g.native_feedback.scene_gate=16;g.step(0.059);assert_eq!(g.native_world.as_ref().unwrap().trail_main_result,None);assert_eq!(g.native_main_ambient.pending,1);assert_eq!(g.native_cosmetic_rng,2531011);assert!(ambient(&g).is_empty());assert_eq!(g.finish_native_main_ambient(None),Late::Unavailable);assert_eq!(g.native_main_ambient.pending,1);
 }
 
 #[test]fn main_ambient_real_robot_build_restore_crt_is_between_prefix_and_late(){
