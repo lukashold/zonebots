@@ -4,8 +4,8 @@ Game.native_cranes owns the single persistent 240-slot pool. NativeWorld has
 no crane pool. A phase belongs to a physical identity (mission epoch plus the
 existing upstream slot generation) and an explicit renderer binding. Only the
 real fresh 41b210 constructor receipt establishes known 9a=0. That receipt
-survives world=None and world import. A fresh foot record contains only the
-known phase and has no work auxiliary. A duplicate receipt or import is not a
+survives world=None and world import. A fresh foot record contains the known
+phase and constructor96 receipt, with no work auxiliary. A duplicate import is not a
 second constructor. Actual 57ff0 retains 9a, writes 86=FF and uses the existing
 owner for 28=2084. Entry, ordinary unload, APC occupation and APC unload rebind
 the same physical record. Death or a kind/entity change does not infer a fresh
@@ -17,8 +17,11 @@ work-overlay rows. FF/FE are negative signed phases and select arm frame 0.
 
 Crane is a transient kernel view, never the persistent pool record. Existing
 phase-59 playability retains an explicitly tainted auxiliary in the SAME
-record, with no second phase field. 57ff0 preserves existing auxiliary values
-except its actual 86=FF and the old decoded target invalidated by 28=2084. No
+record, with no second phase field. Field96 is now separately owned in that
+record, not in the auxiliary; only reached writer effects update it. The name
+observed57ff0_86ff denotes a historical receipt, not current86/full-work proof.
+57ff0 preserves existing values except its actual86FF and the old decoded
+target invalidated by28=2084. No
 foot record uses Crane::default; there is no full-work promotion. The auxiliary
 does not claim raw 96, saved/B1 or period knowledge. An unowned warm phase stays
 unknown to rendering. Its previous compatibility continuation can use an
@@ -47,6 +50,9 @@ generated native ABI cases. An optional unchanged external campaign adds
 SP/MP M14 takeover/repair and a real host/guest palette/RPC check. The guest
 never simulates. No Original assets or raw traces are embedded. Separate
 state tests cover import, generation, rebind, unknown warm state and reuse.
+
+Details of96 constructor knowledge, conservative legacy taint and ordered
+writer commits: ORIGINAL-KRAN-FELD96.txt.
 
 Source UI warm-stack admission, move/stop interruption, arbitrary save/load,
 unproved 96 lifetime and broader GPU/RNG/body parity remain separate boundaries.

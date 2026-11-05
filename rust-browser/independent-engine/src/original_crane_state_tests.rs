@@ -85,7 +85,7 @@ fn known_or_unknown_warm_phase_survives57ff0_and_only86_is_newly_known() {
             assert_eq!((r.work9a, r.work9a_known), (value, known));
             let a = r.auxiliary.as_ref().unwrap();
             assert_eq!(a.frame86, -1);
-            assert!(a.known86 && a.tainted());
+            assert!(a.observed57ff0_86ff && a.tainted());
             assert!(s.rebind(5, 1, 19, 5));
             assert_eq!(s.phase9a(5, 1, 5), known.then_some(value));
         }
@@ -97,13 +97,23 @@ fn legacy_playability_auxiliary_cannot_promote_an_unowned_warm_phase() {
     let mut c = s.view_for_legacy_crane(5, 9, 19);
     assert!(!c.work9a_known);
     c.mouth96 = 7;
+    assert!(s.write96(
+        5,
+        s.key(9),
+        19,
+        Write96::Mouth {
+            before: 0,
+            after: 7
+        },
+        Authority96::TaintedLegacy
+    ));
     c.saved = [100, 200];
     s.store(5, 9, c);
     assert_eq!(s.phase9a(5, 9, 19), None);
     let r = s.slots[5].as_ref().unwrap();
     assert!(r.auxiliary.as_ref().unwrap().tainted());
-    assert!(!r.known86);
-    assert_eq!(r.mouth96, 7);
+    assert!(!r.observed57ff0_86ff);
+    assert_eq!(r.field96.value, 7);
     assert_eq!(r.saved, [100, 200]);
 }
 #[test]
@@ -114,6 +124,16 @@ fn constructor57ff0_preserves_existing_tainted_auxiliary_bytes_and_only_replaces
     c.work9a = 71;
     c.work9a_known = true;
     c.mouth96 = 37;
+    assert!(s.write96(
+        5,
+        s.key(1),
+        19,
+        Write96::Mouth {
+            before: 0,
+            after: 37
+        },
+        Authority96::TaintedLegacy
+    ));
     c.saved = [123, 456];
     c.interval87 = 29;
     c.delay82 = 35;
@@ -125,7 +145,13 @@ fn constructor57ff0_preserves_existing_tainted_auxiliary_bytes_and_only_replaces
     assert_eq!((r.work9a, r.work9a_known), (71, true));
     assert_eq!((r.frame86, r.target), (-1, None));
     assert_eq!(
-        (r.mouth96, r.saved, r.interval87, r.delay82, r.approach_b1),
+        (
+            r.field96.value,
+            r.saved,
+            r.interval87,
+            r.delay82,
+            r.approach_b1
+        ),
         (37, [123, 456], 29, 35, Some(3))
     );
     assert!(r.auxiliary.as_ref().unwrap().tainted());

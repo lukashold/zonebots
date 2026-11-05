@@ -1,0 +1,44 @@
+Bounded UNIT96 owner and writer effects
+
+The existing Game.native_cranes 240-slot physical pool owns Field96. Its value
+and knowledge are independent of9a and of the work auxiliary. The real41b210
+constructor receipt establishes96=0 before NativeWorld exists. World import,
+57ff0 and renderer rebind preserve it. Unknown warm records get no constructor
+receipt. A fresh Foot has no Auxiliary and cannot become a default work DTO.
+Auxiliary no longer contains96, so there is one persistent value per slot.
+
+The old known86 name is now observed57ff0_86ff. It records that the actual
+57ff0 writer was observed. It intentionally remains historical if a legacy
+frame later changes; it is not proof of the current86 value or a FullWork
+readset. The work auxiliary remains explicitly tainted.
+
+crane::tick emits a typed effect at each reached source96 store:44fe18 after
+the mouth calculation, BEFORE Common;44fe77 only after the existing successful
+FE/52960 branch. The latter precedes job creation, as in the source. The kernel
+continues to read9a after Common can modify it. An unreached overlay, failed
+Common or busy52960 cannot fabricate a completion write.
+
+The Game adapter commits each effect immediately using the captured mission
+epoch, existing upstream generation and exact renderer binding. A reached
+prefix effect survives a subsequent Common failure or retirement. A stale
+effect cannot update a reused slot or a new mission with repeated IDs. Later
+bulk DTO storage neither writes96 nor reconstructs its knowledge from equal
+numbers. No new generation, tombstone, route, phase or admission was added.
+
+Current live callbacks use TaintedLegacy authority. Their numerical96 updates
+remain compatible with the previous kernel, but their clock/CRT/work-branch
+readsets are not promoted to source knowledge. A future caller must explicitly
+prove its reached readset before a prefix can preserve knownness. A genuinely
+reached constant44fe77 can establish known0 under such a proof, independent of
+the old byte; a UI completion message cannot do so. No current live callback
+uses that stronger authority.
+
+Verification includes fixed public numeric goldens for192 original prefix
+writer projections (FNV1782045295) and512 real constructor/takeover96 images
+(FNV1875346885). With Z_NATIVE_TRACE_DIR, each selected raw field is compared
+additionally. The original3072 phase59,2048 draw,6144 Common-prefix and Bridge
+kernels retain their existing wider checks and boundaries. Tests exercise
+world=None/import, unknown warm state, binding/generation/epoch rejection,
+actual retirement/reuse, pre-Common persistence, post-Common9a and reached
+completion ordering. This is a field ownership change, not full native59,
+arbitrary save/load, arena-alias, CRT-lifetime or whole-game parity.

@@ -38,7 +38,7 @@ impl Game {
                     .as_mut()
                     .and_then(|r| r.auxiliary.as_mut())
                 {
-                    a.known86 = false;
+                    a.observed57ff0_86ff = false;
                 }
             }
         }

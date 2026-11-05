@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.073 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
+1.082 Rusttests bestanden;12 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen11 Programme anschließend).
 Doctests bestanden (0 vorhanden).93/93 Node-Prüfprogramme im aktuellen
-nov05-r50 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r51 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: c293498c0712017612a1859db7cbf9f52c0d6bd9969e2bf0c976014e51fec364
+Wasm SHA256: 2b060b31b7215d78010ecbcc8ffa04e7e8762de0090803671c74c0c5b74017c2
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,36 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R51
+- Das interne Kranfeld96 liegt nur noch einmal im vorhandenen physischen
+  Game240-Datensatz. Seine Konstruktorherkunft ist von der Kranphase und von
+  unvollständigen Arbeits-Hilfsdaten getrennt. Import, Übernahme, Retirement
+  und Rendererwechsel erzeugen keinen zweiten Wert oder neuen Konstruktor.
+- Erreichte Schreibschritte44fe18/44fe77 werden direkt an ihrem Aufrufpunkt
+  mit gespeicherter Missionsepoche, Slotgeneration und Rendererbindung
+  übernommen. Der erste liegt vor Common und bleibt bei dessen späterem
+  Fehlschlag erhalten. Spätere DTO-Speicherung kann96 nicht zurücksetzen.
+  Beide bestehenden Live-Arbeitszweige bleiben konservativ tainted; keine
+  neue0/FF-Annahme oder vollständige Arbeitsberechtigung wurde freigeschaltet.
+- Neun neue Tests prüfen unbekannte/warme/ungebundene Zustände, echte
+  Wiederverwendung, wiederholte IDs nach Missionswechsel, Schreibreihenfolge
+  und veraltete Daten.192 ursprüngliche Schreiberprojektionen und512
+  Konstruktorbilder besitzen feste öffentliche Vergleichssignaturen; private
+  Aufzeichnungen vergleichen zusätzlich jedes ausgewählte Feld.
+- Der fertige Release besteht1082 normale Rusttests,12 separat ausgeführte
+  Privatdiagnostiken und93 Browser-Prüfprogramme. Alle38 Brückenfälle und alle
+  21 Werkstätten bestehen. Die unveränderte M14-Übernahme besteht zusätzlich
+  in SP/MP, vor Reparatur mit drei normalen Layern; die Brücke endet weiterhin
+  bei623 Callbacks plus150 stabilen Folgecallbacks. Sieben Commonzustände
+  passieren14 RPCs/14 Draws und zwei APCzustände vier RPCs/vier Draws.
+  Eigene Browserprüfung M19/Normal/Originalgrafik ohne Warnungen oder Fehler,
+  anschließend geschlossen. Nutzerfenster unberührt; kein neuer GPU-/PCM-Beleg.
+Details: ORIGINAL-KRAN-FELD96.txt und ORIGINAL-KRAN-ZUSTAND.txt.
+Der getrennte Read-only-Abgleich findet für den Commonmarker58592b keinen
+belegten Audioverbrauch. Er rechtfertigt keinen erfundenen Bewegungston.
+Der tatsächlich gefundene Main-Ambientaufruf und der vollständige Fortablauf
+bleiben weitere Integrationspunkte; sie sind hier nicht als portiert gewertet.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R50
 - Kranphase9a bleibt in genau einem generations- und missionsgebundenen

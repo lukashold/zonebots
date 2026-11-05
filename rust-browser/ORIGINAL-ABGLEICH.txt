@@ -463,6 +463,26 @@ Der folgende offene Bericht bleibt verbindlich. Insbesondere die vollständige
 APC-Automatik, Kranarbeits-Readsets und der mehrstufige Fortcontroller sind durch
 diese beiden Korrekturen nicht abgeschlossen.
 
+WEITERER ABGLEICHSBLOCK NOV05-R51
+Kranfeld96 besitzt einen einzigen physischen Wert mit gesonderter Herkunft.
+Die reale Konstruktion setzt0; Import und identitätserhaltende Übergänge tun
+dies nicht. Erreichte Schreiber werden an44fe18 vor Common beziehungsweise
+an44fe77 vor dem Job mit der tatsächlich gespeicherten Identität übernommen.
+Ein späterer Commonfehler oder veraltetes DTO kann diesen Schritt nicht
+zurückrollen. Das frühere known86 heißt jetzt observed57ff0_86ff und bleibt
+ausdrücklich ein historischer Beleg, keine Kenntnis des aktuellen Arbeitsframes.
+Die bestehende Arbeitslogik darf ihre unbewiesenen Eingaben dadurch nicht
+als vollständig originalgetreu ausgeben. Ihre beiden96-Schreiber bleiben im
+Livepfad tainted. Die0/FF-/Overlay-/Kontakt-Readsets sind weiter zu schließen.
+Details: ORIGINAL-KRAN-FELD96.txt. Alle bisherigen Brücken-/Werkstatt- und
+Missionsprüfungen bestehen mit dem aktuellen Release.
+
+Der zusätzliche Common-Abgleich belegt keinen Audioverbrauch von58592b;
+dieses Byte bleibt beim gemeinsamen Bewegungsbesitzer. Ein eigener Main-
+Ambientcaller ist tatsächlich vorhanden, braucht aber gesonderte Timer-/
+Missions-/CRT-Lebensdauer und seinen späten Aufrufpunkt. Fortcontroller,
+vollständige APC-Automatik und ganze identische Originalpartien bleiben offen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

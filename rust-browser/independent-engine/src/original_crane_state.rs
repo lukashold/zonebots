@@ -1,7 +1,7 @@
 //! Sole persistent UNIT9a owner. Physical construction, not world import or
 //! renderer identity, establishes a known byte. `Crane` is a transient kernel
 //! view; legacy auxiliary values never constitute a complete raw work context.
-use super::crane::Crane;
+use super::crane::{Crane, Write96};
 use std::ops::{Deref, DerefMut};
 #[path = "original_crane_state_game.rs"]
 mod game;
@@ -10,30 +10,64 @@ pub struct Identity {
     pub epoch: u64,
     pub generation: u64,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Knowledge96 {
+    Tainted,
+    Fresh41b210,
+    Mouth44fe18,
+    Completion44fe77,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Field96 {
+    pub value: u8,
+    pub knowledge: Knowledge96,
+}
+impl Field96 {
+    fn fresh() -> Self {
+        Self {
+            value: 0,
+            knowledge: Knowledge96::Fresh41b210,
+        }
+    }
+    fn tainted(value: u8) -> Self {
+        Self {
+            value,
+            knowledge: Knowledge96::Tainted,
+        }
+    }
+    pub fn is_known(self) -> bool {
+        self.knowledge != Knowledge96::Tainted
+    }
+}
+/// No live legacy caller in this slice admits the complete input readset.
+/// Numeric equality, DTO storage and a historical86 receipt cannot grant it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Authority96 {
+    TaintedLegacy,
+    ProvenReachedReadset,
+}
 #[derive(Clone, Debug)]
 pub struct Auxiliary {
     pub target: Option<usize>,
     pub frame86: i8,
-    pub mouth96: u8,
     pub interval87: i8,
     pub delay82: i16,
     pub saved: [i16; 2],
     pub approach_b1: Option<u8>,
-    ///Only57ff0's actual86FF is established in this slice. No default field
-    ///is promoted by knowing9a, accepting repair, or running the legacy body.
-    pub known86: bool,
+    /// Historical observation only. Legacy frame changes preserve this receipt;
+    /// it is NOT proof that the current86 value/readset is source-known.
+    pub observed57ff0_86ff: bool,
 }
 impl Auxiliary {
     fn legacy() -> Self {
         Self {
             target: None,
             frame86: -1,
-            mouth96: 0,
             interval87: 0,
             delay82: 0,
             saved: [0; 2],
             approach_b1: None,
-            known86: false,
+            observed57ff0_86ff: false,
         }
     }
     pub fn tainted(&self) -> bool {
@@ -46,6 +80,7 @@ pub struct Record {
     pub entity: usize,
     pub work9a: u8,
     pub work9a_known: bool,
+    pub field96: Field96,
     pub auxiliary: Option<Auxiliary>,
 }
 impl Deref for Record {
@@ -70,6 +105,8 @@ impl Record {
             entity,
             work9a,
             work9a_known: known,
+            // A phase-only warm record cannot infer a constructor96 receipt.
+            field96: Field96::tainted(0),
             auxiliary: None,
         }
     }
@@ -86,7 +123,7 @@ impl Record {
             work9a: self.work9a,
             work9a_known: self.work9a_known,
             frame86: a.frame86,
-            mouth96: a.mouth96,
+            mouth96: self.field96.value,
             interval87: a.interval87,
             delay82: a.delay82,
             saved: a.saved,
@@ -97,26 +134,30 @@ impl Record {
         self.legacy_view()
     }
     fn store_view(&mut self, c: Crane) {
-        let known86 = self.auxiliary.as_ref().is_some_and(|a| a.known86);
+        let observed57ff0_86ff = self
+            .auxiliary
+            .as_ref()
+            .is_some_and(|a| a.observed57ff0_86ff);
         self.entity = c.entity;
         self.work9a = c.work9a;
         self.work9a_known = c.work9a_known;
         self.auxiliary = Some(Auxiliary {
             target: c.target,
             frame86: c.frame86,
-            mouth96: c.mouth96,
             interval87: c.interval87,
             delay82: c.delay82,
             saved: c.saved,
             approach_b1: c.approach_b1,
-            known86,
+            observed57ff0_86ff,
         });
+        // field96 is not copied from this bulk DTO. Its reached writer effect
+        // already commits at the source stage, even if Common later fails.
     }
     fn initializer57ff0(&mut self) {
         let mut a = self.auxiliary.take().unwrap_or_else(Auxiliary::legacy);
         a.target = None; //Actual28=2084 is not a BUILD/Bridge binding.
         a.frame86 = -1;
-        a.known86 = true;
+        a.observed57ff0_86ff = true;
         self.auxiliary = Some(a);
     }
     #[cfg(test)]
@@ -158,6 +199,7 @@ impl State {
             return;
         }
         let mut r = Record::phase(key, entity, 0, true);
+        r.field96 = Field96::fresh();
         if crane {
             r.initializer57ff0();
         }
@@ -175,6 +217,42 @@ impl State {
         self.bound(slot, generation, entity)
             .filter(|r| r.work9a_known)
             .map(|r| r.work9a)
+    }
+    pub fn write96(
+        &mut self,
+        slot: usize,
+        identity: Identity,
+        entity: usize,
+        effect: Write96,
+        authority: Authority96,
+    ) -> bool {
+        let epoch = self.epoch;
+        let Some(r) = self
+            .slots
+            .get_mut(slot)
+            .and_then(Option::as_mut)
+            .filter(|r| identity.epoch == epoch && r.identity == identity && r.entity == entity)
+        else {
+            return false;
+        };
+        let knowledge = match effect {
+            Write96::Mouth { before, .. }
+                if authority == Authority96::ProvenReachedReadset
+                    && r.field96.is_known()
+                    && r.field96.value == before =>
+            {
+                Knowledge96::Mouth44fe18
+            }
+            Write96::CompletionZero if authority == Authority96::ProvenReachedReadset => {
+                Knowledge96::Completion44fe77
+            }
+            _ => Knowledge96::Tainted,
+        };
+        r.field96 = Field96 {
+            value: effect.value(),
+            knowledge,
+        };
+        true
     }
     pub fn rebind(&mut self, slot: usize, generation: u64, old: usize, new: usize) -> bool {
         let key = self.key(generation);
@@ -242,6 +320,9 @@ impl State {
         }
     }
 }
+#[cfg(test)]
+#[path = "original_crane_field96_tests.rs"]
+mod field96_tests;
 #[cfg(test)]
 #[path = "original_crane_state_tests.rs"]
 mod tests;
