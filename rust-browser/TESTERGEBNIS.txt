@@ -1,12 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.134 Rusttests bestanden;24 Privatdiagnostiken separat erfolgreich ausgeführt
-(alle38 Brückenfälle in einem Programm, die übrigen13 Programme anschließend).
-Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r59 bestanden, einschließlich aller20 privaten Missionen.
+1.137 Rusttests und 40 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 95/95 Node-Prüfprogramme im
+aktuellen nov05-r60 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 393b5e49a5f61e0df83d8f9096b5ee39851e008cd9cf19a466db250ce005e529
+Wasm SHA256: bf3030dc4a52eb55a8646c52b95cf4be84e9317983dde52717083e5884826fee
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +40,19 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R60
+- Einzelspieler: Beide Torseiten in allen 20 Originalmissionen starten die
+  Fort-Sequenz. Beschuss unterscheidet Null und negative Fort-Lebenspunkte.
+  Mission 1 durchläuft beide Ergebnisse über die Spielschleife.
+- Im normalen Wasm-Build führt ein Klick eine Teilauswahl durchs gegnerische
+  Tor bis zum Sieg. Geprüft sind 169 Sequenzschritte, 16 Kameraschritte,
+  Original-Funksprüche, angehaltene Ergebnisuhr und ein sauberer Neustart.
+- 76 Originalfälle prüfen den Abbau des Teams und die freigegebenen Fahrzeuge;
+  128 weitere prüfen Wrackeffekte und ihren Zufallszustand. Mission 1 startet
+  in einem separaten Browser-Tab mit Originalgrafik ohne Konsolenfehler.
+- Die Mehrspieler-Fort-Sequenz ist noch nicht aktiv. Die zwei bisherigen
+  Mehrspieler-Renderprüfungen mit echten Spielzuständen bestehen weiterhin.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R59
 - Löst sich eine Gruppe vollständig auf, erhält die Gruppe mit der letzten

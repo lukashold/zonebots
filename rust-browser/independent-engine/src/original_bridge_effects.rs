@@ -9,7 +9,7 @@ pub struct Raw{pub byte32:u8,pub payload36:u32,pub payload40:u32,pub command:u32
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
 pub struct Globals{pub context:Context,pub maximum:u8,pub suppression:u8,pub raw:Raw}
 pub trait World:Pool{fn retire(&mut self,slot:usize);fn before_emit(&mut self,_count:u16,_g:&Globals){}}
-#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Constructor{Bridge,Hit}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Constructor{Bridge,Hit,JeepWreck,BlockedWreck}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub struct Sprites{pub prefix:i16,pub children:[i16;2]}
 pub fn native_sprites(world:usize)->Option<Sprites>{Some(Sprites{prefix:*[1138,1186,1174,1150,1162].get(world)?,children:*[[1578,1586],[3347,3355],[3291,3299],[3235,3243],[3403,3411]].get(world)?})}
 pub fn engine_sprites(world:usize)->Option<Sprites>{native_sprites(*[0,3,1,4,2].get(world)?)}
@@ -21,6 +21,8 @@ pub fn common(record:&mut[u8;44],g:&Globals){
 pub fn construct(record:&mut[u8;44],kind:Constructor,mut random:impl FnMut()->u32){match kind{
  Constructor::Bridge=>{let seed=crate::original_fragment_blast::water_seed(&mut random);record[23]=seed.phase as u8;for(i,v)in seed.velocity.into_iter().enumerate(){record[10+i]=v as u8;}record[13]=1;record[14]=3;word(record,18,500);word(record,20,11);word(record,30,seed.spin);word(record,28,0);}
  Constructor::Hit=>{record[23]=(random()&3)as u8;let x=(random()&15)as u8;record[10]=x.wrapping_add((random()&7)as u8).wrapping_sub(12);let y=(random()&15)as u8;record[11]=y.wrapping_add((random()&7)as u8).wrapping_sub(12);record[12]=(-4i8).wrapping_sub((random()&7)as i8)as u8;word(record,20,if i16::from_le_bytes(record[26..28].try_into().unwrap())==1903{4}else{0});word(record,18,200);record[13]=2;record[14]=1;}
+ Constructor::JeepWreck=>{record[23]=0;for field in [10,11]{record[field]=((((random()&31)as i8)-16)>>1)as u8;}random();record[22]|=48;word(record,12,499);record[14]=1;record[18..22].copy_from_slice(&0xa003cu32.to_le_bytes());word(record,30,(random()&63)as i16-32);word(record,28,0);}
+ Constructor::BlockedWreck=>{record[23]=0;for field in [10,11]{record[field]=(random()&31).wrapping_sub(16)as u8;}record[12]=(-2i8-(random()&3)as i8)as u8;word(record,13,0x303);record[18..22].copy_from_slice(&200u32.to_le_bytes());}
 }}
 pub fn emit(w:&mut impl World,g:&mut Globals,count:u16,kind:Constructor)->usize{
  w.before_emit(count,g);if g.suppression!=0{return 0;}let mut made=0;for _ in 0..count{let Some(slot)=w.first_free()else{break;};let mut r=w.load(slot);common(&mut r,g);g.raw.last_record=Some(NATIVE_POOL.wrapping_add((slot as u32).wrapping_mul(44)));construct(&mut r,kind,||w.random());w.store(slot,r);made+=1;}made

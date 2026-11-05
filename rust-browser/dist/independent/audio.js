@@ -113,7 +113,7 @@ window.RadioAudio=(()=>{
  }
  return {load,unlock:boot,setLanguage(value){lang=value==='en'?'en':'de';},set(key,value){if(!(key in levels)||!Number.isFinite(+value))return;levels[key]=Math.max(0,Math.min(1,+value));if(key==='voice'&&levels.voice===0){stopVoice();stopNativeVoices();}mix();if(key==='voice'&&levels.voice>0)pump();},
   mute(value){enabled=!value;if(value){nativeEffectToken++;stopVoice();stopNativeVoices();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();music?.pause();}else syncMusic();mix();},
-   resetNativeEvents,setNativeHardwareAudioContext,setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,nativeVoice,nativeSample,
+   haltNativeChannels(){nativeEffectToken++;stopVoice();stopNativeVoices();for(const source of activeEffects){try{source.stop();}catch{}}activeEffects.clear();},resetNativeEvents,setNativeHardwareAudioContext,setScene(value,index=0){scene=value;world=+index||0;syncMusic();},say,effect,nativeVoice,nativeSample,
   nativeSettings(){return {soundEnabled:enabled,effectsEnabled:enabled};},
   voicePose(){return activeVoicePose&&ctx?{clip:activeVoicePose.clip,seconds:Math.max(0,ctx.currentTime-activeVoicePose.started)}:null;},
   status(){return {original:Boolean(manifest),unlocked,enabled,scene,world,music:music?.src||null,musicTime:music?.currentTime||0,musicPaused:music?.paused??true,musicError:music?.error?.code||null,contextState:ctx?.state||'locked',speaking,queued:queue.length};}};

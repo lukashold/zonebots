@@ -601,6 +601,21 @@ vollständige Fort-Sequenz. Sonderfälle ohne regulären Gruppenplatz greifen
 im Original auf gemeinsam genutzte Objektbytes zu; dafür fehlt die volle
 Anbindung im Spiel.
 
+WEITERER ABGLEICHSBLOCK NOV05-R60
+In der Einzelspielerkampagne löst der Kontakt mit den Torfeldern jetzt die
+Fort-Sequenz aus. Beschuss löst sie erst bei negativem Fort-HP aus. Ein
+Kontextklick ins Fort wird zum Marschbefehl, wenn die Infanterie dort nicht
+angreifen kann. Auch eine geteilte Auswahl behält ihr Ziel beim Gruppenwechsel.
+Die Sequenz räumt die Produktion und Auswahl, schwenkt in 16 Kameraschritten,
+verwendet die geprüften Trümmer- und Funkspruchaufrufe und wertet das Ergebnis
+im letzten Schritt. Die Einzelspielzeit bleibt ab der Fort-Ausblendung stehen.
+Beim Abbau der blauen Einheiten unterscheiden sich zerstörte und wieder
+besetzbare Fahrzeuge; letzterer Fall übernimmt den tatsächlichen Fahrzeugzustand.
+Geprüft: beide Torseiten in allen 20 Missionen, zwei Abläufe durch die
+Spielschleife in Mission 1, ein Marsch bis zum Sieg mit dem normalen Wasm-Build,
+76 originale Team-Abbau-Kontexte und 128 originale Wrackeffekt-Kontexte.
+Die Mehrspieler-Partien verwenden weiterhin ihren bisherigen Abschluss.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -629,8 +644,9 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    Funkereignisse sind damit nicht durchgehend
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
-   maschinenanimationen und der globale Sieg-/Zwischensequenzcontroller sind
-   weiterhin offen. Normale Queuevergleiche belegen diese Sonderfälle nicht.
+   maschinenanimationen sowie Palette und weitere Abschlusszweige sind offen.
+   Die Fort-Sequenz im Mehrspieler und die Kopplung der erzwungenen Befehle
+   an dessen Originaltakt sind noch nicht angebunden.
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem
    Zufallszustand sind nicht durchgehend gegen das Original aufgezeichnet.
 6. Online/LAN nutzt das eigene WebRTC-/Hostprotokoll. Das Originalnetzwerkprotokoll,

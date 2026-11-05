@@ -79,7 +79,7 @@ mod retirement_notice_tests;
   let mut hash=2166136261u32;
   for scenario in 0..64u32{
    let hardware=scenario&1!=0;let camera=(scenario/2&1)as i16*1000;let local=(scenario/4&1)as u8;let enabled=scenario/8&1!=0;let cooldown=if scenario/16&1!=0{5}else{0};let busy=scenario/32&1!=0;
-   let mut g=field();g.multiplayer=true;g.native_feedback.ui_clock=500;g.native_view=Some(([camera,0],[640,480]));g.native_display.fort_visible=[2;2];
+   let mut g=field();g.multiplayer=true;g.native_feedback.ui_clock=500;g.native_view=Some(([camera,0],[640,480]));g.native_display.fort_visible=[2,2,0,0];
    for(i,team,group,x)in[(0,1,4,200.),(1,0,3,2400.)]{let slot=g.units[i].native_slot.unwrap();g.units[i].team=team;g.units[i].x=x;g.units[i].y=200.;let m=g.native_group_rosters.members[slot].as_mut().unwrap();m.flags31=(team as u8)|4;m.flags69=0;m.group=group;}
    g.native_group_rosters.pool[3].roster[64]=if hardware{0}else{cooldown};g.native_group_rosters.pool[4].roster[64]=if hardware{cooldown}else{0};g.events.clear();
    let rng=g.original_rng.words;let crt=g.native_cosmetic_rng;let mut projection=None;

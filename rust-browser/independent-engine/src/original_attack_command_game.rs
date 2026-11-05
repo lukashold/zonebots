@@ -17,7 +17,17 @@ impl Game{
   let input=Input{hardware:matches!(self.units[primary].native_class7c,1|2),point,fallback_point:point,inside_view:true,cursor_icon:0xadf,override_ground:None,repair_records:None};
   //No workshop timer or absent saved-class/link byte is invented. These
   //typed unavailable-context cases retain the existing interaction backend.
-  if self.classify_native_human_attack(primary,&input).is_err(){return false;}
+  let decision=match self.classify_native_human_attack(primary,&input){Ok(d)=>d,Err(_)=>return false};
+  if self.native_fort_sequence_enabled()&&kind=="attackBuilding"&&v["nativeAttackOnly"]!=true&&!input.hardware&&decision.return_code!=0&&
+      v["target"].as_u64().is_some_and(|id|self.buildings.iter().any(|b|b.id as u64==id&&b.kind=="fort")){
+   // 438cf0 continues to 4416b0 when the infantry attack classifier
+   // returns nonzero for an ordinary context click. Retain the clicked
+   // terrain coordinate, not the outside gate used for an attack approach.
+   let mut command=v.clone();let request=command.as_object_mut().unwrap();
+   request.remove("target");request.insert("kind".into(),json!("move"));
+   request.insert("x".into(),json!(i32::from(point[0])*2));request.insert("y".into(),json!(i32::from(point[1])*2));
+   self.command(&command);return true;
+  }
   let before=self.native_selection.clone();let mut groups=vec![];
   for &i in &eligible{if let Some(g)=self.units[i].native_slot.and_then(|s|self.native_group_rosters.members[s].as_ref()).map(|m|m.group).filter(|&g|g!=255){if !groups.contains(&g){groups.push(g);}}}
   self.select_native_groups(&groups);

@@ -9,6 +9,43 @@ pub(crate) enum Burst { First, Second }
 const FIRST_CONSTRUCTOR: u32 = 0x4032e0;
 const SECOND_CONSTRUCTOR: u32 = 0x4020f0;
 
+/// Particle request after the same-actor suppressed removal returns.
+/// The source sets the constructor globals even if no pool slot is usable.
+pub(crate) fn release_poof(world:&mut impl bridge::World,globals:&mut Globals,point:[i16;2],flags64:u8)->usize {
+    globals.context.origin=[point[0].wrapping_sub(152),point[1].wrapping_sub(84)];
+    globals.context.owner=flags64&3;
+    globals.context.fade=0;
+    globals.context.flags=12;
+    globals.context.sprite=1903;
+    globals.maximum=7;
+    globals.raw.constructor=Some(bridge::HIT_CONSTRUCTOR);
+    bridge::emit(world,globals,1,bridge::Constructor::Hit)
+}
+
+/// 420890 precedes the jeep's insertion test. 458930 overrides effect
+/// suppression only for the spray requested by a rejected footprint.
+pub(crate) fn retirement_contact(world:&mut impl bridge::World,globals:&mut Globals,point:[i16;2],flags64:u8,jeep:bool)->usize {
+    globals.context.owner=flags64&3;
+    globals.context.flags=12;
+    let suppression=globals.suppression;
+    let (kind,count)=if jeep{
+        globals.context.origin=[point[0].wrapping_sub(152),point[1].wrapping_sub(84)];
+        globals.context.fade=1;globals.context.sprite=58;globals.maximum=7;
+        globals.raw.constructor=Some(0x403200);
+        (bridge::Constructor::JeepWreck,1)
+    }else{
+        let aligned=point.map(|v|v.wrapping_add(7)&!15);
+        globals.context.origin=[aligned[0].wrapping_sub(154),aligned[1].wrapping_sub(80)];
+        globals.context.fade=0;globals.context.sprite=557;globals.maximum=5;
+        globals.raw.constructor=Some(0x4017b0);
+        globals.suppression=0;
+        (bridge::Constructor::BlockedWreck,64)
+    };
+    let made=bridge::emit(world,globals,count,kind);
+    globals.suppression=suppression;
+    made
+}
+
 fn emit(world: &mut impl Pool, globals: &mut Globals, burst: Burst) -> usize {
     globals.raw.constructor = Some(match burst { Burst::First => FIRST_CONSTRUCTOR, Burst::Second => SECOND_CONSTRUCTOR });
     if globals.suppression != 0 { return 0; }

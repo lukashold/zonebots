@@ -19,9 +19,8 @@ impl Game{
  pub(crate)fn begin_native_owner4_main(&mut self){if let Some(s)=&mut self.native_world{s.trail_draws.clear();}}
  ///460430 initializes all four scene headers to-1.423140 returns0 without
  ///a child callback when all are-1/0; active cutscene handlers remain explicit.
- // Keep the existing Main boundary until all live scene actions are bound.
- // Its fixture counters now occupy the real four-record queue layout.
  pub(crate)fn native_trail_scene_result(&mut self)->Option<u8>{
+  if self.native_fort_sequence_enabled(){return self.advance_native_fort_scene_queue();}
   let s=self.native_world.as_mut()?;
   if self.native_feedback.scene_gate!=0&&(0..4).all(|i|s.fort_scene_queue.counter(i)==-1){s.trail.boundary=Some(trail::Boundary{address:0x622b90,length:80});return None;}
   for i in 0..4{let counter=s.fort_scene_queue.counter(i);if matches!(counter,-1|0){continue;}

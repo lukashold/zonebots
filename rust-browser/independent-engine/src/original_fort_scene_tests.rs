@@ -73,10 +73,9 @@ impl World for Probe {
             Action::PanToFort { base } => Some([0x4229e0, i32::from(base[0]), counter]),
             // The intercepted original recorded the base in caller registers;
             // it did not record the rectangle's four stack inputs.
-            Action::Disperse { center, base_x, reverse } => {
+            Action::Disperse { base, reverse } => {
                 assert_eq!(reverse, self.context.owner == 2);
-                assert_eq!(center[0], (base_x as i16).wrapping_add(160));
-                Some([0x456480, i32::from(base_x), i32::from(center[1].wrapping_sub(160))])
+                Some([0x456480, i32::from(base[0] as u16), i32::from(base[1])])
             }
             Action::FirstBurst { base } => Some([0x422e00, i32::from(base[0]), i32::from(base[1])]),
             Action::SecondBurst { base } => Some([0x422a60, i32::from(base[0]), i32::from(base[1])]),

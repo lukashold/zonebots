@@ -46,6 +46,28 @@ pub fn conversion(input:ConversionInput)->Conversion{
 ///58af0 serializes the remaining hull in25-point units, reserving zero for
 ///other meanings. Signed negative hulls still leave an OBJECT with one HP.
 pub fn object_hull(hull:i16)->u8{let value=(i32::from(hull)/25)as u8;if hull<0||value==0{1}else{value}}
+
+pub(crate) struct ReleasedHardware {
+    pub attributes:crate::original_entry::ObjectHardware,
+    pub hull:u8,
+    pub maximum:u8,
+}
+
+/// The payload copy uses the W pointer read after object allocation. A
+/// freed slot still supplies its warm bytes when UNIT+8 points to it. Only
+/// a null or -1 pointer selects the shared dummy W record.
+pub(crate) fn released_hardware(w:crate::original_entry::HardwareAttributes,kind:u16)->ReleasedHardware {
+    let mut attributes=crate::original_entry::ObjectHardware::default();
+    for (to,from) in [(14,5),(17,6),(16,7),(24,32),(25,33),(27,35),(28,36),(29,37),(30,38)] {
+        attributes.set_byte(to,w.byte(from));
+    }
+    if kind==31 {attributes.set_byte(17,0);}
+    ReleasedHardware {attributes,hull:object_hull(w.word(8)),maximum:(w.word(10)/25) as u8}
+}
+
+#[cfg(test)]
+#[path="original_fort_release_hardware_tests.rs"]
+mod fort_release_hardware_tests;
 ///43f200's word24 uses all16 bits. Zero means no expiry; every other bit
 ///pattern decrements with wrapping arithmetic and expires only on reaching0.
 pub fn advance_object_lifetime(value:&mut i16)->bool{if *value==0{return false;}*value=value.wrapping_sub(1);*value==0}

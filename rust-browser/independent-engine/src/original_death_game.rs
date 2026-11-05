@@ -1,14 +1,20 @@
 //!Game binding for the separate native removal sprite pool.
 use super::{Game,Unit,json,original_combat,original_death::{self,Action,RemovalSource}};
+use super::original_fort_scene::cleanup::Force;
 impl Game{
  ///58ec0 without the caller's contact explosions/audio or41eb30's familyFF
  ///override. An already inactive slot returns before conversion and RNG.
  pub(crate) fn native_remove_actor(&mut self,index:usize,suppressed:bool,forced:bool)->bool{
   let Some(before)=self.units.get(index).cloned()else{return false;};
   if !before.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).is_some_and(|m|m.flags31&4!=0){return false;}
-  self.native_remove_actor_from(index,&before,suppressed,forced,false);self.units[index].hp=-1.;true
+  self.native_remove_actor_from(index,&before,suppressed,forced,false,None);self.units[index].hp=-1.;true
  }
- fn native_remove_actor_from(&mut self,index:usize,before:&Unit,suppressed:bool,forced:bool,crew_only:bool){
+ pub(crate) fn native_remove_fort_actor(&mut self,index:usize,force:&mut Force)->bool{
+  let Some(before)=self.units.get(index).cloned()else{return false;};
+  if !before.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).is_some_and(|m|m.flags31&4!=0){return false;}
+  self.native_remove_actor_from(index,&before,false,false,false,Some(force));self.units[index].hp=-1.;true
+ }
+ fn native_remove_actor_from(&mut self,index:usize,before:&Unit,suppressed:bool,forced:bool,crew_only:bool,fort:Option<&mut Force>){
   let family=original_combat::animation_family(&before.kind);let mut point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];
   if before.native_transport.as_ref().is_some_and(|t|t.phase==super::original_transport::Phase::Inside){point[0]=10000;}
   let upstream=self.capture_native_upstream_removal(index,before,point,false,suppressed,crew_only);
@@ -16,7 +22,24 @@ impl Game{
   if [32,59].contains(&family){self.kill_native_apc_passengers(index,suppressed,forced);}
   if family==36{self.release_native_crane_target_for_removal(index);}
   if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,point,before.native_class7c);}
-  self.native_removed_hardware(index,before,suppressed,crew_only);
+  if let Some(force)=fort{
+   let forced_wreck=force.begin_conversion(self.multiplayer);
+   let plan=self.plan_native_fort_hardware(index,before,point,suppressed,forced_wreck);
+   if plan.reenters(){
+    let nested=self.units[index].clone();
+    self.native_remove_actor_from(index,&nested,true,forced,false,Some(force));
+    self.complete_native_fort_release_poof(before.native_slot,point,before.native_flags64);
+   }
+   self.insert_native_fort_hardware(index,before,plan);
+   force.finish_conversion();
+   if plan.reenters(){
+    // The nested 58660 already freed occupancy and retired the live actor.
+    // The outer 58660 still writes B5, but must not make a second corpse.
+    if let Some(slot)=before.native_slot{self.native_group_rosters.clear_contact_claim(slot);}
+    self.finish_native_upstream_removal(upstream);
+    return;
+   }
+  }else{self.native_removed_hardware(index,before,suppressed,crew_only);}
   if let Some(slot)=before.native_slot{self.native_group_rosters.clear_contact_claim(slot);} //58660@458669 clears rawB5 after58af0
   //58660 releases occupancy only for an extant W pointer, before freeing it.
   //58af0 may already have replaced UNIT8 with-1, retaining the outer dummycase.
@@ -44,7 +67,7 @@ impl Game{
   let actions=original_death::removal_actions(source,class,family,point,owner,crew_only,true);let mut removed=false;
   for action in actions{match action{
    Action::Remove{suppressed}=>{if removed{continue;}removed=true;
-    self.native_remove_actor_from(index,before,suppressed,false,crew_only);
+    self.native_remove_actor_from(index,before,suppressed,false,crew_only,None);
    },
    Action::Emit{kind,count,sprite,maximum,origin,owner}=>self.native_removal_emission(kind,origin,count,sprite,maximum,owner),
    Action::Sound(id)=>self.native_removal_sound(point,id),

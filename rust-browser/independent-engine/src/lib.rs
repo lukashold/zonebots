@@ -833,6 +833,7 @@ impl Game {
         //and older callers retain their explicit anchor-coordinate contract.
         let native_ui_move=self.map.original&&self.map.native_road_graph.is_some()&&kind=="move"&&v["nativeEvent"]!=false&&v.get("nativeClick").is_some()&&ids.iter().all(|id|self.units.iter().find(|u|u.id==*id).and_then(|u|u.native_slot).and_then(|slot|self.native_group_rosters.members[slot].as_ref()).is_none_or(|m|m.role<=0||self.native_group_rosters.pool.get(usize::from(m.group)).and_then(|g|g.member(0)).is_some_and(|slot|self.units.iter().any(|u|u.native_slot==Some(usize::from(slot))&&ids.contains(&u.id)))));
         let mut native_move_goals=std::collections::BTreeMap::new();
+        let mut native_move_events=Vec::new();
         if native_ui_move{
             let Some(click)=v["nativeClick"].as_array().filter(|p|p.len()==2).and_then(|p|Some([i16::try_from(p[0].as_i64()?).ok()?,i16::try_from(p[1].as_i64()?).ok()?]))else{return;};
             if click[0]<0||click[1]<0||usize::try_from(click[0]).unwrap()>=self.map.width*16||usize::try_from(click[1]).unwrap()>=self.map.height*16||v.get("target").is_some_and(|t|!t.is_null()){return;}
@@ -842,7 +843,7 @@ impl Game {
             if self.classify_native_human_move(primary,click,flag_mode).is_none(){return;}
             let mut groups=Vec::new();for &i in &eligible{if let Some(group)=self.units[i].native_slot.and_then(|slot|self.native_group_rosters.members[slot].as_ref()).map(|m|m.group).filter(|&g|g!=255){if !groups.contains(&group){groups.push(group);}}}
             self.select_native_groups(&groups);let Some(prepared)=self.prepare_native_human_move_batch(primary,click,flag_mode)else{return;};
-            for movement in prepared{let actor=&self.units[movement.index];if actor.team!=team||!ids.contains(&actor.id)||!original_combat::alive(true,actor.hp){continue;}let goal=(f64::from(movement.anchor[0])*2.,f64::from(movement.anchor[1])*2.);native_move_goals.insert(actor.squad,goal);self.record_native_order_event(movement.index,movement.event);}
+            for movement in prepared{let actor=&self.units[movement.index];if actor.team!=team||!ids.contains(&actor.id)||!original_combat::alive(true,actor.hp){continue;}let goal=(f64::from(movement.anchor[0])*2.,f64::from(movement.anchor[1])*2.);native_move_goals.insert(actor.squad,goal);native_move_events.push((movement.index,movement.event,goal));}
         }
 
         if self.map.original&&kind=="move" {
@@ -850,6 +851,15 @@ impl Game {
             if native_ui_move{for(&squad,&goal)in &native_move_goals{let members=ids.iter().copied().filter(|id|self.units.iter().any(|u|u.id==*id&&u.squad==squad&&u.team==team)).collect::<Vec<_>>();self.prepare_native_formations(&members,team,goal);}}else if let Some((x,y))=v["x"].as_f64().zip(v["y"].as_f64()).filter(|(x,y)|x.is_finite()&&y.is_finite()) {self.prepare_native_formations(&ids,team,(x,y));}
         }
         if self.map.original{self.maintain_native_group_rosters();}
+        if native_ui_move{
+            // A partial browser selection can move the recipients into a
+            // new roster. Write the native command after that rebinding so
+            // the physical member and the Web goal agree on the waypoint.
+            native_move_goals.clear();
+            for (index,event,goal) in native_move_events{
+                if self.record_native_order_event(index,event){native_move_goals.insert(self.units[index].squad,goal);}
+            }
+        }
         for (n, id) in ids.iter().enumerate() {
             let Some(i) = self
                 .units
@@ -1117,7 +1127,7 @@ impl Game {
         self.effects.retain(|e| e.age < e.life);
         self.advance_original_group_cooldowns();
         self.maintain_native_transports();self.sync_native_world();
-        if self.map.original{self.update_native_track_effects();self.begin_native_display_frame();self.begin_native_owner4_main();self.capture_native_building_display();self.native_protected_order_seen=false;}
+        if self.map.original{self.advance_native_fort_camera();self.update_native_track_effects();self.begin_native_display_frame();self.begin_native_owner4_main();self.capture_native_building_display();self.native_protected_order_seen=false;}
         self.update_initiative(dt);
         self.ai_clock -= dt;
         if !self.map.original&&self.ai_clock<=0. {
@@ -1429,7 +1439,7 @@ impl Game {
             self.update_original_tactics();
             let native_due=self.original_ai.as_mut().map(|c|c.advance(self.motion_tick));
             if native_due.unwrap_or(self.ai_clock<=0.){self.ai();self.ai_clock=[8.,4.5,2.5,1.3][self.difficulty];}
-            self.update_native_vehicle_spacing();self.capture_native_flag_display();self.update_native_route_worker();self.update_native_deaths();self.update_native_world_objects();
+            self.update_native_vehicle_spacing();if self.native_fort_sequence_enabled(){self.advance_native_fort_result_radio();}self.capture_native_flag_display();self.update_native_route_worker();self.update_native_deaths();self.update_native_world_objects();
             self.update_native_blasts();
             self.update_native_cosmetics20();
             self.update_native_ambient_animations();
@@ -1440,7 +1450,7 @@ impl Game {
             self.update_native_bullets();self.update_native_projectiles();let native_late_result=self.native_trail_scene_result();if let Some(result)=native_late_result{self.update_native_building_trails(result);}self.finish_native_main_ambient(native_late_result);self.advance_native_feedback_clock();
         }
         for b in &self.buildings {
-            if b.kind == "fort" && (if self.map.original{b.hp>=0.}else{b.alive(self.map.original)}) {
+            if !self.native_fort_sequence_enabled() && b.kind == "fort" && (if self.map.original{b.hp>=0.}else{b.alive(self.map.original)}) {
                 if let Some(u) = self.units.iter().find(|u| {
                     original_combat::alive(self.map.original,u.hp)
                         && !workshops::hidden(u)
@@ -1525,7 +1535,7 @@ impl Game {
         if !self.map.original{self.update_production(dt);}
         self.advance_native_flag_counters();
         for team in [0, 1] {
-            if !self.units.iter().any(|u| original_combat::alive(self.map.original,u.hp) && u.team == team) {
+            if !(self.native_fort_sequence_enabled()&&self.native_feedback.scene_gate!=0) && !self.units.iter().any(|u| original_combat::alive(self.map.original,u.hp) && u.team == team) {
                 self.winner = Some(1 - team);
             }
         }
@@ -1567,6 +1577,7 @@ fn game_snapshot(g: &Game, request: &Value) -> Value {
         "buildMenus": g.buildings.iter().map(|b| g.products(b)).collect::<Vec<_>>(),
     });
     if g.map.original{value["nativeRouteBoundary"]=g.native_route_boundary.map(|b|format!("{b:?}")).into();value["nativeCommonLegacy"]=json!(g.native_common_legacy.iter().map(|(slot,reason)|json!({"slot":slot,"reason":format!("{reason:?}")})).collect::<Vec<_>>());value["nativeUiClock"]=json!(g.native_feedback.ui_clock);}
+    if let Some(scene)=g.native_fort_scene_snapshot(){value["nativeFortScene"]=scene;}
     if g.map.original&&!g.multiplayer{
         let f=&g.native_feedback;let speaker=f.display_speaker.and_then(|slot|g.units.iter().rfind(|u|u.native_slot==Some(slot)));
         value["nativePortrait"]=json!({"mode":f.portrait_mode,"message":f.current_message,"phraseIndex":f.phrase_index,"phraseCounter":f.phrase_counter,"phraseFrame":f.phrase_frame,"unitId":speaker.map(|u|u.id),"nativeSlot":f.display_speaker,"rawSpeakerSlot":f.speaker});

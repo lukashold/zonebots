@@ -1,7 +1,19 @@
 //! Ordered fort scene queue. The World owns the live context, effects,
 //! selection, feedback and random streams. The queue owns only its 80 bytes.
 #[path = "original_fort_scene_game.rs"]
-mod game;
+pub(crate) mod game;
+#[path = "original_fort_door.rs"]
+pub(crate) mod door;
+#[path = "original_fort_end.rs"]
+pub(crate) mod end;
+#[path = "original_fort_orders.rs"]
+pub(crate) mod orders;
+#[path = "original_fort_radio.rs"]
+pub(crate) mod radio;
+#[path = "original_fort_camera.rs"]
+pub(crate) mod camera;
+#[path = "original_fort_team_cleanup.rs"]
+pub(crate) mod cleanup;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Context {
@@ -23,7 +35,7 @@ pub enum Action {
     SelectFort(u16),
     RemoveTeam(u8),
     PanToFort { base: [i16; 2] },
-    Disperse { center: [i16; 2], base_x: u16, reverse: bool },
+    Disperse { base: [i16; 2], reverse: bool },
     FirstBurst { base: [i16; 2] },
     SecondBurst { base: [i16; 2] },
     RetireFortTeam,
@@ -182,11 +194,7 @@ impl Queue {
             let terminal = match world.context().counter {
                 2 => world.execute(Action::PanToFort { base })?,
                 3 => {
-                    world.execute(Action::Disperse {
-                        center: base.map(|coordinate| coordinate.wrapping_add(160)),
-                        base_x: base[0] as u16,
-                        reverse: owner == 2,
-                    })?;
+                    world.execute(Action::Disperse { base, reverse: owner == 2 })?;
                     false
                 }
                 15 => world.execute(Action::FirstBurst { base })?,
