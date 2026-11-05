@@ -566,6 +566,18 @@ in den normalen Konstruktor zurück. 24 Originalfälle und der Rust-Test nach
 einem echten APC-Schuss in SP und MP belegen den korrigierten Teilablauf.
 Weitere Feuerblätter, andere Besatzungsfälle und ganze Partien bleiben offen.
 
+WEITERER ABGLEICHSBLOCK NOV05-R57
+Feste Geschütze: Beim Aussteigen aus einem frisch besetzten Geschütz auf
+freiem Gelände bleibt derselbe physische Roboterplatz erhalten. Das aus
+dem Original belegte Grunt-Profil wird im bestehenden Gruppen- und
+Auswahlzustand wiederhergestellt. Beim späteren Besetzen durch einen
+vorhandenen Roboter wandert dessen bekannter ursprünglicher Gruppenwert
+in den bestehenden Profilspeicher der neuen Gruppe und wird beim Ausstieg
+wieder aktiv. Getestet mit Grunt, Tough und Sniper an der Kanone in SP/MP.
+Die menschlichen Kampagnen-Startgruppen tragen ihren belegten Profilwert.
+Andere Profilquellen, besetzte Fehlzustände und das separate Gruppennamen-
+Verhalten im Original sind damit nicht vollständig rekonstruiert.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

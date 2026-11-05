@@ -1,12 +1,12 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.128 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
+1.130 Rusttests bestanden;14 Privatdiagnostiken separat erfolgreich ausgeführt
 (alle38 Brückenfälle in einem Programm, die übrigen13 Programme anschließend).
 Doctests bestanden (0 vorhanden).95/95 Node-Prüfprogramme im aktuellen
-nov05-r56 bestanden, einschließlich aller20 privaten Missionen.
+nov05-r57 bestanden, einschließlich aller20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: c94b55eb5f9fb86a06717073835a98d03811f098cfc95161275af01bf93703aa
+Wasm SHA256: 1493b07b4726cf7c32dc803aecdec6b7abde37e024a905a806e07160f0625124
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -41,6 +41,24 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R57
+- Beim Aussteigen aus einem frisch besetzten festen Geschütz auf freiem
+  Gelände behält der Grunt den physischen Einheitenplatz. Der Browser legt
+  nur die anzuzeigende Figur an. Die Gruppe erhält das ursprüngliche
+  Grunt-Profil; die neue Auswahlfigur erbt die bestehende Einheit.
+- Besetzt ein vorhandener Roboter eine Kanone, übernimmt die neue Gruppe
+  dessen bekanntes Originalprofil und aktiviert es beim Ausstieg wieder.
+  Das wurde für Grunt, Tough und Sniper in beiden Modi nachgestellt.
+- 64 Originalfälle belegen die unterschiedlichen Zweige des Ausstiegs;
+  zwölf weitere belegen Besetzen und Aussteigen mit vorherigem Profil.
+  Die eingeschränkten Speicher-, Geländefehler- und Produktionszweige sind
+  damit nicht als vollständig nachgebaut gewertet.
+- 1.130 normale Rusttests, 14 ausgeführte Privatdiagnostiken, 95 Nodeprogramme.
+  Die APC-Privatdiagnostik lief separat mit korrigiertem Referenzpfad.
+  Browserprobe: Virgin Soldiers, Normal, Originalgrafik, Gatling gewählt,
+  Aussteigen wechselt die Auswahl auf den Grunt. Keine Konsolenfehler im
+  Prüftab. Kein vollständiger Bild-, Ton- oder Partievergleich.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R56
 - Ein direkt besetzt gestarteter APC behält beim Aussteigen den physischen

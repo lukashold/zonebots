@@ -9,14 +9,36 @@ impl Game{
   let Some(carrier)=self.units.get(index).cloned()else{return false;};if !self.map.original{return false;}if carrier.kind=="apc"{return self.unload_native_apc(index);}if self.map.native_road_graph.is_none()||stats(&carrier.kind).cls==0{return false;}if stats(&carrier.kind).cls!=2{return self.unload_native_vehicle(index);}
   self.units[index].native_flags9c&=!32;self.units[index].native_order5c=0;if let Some(slot)=carrier.native_slot{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags9c=self.units[index].native_flags9c;m.flagsb7&=!1;m.promotion.order=0;}}if let Some(group)=self.native_group_rosters.current_roster{self.native_group_rosters.pool[group].roster[58]=0;}
   let Some(crew)=carrier.crew.clone()else{return true;};let cell=((carrier.y/32.).floor()as usize).saturating_mul(self.map.width).saturating_add((carrier.x/32.).floor()as usize);if self.map.terrain_codes.get(cell).is_some_and(|c|c&127==16){self.reset_native_idle(index);return true;}
-  let saved=carrier.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s)).map(|w|w.attributes);let retained=carrier.transport_actor.and_then(|id|self.units.iter().position(|u|u.id==id));let previous=retained.map(|i|self.units[i].clone());let restored_class=previous.as_ref().map_or_else(||original_combat::runtime_class(&crew.kind)as u8,|u|u.native_class7c);
+  let hardware=carrier.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s));let saved=hardware.map(|w|w.attributes);let retained=carrier.transport_actor.and_then(|id|self.units.iter().position(|u|u.id==id));let previous=retained.map(|i|self.units[i].clone());let restored_class=previous.as_ref().map_or_else(||original_combat::runtime_class(&crew.kind)as u8,|u|u.native_class7c);
+  // The authored direct gun has no previous driver adapter or GROUP+4
+  // profile. 44c910 selects the first available GOG foot profile (Grunt).
+  let live=carrier.native_class7c==2&&hardware.is_some_and(|w|w.live_marker==0);
+  let group=live.then(||self.fixed_gun_group(carrier.native_slot)).flatten();
+  let direct=group.filter(|&(slot,group)|carrier.transport_actor.is_none()&&crew.kind=="grunt"
+   &&matches!(self.native_selection.contexts[slot].saved_class8e,Some(2|4|5|6))&&self.native_group_rosters.pool[group].roster[4..8]==[0;4]);
+  if let Some((slot,group))=direct{
+   // 44c970 stores the selected descriptor in both raw roster fields on
+   // clear terrain and writes WORD8d=4, whose high byte is saved class8e.
+   let profile=super::original_group_lifecycle::authored_rinfo(2).unwrap();let roster=&mut self.native_group_rosters.pool[group];
+   roster.set_active_rinfo(profile);roster.set_cached_rinfo(profile);
+   self.record_native_selection_saved_class(slot,0);
+  }else if let Some((_,group))=group.filter(|_|retained.is_some()){
+   let roster=&mut self.native_group_rosters.pool[group];
+   if let Some(profile)=roster.cached_rinfo(){roster.set_active_rinfo(profile);}
+  }
   self.park_native_hardware_for_unload(index,&carrier);let object=self.native_object_slot(carrier.id);self.units[index].team=-1;self.units[index].crew=None;self.units[index].cargo.clear();self.units[index].native_slot=None;self.units[index].transport_actor=None;self.units[index].native_hardware=None;self.units[index].native_transport=None;self.units[index].path.clear();self.units[index].dest=None;self.units[index].target=None;self.units[index].order="guard".into();self.units[index].native_order5c=0;self.units[index].native_flags9c&=!32;
   //The native UNIT itself is the robot again. Only the renderer entity needs
   //a separate Web identity; current conversions retain its original identity.
-  let ri=if let Some(i)=retained{i}else{let n=self.units.len();self.spawn(&crew.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None);if self.units.len()==n{return true;}n};
+  let ri=if let Some(i)=retained{i}else if let Some((slot,_))=direct{self.push_unit_adapter(&crew.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None,Some(slot),stats(&crew.kind))}else{let n=self.units.len();self.spawn(&crew.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None);if self.units.len()==n{return true;}n};
   let mut robot=previous.unwrap_or_else(||self.units[ri].clone());robot.kind=crew.kind.clone();robot.team=carrier.team;robot.hp=crew.hp;robot.max_hp=stats(&crew.kind).hp;robot.x=carrier.x;robot.y=carrier.y+20.;robot.squad=carrier.squad;robot.native_slot=carrier.native_slot;robot.native_hardware_slot=None;robot.native_hardware=None;robot.native_class7c=restored_class;robot.native_phase35=0;robot.native_frame32=0;robot.native_timer3c=0;robot.native_order5c=0;robot.native_target46=carrier.native_target46;robot.native_trait7a=carrier.native_trait7a;robot.native_cyclea0=carrier.native_cyclea0;robot.native_reload7b=carrier.native_reload7b;robot.native_bucket38=carrier.native_bucket38;robot.native_flags9c=carrier.native_flags9c&!32;robot.native_flags64=carrier.native_flags64;robot.native_mask98=carrier.native_mask98;robot.native_control06=carrier.native_control06;robot.native_protectionaa=carrier.native_protectionaa;robot.grenades=carrier.grenades;robot.native_initiative_scan=carrier.native_initiative_scan;if let Some(object)=object{robot.native_initiative_scan.excluded9d=object;}
   robot.native_range4=robot.native_range4.or_else(||super::native_ai_scoring::default_input(&crew.kind).map(|p|p.range.wrapping_mul(2)as i8));robot.native_route_flip.set(carrier.native_route_flip.get());robot.native_route_road_replaced.set(carrier.native_route_road_replaced.get());robot.native_secondary_route.set(false);robot.native_route_pending.set(None);robot.native_transport=None;robot.native_transport_slot=None;robot.transport_actor=None;robot.transport_carrier=None;robot.angle=carrier.angle;robot.aim=carrier.angle;robot.path.clear();robot.original_motion=None;robot.native_walk=None;robot.native_fire=None;robot.native_contact=None;robot.native_cover=None;robot.native_dodge=None;robot.pursuit=None;robot.target=None;robot.dest=None;robot.order="guard".into();robot.moving=false;robot.hold_position=false;robot.explicit_stop=false;robot.initiative=None;robot.march_resume=None;
+  if direct.is_some(){robot.native_cell10=carrier.native_cell10;robot.native_footprint18=carrier.native_footprint18;robot.native_permission1c=carrier.native_permission1c;robot.native_terrain_tag63=carrier.native_terrain_tag63;robot.native_pattern20=carrier.native_pattern20;robot.native_field62=carrier.native_field62;robot.native_speed8b=-1;}
   let mut combat=robot.original_combat.take().unwrap_or_else(||original_combat::CombatState::new(&crew.kind));if let Some(current)=carrier.original_combat.as_ref(){combat.aim_skill=current.aim_skill;}if let Some(w)=saved{combat.fire_rate=w.byte(41);combat.projectile_speed=Some(w.byte(42));}robot.original_combat=Some(combat);let id=robot.id;self.units[ri]=robot;if let Some(slot)=carrier.native_slot{self.native_group_rosters.remap_entity(slot,carrier.id,id);self.rebind_native_crane_identity(slot,carrier.id,id);}self.remap_native_pursuit_identity(carrier.id,id);self.maintain_native_group_rosters();self.reset_native_idle(ri);self.sync_native_world();self.events.push(json!({"kind":"unloaded","team":carrier.team,"unitId":carrier.id,"memberIds":[id]}));true
+ }
+ fn fixed_gun_group(&self,slot:Option<usize>)->Option<(usize,usize)>{
+  let slot=slot?;
+  let group=usize::from(self.native_group_rosters.members.get(slot)?.as_ref()?.group);let roster=self.native_group_rosters.pool.get(group)?;
+  (roster.roster[18]==1&&roster.member(0)==Some(slot as u8)).then_some((slot,group))
  }
  ///Original weapon damage/range come from the shared W record after takeover,
  ///not from the image/profile name. APC Unit4 retains its separate bodyrange.
@@ -88,10 +110,13 @@ impl Game{
  use super::*;
  use super::super::{original_route,original_group_game,Value};
  fn field(kind:&str,definition:u16,equipment:u8)->(Game,usize,usize){
+  field_with_driver(kind,definition,equipment,"grunt")
+ }
+ fn field_with_driver(kind:&str,definition:u16,equipment:u8,driver:&str)->(Game,usize,usize){
   let mut g=Game::new(0,1,33191);g.map.original=true;g.map.width=64;g.map.height=64;g.map.world=0;g.map.tiles=vec![0;4096];g.map.original_tiles=vec![0;4096];g.map.terrain_codes=vec![0;4096];g.map.native_terrain_plane=vec![0;16384];g.map.bridge_base=vec![-1;4096];g.map.bridge_hp.clear();g.map.bridge_max_hp.clear();g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});
   g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.sectors.clear();g.native_world=None;g.native_strategy=None;g.native_group_rosters=original_group_game::State::default();g.ai_teams.clear();g.events.clear();g.next_id=1;g.winner=None;
   g.spawn(kind,-1,640.,640.,0,None);let carrier=g.units[0].id;g.objects.push(json!({"type":definition,"equipmentId":equipment,"x":640,"y":640,"nativeHp":(stats(kind).hp as i16/25),"nativeFlags13":0x70}));g.import_native_world(&Value::Null);
-  for n in 0..3{g.spawn("grunt",0,640.+n as f64*4.,660.,7,None);}let actor=g.units[1].id;g.units[1].hp=17.;g.units[1].native_reload7b=37;g.units[1].grenades=3;g.units[1].original_combat.as_mut().unwrap().aim_skill=83;g.maintain_native_group_rosters();g.native_group_rosters.observe_unit_context(g.units[1].native_slot.unwrap());g.command(&json!({"kind":"enter","ids":[actor],"target":carrier}));(g,carrier,actor)
+  for n in 0..3{g.spawn(driver,0,640.+n as f64*4.,660.,7,None);}let actor=g.units[1].id;g.units[1].hp=17.;g.units[1].native_reload7b=37;g.units[1].grenades=3;g.units[1].original_combat.as_mut().unwrap().aim_skill=83;g.maintain_native_group_rosters();g.native_group_rosters.observe_unit_context(g.units[1].native_slot.unwrap());g.command(&json!({"kind":"enter","ids":[actor],"target":carrier}));(g,carrier,actor)
  }
  #[test]fn all_twelve_nonapc_definitions_take_the_original_kind_origin_attributes_and_fresh_group(){
   for(kind,definition,eq)in[("cannon",5,0),("medium",8,1),("missile",21,9),("gatling",22,11),("howitzer",23,12),("launcher",24,6),("heavy",26,5),("light",29,8),("jeep",33,13),("crane",35,15),("firetruck",37,14),("apc",58,10)]{
@@ -119,6 +144,45 @@ impl Game{
  }
  #[test]fn takeover_remaps_a_pursuing_enemy_to_the_same_native_actor_after_web_identity_transfer(){
   let(mut g,carrier,actor)=field("jeep",33,13);g.spawn("grunt",1,850.,640.,9,None);let enemy=g.units.len()-1;g.units[enemy].order="attack".into();g.units[enemy].target=Some(actor);let ai=g.units.iter().position(|u|u.id==actor).unwrap();assert!(g.update_native_hardware_entry(ai));assert_eq!(g.units[enemy].target,Some(carrier));assert!(g.events.iter().any(|e|e["kind"]=="crewed"&&e["unitId"]==carrier&&e["memberIds"][0]==actor));
+ }
+ #[test]fn direct_fixed_gun_exit_keeps_the_physical_actor_and_restores_the_cold_grunt_profile(){
+  for (kind,definition,equipment,saved_class) in [("cannon",5,0,2),("missile",21,8,4),("gatling",22,11,5),("howitzer",23,12,6)]{
+   for mp in [false,true]{
+    let(mut g,_,_)=field(kind,definition,equipment);g.multiplayer=mp;g.original_rng.multiplayer=mp;
+    g.spawn(kind,0,960.,960.,90,None);let i=g.units.len()-1;g.maintain_native_group_rosters();
+    let carrier=g.units[i].id;let slot=g.units[i].native_slot.unwrap();let w=g.units[i].native_hardware_slot.unwrap();
+    let generation=g.native_upstream_reactions.generation(slot).unwrap();let group=g.native_group_rosters.group_slot(0,90).unwrap();
+    assert!(g.units[i].transport_actor.is_none());assert_eq!(g.native_selection.contexts[slot].saved_class8e,Some(saved_class));
+    g.native_group_rosters.observe_unit_context(slot);g.units[i].native_order5c=13;g.units[i].native_flags9c|=32;
+    assert!(g.unload_native_hardware(i));assert_eq!(g.units[i].team,-1);assert_eq!(g.native_hardware_pool[w].live_marker,-1);
+    let robot=g.units.iter().find(|u|u.team==0&&u.native_slot==Some(slot)).unwrap();
+    assert_eq!((robot.kind.as_str(),robot.native_class7c,robot.native_phase35,robot.native_range4),("grunt",0,1,Some(30)));
+    assert_ne!(robot.id,carrier);assert_eq!((robot.x,robot.y),(960.,980.));
+    assert_eq!(g.native_upstream_reactions.generation(slot),Some(generation),"{kind} must not run the allocator again (MP={mp})");
+    assert!(g.native_cranes.bound(slot,generation,robot.id).is_some());
+    assert_eq!(g.native_group_rosters.group_slot(0,90),Some(group));
+    assert_eq!(&g.native_group_rosters.pool[group].roster[..8],&[0x8c,0x9b,0x61,0,0x8c,0x9b,0x61,0]);
+    assert_eq!(g.native_selection.contexts[slot].saved_class8e,Some(0));
+   }
+  }
+ }
+ #[test]fn cannon_takeover_caches_and_unload_restores_the_original_infantry_group_profile(){
+  for (kind,gid,range) in [("grunt",2u32,30),("tough",3,30),("sniper",4,36)]{for mp in [false,true]{
+   let(mut g,carrier,actor)=field_with_driver("cannon",5,0,kind);g.multiplayer=mp;g.original_rng.multiplayer=mp;
+   let ai=g.units.iter().position(|u|u.id==actor).unwrap();let ci=g.units.iter().position(|u|u.id==carrier).unwrap();
+   let slot=g.units[ai].native_slot.unwrap();let class=g.units[ai].native_class7c;let old=g.native_group_rosters.group_slot(0,7).unwrap();
+   let descriptor=(0x619ae8+82*gid).to_le_bytes();g.native_group_rosters.pool[old].roster[..4].copy_from_slice(&descriptor);
+   g.units[ai].native_range4=Some(range);
+   assert!(g.update_native_hardware_entry(ai));let squad=g.units[ci].squad;
+   let group=g.native_group_rosters.group_slot(0,squad).unwrap();assert_ne!(group,old);
+   assert_eq!(&g.native_group_rosters.pool[group].roster[4..8],&descriptor,"mounted {kind} profile (MP={mp})");
+   assert_eq!(g.native_selection.contexts[slot].saved_class8e,Some(class));
+   assert!(g.unload_native_hardware(ci));
+   let robot=&g.units[ai];assert_eq!((robot.id,robot.kind.as_str(),robot.native_slot,robot.native_class7c,robot.native_range4),(actor,kind,Some(slot),class,Some(range)));
+   assert_eq!(&g.native_group_rosters.pool[group].roster[..4],&descriptor);
+   assert_eq!(&g.native_group_rosters.pool[group].roster[4..8],&descriptor);
+   assert_eq!(g.native_selection.contexts[slot].saved_class8e,Some(class));
+  }}
  }
  #[test]fn repeated_unload_and_recrew_of_each_fixed_gun_preserves_the_neutral_origin_and_actor_slot(){
   for(kind,definition,eq)in[("cannon",5,0),("missile",21,9),("gatling",22,11),("howitzer",23,12)]{

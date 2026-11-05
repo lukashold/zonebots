@@ -124,6 +124,10 @@ impl State{
         if let Some(slot)=self.group_slot(team,squad){self.pool[slot].roster[65]=descriptor;}
         else{self.constructed_descriptors.insert((team,squad),descriptor);}
     }
+    /// Authored starting groups already registered by the 4b7b0 adapter.
+    pub fn record_starting_group_rinfo(&mut self,team:i32,squad:usize,gid:usize){
+        if let Some((slot,profile))=self.group_slot(team,squad).zip(life::authored_rinfo(gid)){self.pool[slot].set_active_rinfo(profile);}
+    }
     ///17610 runs under4a69f3=1, bypassing1b5d0 formation initialization.
     pub fn record_direct_placement_group(&mut self,team:i32,squad:usize){self.direct_placements.insert((team,squad));}
     pub fn store_task_groups(&mut self,team:i32,groups:&[task::Group],sectors:&[task::Sector]){
@@ -246,8 +250,13 @@ impl Game{
     ///which retains its group. The caller owns descriptor/entry motion writes.
     pub(crate) fn reform_native_hardware_group(&mut self,index:usize)->Option<usize>{
         let unit=self.units.get(index)?.clone();let slot=unit.native_slot.filter(|&s|s<240)?;let mut state=std::mem::take(&mut self.native_group_rosters);
-        let result=(||{let mut member=member_from_unit(&unit,state.members[slot].as_ref());state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.remove_member(slot,self);member.role=0;member.group=255;member.flags31&=!8;member.contact_order=0;member.flags69&=!128;
-            let sector=self.native_strategy.as_ref().and_then(|s|s.sector_pointer(unit.x,unit.y));let target=life::allocate_single(&mut state.pool,&mut member,0,sector,false)?;let squad=self.units.iter().map(|u|u.squad).max().unwrap_or(0)+1;self.units[index].squad=squad;self.units[index].formation=None;state.bind(unit.team,squad,target);state.entities[slot]=Some(unit.id);state.snapshots[slot]=Some(OrderSnapshot::of(&self.units[index]));state.members[slot]=Some(member);state.current_roster=Some(target);Some(target)
+        let result=(||{let mut member=member_from_unit(&unit,state.members[slot].as_ref());
+            // Fixed gun 450db0 keeps the old GROUP+0 through the fresh 4b2f0
+            // allocation. Its portrait name is separate from this raw profile.
+            let profile=(unit.native_class7c==2).then(||state.pool.get(usize::from(member.group)).and_then(life::GroupSlot::active_rinfo)).flatten();
+            state.snapshots[slot]=Some(state.primary_snapshot(slot,&unit));state.remove_member(slot,self);member.role=0;member.group=255;member.flags31&=!8;member.contact_order=0;member.flags69&=!128;
+            let sector=self.native_strategy.as_ref().and_then(|s|s.sector_pointer(unit.x,unit.y));let target=life::allocate_single(&mut state.pool,&mut member,0,sector,false)?;if let Some(profile)=profile{state.pool[target].set_cached_rinfo(profile);}
+            let squad=self.units.iter().map(|u|u.squad).max().unwrap_or(0)+1;self.units[index].squad=squad;self.units[index].formation=None;state.bind(unit.team,squad,target);state.entities[slot]=Some(unit.id);state.snapshots[slot]=Some(OrderSnapshot::of(&self.units[index]));state.members[slot]=Some(member);state.current_roster=Some(target);Some(target)
         })();state.refresh_formations(self);self.native_group_rosters=state;result
     }
     ///Preserve a caller-owned primary move before a compatibility detour. The

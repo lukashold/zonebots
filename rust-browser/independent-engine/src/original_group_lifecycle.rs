@@ -4,6 +4,10 @@
 
 pub const GROUP_SLOTS:usize=240;
 pub const MEMBERS:usize=21;
+const RINFO_BASE:u32=0x619ae8;
+const RINFO_BYTES:u32=82;
+/// Source record token, used only as a label in the native roster bytes.
+pub fn authored_rinfo(gid:usize)->Option<[u8;4]>{(gid<19).then(||(RINFO_BASE+RINFO_BYTES*gid as u32).to_le_bytes())}
 #[derive(Clone,Copy,Debug)]
 pub struct SlotUsage{pub count:u8,pub leader:u8,pub cooldown:u8}
 
@@ -30,6 +34,14 @@ impl GroupSlot{
     pub fn empty()->Self{let mut result=Self{roster:[0;72],strategy:[0;24],cooldown:0};result.roster[19..40].fill(255);result.strategy[..4].fill(255);result}
     pub fn usage(&self)->SlotUsage{SlotUsage{count:self.roster[18],leader:self.roster[19],cooldown:self.cooldown}}
     pub fn member(&self,role:usize)->Option<u8>{self.roster.get(19+role).copied().filter(|&id|id!=255)}
+    fn rinfo(&self,offset:usize)->Option<[u8;4]>{
+        let token:[u8;4]=self.roster[offset..offset+4].try_into().ok()?;let relative=u32::from_le_bytes(token).checked_sub(RINFO_BASE)?;
+        (relative<32*RINFO_BYTES&&relative%RINFO_BYTES==0).then_some(token)
+    }
+    pub fn active_rinfo(&self)->Option<[u8;4]>{self.rinfo(0)}
+    pub fn cached_rinfo(&self)->Option<[u8;4]>{self.rinfo(4)}
+    pub fn set_active_rinfo(&mut self,token:[u8;4]){self.roster[..4].copy_from_slice(&token);}
+    pub fn set_cached_rinfo(&mut self,token:[u8;4]){self.roster[4..8].copy_from_slice(&token);}
     pub fn word(&self,offset:usize)->i16{i16::from_le_bytes([self.roster[offset],self.roster[offset+1]])}
     fn set_word(&mut self,offset:usize,value:i16){self.roster[offset..offset+2].copy_from_slice(&value.to_le_bytes());}
 }
