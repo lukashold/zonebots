@@ -83,8 +83,9 @@ def ensure_original_pack(game):
             ) from error
 
 class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, films=None, **kwargs):
+    def __init__(self, *args, films=None, result_art=None, **kwargs):
         self.films = films
+        self.result_art = result_art
         super().__init__(*args, **kwargs)
 
     def translate_path(self,url):
@@ -95,6 +96,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return str(root/'missing')
             target=(self.films/name).resolve()
             return str(target) if target.is_relative_to(self.films) else str(root/'missing')
+        if path.startswith('/original/result-view/'):
+            name=path.removeprefix('/original/result-view/')
+            if self.result_art is None or name not in {
+                'manifest.json','background.png','panel.png','divider.png','buttons.png','medium.png','large.png',
+            }:
+                return str(root/'missing')
+            target=(self.result_art/name).resolve()
+            return str(target) if target.is_relative_to(self.result_art) else str(root/'missing')
         if path.startswith('/original/'):
             base=root.parent/'original';target=(base/path[len('/original/'):]).resolve()
             return str(target) if target.is_relative_to(base.resolve()) else str(root/'missing')
@@ -104,16 +113,21 @@ if __name__ == '__main__':
     p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=8765);p.add_argument('--no-browser',action='store_true')
     p.add_argument('--lan',action='store_true',help='Allow other devices on your local network to load this game; binds all local interfaces')
     p.add_argument('--films',type=Path,help='Local result film pack for a loopback game')
+    p.add_argument('--result-art',type=Path,help='Local classic result textures for a loopback game')
     p.add_argument('--game','--zdir',dest='game',type=Path,default=Path(os.environ.get('Z_GAME_DIR',r'C:\GOG Games\Z')),help='Local Z installation for automatic extraction of missing original art/maps')
     args=p.parse_args()
     films=args.films.expanduser().resolve() if args.films else None
+    result_art=args.result_art.expanduser().resolve() if args.result_art else None
     if films is not None and (args.lan or not (films/'films.json').is_file()):
         p.error('--films requires a film pack with films.json and a local loopback game')
+    if result_art is not None and (args.lan or not (result_art/'manifest.json').is_file()):
+        p.error('--result-art requires the extracted result art and a local loopback game')
     ensure_original_pack(args.game.expanduser().resolve())
     bind='0.0.0.0' if args.lan else '127.0.0.1'
-    server=ThreadingHTTPServer((bind,args.port),partial(Handler,directory=str(root),films=films))
+    server=ThreadingHTTPServer((bind,args.port),partial(Handler,directory=str(root),films=films,result_art=result_art))
     port=server.server_port
-    url=f'http://127.0.0.1:{port}/' + ('?original-films=1' if films else '');print(url,flush=True)
+    options=[flag for flag,active in [('original-films=1',films),('original-result-art=1',result_art)] if active]
+    url=f'http://127.0.0.1:{port}/' + ('?'+'&'.join(options) if options else '');print(url,flush=True)
     if args.lan:
         print('LAN mode: other devices on this network can load this game and its local resource pack.',flush=True)
         try:

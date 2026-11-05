@@ -22,3 +22,16 @@ automatische Tonwiedergabe, lässt sich der Film per Klick starten.
 
 Der lokale Filmserver bindet an 127.0.0.1. Das Zusatzpaket und die
 Originalfilme gehören nicht zum öffentlichen Git-Repository.
+
+ORIGINALTEXTUREN FÜR DIE AUSWERTUNG
+
+Im Projektordner lässt sich das kleine Zusatzpaket aus der lokalen
+Installation erzeugen. Python mit Pillow wird für die PNG-Prüfung gebraucht:
+
+  python tools/extract-original-result-view.py --game "C:\GOG Games\Z" --output C:\Z-Ergebnisgrafik
+  python independent-engine/serve.py --result-art C:\Z-Ergebnisgrafik --port 8768
+
+Beide Optionen können kombiniert werden: --films C:\Z-Originalfilme
+--result-art C:\Z-Ergebnisgrafik. Der Server setzt die erforderlichen
+URL-Optionen und bindet an 127.0.0.1. Das Zusatzpaket enthält keine
+GOG-Programmdateien und wird nicht vom LAN-Server ausgeliefert.

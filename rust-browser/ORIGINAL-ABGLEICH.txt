@@ -679,6 +679,24 @@ nach dem Einsteigen in einen Jeep sowie aus beiden Mehrspielerperspektiven.
 den zwischengespeicherten alten Verweis und den Wertverweis in den drei
 Originalzweigen. Der Aufbau des Original-Ergebnisbildschirms bleibt offen.
 
+WEITERER ABGLEICHSBLOCK NOV05-R65
+Die deutsche PC-Ergebnisansicht unterscheidet Sieg und Niederlage wie
+im Original. Sie zeigt die eingefrorene Zeit in Stunden, Minuten und
+Sekunden. Beim Sieg stehen zuerst die eigenen Verluste; bei einer
+Niederlage stehen zuerst die ausgeschalteten Gegner. Rang und Punkte
+erscheinen nur im gewonnenen Einzelspiel. „OK“ führt zur nächsten
+Mission; „Spiel verlassen“ kehrt ins Menü zurück. Die Mehrspieler-Lobby
+bleibt der Rückweg aus einem abgeschlossenen Mehrspielerspiel.
+
+Die Rangformel vergleicht die Originalzeit und Verlustwerte mit der
+Missionsvorgabe. 960 ausgeführte x86-Fälle decken getrennte Rundung,
+Überläufe und Grenzränge ab. 24 deutsche PC-Renderfälle bei 640 × 480
+und 1280 × 720 stimmen in Textpositionen, Rahmen und Trennlinien mit
+den Originalaufrufen überein. Der lokale Zusatz kann die dazugehörigen
+Texturen und Bitmap-Schriften direkt aus der eigenen Installation laden.
+Ohne Zusatz verwendet das Spiel die bereits vorhandene Menügrafik und
+nachgezeichnete Rahmen. Die zusätzliche Grafik bleibt lokal.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
@@ -708,7 +726,8 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    an dieselben Originalaufrufpunkte gebunden.
 4. Zusätzliche Zeichen-/Clip-/Wrack-/Wand-Randzustände, vollständige Gebäude-
    maschinenanimationen und weitere Abschlusszweige sind offen. Die
-   vollständigen Original-Ergebnisbildschirme fehlen. Weiterläufe
+   übrigen Ergebniszweige, Kampagnenübergänge und abweichenden Anzeige-
+   modi sind noch nicht durchgehend abgeglichen. Weiterläufe
    automatischer Befehle auf bereits freigegebenen
    Original-Objektplätzen sind im Browser nicht allgemein rekonstruiert.
 5. Vollständige Missionsläufe mit identischen Eingaben und identischem globalem

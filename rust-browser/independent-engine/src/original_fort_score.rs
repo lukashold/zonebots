@@ -68,10 +68,40 @@ pub(crate) fn score(mission:usize,seconds:i32,enemy:Loss,own:Loss,record:i32)->O
     Some(ResultScore{points,record:record.max(points)})
 }
 
+/// The win screen rates signed low words against the mission's par time.
+/// The two terms truncate separately before they are added to the rating.
+pub(crate) fn rank(mission:usize,seconds:i32,enemy:Loss,own:Loss,base:i32)->Option<(i32,u8)>{
+    let par=*MISSION_FACTOR.get(mission)?;
+    if par==0.{return None;}
+    let seconds=seconds as i16 as f32;
+    let enemy=if enemy.value as i16==0{1.}else{enemy.value as i16 as f32};
+    let own=own.value as i16 as f32;
+    let kills=((enemy-own)*100./enemy)as i32;
+    let speed=((par-seconds)*100./par)as i32;
+    let rating=base.wrapping_add(speed).wrapping_add(kills).clamp(0,100);
+    Some((rating,(rating/10).min(9)as u8))
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
     use serde_json::Value;
+
+    #[test]
+    #[ignore="requires private native campaign rank trace"]
+    fn rank_matches_original_win_screen_arithmetic(){
+        let path=std::env::var("NATIVE_FORT_RESULT_RANK_TRACE").unwrap();
+        let source=std::fs::read_to_string(path).unwrap();
+        assert_eq!(source.lines().count(),960);
+        for (id,line) in source.lines().enumerate(){
+            let row:Value=serde_json::from_str(line).unwrap();
+            assert_eq!(row["id"],id);
+            let n=|key:&str|row[key].as_i64().unwrap() as i32;
+            let loss=|key:&str|Loss{count:0,value:n(key)};
+            let actual=rank(n("mission") as usize,n("seconds"),loss("enemy"),loss("own"),n("base"));
+            assert_eq!(actual,Some((n("rating"),n("rank") as u8)),"rank case {id}");
+        }
+    }
 
     #[test]
     #[ignore="requires private native result-score trace"]

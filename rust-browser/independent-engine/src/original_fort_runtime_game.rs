@@ -166,7 +166,12 @@ impl Game {
             crate::original_fort_score::score(self.mission+1,runtime.score_clock.seconds,
                 tally.opponent_losses(0),tally.by_team[0],0).map(|result|result.points)
         }).flatten();
-        Some(json!({"losses":tally.by_team.map(|loss|loss.count),"points":points}))
+        let mut result=json!({"losses":tally.by_team.map(|loss|loss.count),"points":points});
+        if points.is_some(){
+            if let Some((_,rank))=crate::original_fort_score::rank(self.mission+1,runtime.score_clock.seconds,
+                tally.opponent_losses(0),tally.by_team[0],50){result["rank"]=json!(rank);}
+        }
+        Some(result)
     }
 
     pub(crate) fn begin_native_fort_main(&mut self){

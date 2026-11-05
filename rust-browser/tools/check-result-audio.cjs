@@ -4,7 +4,7 @@ const app=fs.readFileSync(path.join(__dirname,'../dist/independent/app.js'),'utf
 const snapshot=(winner=null,clock=0)=>({winner,time:10,units:[],events:[],nativeUiClock:clock,map:{original:true,world:0}});
 function harness(network=false,initial=snapshot()){
  const nodes={},scenes=[],voices=[];let hudCalls=0;
- const context={state:initial,paused:false,mergeSnapshot:s=>s,performance:{now:()=>100},previousUnits:new Map(),snapshotSpan:50,receivedAt:0,hurt:new Map(),placement:null,selected:new Set(),cam:{x:0,y:0},zoom:1,innerHeight:768,viewWidth:()=>1024,isNetwork:()=>network,$:id=>nodes[id]??=( {hidden:true,textContent:''}),hud:()=>hudCalls++,RadioAudio:{setScene:(...a)=>scenes.push(a),say:(...a)=>voices.push(a),nativeSample:()=>{},nativeVoice:()=>{},effect:()=>{}}};
+ const context={state:initial,paused:false,menu:false,mergeSnapshot:s=>s,performance:{now:()=>100},previousUnits:new Map(),snapshotSpan:50,receivedAt:0,hurt:new Map(),placement:null,selected:new Set(),cam:{x:0,y:0},zoom:1,innerHeight:768,viewWidth:()=>1024,isNetwork:()=>network,$:id=>nodes[id]??=( {hidden:true,textContent:''}),hud:()=>hudCalls++,RadioAudio:{setScene:(...a)=>scenes.push(a),say:(...a)=>voices.push(a),nativeSample:()=>{},nativeVoice:()=>{},effect:()=>{}}};
  vm.createContext(context);vm.runInContext(app.slice(start,end),context);
  return{context,nodes,scenes,voices,get hudCalls(){return hudCalls;}};
 }
@@ -41,6 +41,15 @@ function run(){for(const network of[false,true])for(const winner of[0,1]){
  scores.context.update({...snapshot(0),mission:0,nativeFortResult:{losses:[1,1,0,0],points:7200}});
  assert.equal(scores.nodes.result.children[0].children[1].textContent,'Punkte 7200 · Bestwert 8900');
  assert.equal(records.get('z.native.fort.best.v1:0'),'8900');
+ const classic=harness(true);const presented=[];
+ classic.nodes.result={hidden:true,classList:{contains:name=>name==='classic-result'}};
+ classic.context.window={OriginalResultView:{show(...args){presented.push(args);return true;}}};
+ const ended={...snapshot(1),nativeFortScene:{scoreTime:3671},nativeFortResult:{losses:[17,53,0,0],points:null}};
+ classic.context.update(ended);assert.equal(presented.length,1);assert.deepEqual(presented[0].slice(2),[ended.nativeFortResult,3671,false,true]);
+ classic.nodes.result.hidden=classic.nodes.newBattle.hidden=true;classic.context.menu=true;
+ classic.context.update(ended);assert.equal(presented.length,1,'a late peer snapshot must not reopen a dismissed result');
+ assert.equal(classic.nodes.result.hidden,true);
+
  console.log('Result audio passed: actual App.update, offline/network, local cinematic, repeated UI states and pause/HUD.');
 }
 module.exports={harness};if(require.main===module)run();

@@ -1,11 +1,11 @@
 Prüfstand 05.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.137 Rusttests und 47 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 98/98 Node-Prüfprogramme im
-Quellstand nov05-r64 bestanden, einschließlich aller 20 privaten Missionen.
+1.137 Rusttests und 48 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 99/99 Node-Prüfprogramme im
+Quellstand nov05-r65 bestanden, einschließlich aller 20 privaten Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 4f1b4a04348fea75cb442c8dbcf351380da5b9b15bda1c6b3efd95dc5b899261
+Wasm SHA256: d9fb87e4009f9989ef62af58431b28145850adb967a169be11414034ddab078b
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -40,6 +40,18 @@ UMFANG
   Queuebaustein vor der Anwendung.
 - Python-PE-Leser und lokaler/LAN-Server bestanden: temporärer Listener,
   Spielseite, Wasm-MIME, privater Ressourcenpfad und explizite LAN-Adressen.
+
+ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R65
+- 960 Originalfälle der Rangformel über alle 20 Missionen und signierte
+  Eingaben, getrennte Trunkierung und Grenzränge.
+- 24 deutsche Original-Zeichenfolgen bei 640 × 480 und 1280 × 720
+  prüfen Textkoordinaten, Rahmen, Trennlinien und Schaltfläche für Sieg
+  und Niederlage in beiden Spielmodi.
+- Beide Ausgänge über die native Fort-Logik im normalen Release-Wasm
+  erreicht. Im Browser liefen beide mit den lokal extrahierten Texturen;
+  „OK“ und „Spiel verlassen“ führten in die nächste Mission bzw. ins Menü.
+- Der optionale Ergebnisgrafik-Server lässt genau sieben Pfade zu und
+  lehnt den LAN-Start mit dem Zusatzpaket ab.
 
 ZUSÄTZLICHER GEPRÜFTER UMFANG NOV05-R64
 - 2.310 ausgeführte Originalfälle der Punkteformel und 168 Fälle für
