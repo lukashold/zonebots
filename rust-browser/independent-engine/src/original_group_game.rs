@@ -433,7 +433,7 @@ impl Game{
             state.current_roster=Some(target);state.refresh_formations(self);
             let u=&self.units[index];let p=&state.pool[target].strategy;
             let grenade_members=state.pool[target].roster[19..40].iter().filter_map(|&slot|(slot!=255).then_some(slot)).filter_map(|slot|self.units.iter().find(|v|v.native_slot==Some(usize::from(slot))).map(|v|v.grenades as i8)).collect::<Vec<_>>();
-            let leader=task::Leader{native_slot:member,team:1,runtime_class:u.native_class7c,family:original_combat::animation_family(&u.kind),passenger_class:u.crew.as_ref().map(|c|original_combat::runtime_class(&c.kind)).unwrap_or(0),position:native_position(u),accepts_orders:u.native_flags9c&0x14==0&&u.native_protectionaa==0,laser_can_cross:super::native_ai_scoring::group_can_demolish(&grenade_members)};
+            let leader=task::Leader{native_slot:member,team:1,runtime_class:u.native_class7c,family:u.native_family(),passenger_class:u.crew.as_ref().map(|c|original_combat::runtime_class(&c.kind)).unwrap_or(0),position:native_position(u),accepts_orders:u.native_flags9c&0x14==0&&u.native_protectionaa==0,laser_can_cross:super::native_ai_scoring::group_can_demolish(&grenade_members)};
             Some((task::Group{id:squad,active:p[21]!=0,flags:p[16],task:p[17]as i8,current_sector:decode_sector(&p[..4],sectors).or_else(||sector_for(native_position(u),sectors)),via_sector:decode_sector(&p[4..8],sectors),assigned_sector:decode_sector(&p[12..16],sectors),value:i32::from_le_bytes(p[8..12].try_into().unwrap()),leader:Some(leader)},member))
         })();
         self.native_group_rosters=state;result

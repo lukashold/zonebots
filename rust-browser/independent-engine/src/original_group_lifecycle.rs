@@ -42,6 +42,12 @@ impl GroupSlot{
     pub fn cached_rinfo(&self)->Option<[u8;4]>{self.rinfo(4)}
     pub fn set_active_rinfo(&mut self,token:[u8;4]){self.roster[..4].copy_from_slice(&token);}
     pub fn set_cached_rinfo(&mut self,token:[u8;4]){self.roster[4..8].copy_from_slice(&token);}
+    pub(crate) fn restore_cached_rinfo(&mut self){
+        if self.roster[4..8]!=[0;4]{
+            self.roster.copy_within(4..8,0);
+            self.roster[4..8].fill(0);
+        }
+    }
     pub fn word(&self,offset:usize)->i16{i16::from_le_bytes([self.roster[offset],self.roster[offset+1]])}
     fn set_word(&mut self,offset:usize,value:i16){self.roster[offset..offset+2].copy_from_slice(&value.to_le_bytes());}
 }

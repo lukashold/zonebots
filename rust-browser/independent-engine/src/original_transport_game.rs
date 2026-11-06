@@ -173,7 +173,7 @@ impl Game{
   let cargo=group.members.iter().filter(|m|m.id!=actor).filter_map(|m|self.units.iter().find(|u|u.id==m.id&&original_combat::alive(true,u.hp))).map(|u|Crew{kind:u.kind.clone(),hp:u.hp}).collect::<Vec<_>>();
   self.finish_order(ci);
   let c=&mut self.units[ci];c.x=f64::from(point.0)*2.;c.y=f64::from(point.1)*2.;c.native_bucket38=super::original_initiative::native::coarse_cell([point.0 as i16,point.1 as i16]);c.team=driver.team;c.squad=driver.squad;c.native_slot=driver.native_slot;c.transport_actor=Some(actor);c.native_route_flip.set(driver.native_route_flip.get());c.native_route_road_replaced.set(driver.native_route_road_replaced.get());c.native_secondary_route.set(driver.native_secondary_route.get());
-  c.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});c.cargo=cargo;c.grenades=driver.grenades;c.native_hardware=None;c.angle=native_math::angle(group.direction);c.aim=native_math::angle(0);c.cooldown=0.;c.native_reload7b=0;c.explicit_stop=false;c.native_phase35=56;c.native_class7c=1;c.native_flags64=driver.native_flags64;c.native_mask98=driver.native_mask98;c.native_flags9c=driver.native_flags9c;c.native_control06=driver.native_control06;c.native_order5c=0;c.native_target46=driver.native_target46;c.native_trait7a=driver.native_trait7a;c.native_cyclea0=driver.native_cyclea0;c.native_initiative_scan=driver.native_initiative_scan;
+  c.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});c.cargo=cargo;c.grenades=driver.grenades;c.native_hardware=None;c.angle=native_math::angle(group.direction);c.aim=native_math::angle(0);c.cooldown=0.;c.native_reload7b=0;c.explicit_stop=false;c.native_phase35=56;c.native_class7c=1;c.native_flags64=driver.native_flags64;c.native_mask98=driver.native_mask98;c.native_flags9c=driver.native_flags9c;c.native_control06=driver.native_control06;c.native_saved_control07=driver.native_saved_control07;c.native_order5c=0;c.native_target46=driver.native_target46;c.native_trait7a=driver.native_trait7a;c.native_cyclea0=driver.native_cyclea0;c.native_initiative_scan=driver.native_initiative_scan;
   let mut state=driver.original_combat.clone().unwrap_or_else(||original_combat::CombatState::new(&driver.kind));
   let equipment=original_combat::CombatState::new("apc");state.fire_rate=equipment.fire_rate;state.movement_control=equipment.movement_control;state.projectile_speed=Some(15);state.secondary_state=-1;c.original_combat=Some(state);
   if let Some((slot,attrs,range4))=source_hardware{c.native_hardware_slot=Some(slot);c.native_range4=Some(range4);c.hp=f64::from(attrs.word(8));c.max_hp=f64::from(attrs.word(10));if let Some(s)=&mut c.original_combat{s.fire_rate=attrs.byte(32);s.movement_control=attrs.byte(7);s.projectile_speed=Some(attrs.byte(33));}}
@@ -239,15 +239,21 @@ impl Game{
     self.clear_transport_member(index);
     self.refresh_native_collision_tables(index,None);
     let u=&mut self.units[index];u.target=None;u.native_fire=None;u.hold_position=false;u.explicit_stop=false;
-    if let Some(state)=u.original_combat.as_mut(){state.movement_control=original_combat::CombatState::new(&u.kind).movement_control;}
     if managed{
      // 456f20 clears the old lists, then installs a local 525a0 line.
      // The exit does not issue a new player order or allocate a road route.
+     if let Some(group)=self.native_group_rosters.current_roster{
+      self.native_group_rosters.pool[group].restore_cached_rinfo();
+     }
      self.start_native_walking_direct(index,[goal.0 as i16,goal.1 as i16]);
+     let u=&mut self.units[index];
+     u.native_control06=u.native_saved_control07.unwrap_or(u.native_control06);
+     if let Some(state)=u.original_combat.as_mut(){state.movement_control=u.native_control06 as u8;}
     }else{
      let point=(f64::from(goal.0)*2.,f64::from(goal.1)*2.);
      let path=self.route_unit(&self.units[index],point.0,point.1);
      let u=&mut self.units[index];u.order="move".into();u.dest=Some(point);u.path=path;u.original_motion=None;u.native_phase35=2;
+     if let Some(state)=u.original_combat.as_mut(){state.movement_control=original_combat::CombatState::new(&u.kind).movement_control;}
     }
     if group.members.iter().all(|m|m.animation.phase==Phase::Released){if let Some(object)=self.native_object_slot(carrier){self.clear_native_apc_object_contact(object);}}
    },Event::None=>{}
@@ -291,6 +297,7 @@ impl Game{
   if let Some(slot)=self.units[index].native_slot{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags9c=self.units[index].native_flags9c;m.flagsb7&=!1;m.promotion.order=0;}}
   if let Some(group)=self.native_group_rosters.current_roster{self.native_group_rosters.pool[group].roster[58]=0;}
   let carrier=self.units[index].clone();let Some(driver)=carrier.crew.clone()else{return true;};
+  let native_carrier=self.owns_native_route(index)&&carrier.native_hardware_slot.is_some();
   let restored_range4=carrier.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s)).map(|w|w.attributes.byte(39).wrapping_mul(2)as i8).unwrap_or_else(||super::native_ai_scoring::default_input(&driver.kind).map_or(30,|i|i.range.wrapping_mul(2)as i8));
   let Some(direction)=self.transport_unload_direction(&carrier,&driver.kind)else{return true;};
   //58af0 frees W while the original native actor slot is still attached.
@@ -305,7 +312,10 @@ impl Game{
     //59720 restores the existing UNIT after freeing W. The new browser ID
     //must use that slot without allocating over it or a lower vacant slot.
     let i=self.push_unit_adapter(&driver.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None,carrier.native_slot,stats(&driver.kind));
-    let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;ids.push(u.id);
+    let u=&mut self.units[i];u.hp=driver.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=carrier.native_slot;
+    // Fresh non-APC vehicles have a zero saved family at UNIT+8d.
+    if native_carrier&&carrier.kind!="apc"{u.native_family30=Some(0);}
+    ids.push(u.id);
    }
    else{for crew in std::iter::once(driver.clone()).chain(carrier.cargo.clone()).take(transport::CAPACITY){self.spawn(&crew.kind,carrier.team,carrier.x,carrier.y,carrier.squad,None);let u=self.units.last_mut().unwrap();u.hp=crew.hp;u.transport_carrier=Some(carrier.id);u.native_transport_slot=u.native_slot;ids.push(u.id);}}
    let origin=((carrier.x/2.).floor()as i32,(carrier.y/2.).floor()as i32);let Ok(mut group)=Boarding::new(carrier.id,carrier.squad,origin,direction,&ids)else{return true;};group.occupant=ids.first().copied();self.native_transports.push(group);self.native_transports.len()-1
@@ -317,6 +327,14 @@ impl Game{
    if let Some(slot)=self.units[i].native_slot.or(self.units[i].native_transport_slot){self.native_group_rosters.record_transport_flags(slot,0,0x18);}
    self.finish_order(i);let u=&mut self.units[i];u.x=f64::from(portal.0)*2.;u.y=f64::from(portal.1)*2.;u.angle=native_math::angle(m.animation.direction);u.aim=u.angle;u.squad=carrier.squad;u.native_transport=Some(m.animation.clone());u.transport_carrier=Some(carrier.id);u.hold_position=false;u.explicit_stop=false;u.native_phase35=64;
    (u.native_frame32,u.native_timer3c)=m.animation.pose();
+   if Some(m.id)==actor&&native_carrier{
+    u.native_control06=carrier.native_control06;
+    u.native_saved_control07=carrier.native_saved_control07;
+    u.native_speed8b=carrier.native_speed8b;
+    u.native_pattern20=carrier.native_pattern20;
+    u.native_field62=carrier.native_field62;
+    if let Some(state)=u.original_combat.as_mut(){state.movement_control=u.native_control06 as u8;}
+   }
    if Some(m.id)==actor{u.native_slot=carrier.native_slot.or(u.native_transport_slot);u.hp=driver.hp;u.grenades=carrier.grenades;u.native_class7c=driver_class;u.native_range4=Some(restored_range4);u.native_route_flip.set(carrier.native_route_flip.get());u.native_route_road_replaced.set(carrier.native_route_road_replaced.get());u.native_secondary_route.set(carrier.native_secondary_route.get());u.native_flags64=carrier.native_flags64;u.native_mask98=carrier.native_mask98;u.native_flags9c=carrier.native_flags9c;u.native_order5c=carrier.native_order5c;u.native_target46=carrier.native_target46;u.native_trait7a=carrier.native_trait7a;u.native_cyclea0=carrier.native_cyclea0;u.native_reload7b=carrier.native_reload7b;u.native_bucket38=carrier.native_bucket38;u.native_initiative_scan=carrier.native_initiative_scan;u.native_footprint18=carrier.native_footprint18;u.native_permission1c=carrier.native_permission1c;u.native_terrain_tag63=carrier.native_terrain_tag63;u.native_contact6f=carrier.native_contact6f;u.native_contact70=carrier.native_contact70;u.native_wait72=carrier.native_wait72;u.native_contact_pausebc=carrier.native_contact_pausebc;if let Some(state)=u.original_combat.as_mut(){if let Some(current)=carrier.original_combat.as_ref(){state.aim_skill=current.aim_skill;state.fire_rate=current.fire_rate;state.projectile_speed=current.projectile_speed;}}}
    else if u.native_slot.is_none(){u.native_slot=u.native_transport_slot;}
   }}
@@ -515,6 +533,53 @@ impl Game{
    assert_eq!(g.native_route_boundary,None);
   }
   assert_eq!((rows,hash),(684,4211671059),"RootV162FreshVehicleExitPicturesOracle");
+ }
+ #[test]
+ fn authored_driver_restores_raw_family_and_resumes_with_the_saved_control_and_group(){
+  use crate::{original_group_lifecycle::authored_rinfo,original_retired_unit_preamble::PATTERNS};
+  let trace=picture_trace("Z_NATIVE_VEHICLE_RELEASE_PROFILE");
+  let keys=["scenario","step","family","current","saved","speed","pattern","movement","active","cached"];
+  let mut hash=2166136261u32;
+  let mut rows=0;
+  for scenario in 0..36{
+   let (kind,gid)=[("medium",1),("heavy",5),("light",7),("launcher",9),("jeep",11),("crane",16)][scenario%6];
+   let (mut g,i)=authored_vehicle_exit_field(kind);
+   g.multiplayer=scenario/6%2!=0;
+   let u=&mut g.units[i];
+   let slot=u.native_slot.unwrap();
+   let speed=crate::original_motion::index(u.native_control06 as u8,0);
+   u.native_speed8b=speed as i8;
+   u.native_pattern20=Some(PATTERNS[speed]);
+   u.native_field62=1;
+   u.native_saved_control07=(scenario>=24).then_some(54);
+   g.native_routes.get_mut().managed[slot]=true;
+   g.native_group_rosters.record_starting_group_rinfo(0,2,gid);
+   g.native_group_rosters.observe_unit_context(slot);
+   let group=g.native_group_rosters.current_roster.unwrap();
+   if scenario/12==1{
+    g.native_group_rosters.pool[group].set_cached_rinfo(authored_rinfo(2).unwrap());
+   }
+   assert!(g.unload_native_hardware(i));
+   let driver=g.units.iter().position(|u|u.native_slot==Some(slot)).unwrap();
+   for step in 0..20{
+    if (1..=18).contains(&step){assert!(g.update_native_transport(driver));}
+    if step==19{g.refresh_native_main_pattern_step(driver,0);}
+    if step!=0&&step<17{continue;}
+    let u=&g.units[driver];
+    let roster=&g.native_group_rosters.pool[group].roster;
+    let actual=[scenario as i64,step,i64::from(u.native_family()),i64::from(u.native_control06),
+     i64::from(u.native_saved_control07.unwrap_or(u.native_control06)),i64::from(u.native_speed8b),
+     i64::from(u.native_pattern20.unwrap()),i64::from(u.native_field62),
+     i64::from(u32::from_le_bytes(roster[0..4].try_into().unwrap())),
+     i64::from(u32::from_le_bytes(roster[4..8].try_into().unwrap()))];
+    if let Some(trace)=&trace{
+     assert_eq!(actual,keys.map(|key|trace[rows][key].as_i64().unwrap()),"scenario {scenario} step {step}");
+    }
+    for value in actual{hash=(hash^value as u32).wrapping_mul(16777619);}
+    rows+=1;
+   }
+  }
+  assert_eq!((rows,hash),(144,1486922629),"RootV164VehicleReleaseProfileOracle");
  }
  #[test]fn authored_exit_probes_native_two_by_two_and_diagonal_third_column_instead_of_web_building_rectangles(){
   for direction in 0..8{for(probe,offset)in[0i16,1,128,129,2,130].into_iter().enumerate(){let(mut g,i)=authored_exit_field();let base=2580i16.wrapping_add(transport::FOOTPRINT_CELL_OFFSETS[direction]);set_exit_code(&mut g,base.wrapping_add(offset),32);assert_eq!(g.transport_direction_clear(&g.units[i],"grunt",direction as u8,false),probe>=4&&direction&1==0,"direction{direction},probe{probe}");}}

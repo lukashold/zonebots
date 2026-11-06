@@ -65,7 +65,7 @@ impl Game{
   let Some(target)=target.and_then(|slot|self.units.iter().rev().find(|v|v.native_slot==Some(usize::from(slot)))).cloned()else{return;};
   let member=target.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref);
   let role=member.map_or(0,|m|m.role);let raw=member.filter(|m|usize::from(m.group)<240).map(|m|self.native_group_rosters.pool[usize::from(m.group)].roster);let roster=raw.map(|r|r[19..40].try_into().unwrap()).unwrap_or([255;21]);
-  let selection=original_idle::group_reaction_target(target.native_slot.unwrap_or(255)as u8,original_combat::animation_family(&target.kind),role,member.is_some_and(|m|m.flags31&4!=0),&roster,raw.map_or(0,|r|r[18]as i8),||self.native_random());
+  let selection=original_idle::group_reaction_target(target.native_slot.unwrap_or(255)as u8,target.native_family(),role,member.is_some_and(|m|m.flags31&4!=0),&roster,raw.map_or(0,|r|r[18]as i8),||self.native_random());
   let selected=match selection{original_idle::GroupReactionTarget::Target(slot)=>self.units.iter().rev().find(|v|v.native_slot==Some(usize::from(slot))).cloned(),original_idle::GroupReactionTarget::Clear=>{if let Some(context)=context{self.native_group_rosters.pool[context].roster[59]=255;}None},original_idle::GroupReactionTarget::None=>None};
   if let Some(target)=selected{self.react_native_idle_target(index,&target);}
  }

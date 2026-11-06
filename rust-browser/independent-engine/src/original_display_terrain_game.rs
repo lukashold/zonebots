@@ -13,7 +13,7 @@ impl Game{
  ///None selects the ordinary renderer; Some(None) is a consumed submission
  ///with no picture. In particular an invisible actor still advances97/RNG.
  pub(crate) fn capture_native_terrain_display(&mut self,index:usize,slot:usize)->Option<Option<(Record,Value)>>{
-  let u=self.units.get(index)?;if original_combat::animation_family(&u.kind)!=4{return None;}
+  let u=self.units.get(index)?;if u.native_family()!=4{return None;}
   let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));let position=[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16];
   //4102c0's temporary4a653b belongs to menu-object previews; ordinary UNIT
   //callbacks enter with0. The actual map descriptor is independent of UI's

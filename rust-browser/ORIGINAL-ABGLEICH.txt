@@ -590,10 +590,12 @@ für die Zeichenliste. 48 Originalzustände in acht Richtungen belegen
 die Bildfolge einschließlich des Verschwindens im Fahrzeug. Beim Ausstieg
 stimmen 684 Zeichenlisteneinträge von der ersten Pose bis zum Anlaufen
 überein. 456f20 verwirft beim Übergang die alten Pfadköpfe und setzt die
-kurze, durch zwei Zufallswerte bestimmte Lauflinie direkt. Weitere
-Originalspuren bestätigen Kennung 0 für den direkten Fahrer und zeigen,
-wann der gespeicherte Bewegungswert und das Gruppenprofil zurückkehren.
-Diese Bewegungs- und Profilzustände nach dem Übergang bleiben offen.
+kurze, durch zwei Zufallswerte bestimmte Lauflinie direkt. Der direkte
+Fahrer behält die native Familienkennung 0. Beim Freigeben kehrt das
+gespeicherte Gruppenprofil zurück, und ab dem nächsten Bewegungstakt
+gilt die gespeicherte Bewegungssteuerung des Fahrers. 144 Zustände aus
+36 Originalabläufen prüfen diese Werte einschließlich warmer Gruppen-
+und Steuerungsdaten.
 
 WEITERER ABGLEICHSBLOCK NOV05-R59
 Der Abgleich zur Gruppenauflösung bestätigt die letzte passende Meldung

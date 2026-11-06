@@ -41,12 +41,12 @@ impl Game{
  ///41c090 after the fresh zeroed UNIT/selection context and hardware class
  ///initializer, before1b5d0 registers a leader/follower. The raw role is0.
  pub(crate) fn initialize_native_collision_tables(&mut self,index:usize)->bool{
-  let Some(u)=self.units.get(index)else{return false;};let Some(slot)=u.native_slot else{return false;};let saved=self.native_selection.contexts.get(slot).and_then(|c|c.saved_class8e);let Some(tables)=collision_tables(u.native_class7c,original_combat::animation_family(&u.kind),saved,(u.team as u8&3)|4,0)else{return false;};let u=&mut self.units[index];u.native_footprint18=tables.footprint;u.native_permission1c=tables.permission;true
+  let Some(u)=self.units.get(index)else{return false;};let Some(slot)=u.native_slot else{return false;};let saved=self.native_selection.contexts.get(slot).and_then(|c|c.saved_class8e);let Some(tables)=collision_tables(u.native_class7c,u.native_family(),saved,(u.team as u8&3)|4,0)else{return false;};let u=&mut self.units[index];u.native_footprint18=tables.footprint;u.native_permission1c=tables.permission;true
  }
  ///41b950 constructor writer. Saved APC8e is explicit because a missing
  ///transported context must not silently choose an ordinary footprint.
  pub(crate) fn refresh_native_collision_tables(&mut self,index:usize,saved_class:Option<u8>)->bool{
-  let Some(u)=self.units.get(index)else{return false;};let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref)else{return false;};let Some(tables)=collision_tables(u.native_class7c,original_combat::animation_family(&u.kind),saved_class,m.flags31,m.role)else{return false;};let u=&mut self.units[index];u.native_footprint18=tables.footprint;u.native_permission1c=tables.permission;true
+  let Some(u)=self.units.get(index)else{return false;};let Some(m)=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref)else{return false;};let Some(tables)=collision_tables(u.native_class7c,u.native_family(),saved_class,m.flags31,m.role)else{return false;};let u=&mut self.units[index];u.native_footprint18=tables.footprint;u.native_permission1c=tables.permission;true
  }
  pub(crate) fn advance_native_unit_preamble(&mut self,index:usize)->Outcome{
   let Some(u)=self.units.get(index)else{return Outcome::Unavailable;};if !self.map.original||u.team<0||!original_combat::alive(true,u.hp){return Outcome::Unavailable;}

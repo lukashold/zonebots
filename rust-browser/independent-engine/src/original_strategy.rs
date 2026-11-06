@@ -120,7 +120,7 @@ impl State{
    let value=members.iter().fold(0i32,|sum,u|sum.wrapping_add(Self::unit_score(u)));
    let value=original_ai::perturb(value,self.control,&g.original_rng);
    let grenades=score::group_can_demolish(&members.iter().map(|u|u.grenades as i8).collect::<Vec<_>>());
-   let leader=task::Leader{native_slot:lead.native_slot.unwrap_or(lead.id),team:1,runtime_class:lead.native_class7c,family:original_combat::animation_family(&lead.kind),
+   let leader=task::Leader{native_slot:lead.native_slot.unwrap_or(lead.id),team:1,runtime_class:lead.native_class7c,family:lead.native_family(),
     passenger_class:lead.crew.as_ref().map(|c|original_combat::runtime_class(&c.kind)).unwrap_or(0),position:[(lead.x/2.).floor()as i16,(lead.y/2.).floor()as i16],
     accepts_orders:g.original_ai_accepts_orders(lead),laser_can_cross:grenades};
    let found=groups.iter().position(|old|old.id==id).or_else(||groups.iter().position(|old|!old.active&&!squads_contains(&g.units,team,old.id)));
@@ -402,13 +402,13 @@ impl Game{
   let mut origin=[i16::from(s.flag[0]as i8)<<4,i16::from(s.flag[1]as i8)<<4];
   if let Some(bases)=self.native_fort_bases(){if s.flags&1!=0{origin=[bases[0][0].wrapping_add(80),bases[0][1].wrapping_add(220)];}if s.flags&2!=0{origin=[bases[1][0].wrapping_add(80),bases[1][1].wrapping_sub(80)];}}
   else if s.flags&3!=0{if let Some(b)=self.buildings.iter().find(|b|b.kind=="fort"&&b.sector==s.id){let base=b.raw_base.unwrap_or((b.x/2.,b.y/2.));origin=[(base.0 as i16).wrapping_add(80),(base.1 as i16).wrapping_add(if s.flags&2!=0{-80}else{220})];}}
-  let random=self.native_random();let waypoint=super::original_orders_game::approach_point(origin,original_combat::animation_family(&lead.kind),random,|cell|self.original_sector_path_allowed(&lead,cell),|point|self.original_sector_goal_reserved(point,sectors));
+  let random=self.native_random();let waypoint=super::original_orders_game::approach_point(origin,lead.native_family(),random,|cell|self.original_sector_path_allowed(&lead,cell),|point|self.original_sector_goal_reserved(point,sectors));
   if let Some(waypoint)=waypoint{self.issue_original_move_event(team,order.group,waypoint,order.metadata);}
  }
  ///437790/437830 inspect the four footprint corners with unit+18's path
  ///permission table. This is separate from physical collision or BUILD boxes.
  fn original_sector_approach_clear(&self,unit:&Unit,point:[i16;2])->bool{
-  super::original_orders_game::footprint_clear(point,matches!(original_combat::animation_family(&unit.kind),6|25|30|24|32|34|36|38),|cell|self.original_sector_path_allowed(unit,cell))
+  super::original_orders_game::footprint_clear(point,matches!(unit.native_family(),6|25|30|24|32|34|36|38),|cell|self.original_sector_path_allowed(unit,cell))
  }
  pub(crate) fn original_sector_path_allowed(&self,unit:&Unit,cell:i16)->bool{
   if !(0..16384).contains(&i32::from(cell)){return false;}let(x,y)=(cell as usize&127,cell as usize>>7);let code=if x<self.map.width&&y<self.map.height{self.map.terrain_codes.get(y*self.map.width+x)}else{self.map.native_terrain_plane.get(y*128+x)}.copied().unwrap_or(127);let tough=unit.kind=="tough"&&unit.native_slot.and_then(|s|self.native_group_rosters.role(s)).is_some_and(|role|role<1);if tough{super::original_route::tough_leader_passable(code)}else{super::original_terrain::passable(code,self.map.world,super::original_terrain::profile(&unit.kind))}

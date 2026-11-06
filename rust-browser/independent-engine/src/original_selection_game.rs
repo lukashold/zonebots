@@ -3,7 +3,7 @@
 #[cfg(test)]
 #[path="original_startgun_context_tests.rs"]
 mod startgun_context_tests;
-use super::{Game,original_combat,original_orders_game::{self as orders,Event},original_selection as native,original_world_contact as world};
+use super::{Game,original_orders_game::{self as orders,Event},original_selection as native,original_world_contact as world};
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub(crate) struct PreparedMove{pub index:usize,pub event:Event,pub anchor:[i16;2]}
 impl Game{
  ///41b210 zeroes the UNIT and438740 writes its initial ABB icon. Call only
@@ -63,20 +63,20 @@ impl Game{
  ///The returned list records failed eligibility rather than inventing a row.
  pub(crate) fn select_native_groups(&mut self,groups:&[u8])->Vec<u8>{
   if !self.map.original||groups.is_empty(){return vec![];}let mut inputs=vec![];let mut rejected=vec![];
-  for &group in groups{let Some(row)=self.native_group_rosters.pool.get(usize::from(group))else{rejected.push(group);continue;};let Some(leader)=row.member(0).and_then(|slot|self.units.iter().find(|u|u.native_slot==Some(usize::from(slot))))else{rejected.push(group);continue;};let mut first=None;let mut uniform=true;for role in 0..21{if let Some(slot)=row.member(role){let Some(m)=self.native_group_rosters.members[usize::from(slot)].as_ref()else{uniform=false;break;};let bit=m.flags8a&32!=0;if first.is_some_and(|old|old!=bit){uniform=false;break;}first=Some(bit);}}let class=leader.native_class7c;let family=original_combat::animation_family(&leader.kind);if class==2||family==36||!uniform{rejected.push(group);}inputs.push((group,class,family,uniform));}
+  for &group in groups{let Some(row)=self.native_group_rosters.pool.get(usize::from(group))else{rejected.push(group);continue;};let Some(leader)=row.member(0).and_then(|slot|self.units.iter().find(|u|u.native_slot==Some(usize::from(slot))))else{rejected.push(group);continue;};let mut first=None;let mut uniform=true;for role in 0..21{if let Some(slot)=row.member(role){let Some(m)=self.native_group_rosters.members[usize::from(slot)].as_ref()else{uniform=false;break;};let bit=m.flags8a&32!=0;if first.is_some_and(|old|old!=bit){uniform=false;break;}first=Some(bit);}}let class=leader.native_class7c;let family=leader.native_family();if class==2||family==36||!uniform{rejected.push(group);}inputs.push((group,class,family,uniform));}
   self.native_selection.select(&inputs);rejected
  }
  ///43aaf0 followed by43a9f0's roster ordering, before43a830 reaction handling.
  ///No fresh alive/visibility/ownership filtering occurs at this pool stage.
  pub(crate) fn native_selection_broadcast_candidates(&mut self,index:usize)->Option<Vec<usize>>{
-  let slot=self.units.get(index)?.native_slot?;let m=self.native_group_rosters.members.get(slot)?.as_ref()?;let(group,role)=(m.group,m.role);self.native_selection.promote(group,role);let groups=self.native_selection.broadcast_groups(group,role);let mut result=vec![];for group in groups{let Some(leader)=self.native_group_rosters.pool.get(usize::from(group)).and_then(|r|r.member(0))else{continue;};let Some(i)=self.units.iter().position(|u|u.native_slot==Some(usize::from(leader)))else{continue;};let u=&self.units[i];if i!=index&&u.native_class7c!=2&&original_combat::animation_family(&u.kind)!=36{result.push(i);}}Some(result)
+  let slot=self.units.get(index)?.native_slot?;let m=self.native_group_rosters.members.get(slot)?.as_ref()?;let(group,role)=(m.group,m.role);self.native_selection.promote(group,role);let groups=self.native_selection.broadcast_groups(group,role);let mut result=vec![];for group in groups{let Some(leader)=self.native_group_rosters.pool.get(usize::from(group)).and_then(|r|r.member(0))else{continue;};let Some(i)=self.units.iter().position(|u|u.native_slot==Some(usize::from(leader)))else{continue;};let u=&self.units[i];if i!=index&&u.native_class7c!=2&&u.native_family()!=36{result.push(i);}}Some(result)
  }
  ///43a600 on a classified event. `bounds` is622d50/52 and `fort` is the
  ///fixed622d54 base; neither is reconstructed from a faction's currentowner.
  ///41c290 uses live BUILDslot order/metadata;43a520 uses the first APC OBJECT
  ///hit in forced-extent mode and the unit's actual terrain permission table.
  pub(crate) fn disperse_native_selection_order(&mut self,index:usize,event:Event,bounds:[i16;2],fort:[i16;2])->Option<Event>{
-  if !self.map.original||event.opcode!=1{return Some(event);}let unit=self.units.get(index)?.clone();let slot=unit.native_slot?;let group=self.native_group_rosters.members.get(slot)?.as_ref()?.group;let buildings=self.native_world_buildings()?;let objects=self.native_world_scan_objects();let class=unit.native_class7c;let family=original_combat::animation_family(&unit.kind);let mut state=std::mem::take(&mut self.native_selection);
+  if !self.map.original||event.opcode!=1{return Some(event);}let unit=self.units.get(index)?.clone();let slot=unit.native_slot?;let group=self.native_group_rosters.members.get(slot)?.as_ref()?.group;let buildings=self.native_world_buildings()?;let objects=self.native_world_scan_objects();let class=unit.native_class7c;let family=unit.native_family();let mut state=std::mem::take(&mut self.native_selection);
   let dispersed=state.disperse(group,class,event.opcode,event.waypoint,fort,|point|{let(hit,adjusted)=world::first_building(&buildings,*point,false,false)?;*point=adjusted;Some(buildings[hit].kind)},|point|native::destination_blocked(class,family,point,bounds,|point|objects.iter().find(|o|o.flags13&0x50!=0&&o.position[0]!= -1&&(0..2).all(|axis|o.position[axis]<=point[axis]&&i32::from(point[axis])-i32::from(o.extent20)<=i32::from(o.position[axis]))).is_some_and(|o|o.definition==31),|point,wide|!orders::footprint_clear(point,wide,|cell|self.original_sector_path_allowed(&unit,cell))));
   self.native_selection=state;Some(Event{waypoint:dispersed.point,..event})
  }

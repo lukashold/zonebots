@@ -510,7 +510,7 @@ impl Game {
         use super::original_death as death;
         if stats(&before.kind).cls==0{return;}
         if let Some(slot)=before.native_slot{self.remember_native_point_target(slot,native_point(before.x,before.y),before.native_class7c);}
-        let family=original_combat::animation_family(&before.kind);let class=before.native_class7c;let point=native_point(before.x,before.y);let owner=before.native_flags64;
+        let family=before.native_family();let class=before.native_class7c;let point=native_point(before.x,before.y);let owner=before.native_flags64;
         let mut hull=self.units[index].hp as i16;
         if class==2&&self.native_fort_bases().is_some_and(|bases|bases.into_iter().any(|p|point[0]>=p[0]&&point[0]<=p[0].wrapping_add(160)&&point[1]>=p[1].wrapping_sub(16)&&point[1]<=p[1].wrapping_add(184))){hull=-1;self.units[index].hp=-1.;}
         let converted=death::conversion(death::ConversionInput{family,class,hull,position:point,owner,suppressed,crew_only,removing:suppressed,forced_wreck});
@@ -526,7 +526,7 @@ impl Game {
             attrs.set_word(8,-1);
         }
         let hull=slot.map_or(self.native_hardware_dummy_attributes.word(8),|w|self.native_hardware_pool[w].attributes.word(8));
-        let conversion=death::conversion(death::ConversionInput{family:original_combat::animation_family(&before.kind),class,hull,position:point,owner:before.native_flags64,suppressed,crew_only:false,removing:suppressed,forced_wreck});
+        let conversion=death::conversion(death::ConversionInput{family:before.native_family(),class,hull,position:point,owner:before.native_flags64,suppressed,crew_only:false,removing:suppressed,forced_wreck});
         FortHardware{conversion,hull}
     }
     pub(crate) fn insert_native_fort_hardware(&mut self,index:usize,before:&super::Unit,plan:FortHardware){
@@ -556,7 +556,7 @@ impl Game {
         let mut contacts=Vec::new();
         if wreck.align{
             let aligned=wreck.position.map(|v|v.wrapping_add(7)&!15);let overlap=death::road_waypoint_overlap(aligned,self.map.native_road_graph.as_ref().map(|g|g.regions.iter().map(|r|r.waypoint).collect::<Vec<_>>()).unwrap_or_else(||vec![0;96]));
-            let units=self.units.iter().enumerate().map(|(i,u)|{let mut position=native_point(u.x,u.y);if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){position[0]=10000;}let flags31=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).map_or_else(||if u.team>=0&&original_combat::alive(true,u.hp){4}else{0},|m|m.flags31);death::PlacementUnit{position,family:original_combat::animation_family(&u.kind),flags31,phase35:u.native_phase35,self_unit:i==index}}).collect::<Vec<_>>();
+            let units=self.units.iter().enumerate().map(|(i,u)|{let mut position=native_point(u.x,u.y);if u.native_transport.as_ref().is_some_and(|a|a.phase==super::original_transport::Phase::Inside){position[0]=10000;}let flags31=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref).map_or_else(||if u.team>=0&&original_combat::alive(true,u.hp){4}else{0},|m|m.flags31);death::PlacementUnit{position,family:u.native_family(),flags31,phase35:u.native_phase35,self_unit:i==index}}).collect::<Vec<_>>();
             let plan=death::place_wreck(wreck.position,terrain,None,&units,overlap);object.record.position=plan.position;if let Some(saved)=plan.saved{object.saved=saved;for(i,delta)in[0,1,128,129].into_iter().enumerate(){self.set_world_code(cell.wrapping_add(delta),plan.terrain[i]);}}contacts=plan.contacts;
         }
         let render=self.objects.len();let eq=if wreck.wreck{None}else{(0..19u16).find(|&eq|equipment_kind(eq)==Some(before.kind.as_str()))};let p=object.record.position;

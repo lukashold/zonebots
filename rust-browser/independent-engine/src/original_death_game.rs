@@ -1,5 +1,5 @@
 //!Game binding for the separate native removal sprite pool.
-use super::{Game,Unit,json,original_combat,original_death::{self,Action,RemovalSource}};
+use super::{Game,Unit,json,original_death::{self,Action,RemovalSource}};
 use super::original_fort_scene::cleanup::Force;
 impl Game{
  ///58ec0 without the caller's contact explosions/audio or41eb30's familyFF
@@ -15,7 +15,7 @@ impl Game{
   self.native_remove_actor_from(index,&before,false,false,false,Some(force));self.units[index].hp=-1.;true
  }
  fn native_remove_actor_from(&mut self,index:usize,before:&Unit,suppressed:bool,forced:bool,crew_only:bool,fort:Option<&mut Force>){
-  let family=original_combat::animation_family(&before.kind);let mut point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];
+  let family=before.native_family();let mut point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];
   if before.native_transport.as_ref().is_some_and(|t|t.phase==super::original_transport::Phase::Inside){point[0]=10000;}
   let upstream=self.capture_native_upstream_removal(index,before,point,false,suppressed,crew_only);
   self.remember_original_group_order(index,before);self.release_original_claim(index);
@@ -63,7 +63,7 @@ impl Game{
  ///removal sprite (and consumes RNG) before4bba0 can choose another leader.
  pub(crate) fn native_contact_removal(&mut self,index:usize,before:&Unit,source:RemovalSource,crew_only:bool){
   if !self.map.original||index>=self.units.len(){return;}
-  let class=before.native_class7c;let family=original_combat::animation_family(&before.kind);let point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];let owner=before.native_flags64;
+  let class=before.native_class7c;let family=before.native_family();let point=[(before.x/2.).floor()as i16,(before.y/2.).floor()as i16];let owner=before.native_flags64;
   let actions=original_death::removal_actions(source,class,family,point,owner,crew_only,true);let mut removed=false;
   for action in actions{match action{
    Action::Remove{suppressed}=>{if removed{continue;}removed=true;
