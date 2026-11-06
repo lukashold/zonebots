@@ -123,10 +123,13 @@ impl Game{
  fn begin_native_dodge(&mut self,index:usize,input:reaction::DodgeUnit,team:u8,current:[i16;2],target:[i16;2],native_cache:bool){
   if !reaction::dodge_candidate(input,team,current,target){return;}
   let destination=reaction::dodge_destination(input.position,target,[self.native_random(),self.native_random()]);
+  self.install_native_dodge(index,input.class7c,destination,native_cache);
+ }
+ fn install_native_dodge(&mut self,index:usize,class:u8,destination:[i16;2],native_cache:bool){
   self.units[index].native_flags64|=64;
   self.units[index].motion_bonus=2;
   if native_cache&&!self.prepare_native_line_occupancy(index,destination){return;}
-  if input.class7c!=1{self.prepare_native_walk(index);}
+  if class!=1{self.prepare_native_walk(index);}
   let unit=&mut self.units[index];
   let segment=original_motion::Segment::new(unit.x,unit.y,(f64::from(destination[0])*2.,f64::from(destination[1])*2.));
   unit.native_remaining48=segment.remaining();
@@ -142,7 +145,7 @@ impl Game{
   unit.native_cover=None;
   unit.native_fire=None;
   unit.native_contact=None;
-  if input.class7c!=1{
+  if class!=1{
    unit.native_phase35=2;
    unit.aim=unit.angle;
    if let Some(member)=unit.native_slot.and_then(|slot|self.native_group_rosters.members[slot].as_mut()){
@@ -156,10 +159,29 @@ impl Game{
   //The hardware handler continues hatch/APC and body contact updates while
   //its17:1 movement bit is set. Infantry use the ordinary52200 walk frames.
   if stats(&self.units[index].kind).cls==1{self.update_native_hardware(index);}
+  if self.owns_native_route(index){
+   self.units[index].original_motion=Some(dodge.segment);
+   let handled=if self.units[index].native_class7c==1{
+    self.advance_native_hardware_dodge(index);
+    true
+   }else{
+    self.update_native_walk(index)
+   };
+   let unit=&mut self.units[index];
+   if handled{
+    if unit.native_flags64&64!=0{
+     unit.native_dodge=unit.original_motion.take().map(|segment|Dodge{segment,counter8c:unit.motion_bonus as u8});
+    }
+    return true;
+   }
+   // A compatibility actor can own a path while its walking caller is
+   // suspended. In that case the transferred segment has not been advanced.
+   let Some(segment)=unit.original_motion.take()else{return true;};
+   dodge.segment=segment;
+  }
   let result=self.move_native_local(index,&mut dodge.segment,first_tick,ticks,stats(&self.units[index].kind).cls==0);
   if result==original_motion::LocalResult::Moving{self.units[index].native_dodge=Some(dodge);}
   else{
-   if self.owns_native_route(index)&&self.units[index].native_class7c==1{self.finish_native_walk_line(index);return true;}
    //51170 removes40 on arrival or a blocked local attempt.50db0/52810
    //reload the unchanged route; no spare pixels are spent in the new line.
    let p=&mut self.units[index];p.original_motion=None;p.native_flags64&=!64;if let Some(&goal)=p.path.front(){p.native_remaining48=original_motion::Segment::new(p.x,p.y,goal).remaining();}if stats(&p.kind).cls==0{p.native_phase35=if p.path.is_empty(){0}else{2};}
@@ -226,6 +248,10 @@ impl Game{
   self.units[index].moving=false;true
  }
 }
+
+#[cfg(test)]
+#[path="original_dodge_motion_tests.rs"]
+mod dodge_motion_tests;
 
 #[cfg(test)]mod tests{
  use super::*;

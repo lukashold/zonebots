@@ -1293,7 +1293,12 @@ impl Game {
                             self.units[vi].team=u.team;self.units[vi].crew=Some(Crew{kind:u.kind.clone(),hp:u.hp});
                             self.units[vi].native_slot=u.native_slot;self.units[vi].native_route_flip.set(u.native_route_flip.get());self.units[vi].native_route_road_replaced.set(u.native_route_road_replaced.get());
                             self.units[vi].native_hardware=None;self.units[vi].native_phase35=original_animation_game::initial_phase(&v.kind);
-                            if self.map.original{self.units[vi].squad=if v.kind=="apc"{u.squad}else{self.units.iter().map(|p|p.squad).max().unwrap_or(0)+1};}
+                            if self.map.original{
+                                self.units[vi].squad=if v.kind=="apc"{u.squad}else{self.units.iter().map(|p|p.squad).max().unwrap_or(0)+1};
+                                if self.units[vi].native_class7c==1&&self.refresh_native_collision_tables(vi,Some(u.native_class7c)){
+                                    self.units[vi].native_terrain_tag63=u.native_terrain_tag63;
+                                }
+                            }
                             if let Some(state)=&mut self.units[vi].original_combat{state.crew_boarded(&u.kind);}
                             if u.initiative==Some(original_initiative::Initiative::Vehicle(v.id)) {
                                 self.resume_march(vi,u.march_resume);

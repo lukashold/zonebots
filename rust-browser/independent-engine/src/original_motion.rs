@@ -122,9 +122,7 @@ impl Game {
         let walk=if u.native_phase35==2{Walk{frame:u.native_frame32,timer:u.native_timer3c}}else{Walk::replacement(motion_index,u.native_frame32,u.native_timer3c)};
         let u=&mut self.units[i];u.native_frame32=walk.frame;u.native_timer3c=walk.timer;u.native_walk=Some(walk);u.native_phase35=2;
     }
-    ///525a0 can replace the current line without touching either path list.
-    ///462fd0 uses that operation for an incoming projectile. This callback
-    ///deliberately neither consumes nor replaces the primary route's front.
+    ///Fallback movement for original-themed maps without a native route owner.
     pub(crate) fn move_native_local(&mut self,i:usize,segment:&mut Segment,first_tick:u64,ticks:u64,aim_follows:bool)->LocalResult{
         self.units[i].native_remaining48=segment.remaining();
         for tick in first_tick..first_tick+ticks{
@@ -156,6 +154,22 @@ impl Game {
             if segment.remaining==0{self.native_attack_walk_marked=true;return LocalResult::Arrived;}
         }
         LocalResult::Moving
+    }
+    pub(crate) fn advance_native_hardware_dodge(&mut self,i:usize){
+        let Some(slot)=self.units[i].native_slot else{return;};
+        if self.native_group_rosters.members[slot].as_ref().is_none_or(|m|m.flags69&8!=0){return;}
+        let before=(self.units[i].x,self.units[i].y);
+        let Some(step)=self.advance_native_walk_position(i)else{return;};
+        if let Some(contact)=step.contact{
+            if let Err(error)=self.native_route_contact(i,contact){self.native_route_boundary=Some(error);}
+        }
+        if step.ended{self.finish_native_walk_line(i);}
+        let unit=&mut self.units[i];
+        unit.native_bucket38=((coordinate(unit.y)>>3)as u8&240).wrapping_add((coordinate(unit.x)>>7)as u8);
+        if before!=(unit.x,unit.y){
+            unit.moving=true;
+            self.advance_native_hardware_movement(i);
+        }
     }
     ///Managed hardware uses the same51da0..521a0 leaves and51170 link
     ///retirement. The full5c5c0 targeting/turret body remains a separate owner.

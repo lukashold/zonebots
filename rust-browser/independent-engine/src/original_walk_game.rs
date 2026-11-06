@@ -77,7 +77,9 @@ impl Game{
  ///51170 infantry branch. The finite native pool owns link retirement; the
  ///current Vec route mirror drops its coincident head at this adapterboundary.
  pub(crate) fn finish_native_walk_line(&mut self,index:usize){
-  if self.units[index].native_class7c==2{return;}self.units[index].native_flags64&=!64;self.native_attack_walk_marked=true;
+  if self.units[index].native_class7c==2{return;}
+  if self.units[index].native_flags64&64!=0{self.units[index].original_motion=None;}
+  self.units[index].native_flags64&=!64;self.native_attack_walk_marked=true;
   if self.units[index].native_class7c==1{self.units[index].native_initiative_scan.flags71&=!64;if self.units[index].native_initiative_scan.flags71&1==0&&self.check_native_reset_path(index)&1!=0{self.resume_native_reset_path(index);return;}
    self.clear_native_walk_group_movement(index);self.units[index].native_flags9c&=!4;let w=self.units[index].native_hardware_slot;let mut r=w.map(|w|self.native_hardware_pool[w].order).unwrap_or(self.native_hardware_dummy);r.field17&=!1;if let Some(w)=w{self.native_hardware_pool[w].set_order(r);}else{self.native_hardware_dummy=r;}
    if self.units[index].native_initiative_scan.flags71&1!=0{if let Err(e)=self.occupy_native_terrain(index){self.native_route_boundary=Some(e);}}else{self.finish_native_arrival_order(index);}return;

@@ -14,10 +14,10 @@ impl Game{
   use crate::original_path_contact::Context;
   if !self.owns_native_route(index){return Ok(false);}let u=self.units[index].clone();let slot=u.native_slot.unwrap();let Some(member)=self.native_group_rosters.members[slot].as_ref().cloned()else{return Ok(false);};let mut proposed=[contact.attempted.0,contact.attempted.1];let old=[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16];let mut context={let paths=self.native_routes.borrow();Context{blocked:[contact.x.unwrap_or(-1),contact.y.unwrap_or(-1)],proposed,force:false,callback_idle:paths.scheduler.function==Function::Idle,current_actor:usize::from(paths.scheduler.current)==slot,dummy_actor:false}};
   self.native_attack_walk_marked=true;self.units[index].native_pose7e|=128;
-  if u.native_class7c==1&&u.native_flags64&64!=0{self.units[index].native_flags64&=!64;self.finish_native_walk_line(index);return Ok(true);}
+  if u.native_class7c==1&&u.native_flags64&64!=0{self.finish_native_walk_line(index);return Ok(true);}
   if u.native_class7c!=1{let speed=u.native_speed8b.max(0)as usize;let thresholds=[10i8,8,6,5,5,4,3,2,2,2,1,1,1];let v=&mut self.units[index];v.native_timer3c=v.native_timer3c.wrapping_sub(1);if v.native_timer3c<0{v.native_timer3c=thresholds[speed.min(12)];v.native_frame32=v.native_frame32.wrapping_add(1)&3;}}
   if self.native_autoattack_contact(index,context,|g,i|g.native_owned_contact_goal(i))?{return Ok(true);}
-  if u.native_flags64&64!=0{self.units[index].native_flags64&=!64;self.finish_native_walk_line(index);return Ok(true);}
+  if u.native_flags64&64!=0{self.finish_native_walk_line(index);return Ok(true);}
   if u.native_class7c==1{if self.native_vehicle_goal(index,&mut context)?{self.enqueue_native_contour(index,context.blocked);if let Some(w)=u.native_hardware_slot.and_then(|s|self.native_hardware_pool.get_mut(s)){let mut o=w.order;o.field17|=2;w.set_order(o);}else{self.native_hardware_dummy.field17|=2;}proposed=old;}else{proposed=context.proposed;}}
   else{
    if member.role>0&&member.flags31&8==0&&member.flags8a&8==0{

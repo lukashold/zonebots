@@ -146,6 +146,8 @@ mod tests {
         g.step(0.1);
         let car = g.units.iter().find(|u| u.id == vehicle).unwrap();
         assert_eq!(car.crew.as_ref().unwrap().hp, 27.);
+        assert_eq!(car.native_footprint18, 0x63f990);
+        assert_eq!(car.native_permission1c, 0x632770);
         assert_eq!(
             g.units
                 .iter()

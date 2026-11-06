@@ -755,8 +755,15 @@ dem aktuellen Slot. Der Nachbau übernimmt diese Reihenfolge, leert den
 globalen Suchform-Zeiger und setzt den Bewegungsbonus, die Ersatzlinie und
 das Hardware-Bewegungsbit. 32 GOG-Ausführungen prüfen unter anderem
 verschobene Einheiten, die Reihenfolge der Zufallswerte und den
-Mehrspielermodus. Die Folgewirkungen auf bereits entfernte UNIT-Slots und
-der vollständige Kollisionsablauf der Ersatzlinie bleiben offen.
+Mehrspielermodus. Auf Originalkarten verwenden ausweichende Roboter den
+regulären Lauf-Callback. Fahrzeuge nutzen die geladene Original-Schrittweite
+und den physischen Kollisionsaufruf. 128 GOG-Szenarien liefern 872 verglichene
+Zustände, darunter 60 Kollisionen. Der Test deckt den korrigierten Standort,
+den unverbrauchten Restweg bei Kontakt und den Wiedereinstieg in den
+vorhandenen Wegpunkt ab. Die allgemeine Fahrzeugübernahme übernimmt beim
+Wechsel vom Fußsoldaten die Kollisionsdaten des besetzten Fahrzeugs.
+Der vollständige Fahrzeug-Callback um den
+Bewegungsschritt und Schreibfolgen auf entfernte UNIT-Slots bleiben offen.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
