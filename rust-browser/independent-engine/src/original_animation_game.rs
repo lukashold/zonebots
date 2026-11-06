@@ -80,25 +80,74 @@ impl Game{
  }
  pub(crate) fn react_native_dodge(&mut self,shooter:Option<usize>,fallback_team:i32,current:[i16;2],target:[i16;2]){
   if !self.map.original{return;}
-  //462fd0 reads the shooter's current slot, including a reused UNIT slot.
+  self.native_query_shape=0;
+  let origin=dodge_bucket(target);
+  if let Some(buckets)=self.native_cached_unit_buckets(){
+   // 44cd60 copies whole buckets from the start of the UNIT pass. The
+   // entries identify slots; the subsequent reads use their current bytes.
+   let mut count=0;
+   let mut candidates=Vec::new();
+   for offset in reaction::PROJECTILE_BUCKET_OFFSETS{
+    let bucket=origin.wrapping_add(offset)as u16;
+    let Some(entries)=buckets.get(usize::from(bucket))else{continue;};
+    count+=entries.len();
+    if count<288{candidates.extend(entries.iter().map(|&slot|slot as u8));}
+   }
+   let team=shooter.and_then(|slot|u8::try_from(slot).ok())
+    .and_then(|slot|self.native_reaction_source(slot).ok())
+    .map_or(fallback_team as u8,|(_,raw)|raw.flags31);
+   for slot in candidates{
+    let Ok((Some(index),raw))=self.native_reaction_source(slot)else{continue;};
+    let unit=&self.units[index];
+    let input=reaction::DodgeUnit{position:raw.position,flags31:raw.flags31,flags64:unit.native_flags64,
+     flags69:raw.flags69,class7c:raw.class,state35:raw.phase35,
+     aim02:unit.original_combat.as_ref().map_or(60,|c|c.aim_skill)as i8};
+    self.begin_native_dodge(index,input,team,current,target,true);
+   }
+   return;
+  }
+  // Original-themed maps without a native UNIT table use their local units.
   let team=shooter.and_then(|slot|self.units.iter().rev().find(|u|u.native_slot==Some(slot))).map_or(fallback_team,|u|u.team)as u8;
-  let origin=dodge_bucket(target);let mut candidates=Vec::new();
+  let mut candidates=Vec::new();
   for offset in reaction::PROJECTILE_BUCKET_OFFSETS{
    let bucket=origin.wrapping_add(offset)as u16;if bucket>=256{continue;}
    let mut local=self.units.iter().enumerate().filter(|(_,u)|u.team>=0&&original_combat::alive(true,u.hp)&&!workshops::hidden(u)&&dodge_bucket([(u.x/2.).floor()as i16,(u.y/2.).floor()as i16])as u16==bucket).map(|(i,u)|(u.native_slot.unwrap_or(u.id),i)).collect::<Vec<_>>();
    local.sort_unstable();candidates.extend(local.into_iter().take(32).map(|(_,i)|i));
   }
   for i in candidates{
-   let u=self.units[i].clone();let member=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref);
+   let u=&self.units[i];let member=u.native_slot.and_then(|s|self.native_group_rosters.members.get(s)).and_then(Option::as_ref);
    let input=reaction::DodgeUnit{position:[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16],flags31:member.map_or((u.team as u8&3)|4,|m|m.flags31),flags64:u.native_flags64,flags69:member.map_or(0,|m|m.flags69),class7c:u.native_class7c,state35:u.native_phase35,aim02:u.original_combat.as_ref().map_or(60,|c|c.aim_skill)as i8};
-   if !reaction::dodge_candidate(input,team,current,target){continue;}
-   let destination=reaction::dodge_destination(input.position,target,[self.native_random(),self.native_random()]);
-   let segment=original_motion::Segment::new(u.x,u.y,(f64::from(destination[0])*2.,f64::from(destination[1])*2.));
-   if input.class7c!=1{self.prepare_native_walk(i);}
-   let heading=segment.heading();let p=&mut self.units[i];
-   p.native_remaining48=segment.remaining();if p.native_remaining48!=0{p.native_directiona2=-1;p.native_directiona3=0;}p.native_dodge=Some(Dodge{segment,counter8c:2});p.native_flags64|=64;if input.class7c!=1{p.native_phase35=2;}p.original_motion=None;p.native_idle=None;p.native_cover=None;p.native_fire=None;p.native_contact=None;
-   p.angle=heading;if input.class7c!=1{p.aim=heading;}
-   if let Some(slot)=p.native_slot{if let Some(m)=self.native_group_rosters.members.get_mut(slot).and_then(Option::as_mut){if input.class7c!=1{m.promotion.phase=2;}}self.native_group_rosters.record_segment_direction(slot,original_combat::facing(heading),64);}
+   self.begin_native_dodge(i,input,team,current,target,false);
+  }
+ }
+ fn begin_native_dodge(&mut self,index:usize,input:reaction::DodgeUnit,team:u8,current:[i16;2],target:[i16;2],native_cache:bool){
+  if !reaction::dodge_candidate(input,team,current,target){return;}
+  let destination=reaction::dodge_destination(input.position,target,[self.native_random(),self.native_random()]);
+  self.units[index].native_flags64|=64;
+  self.units[index].motion_bonus=2;
+  if native_cache&&!self.prepare_native_line_occupancy(index,destination){return;}
+  if input.class7c!=1{self.prepare_native_walk(index);}
+  let unit=&mut self.units[index];
+  let segment=original_motion::Segment::new(unit.x,unit.y,(f64::from(destination[0])*2.,f64::from(destination[1])*2.));
+  unit.native_remaining48=segment.remaining();
+  if unit.native_remaining48!=0{
+   unit.native_axis81=segment.axis81();
+   unit.native_directiona2=-1;
+   unit.native_directiona3=0;
+  }
+  unit.angle=segment.heading();
+  unit.native_dodge=Some(Dodge{segment,counter8c:2});
+  unit.original_motion=None;
+  unit.native_idle=None;
+  unit.native_cover=None;
+  unit.native_fire=None;
+  unit.native_contact=None;
+  if input.class7c!=1{
+   unit.native_phase35=2;
+   unit.aim=unit.angle;
+   if let Some(member)=unit.native_slot.and_then(|slot|self.native_group_rosters.members[slot].as_mut()){
+    member.promotion.phase=2;
+   }
   }
  }
  pub(crate) fn update_native_dodge(&mut self,index:usize,first_tick:u64,ticks:u64)->bool{
@@ -251,6 +300,76 @@ impl Game{
   let mut g=field();g.spawn("grunt",0,1000.,3000.,1,None);g.react_native_dodge(Some(0),0,[500,1500],[508,1508]);assert!(g.units[1].native_dodge.is_some());
   //The projectile's original team is immaterial after that slot changes side.
   g.units[1].native_dodge=None;g.units[1].native_flags64&=!64;g.units[1].native_phase35=0;g.units[0].team=0;let rng=g.original_rng.words;g.react_native_dodge(Some(0),1,[500,1500],[508,1508]);assert!(g.units[1].native_dodge.is_none());assert_eq!(g.original_rng.words,rng);
+ }
+ #[test]
+ fn cached_projectile_dodge_matches_32_executed_gog_scenarios(){
+  let trace=std::env::var_os("Z_NATIVE_DODGE_CACHE_TRACE").map(|path|{
+   std::fs::read_to_string(path).unwrap().lines().map(|line|serde_json::from_str::<Value>(line).unwrap()).collect::<Vec<_>>()
+  });
+  let mut hash=2166136261u32;
+  for scenario in 0..32u32{
+   let mut g=field();
+   g.map.native_road_graph=Some(original_route::RoadGraph{regions:Vec::new()});
+   g.map.native_terrain_plane=vec![0;16384];
+   g.native_route_boundary=None;
+   g.native_group_rosters.clear();
+   g.units.clear();
+   let points=[
+    ("grunt",600,520,86,0),
+    ("grunt",512,512,68,if scenario&2==0{1}else{7}),
+    ("jeep",513,511,67,58),
+    ("grunt",515,515,70,0),
+    ("grunt",if scenario&4==0{580}else{514},512,68,1),
+    ("gatling",513,511,68,0),
+    ("grunt",515,515,84,1),
+   ];
+   for (slot,(kind,x,y,cache,phase)) in points.into_iter().enumerate(){
+    g.spawn(kind,0,f64::from(x)*2.,f64::from(y)*2.,slot,None);
+    let unit=&mut g.units[slot];
+    assert_eq!(unit.native_slot,Some(slot));
+    unit.native_bucket38=cache;
+    unit.native_phase35=phase;
+    unit.native_flags64=0;
+    unit.native_initiative_scan.flags71=4;
+    unit.original_combat.as_mut().unwrap().aim_skill=60;
+    unit.angle=native_math::angle(0);
+   }
+   g.maintain_native_group_rosters();
+   for member in g.native_group_rosters.members.iter_mut().take(7).flatten(){member.flags31=4;member.flags69=0;}
+   g.prepare_native_ambient_queries();
+   let buckets=g.native_cached_unit_buckets().unwrap();
+   assert_eq!(buckets[68],[1,4,5]);
+   assert_eq!(buckets[67],[2]);
+   assert_eq!(buckets[84],[6]);
+   g.native_group_rosters.members[0].as_mut().unwrap().flags31=if scenario&1==0{1}else{4};
+   g.native_group_rosters.members[6].as_mut().unwrap().flags31=0;
+   let hardware=g.units[2].native_hardware_slot.unwrap();
+   let mut order=g.native_hardware_pool[hardware].order;
+   order.field17=0x20;
+   g.native_hardware_pool[hardware].set_order(order);
+   g.original_rng.words=std::array::from_fn(|i|0xa5331991u32.wrapping_add(i as u32*0x123af911));
+   g.multiplayer=scenario&8!=0;
+   g.native_query_shape=0x498000;
+   g.react_native_dodge(Some(0),0,[if scenario&16==0{514}else{497},512],[520,520]);
+   assert_eq!(g.native_route_boundary,None);
+   let hardware=g.native_hardware_pool[hardware].order.field17;
+   let fields:Vec<[u32;7]>=g.units[1..].iter().map(|u|[
+    u.native_flags64.into(),u.motion_bonus as u32,u.native_phase35.into(),
+    u.native_remaining48 as u32,u.native_axis81.into(),
+    original_combat::facing(u.angle).into(),u.native_initiative_scan.flags71.into()
+   ]).collect();
+   if let Some(trace)=&trace{
+    let row=&trace[scenario as usize];
+    assert_eq!(row["units"],json!(fields),"scenario {scenario}");
+    assert_eq!(row["rng"],json!(g.original_rng.words),"scenario {scenario}");
+    assert_eq!(row["shape"],json!(g.native_query_shape));
+    assert_eq!(row["hardware"],json!(hardware));
+   }
+   for value in [scenario,g.native_query_shape,hardware.into()].into_iter().chain(g.original_rng.words).chain(fields.into_iter().flatten()){
+    hash=(hash^value).wrapping_mul(16777619);
+   }
+  }
+  assert_eq!(hash,540447886,"ZNativeDodgeCacheOracle");
  }
  #[test]fn blocked_local_dodge_returns_without_entering_water_or_losing_its_route(){
   let mut g=field();g.spawn("light",0,1000.,1000.,1,None);g.units[1].original_combat.as_mut().unwrap().movement_control=70;g.units[1].order="move".into();g.units[1].path=VecDeque::from([(1500.,1000.)]);let path=g.units[1].path.clone();

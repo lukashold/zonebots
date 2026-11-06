@@ -748,6 +748,16 @@ Start von Mission 1. Im Browser startet nach dem Ende oder Überspringen
 die gewählte Mission; ohne lokale Filmdatei startet sie direkt. Die
 20 neuen Intro-/Reisefilme mit ihren deutschen Tonspuren bleiben lokal.
 
+GESCHOSS-AUSWEICHREAKTION
+462fd0 liest die von 44cd60 zusammengefügte UNIT-Liste aus dem Beginn des
+Spielschritts. Position, Mannschaft und Zustand stammen beim Zugriff aus
+dem aktuellen Slot. Der Nachbau übernimmt diese Reihenfolge, leert den
+globalen Suchform-Zeiger und setzt den Bewegungsbonus, die Ersatzlinie und
+das Hardware-Bewegungsbit. 32 GOG-Ausführungen prüfen unter anderem
+verschobene Einheiten, die Reihenfolge der Zufallswerte und den
+Mehrspielermodus. Die Folgewirkungen auf bereits entfernte UNIT-Slots und
+der vollständige Kollisionsablauf der Ersatzlinie bleiben offen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
