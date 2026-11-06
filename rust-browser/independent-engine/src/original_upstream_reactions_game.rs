@@ -3,18 +3,18 @@
 use super::{Source,Boundary,BlastWorld};
 use crate::{Game,Unit,original_combat,original_idle::reset};
 fn point(u:&Unit)->[i16;2]{[if u.native_transport.as_ref().is_some_and(|t|t.phase==crate::original_transport::Phase::Inside){10000}else{(u.x/2.).floor()as i16},(u.y/2.).floor()as i16]}
-#[derive(Clone,Copy)]pub(crate) struct Removal{slot:usize,generation:u64,raw:Source}
+#[derive(Clone,Copy)]pub(crate) struct Removal{slot:usize,generation:u64,raw:Source,flags64:u8,aim02:i8}
 impl Game{
  pub(crate) fn record_native_upstream_ctor(&mut self,index:usize){if let Some(slot)=self.units.get(index).and_then(|u|u.native_slot){self.native_upstream_reactions.constructed(slot);}}
- pub(crate) fn update_native_upstream_retired_header(&mut self,slot:usize,generation:u64,raw:crate::original_retired_unit_preamble::Unit){self.native_upstream_reactions.update_retired(slot,generation,Source{slot:slot as u8,position:raw.position,cell10:raw.cell,family:raw.family,class:raw.class,flags31:raw.flags31,role:raw.role,group:raw.group,flags69:raw.flags69,protectionaa:raw.protection,phase35:raw.phase});}
+ pub(crate) fn update_native_upstream_retired_header(&mut self,slot:usize,generation:u64,raw:crate::original_retired_unit_preamble::Unit){self.native_upstream_reactions.update_retired(slot,generation,Source{slot:slot as u8,position:raw.position,cell10:raw.cell,family:raw.family,class:raw.class,flags31:raw.flags31,role:raw.role,group:raw.group,flags69:raw.flags69,protectionaa:raw.protection,phase35:raw.phase},raw.flags64);}
  fn current_native_reaction_source(&self,slot:u8)->Result<Option<(usize,Source)>,Boundary>{let Some(index)=self.units.iter().rposition(|u|u.native_slot==Some(usize::from(slot)))else{return Ok(None);};let u=&self.units[index];let m=self.native_group_rosters.members.get(usize::from(slot)).and_then(Option::as_ref).ok_or(Boundary::MissingMember(usize::from(slot)))?;Ok(Some((index,Source{slot,position:point(u),cell10:u.native_cell10,family:original_combat::animation_family(&u.kind),class:u.native_class7c,flags31:m.flags31,role:m.role,group:m.group,flags69:m.flags69,protectionaa:u.native_protectionaa,phase35:u.native_phase35})))}
  pub(crate) fn native_reaction_source(&self,slot:u8)->Result<(Option<usize>,Source),Boundary>{if let Some((index,raw))=self.current_native_reaction_source(slot)?{return Ok((Some(index),raw));}self.native_upstream_reactions.source(slot).map(|r|(None,r))}
  ///Read31:4 only. A reset/never-constructed slot needs no fabricated Source.
  pub(crate)fn native_reaction_active(&self,slot:u8)->Result<bool,Boundary>{if let Some((_,raw))=self.current_native_reaction_source(slot)?{return Ok(raw.flags31&4!=0);}match self.native_upstream_reactions.source(slot){Ok(raw)=>Ok(raw.flags31&4!=0),Err(e)=>if self.native_upstream_reactions.unconstructed_inactive(usize::from(slot)){Ok(false)}else{Err(e)}}}
  ///Capture BEFORE58af0 can park the Web hardware at its OBJECT position.
  ///The native UNIT keeps its old XY. No shot-time owner/old Web id is stored.
- pub(crate) fn capture_native_upstream_removal(&self,index:usize,before:&Unit,position:[i16;2],direct_ff:bool,suppressed:bool,crew_only:bool)->Option<Removal>{let slot=before.native_slot?;let m=self.native_group_rosters.members.get(slot)?.as_ref()?;let family=original_combat::animation_family(&before.kind);let family=if direct_ff{255}else{crate::original_death::conversion_family(family,before.native_class7c,suppressed,crew_only)};let raw=Source{slot:slot as u8,position,cell10:before.native_cell10,family,class:before.native_class7c,flags31:m.flags31&!(4|8|32),role:0,group:if m.role==0{m.group}else{255},flags69:m.flags69&!128,protectionaa:before.native_protectionaa,phase35:before.native_phase35};let _=index;Some(Removal{slot,generation:self.native_upstream_reactions.generation(slot)?,raw})}
- pub(crate) fn finish_native_upstream_removal(&mut self,capture:Option<Removal>){let Some(c)=capture else{return;};let raw=if c.raw.group!=255{Err(Boundary::RetiredGroup(c.raw.slot))}else{Ok(c.raw)};self.native_upstream_reactions.removed(c.slot,c.generation,raw);}
+ pub(crate) fn capture_native_upstream_removal(&self,index:usize,before:&Unit,position:[i16;2],direct_ff:bool,suppressed:bool,crew_only:bool)->Option<Removal>{let slot=before.native_slot?;let m=self.native_group_rosters.members.get(slot)?.as_ref()?;let family=original_combat::animation_family(&before.kind);let family=if direct_ff{255}else{crate::original_death::conversion_family(family,before.native_class7c,suppressed,crew_only)};let raw=Source{slot:slot as u8,position,cell10:before.native_cell10,family,class:before.native_class7c,flags31:m.flags31&!(4|8|32),role:0,group:if m.role==0{m.group}else{255},flags69:m.flags69&!128,protectionaa:before.native_protectionaa,phase35:before.native_phase35};let _=index;Some(Removal{slot,generation:self.native_upstream_reactions.generation(slot)?,raw,flags64:before.native_flags64,aim02:before.original_combat.as_ref().map_or(60,|c|c.aim_skill)as i8})}
+ pub(crate) fn finish_native_upstream_removal(&mut self,capture:Option<Removal>){let Some(c)=capture else{return;};self.native_upstream_reactions.removed(c.slot,c.generation,c.raw,c.flags64,c.aim02);}
  pub(crate) fn native_blast_reaction_prefix(&mut self,index:usize,owner:u8,shooter:u8)->Result<bool,Boundary>{let slot=self.units.get(index).and_then(|u|u.native_slot).ok_or(Boundary::MissingRecipient(index))?;let flags=self.native_group_rosters.members.get(slot).and_then(Option::as_ref).ok_or(Boundary::MissingMember(slot))?.flags31;let mut world=BlastEnv{game:self,index};super::blast_prefix(flags,owner,shooter,&mut world)}
  fn native_blast_source_reaction(&mut self,index:usize,source:u8)->Result<(),Boundary>{let(live,raw)=self.native_reaction_source(source)?;let recipient=self.units.get(index).ok_or(Boundary::MissingRecipient(index))?.clone();let rslot=recipient.native_slot.ok_or(Boundary::MissingRecipient(index))?;let m=self.native_group_rosters.members[rslot].as_ref().ok_or(Boundary::MissingMember(rslot))?.clone();let group=self.native_group_rosters.pool.get(usize::from(m.group)).ok_or(Boundary::MissingGroup(m.group))?;
   if let Some(source)=live{self.react_native_reset_hardware(source,index);return Ok(());}
@@ -37,12 +37,83 @@ impl BlastWorld for BlastEnv<'_>{type Error=Boundary;
 }
 
 #[cfg(test)]mod tests{
- use super::*;use crate::{Value,original_group_game,original_combat::Attack};
+ use super::*;use crate::{json,Value,original_group_game,original_combat::Attack};
  fn field()->Game{let mut g=Game::new(0,1,44);g.map.original=true;g.map.width=64;g.map.height=64;g.map.tiles=vec![0;4096];g.map.terrain_codes=vec![0;4096];g.map.native_terrain_plane=vec![0;16384];g.map.bridge_base=vec![-1;4096];g.units.clear();g.buildings.clear();g.objects.clear();g.crates.clear();g.walls.clear();g.sectors.clear();g.native_group_rosters=original_group_game::State::default();g.native_upstream_reactions=Default::default();g.native_world=None;g.native_strategy=None;g.original_ai=None;g.ai_teams.clear();g.winner=None;g.multiplayer=true;g.original_rng.multiplayer=true;g.native_view=Some(([0,0],[2000,2000]));g.spawn("grunt",1,200.,200.,1,None);g.spawn("medium",0,1200.,200.,2,None);g.maintain_native_group_rosters();for m in g.native_group_rosters.members.iter_mut().flatten(){m.flags69=0;}for u in &mut g.units{u.native_initiative_scan.flags71&=!16;}let groups=g.native_group_rosters.members.iter().flatten().map(|m|usize::from(m.group)).collect::<Vec<_>>();for group in groups{g.native_group_rosters.pool[group].roster[58]=0;g.native_group_rosters.pool[group].roster[61]=0;}g.import_native_world(&Value::Null);g.events.clear();g}
  fn order(g:&Game,index:usize)->[i16;2]{g.units[index].native_hardware_slot.and_then(|s|g.native_hardware_pool.get(s)).map_or(g.native_hardware_dummy.target,|w|w.order.target)}
  #[test]fn current_inactive_negative_hp_source_keeps_raw_slot_team_group_and_order(){let mut g=field();let source=g.units[0].native_slot.unwrap();let group=g.native_group_rosters.members[source].as_ref().unwrap().group;g.units[0].hp=-3.;g.native_group_rosters.members[source].as_mut().unwrap().flags31&=!4;let rng=g.original_rng.words;assert_eq!(g.native_blast_reaction_prefix(1,1,source as u8),Ok(true));assert_eq!(order(&g,1),[-1234,i16::from(group)]);assert_ne!(g.units[1].native_flags64&8,0);assert_eq!(g.original_rng.words,rng);}
  #[test]fn actual_removal_hook_retains_post_source_xy_and_group_ff_without_reviving_actor(){let mut g=field();let source=g.units[0].native_slot.unwrap();assert!(g.native_remove_actor(0,false,false));assert!(g.units[0].native_slot.is_none());let(_,raw)=g.native_reaction_source(source as u8).unwrap();assert_eq!((raw.position,raw.family,raw.role,raw.group,raw.flags31),([100,100],255,0,255,1));let id=g.units[0].id;g.units.retain(|u|u.id!=id);let rng=g.original_rng.words;assert_eq!(g.native_blast_reaction_prefix(0,1,source as u8),Ok(true));assert_eq!(order(&g,0),[-4321,source as i16]);assert!(g.events.iter().all(|e|e["kind"]!="nativeVoice"));assert_eq!(g.original_rng.words,rng);}
  #[test]fn endpoint_cell_uses_actual_capture_then_generation_checked_retired_update(){let mut g=field();let slot=g.units[0].native_slot.unwrap();g.units[0].native_cell10=12345;assert_eq!(g.native_reaction_source(slot as u8).unwrap().1.cell10,12345);let generation=g.native_upstream_reactions.generation(slot).unwrap();assert!(g.native_remove_actor(0,false,false));let saved=g.native_reaction_source(slot as u8).unwrap().1;assert_eq!(saved.cell10,12345,"58ec0 does not recompute raw10 from position");let raw=crate::original_retired_unit_preamble::Unit{position:saved.position,cell:6789,family:saved.family,class:saved.class,flags31:saved.flags31,role:saved.role,group:saved.group,flags69:saved.flags69,protection:saved.protectionaa,phase:saved.phase35,..Default::default()};g.update_native_upstream_retired_header(slot,generation,raw);assert_eq!(g.native_reaction_source(slot as u8).unwrap().1.cell10,6789);g.spawn("grunt",0,1800.,900.,3,None);g.maintain_native_group_rosters();let index=g.units.len()-1;assert_eq!(g.units[index].native_slot,Some(slot));g.units[index].native_cell10=-23;g.update_native_upstream_retired_header(slot,generation,raw);assert_eq!(g.native_reaction_source(slot as u8).unwrap().1.cell10,-23,"old generation cannot overwrite the actual newUNIT");g.units[index].native_slot=None;assert_eq!(g.native_reaction_source(slot as u8),Err(Boundary::MissingSource(slot as u8)));}
+ #[test]
+ fn cached_projectiles_react_to_removed_units_like_32_native_removals(){
+  let trace=std::env::var_os("Z_NATIVE_RETIRED_DODGE_TRACE").map(|path|{
+   std::fs::read_to_string(path).unwrap().lines().map(|line|serde_json::from_str::<Value>(line).unwrap()).collect::<Vec<_>>()
+  });
+  for scenario in 0..32{
+   let mut g=field();
+   g.units.clear();
+   g.native_group_rosters.clear();
+   g.native_upstream_reactions=Default::default();
+   g.map.native_road_graph=Some(crate::original_route::RoadGraph{regions:vec![]});
+   g.multiplayer=scenario&1!=0;
+   let vehicle=scenario&2!=0;
+   let zero_aim=scenario&4!=0;
+   let friendly=scenario&8!=0;
+   let hidden=scenario&19==17;
+   let aim=if zero_aim{0}else{60};
+   let point=if hidden{[10000,335]}else{[321,335]};
+   g.spawn(if vehicle{"medium"}else{"grunt"},1,642.,670.,1,None);
+   g.spawn("grunt",i32::from(friendly),1200.,200.,2,None);
+   g.maintain_native_group_rosters();
+   let slot=g.units[0].native_slot.unwrap();
+   let shooter=g.units[1].native_slot;
+   let unit=&mut g.units[0];
+   unit.native_flags64=16;
+   unit.native_phase35=if hidden{62}else{61};
+   unit.native_bucket38=crate::original_initiative::native::coarse_cell(point);
+   unit.original_combat.as_mut().unwrap().aim_skill=aim;
+   if hidden{
+    let mut animation=crate::original_transport::Animation::approach(0);
+    animation.phase=crate::original_transport::Phase::Inside;
+    unit.native_transport=Some(animation);
+   }
+   let member=g.native_group_rosters.members[slot].as_mut().unwrap();
+   member.flags69=4|if zero_aim{64}else{0};
+   if hidden{member.flags31|=64;}
+   g.prepare_native_ambient_queries();
+   assert!(g.native_remove_actor(0,false,false));
+   let raw=g.native_upstream_reactions.retired_dodge(slot as u8).unwrap();
+   assert_eq!(raw.position,point);
+   let retired_renderer=(g.units[0].x,g.units[0].y,g.units[0].angle,g.units[0].hp);
+   let hardware=164|u8::from(scenario&11==11);
+   g.native_hardware_dummy.field17=hardware;
+   let native=trace.as_ref().map(|rows|&rows[scenario]);
+   if let Some(row)=native{
+    assert_eq!(row["scenario"],json!(scenario));
+    g.original_rng.words=std::array::from_fn(|i|row["before"][12+i].as_u64().unwrap()as u32);
+   }
+   let admitted=!zero_aim&&!friendly&&!hidden;
+   let mut rng=g.original_rng.clone();
+   rng.multiplayer=g.multiplayer;
+   if admitted{rng.next_u32();rng.next_u32();}
+   let target=point.map(|axis|axis+8);
+   for _ in 0..2{
+    g.react_native_dodge(shooter,1,point,target);
+    let after=g.native_upstream_reactions.retired_dodge(slot as u8).unwrap();
+    assert_eq!(after.flags64,if admitted{80}else{16},"scenario {scenario}");
+    assert_eq!(after.state35,if admitted&&!vehicle{2}else{raw.state35});
+    assert_eq!(g.native_hardware_dummy.field17,hardware|u8::from(admitted&&vehicle));
+    assert_eq!(g.original_rng.words,rng.words);
+    assert_eq!((g.units[0].x,g.units[0].y,g.units[0].angle,g.units[0].hp),retired_renderer);
+    assert_eq!(g.units[0].native_slot,None);
+    if let Some(row)=native{
+     assert_eq!(row["after"][3],json!(after.state35));
+     assert_eq!(row["after"][4],json!(after.flags64));
+     assert_eq!(row["after"][11],json!(g.native_hardware_dummy.field17));
+     assert_eq!(json!(g.original_rng.words),json!(&row["after"].as_array().unwrap()[12..17]));
+    }
+   }
+  }
+ }
  #[test]fn explicit_direct_removal_retains_its_native_point(){let mut g=field();let source=g.units[0].native_slot.unwrap();assert!(g.native_direct_removal(0,[10000,123],false,false));assert_eq!(g.native_reaction_source(source as u8).unwrap().1.position,[10000,123]);}
  #[test]fn actual_inside_state_uses_sentinel_and_preserves_raw_hidden_bit_after_removal(){let mut g=field();let slot=g.units[0].native_slot.unwrap();let mut animation=crate::original_transport::Animation::approach(0);animation.phase=crate::original_transport::Phase::Inside;animation.visible=false;g.units[0].native_transport=Some(animation);g.units[0].native_phase35=62;let m=g.native_group_rosters.members[slot].as_mut().unwrap();m.flags31|=64;m.flags8a|=32;assert!(g.native_remove_actor(0,false,false));let raw=g.native_reaction_source(slot as u8).unwrap().1;assert_eq!(raw.position,[10000,100]);assert_eq!(raw.flags31,65);assert_eq!(raw.phase35,62);}
  #[test]fn actual_ordinary_tank_removal_keeps_native_xy_while_web_parking_may_snap(){for multiplayer in[false,true]{let mut g=field();g.units.clear();g.native_group_rosters.clear();g.multiplayer=multiplayer;g.original_rng.multiplayer=multiplayer;g.spawn("medium",1,642.,670.,1,None);g.spawn("medium",0,1200.,200.,2,None);g.maintain_native_group_rosters();let slot=g.units[0].native_slot.unwrap();let native=[321,335];assert!(g.native_remove_actor(0,false,false));let(live,raw)=g.native_reaction_source(slot as u8).unwrap();assert_eq!(live,None);assert_eq!((raw.position,raw.family,raw.group,raw.role),(native,255,255,0));let rng=g.original_rng.words;assert_eq!(g.native_blast_reaction_prefix(1,1,slot as u8),Ok(true));assert_eq!(order(&g,1),[-4321,slot as i16]);assert_eq!(g.original_rng.words,rng);}}

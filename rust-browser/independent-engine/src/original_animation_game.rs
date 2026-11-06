@@ -94,10 +94,14 @@ impl Game{
     if count<288{candidates.extend(entries.iter().map(|&slot|slot as u8));}
    }
    let team=shooter.and_then(|slot|u8::try_from(slot).ok())
-    .and_then(|slot|self.native_reaction_source(slot).ok())
-    .map_or(fallback_team as u8,|(_,raw)|raw.flags31);
+    .and_then(|slot|self.native_reaction_source(slot).ok().map(|(_,raw)|raw.flags31)
+     .or_else(||self.native_upstream_reactions.retired_dodge(slot).map(|raw|raw.flags31)))
+    .unwrap_or(fallback_team as u8);
    for slot in candidates{
-    let Ok((Some(index),raw))=self.native_reaction_source(slot)else{continue;};
+    let Ok((Some(index),raw))=self.native_reaction_source(slot)else{
+     self.react_retired_dodge(slot,team,current,target);
+     continue;
+    };
     let unit=&self.units[index];
     let input=reaction::DodgeUnit{position:raw.position,flags31:raw.flags31,flags64:unit.native_flags64,
      flags69:raw.flags69,class7c:raw.class,state35:raw.phase35,
@@ -119,6 +123,23 @@ impl Game{
    let input=reaction::DodgeUnit{position:[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16],flags31:member.map_or((u.team as u8&3)|4,|m|m.flags31),flags64:u.native_flags64,flags69:member.map_or(0,|m|m.flags69),class7c:u.native_class7c,state35:u.native_phase35,aim02:u.original_combat.as_ref().map_or(60,|c|c.aim_skill)as i8};
    self.begin_native_dodge(i,input,team,current,target,false);
   }
+ }
+ fn react_retired_dodge(&mut self,slot:u8,team:u8,current:[i16;2],target:[i16;2]){
+  let Some(input)=self.native_upstream_reactions.retired_dodge(slot)else{return;};
+  if !reaction::dodge_candidate(input,team,current,target){return;}
+  let destination=reaction::dodge_destination(input.position,target,[self.native_random(),self.native_random()]);
+  let mut phase=input.state35;
+  if destination!=input.position{
+   if input.class7c==1{
+    // 58ec0 has already freed W. 525a0 therefore writes to the dummy.
+    self.native_hardware_dummy.field17|=1;
+   }else if !matches!(input.class7c,2|4|5|6){
+    phase=2;
+   }
+  }
+  // Keep the new predicate bytes for later shots without changing the
+  // parked vehicle or corpse renderer that used to share this UNIT slot.
+  self.native_upstream_reactions.write_retired_dodge(slot,phase);
  }
  fn begin_native_dodge(&mut self,index:usize,input:reaction::DodgeUnit,team:u8,current:[i16;2],target:[i16;2],native_cache:bool){
   if !reaction::dodge_candidate(input,team,current,target){return;}

@@ -763,7 +763,16 @@ den unverbrauchten Restweg bei Kontakt und den Wiedereinstieg in den
 vorhandenen Wegpunkt ab. Die allgemeine Fahrzeugübernahme übernimmt beim
 Wechsel vom Fußsoldaten die Kollisionsdaten des besetzten Fahrzeugs.
 Der vollständige Fahrzeug-Callback um den
-Bewegungsschritt und Schreibfolgen auf entfernte UNIT-Slots bleiben offen.
+Bewegungsschritt bleibt offen.
+
+Nach der Entfernung kann 462fd0 dieselbe UNIT-Adresse noch in der
+vorbereiteten Liste finden. Der Nachbau behält dafür die relevanten
+Headerbytes bis zur Wiederverwendung des Slots. In 32 GOG-Fällen stimmen
+die Zulassung, die Zufallsfolge, die erneut lesbare Phase und das Dummy-
+Hardwarebit überein. Sieben Fälle lösen die Reaktion aus. Ein weiteres
+Geschoss im selben Schritt verbraucht für denselben Slot keine neuen
+Zufallswerte. Die übrigen Linienbytes des inaktiven Slots werden weiterhin
+nur im Originaltrace geprüft.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
