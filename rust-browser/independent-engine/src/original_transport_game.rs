@@ -249,18 +249,32 @@ impl Game{
      let u=&mut self.units[index];
      u.native_control06=u.native_saved_control07.unwrap_or(u.native_control06);
      if let Some(state)=u.original_combat.as_mut(){state.movement_control=u.native_control06 as u8;}
+     if let Some(object)=self.native_transport_exit_object(index){
+      self.finish_native_apc_exit_object(object);
+     }
     }else{
      let point=(f64::from(goal.0)*2.,f64::from(goal.1)*2.);
      let path=self.route_unit(&self.units[index],point.0,point.1);
      let u=&mut self.units[index];u.order="move".into();u.dest=Some(point);u.path=path;u.original_motion=None;u.native_phase35=2;
      if let Some(state)=u.original_combat.as_mut(){state.movement_control=original_combat::CombatState::new(&u.kind).movement_control;}
+     if group.members.iter().all(|m|m.animation.phase==Phase::Released){
+      if let Some(object)=self.native_object_slot(carrier){self.clear_native_apc_object_contact(object);}
+     }
     }
-    if group.members.iter().all(|m|m.animation.phase==Phase::Released){if let Some(object)=self.native_object_slot(carrier){self.clear_native_apc_object_contact(object);}}
    },Event::None=>{}
   }
   let occupied=matches!(event,Event::Occupy{..});self.native_transports.insert(gi,group);
   if occupied{if let Some(command)=self.take_native_transport_command(carrier,&[carrier]){self.command(&command);}}
   true
+ }
+ fn native_transport_exit_object(&self,index:usize)->Option<u8>{
+  let slot=self.units[index].native_slot?;
+  let rosters=&self.native_group_rosters;
+  let group=rosters.pool.get(usize::from(rosters.members[slot].as_ref()?.group))?;
+  let still_inside=(0..transport::CAPACITY).filter_map(|role|group.member(role))
+   .any(|slot|rosters.members.get(usize::from(slot)).and_then(Option::as_ref).is_some_and(|m|m.flags8a&32!=0));
+  if still_inside{return None;}
+  group.transport_object()
  }
  pub(crate) fn maintain_native_transports(&mut self){
   if !self.map.original{return;}
@@ -340,7 +354,15 @@ impl Game{
   }}
   if let Some((slot,actor))=carrier.native_slot.zip(actor){self.native_group_rosters.remap_entity(slot,carrier.id,actor);self.rebind_native_crane_identity(slot,carrier.id,actor);self.remap_native_pursuit_identity(carrier.id,actor);}
   self.events.push(json!({"kind":"unloaded","team":carrier.team,"unitId":carrier.id,"memberIds":group.members.iter().map(|m|m.id).collect::<Vec<_>>()}));
-  self.native_transports.insert(gi,group);self.sync_native_world();if let Some(object)=self.native_object_slot(carrier.id){self.set_native_object_sprite_offset(object,(direction*5)as i8);if matches!(direction,0|1|7){self.set_native_object_animation(object,0,1);}}true
+  self.native_transports.insert(gi,group);
+  self.sync_native_world();
+  if let Some(object)=self.native_object_slot(carrier.id){
+   let group=carrier.native_slot.and_then(|slot|self.native_group_rosters.members[slot].as_ref()).map(|m|usize::from(m.group));
+   if let Some(roster)=group.and_then(|i|self.native_group_rosters.pool.get_mut(i)){roster.set_transport_object(object);}
+   self.set_native_object_sprite_offset(object,(direction*5)as i8);
+   if matches!(direction,0|1|7){self.set_native_object_animation(object,0,1);}
+  }
+  true
  }
 }
 
@@ -580,6 +602,42 @@ impl Game{
    }
   }
   assert_eq!((rows,hash),(144,1486922629),"RootV164VehicleReleaseProfileOracle");
+ }
+ #[test]
+ fn vehicle_exit_uses_the_physical_parked_object_and_raw_inside_flags(){
+  let trace=picture_trace("Z_NATIVE_VEHICLE_RELEASE_OBJECT");
+  for scenario in 0..36{
+   let apc=scenario%3!=0;
+   let animated=scenario%6!=1;
+   let inside=matches!(scenario%6,3|4);
+   let retired=scenario/6&1!=0;
+   let (mut g,i)=authored_vehicle_exit_field(if apc{"apc"}else{"medium"});
+   let carrier=g.units[i].id;
+   let slot=g.units[i].native_slot.unwrap();
+   let peer=g.units[0].native_slot.unwrap();
+   g.native_routes.get_mut().managed[slot]=true;
+   g.native_group_rosters.observe_unit_context(slot);
+   let group=g.native_group_rosters.current_roster.unwrap();
+   assert!(g.unload_native_hardware(i));
+   let object=g.native_object_slot(carrier).unwrap();
+   assert_eq!(g.native_group_rosters.pool[group].transport_object(),Some(object));
+   g.native_group_rosters.pool[group].roster[0x14]=peer as u8;
+   let member=g.native_group_rosters.members[peer].as_mut().unwrap();
+   member.flags31&=!4;
+   if inside{member.flags8a|=32;}
+   g.set_native_object_animation(object,if animated{5}else{0},1);
+   if retired{g.apply_native_ambient_object(object,[-1,320],0);}
+   let driver=g.units.iter().position(|u|u.native_slot==Some(slot)).unwrap();
+   for _ in 0..18{assert!(g.update_native_transport(driver));}
+   let (frame,motion)=g.native_raw_object_animation(object).unwrap();
+   assert_eq!(frame,if animated{5}else{0});
+   assert_eq!(motion,if apc&&animated&&!inside{-1}else{1},"scenario {scenario}");
+   if let Some(trace)=&trace{
+    let row=&trace[scenario];
+    assert_eq!(json!([scenario,apc,animated,inside,retired,g.units[driver].native_phase35,motion]),
+     json!([row["scenario"],row["apc"],row["animated"],row["inside"],row["retired"],row["phase"],row["motion"]]));
+   }
+  }
  }
  #[test]fn authored_exit_probes_native_two_by_two_and_diagonal_third_column_instead_of_web_building_rectangles(){
   for direction in 0..8{for(probe,offset)in[0i16,1,128,129,2,130].into_iter().enumerate(){let(mut g,i)=authored_exit_field();let base=2580i16.wrapping_add(transport::FOOTPRINT_CELL_OFFSETS[direction]);set_exit_code(&mut g,base.wrapping_add(offset),32);assert_eq!(g.transport_direction_clear(&g.units[i],"grunt",direction as u8,false),probe>=4&&direction&1==0,"direction{direction},probe{probe}");}}

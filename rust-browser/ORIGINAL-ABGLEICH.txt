@@ -596,6 +596,9 @@ gespeicherte Gruppenprofil zurück, und ab dem nächsten Bewegungstakt
 gilt die gespeicherte Bewegungssteuerung des Fahrers. 144 Zustände aus
 36 Originalabläufen prüfen diese Werte einschließlich warmer Gruppen-
 und Steuerungsdaten.
+Der APC-Abschluss liest den geparkten Objektplatz aus der Gruppe. Die
+36 Originalfälle prüfen die Animation auch bei bereits freigegebenen
+Objekten und bei einem Rohzustand, der weitere Insassen meldet.
 
 WEITERER ABGLEICHSBLOCK NOV05-R59
 Der Abgleich zur Gruppenauflösung bestätigt die letzte passende Meldung

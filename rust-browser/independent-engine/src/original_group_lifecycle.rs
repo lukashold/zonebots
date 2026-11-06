@@ -6,6 +6,8 @@ pub const GROUP_SLOTS:usize=240;
 pub const MEMBERS:usize=21;
 const RINFO_BASE:u32=0x619ae8;
 const RINFO_BYTES:u32=82;
+const OBJECT_BASE:u32=0x612f80;
+const OBJECT_BYTES:u32=44;
 /// Source record token, used only as a label in the native roster bytes.
 pub fn authored_rinfo(gid:usize)->Option<[u8;4]>{(gid<19).then(||(RINFO_BASE+RINFO_BYTES*gid as u32).to_le_bytes())}
 #[derive(Clone,Copy,Debug)]
@@ -47,6 +49,15 @@ impl GroupSlot{
             self.roster.copy_within(4..8,0);
             self.roster[4..8].fill(0);
         }
+    }
+    pub(crate) fn set_transport_object(&mut self,slot:u8){
+        let pointer=OBJECT_BASE+u32::from(slot)*OBJECT_BYTES;
+        self.roster[0x34..0x38].copy_from_slice(&pointer.to_le_bytes());
+    }
+    pub(crate) fn transport_object(&self)->Option<u8>{
+        let pointer=u32::from_le_bytes(self.roster[0x34..0x38].try_into().unwrap());
+        let offset=pointer.checked_sub(OBJECT_BASE)?;
+        (offset<200*OBJECT_BYTES&&offset%OBJECT_BYTES==0).then_some((offset/OBJECT_BYTES)as u8)
     }
     pub fn word(&self,offset:usize)->i16{i16::from_le_bytes([self.roster[offset],self.roster[offset+1]])}
     fn set_word(&mut self,offset:usize,value:i16){self.roster[offset..offset+2].copy_from_slice(&value.to_le_bytes());}

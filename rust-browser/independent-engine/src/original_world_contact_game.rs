@@ -354,7 +354,23 @@ impl Game {
     pub(crate) fn native_object_sprite_offset(&self,slot:u8)->Option<i8>{self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().filter(|o|o.active).map(|o|o.sprite_offset21)}
     ///59d80's successful APC portal cancellation. The distinct flags26 field
     ///does not participate:612f92 is OBJECT+12h and612fa2 is OBJECT+22h.
-    pub(crate) fn clear_native_apc_object_contact(&mut self,slot:u8)->bool{let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut).filter(|o|o.active&&o.kind==31&&o.sprite==5173&&o.animation18!=0)else{return false;};o.motion22=-1;true}
+    pub(crate) fn clear_native_apc_object_contact(&mut self,slot:u8)->bool{
+        self.stop_native_apc_object_animation(slot,false)
+    }
+    ///456f20 reads the parked physical record even if its X marker is -1.
+    pub(crate) fn finish_native_apc_exit_object(&mut self,slot:u8){
+        self.stop_native_apc_object_animation(slot,true);
+    }
+    fn stop_native_apc_object_animation(&mut self,slot:u8,allow_retired:bool)->bool{
+        let Some(o)=self.native_world.as_mut().and_then(|s|s.objects.get_mut(usize::from(slot))).and_then(Option::as_mut)
+            .filter(|o|(allow_retired||o.active)&&o.kind==31&&o.sprite==5173&&o.animation18!=0)else{return false;};
+        o.motion22=-1;
+        true
+    }
+    #[cfg(test)]
+    pub(crate) fn native_raw_object_animation(&self,slot:u8)->Option<(u8,i8)>{
+        self.native_world.as_ref()?.objects.get(usize::from(slot))?.as_ref().map(|o|(o.animation18,o.motion22))
+    }
     pub(crate) fn clear_native_hardware_restrictions(&mut self,sector:usize){let Some(mut objects)=self.native_ai_world_objects()else{return;};task::clear_hardware_capture_restrictions(&mut objects,sector,self.map.native_level_record);if let Some(state)=&mut self.native_world{for o in objects{if let Some(Some(slot))=state.objects.get_mut(o.id){slot.flags26=o.flags26;}}}}
     pub(crate) fn reserve_native_world_fire_slot(&mut self)->Option<usize>{self.sync_native_world();let mut state=self.native_world.take()?;let slot=state.free();if let Some(slot)=slot{if let Some(mut object)=self.make_object(71,[0,0],0){object.fire=Some(slot);object.flags26=0;state.put_object(slot,object);}}self.native_world=Some(state);slot}
     pub(crate) fn release_native_world_fire_slot(&mut self,id:usize){if let Some(state)=&mut self.native_world{if let Some(Some(object))=state.objects.get_mut(id){if object.fire==Some(id){object.active=false;}}}}
