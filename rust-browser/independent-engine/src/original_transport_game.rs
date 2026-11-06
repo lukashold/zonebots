@@ -210,18 +210,45 @@ impl Game{
     if self.units[index].path.is_empty()||!pending&&self.units[index].path.back().is_none_or(|old|(old.0-goal.0).abs()+(old.1-goal.1).abs()>1.){self.units[index].path=self.route_unit(&self.units[index],goal.0,goal.1);self.units[index].original_motion=None;}
     self.move_original(index,self.motion_tick,1,true);
    }
-   self.units[index].native_transport=group.animation(id).cloned();self.native_transports.insert(gi,group);return true;
+   let unit=&mut self.units[index];
+   let animation=group.animation(id);
+   if let Some(a)=animation.filter(|a|a.phase==Phase::Entering){
+    unit.angle=native_math::angle(a.direction);
+    (unit.native_frame32,unit.native_timer3c)=a.pose();
+   }
+   unit.native_transport=animation.cloned();
+   self.native_transports.insert(gi,group);
+   return true;
   }
   let position=((self.units[index].x/2.).floor()as i32,(self.units[index].y/2.).floor()as i32);
-  let event=group.advance(id,position,||self.native_random());self.units[index].native_transport=group.animation(id).cloned();self.units[index].moving=false;
+  let event=group.advance(id,position,||self.native_random());
+  let unit=&mut self.units[index];
+  let animation=group.animation(id);
+  if matches!(phase,Some(Phase::Entering|Phase::Exiting)){
+   if let Some(a)=animation{(unit.native_frame32,unit.native_timer3c)=a.pose();}
+  }
+  unit.native_transport=animation.cloned();
+  unit.moving=false;
   match event{
    Event::Occupy{member}=>{group.occupied_tick=Some(self.motion_tick);self.occupy_native_transport(&group,member);},
    Event::Hidden{..}=>{self.units[index].path.clear();self.units[index].native_fire=None;self.units[index].native_walk=None;self.units[index].native_phase35=62;if let Some(slot)=self.units[index].native_slot.or(self.units[index].native_transport_slot){self.native_group_rosters.record_transport_inside(slot,true);}},
    Event::Released{goal,..}=>{
+    let managed=self.owns_native_route(index);
+    if managed{self.clear_native_attack_paths(index);}
     if let Some(slot)=self.units[index].native_slot.or(self.units[index].native_transport_slot){self.native_group_rosters.record_transport_inside(slot,false);if let Some(member)=self.native_group_rosters.members[slot].as_mut(){member.flags69|=4;}}
-    self.clear_transport_member(index);self.refresh_native_collision_tables(index,None);let point=(f64::from(goal.0)*2.,f64::from(goal.1)*2.);let path=self.route_unit(&self.units[index],point.0,point.1);
-    let u=&mut self.units[index];u.order="move".into();u.target=None;u.dest=Some(point);u.path=path;u.original_motion=None;u.native_fire=None;u.hold_position=false;u.explicit_stop=false;u.native_phase35=2;
+    self.clear_transport_member(index);
+    self.refresh_native_collision_tables(index,None);
+    let u=&mut self.units[index];u.target=None;u.native_fire=None;u.hold_position=false;u.explicit_stop=false;
     if let Some(state)=u.original_combat.as_mut(){state.movement_control=original_combat::CombatState::new(&u.kind).movement_control;}
+    if managed{
+     // 456f20 clears the old lists, then installs a local 525a0 line.
+     // The exit does not issue a new player order or allocate a road route.
+     self.start_native_walking_direct(index,[goal.0 as i16,goal.1 as i16]);
+    }else{
+     let point=(f64::from(goal.0)*2.,f64::from(goal.1)*2.);
+     let path=self.route_unit(&self.units[index],point.0,point.1);
+     let u=&mut self.units[index];u.order="move".into();u.dest=Some(point);u.path=path;u.original_motion=None;u.native_phase35=2;
+    }
     if group.members.iter().all(|m|m.animation.phase==Phase::Released){if let Some(object)=self.native_object_slot(carrier){self.clear_native_apc_object_contact(object);}}
    },Event::None=>{}
   }
@@ -289,6 +316,7 @@ impl Game{
   for m in &group.members{if let Some(i)=self.transport_member_index(m.id){
    if let Some(slot)=self.units[i].native_slot.or(self.units[i].native_transport_slot){self.native_group_rosters.record_transport_flags(slot,0,0x18);}
    self.finish_order(i);let u=&mut self.units[i];u.x=f64::from(portal.0)*2.;u.y=f64::from(portal.1)*2.;u.angle=native_math::angle(m.animation.direction);u.aim=u.angle;u.squad=carrier.squad;u.native_transport=Some(m.animation.clone());u.transport_carrier=Some(carrier.id);u.hold_position=false;u.explicit_stop=false;u.native_phase35=64;
+   (u.native_frame32,u.native_timer3c)=m.animation.pose();
    if Some(m.id)==actor{u.native_slot=carrier.native_slot.or(u.native_transport_slot);u.hp=driver.hp;u.grenades=carrier.grenades;u.native_class7c=driver_class;u.native_range4=Some(restored_range4);u.native_route_flip.set(carrier.native_route_flip.get());u.native_route_road_replaced.set(carrier.native_route_road_replaced.get());u.native_secondary_route.set(carrier.native_secondary_route.get());u.native_flags64=carrier.native_flags64;u.native_mask98=carrier.native_mask98;u.native_flags9c=carrier.native_flags9c;u.native_order5c=carrier.native_order5c;u.native_target46=carrier.native_target46;u.native_trait7a=carrier.native_trait7a;u.native_cyclea0=carrier.native_cyclea0;u.native_reload7b=carrier.native_reload7b;u.native_bucket38=carrier.native_bucket38;u.native_initiative_scan=carrier.native_initiative_scan;u.native_footprint18=carrier.native_footprint18;u.native_permission1c=carrier.native_permission1c;u.native_terrain_tag63=carrier.native_terrain_tag63;u.native_contact6f=carrier.native_contact6f;u.native_contact70=carrier.native_contact70;u.native_wait72=carrier.native_wait72;u.native_contact_pausebc=carrier.native_contact_pausebc;if let Some(state)=u.original_combat.as_mut(){if let Some(current)=carrier.original_combat.as_ref(){state.aim_skill=current.aim_skill;state.fire_rate=current.fire_rate;state.projectile_speed=current.projectile_speed;}}}
    else if u.native_slot.is_none(){u.native_slot=u.native_transport_slot;}
   }}
@@ -366,6 +394,127 @@ impl Game{
     assert_eq!(g.native_group_rosters.pool[group].active_rinfo(),profile);assert_eq!(g.original_rng.words,rng);
    }}
   }
+ }
+ fn picture_trace(name:&str)->Option<Vec<Value>>{
+  std::env::var_os(name).map(|path|{
+   std::fs::read_to_string(path).unwrap().lines().map(|line|serde_json::from_str::<Value>(line).unwrap()).collect::<Vec<_>>()
+  })
+ }
+ #[test]
+ fn apc_entry_submits_the_original_pictures_and_hides_after_the_last_callback(){
+  let trace=picture_trace("Z_NATIVE_APC_ENTRY_PICTURES");
+  let mut hash=2166136261u32;
+  let mut rows=0;
+  for direction in 0..8{
+   let mut g=field();
+   g.spawn("apc",-1,640.,640.,2,None);
+   let carrier=g.units.last().unwrap().id;
+   g.spawn("grunt",0,640.,640.,3,None);
+   let i=g.units.len()-1;
+   let id=g.units[i].id;
+   let group=Boarding::new(carrier,3,(320,320),direction,&[id]).unwrap();
+   let (x,y)=group.portal();
+   let u=&mut g.units[i];
+   u.x=f64::from(x)*2.;
+   u.y=f64::from(y)*2.;
+   u.angle=native_math::angle((direction+3)&7);
+   u.native_frame32=71;
+   u.native_timer3c=22;
+   u.native_transport=group.animation(id).cloned();
+   u.transport_carrier=Some(carrier);
+   g.native_transports.push(group);
+   g.maintain_native_group_rosters();
+   for tick in 0..=16{
+    g.begin_native_display_frame();
+    let entry=g.native_unit_display_slot(i);
+    assert!(g.update_native_transport(i));
+    g.capture_native_unit_display(i,entry);
+    let u=&g.units[i];
+    let pictures=g.native_display.units.as_ref().unwrap();
+    assert_eq!(pictures.len(),usize::from(u.native_phase35==61));
+    let record=pictures.first().map(|(r,_)|r.bytes());
+    let heading=original_combat::facing(u.angle);
+    if let Some(trace)=&trace{
+     let row=&trace[rows];
+     let hex=record.iter().flatten().map(|b|format!("{b:02x}")).collect::<String>();
+     assert_eq!(json!([direction,tick,u.native_phase35,u.native_frame32,u.native_timer3c,heading,hex]),
+      json!([row["direction"],row["tick"],row["phase"],row["frame"],row["timer"],row["heading"],row["record"]]));
+    }
+    for value in [i32::from(direction),tick,i32::from(u.native_phase35),i32::from(u.native_frame32),
+     i32::from(u.native_timer3c),i32::from(heading)].into_iter().chain(record.into_iter().flatten().map(i32::from)){
+     hash=(hash^value as u32).wrapping_mul(16777619);
+    }
+    rows+=1;
+    if u.native_phase35==62{break;}
+   }
+  }
+  assert_eq!((rows,hash),(48,1869094963),"RootV163ApcEntryPicturesOracle");
+ }
+ #[test]
+ fn authored_vehicle_exit_submits_all_684_original_pictures_and_starts_the_local_walk(){
+  let trace=picture_trace("Z_NATIVE_VEHICLE_EXIT_PICTURES");
+  let mut hash=2166136261u32;
+  let mut rows=0;
+  for scenario in 0..36{
+   let (kind,gid)=[("medium",1),("heavy",5),("light",7),("launcher",9),("jeep",11),("crane",16)][scenario%6];
+   let (mut g,i)=authored_vehicle_exit_field(kind);
+   g.multiplayer=scenario/6%2!=0;
+   let slot=g.units[i].native_slot.unwrap();
+   g.native_routes.get_mut().managed[slot]=true;
+   g.native_group_rosters.record_starting_group_rinfo(0,2,gid);
+   g.native_group_rosters.observe_unit_context(slot);
+   g.units[i].x=800.;
+   g.units[i].y=1000.;
+   g.units[i].angle=native_math::angle(0);
+   g.units[i].native_bucket38=51;
+   // The fixture's remote enemy predates installation of the full terrain plane.
+   g.native_route_boundary=None;
+   g.original_rng.words=std::array::from_fn(|i|0x173510a7u32.wrapping_add(scenario as u32*7919).wrapping_add((i as u32).wrapping_mul(0x9e3779b9)));
+   let before=g.original_rng.words;
+   assert!(g.unload_native_hardware(i));
+   let driver=g.units.iter().position(|u|u.native_slot==Some(slot)).unwrap();
+   let old_head=g.native_routes.get_mut().pool.allocate_goal([650,650]).unwrap();
+   g.native_routes.get_mut().pool.links[slot].primary=old_head;
+   let mut end_rng=g.original_rng.clone();
+   end_rng.multiplayer=g.multiplayer;
+   end_rng.next_u32();end_rng.next_u32();
+   for tick in 0..=18{
+    if tick>0{assert!(g.update_native_transport(driver));}
+    g.begin_native_display_frame();
+    let entry=g.native_unit_display_slot(driver);
+    g.capture_native_unit_display(driver,entry);
+    let u=&g.units[driver];
+    let pictures=g.native_display.units.as_ref().unwrap();
+    assert_eq!(pictures.len(),1,"scenario {scenario} tick {tick}");
+    let picture=pictures[0].0;
+    let position=[(u.x/2.)as i32,(u.y/2.)as i32];
+    let direction=original_combat::facing(u.angle);
+    let draws=if tick==18{2}else{0};
+    assert_eq!(g.original_rng.words,if tick==18{end_rng.words}else{before});
+    assert_eq!(u.native_phase35,if tick==18{2}else{64});
+    let remaining=g.native_routes.borrow().pool.links[slot].primary;
+    assert_eq!(remaining,if tick==18{0}else{old_head});
+    if let Some(trace)=&trace{
+     let row=&trace[rows];
+     let actual=json!([scenario,tick,position,u.native_phase35,u.native_frame32,u.native_timer3c,direction,
+      picture.sprite,u.native_remaining48,u.native_axis81,draws]);
+     let expected=json!([row["scenario"],row["tick"],row["xy"],row["phase"],row["frame"],row["timer"],
+      row["direction"],row["sprite"],row["remaining"],row["axis"],row["rngCalls"]]);
+     assert_eq!(actual,expected,"scenario {scenario} tick {tick}");
+    }
+    for value in [scenario as i32,tick,position[0],position[1],i32::from(u.native_phase35),
+     i32::from(u.native_frame32),i32::from(u.native_timer3c),i32::from(direction),i32::from(picture.sprite),
+     i32::from(u.native_remaining48),i32::from(u.native_axis81),draws].into_iter().chain(picture.bytes().into_iter().map(i32::from)){
+     hash=(hash^value as u32).wrapping_mul(16777619);
+    }
+    rows+=1;
+   }
+   let u=&g.units[driver];
+   assert_eq!(u.order,"guard");
+   assert!(u.path.is_empty()&&u.original_motion.is_some()&&u.native_transport.is_none());
+   assert_eq!(g.native_route_boundary,None);
+  }
+  assert_eq!((rows,hash),(684,4211671059),"RootV162FreshVehicleExitPicturesOracle");
  }
  #[test]fn authored_exit_probes_native_two_by_two_and_diagonal_third_column_instead_of_web_building_rectangles(){
   for direction in 0..8{for(probe,offset)in[0i16,1,128,129,2,130].into_iter().enumerate(){let(mut g,i)=authored_exit_field();let base=2580i16.wrapping_add(transport::FOOTPRINT_CELL_OFFSETS[direction]);set_exit_code(&mut g,base.wrapping_add(offset),32);assert_eq!(g.transport_direction_clear(&g.units[i],"grunt",direction as u8,false),probe>=4&&direction&1==0,"direction{direction},probe{probe}");}}

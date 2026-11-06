@@ -64,6 +64,7 @@ impl Animation{
  pub fn approach(direction:u8)->Self{Self{phase:Phase::Approach,direction:direction&7,frame:0,visible:true,timer:0}}
  pub fn arrive(&mut self)->bool{if self.phase!=Phase::Approach{return false;}self.phase=Phase::Entering;self.frame=0;self.timer=2;true}
  pub fn exiting(direction:u8,rank:usize,was_visible:bool)->Self{Self{phase:Phase::Exiting,direction:direction&7,frame:0,visible:was_visible,timer:(5+rank.min(20)*6)as i8}}
+ pub(crate) fn pose(&self)->(i16,i8){(i16::from(self.frame),self.timer)}
  pub fn sprite(&self)->Option<usize>{match self.phase{Phase::Entering=>Some(5217+usize::from(self.direction)*5+usize::from(self.frame)),Phase::Exiting=>Some(5257+usize::from(self.direction)*6+usize::from(self.frame)),_=>None}}
  pub fn hidden(&self)->bool{!self.visible}
  pub fn advance(&mut self,position:Point,mut random:impl FnMut()->u32)->Transition{
