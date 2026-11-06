@@ -1,12 +1,12 @@
 Prüfstand 06.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.145 Rusttests und 53 separat ausgeführte Prüfungen mit lokalen Originaldaten
+1.146 Rusttests und 53 separat ausgeführte Prüfungen mit lokalen Originaldaten
 bestanden. Doctests bestanden (0 vorhanden). 100/100 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 75 bestanden, einschließlich aller 20 privaten
+Browserstand der Abgleichrunde 76 bestanden, einschließlich aller 20 privaten
 Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: e84fb854349794a598e59b638106aee1e03d8c446e9b7d94ac50f0c7fc19ea2a
+Wasm SHA256: b83228d7c4e721ccf163bbaf0e4f27cf2ce2b40717ee603136686213e727f1bb
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
@@ -18,6 +18,8 @@ UMFANG
   und die Wiederherstellung des gespeicherten Gruppenprofils.
 - 36 Originalaufrufe prüfen den Abschluss am gespeicherten APC-Objektplatz,
   darunter sechs Animationsänderungen an bereits entfernten Objekten.
+- 36 Originalaufrufe prüfen die Befehls- und Symbolrücksetzung bei
+  freiem und blockiertem Ausstieg für drei Gruppenrollen.
 - Alle20 Originalmissionen: Import,795 Startspawns, gültige Positionen,
   Technologie-/Produktmenüs und endliche Zustände.
 - Kampagnen-Soak mit beiden KI-Parteien pro Mission bis zu300 Spielsekunden;

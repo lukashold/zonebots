@@ -7,7 +7,7 @@ impl Game{
  ///Graph-less legacy fixtures keep their existing compatibility adapter.
  pub(crate) fn unload_native_hardware(&mut self,index:usize)->bool{
   let Some(carrier)=self.units.get(index).cloned()else{return false;};if !self.map.original{return false;}if carrier.kind=="apc"{return self.unload_native_apc(index);}if self.map.native_road_graph.is_none()||stats(&carrier.kind).cls==0{return false;}if stats(&carrier.kind).cls!=2{return self.unload_native_vehicle(index);}
-  self.units[index].native_flags9c&=!32;self.units[index].native_order5c=0;if let Some(slot)=carrier.native_slot{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags9c=self.units[index].native_flags9c;m.flagsb7&=!1;m.promotion.order=0;}}if let Some(group)=self.native_group_rosters.current_roster{self.native_group_rosters.pool[group].roster[58]=0;}
+  self.consume_native_unload_order(index);
   let Some(crew)=carrier.crew.clone()else{return true;};let cell=((carrier.y/32.).floor()as usize).saturating_mul(self.map.width).saturating_add((carrier.x/32.).floor()as usize);if self.map.terrain_codes.get(cell).is_some_and(|c|c&127==16){self.reset_native_idle(index);return true;}
   let hardware=carrier.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s));let saved=hardware.map(|w|w.attributes);let retained=carrier.transport_actor.and_then(|id|self.units.iter().position(|u|u.id==id));let previous=retained.map(|i|self.units[i].clone());let restored_class=previous.as_ref().map_or_else(||original_combat::runtime_class(&crew.kind)as u8,|u|u.native_class7c);
   // The authored direct gun has no previous driver adapter or GROUP+4

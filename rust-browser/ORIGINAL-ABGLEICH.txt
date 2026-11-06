@@ -599,6 +599,10 @@ und Steuerungsdaten.
 Der APC-Abschluss liest den geparkten Objektplatz aus der Gruppe. Die
 36 Originalfälle prüfen die Animation auch bei bereits freigegebenen
 Objekten und bei einem Rohzustand, der weitere Insassen meldet.
+Schon vor der Prüfung des Ausstiegs verbraucht 53130 den Befehl und setzt
+das Auftragssymbol zurück. Beim Gruppenführer wird es für die ganze
+Gruppe zurückgesetzt. 36 Originalfälle belegen dies auch bei blockierten
+Ausstiegen.
 
 WEITERER ABGLEICHSBLOCK NOV05-R59
 Der Abgleich zur Gruppenauflösung bestätigt die letzte passende Meldung

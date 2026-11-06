@@ -302,14 +302,27 @@ impl Game{
   if !self.map.original||self.units[index].kind!="apc"{return false;}
   self.unload_native_vehicle(index)
  }
+ ///53130 consumes the pending order and clears the icon before it checks
+ ///whether the actor can get out. A blocked exit still performs these writes.
+ pub(crate) fn consume_native_unload_order(&mut self,index:usize){
+  let unit=&mut self.units[index];
+  unit.native_flags9c&=!32;
+  unit.native_order5c=0;
+  if let Some(member)=unit.native_slot.and_then(|slot|self.native_group_rosters.members[slot].as_mut()){
+   member.flags9c=unit.native_flags9c;
+   member.flagsb7&=!1;
+   member.promotion.order=0;
+  }
+  self.record_native_selection_icon(index,0xabb);
+  if let Some(group)=self.native_group_rosters.current_roster{
+   self.native_group_rosters.pool[group].roster[58]=0;
+  }
+ }
  ///53130 sends every non-fixed vehicle through59830/59720. Ordinary
  ///takeovers own a one-robot group; APCs retain their complete native roster.
  pub(crate) fn unload_native_vehicle(&mut self,index:usize)->bool{
   if !self.map.original||stats(&self.units[index].kind).cls!=1{return false;}
-  //53130 consumes13 before59830 searches for an exit; failure still clearsit.
-  self.units[index].native_flags9c&=!32;self.units[index].native_order5c=0;
-  if let Some(slot)=self.units[index].native_slot{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags9c=self.units[index].native_flags9c;m.flagsb7&=!1;m.promotion.order=0;}}
-  if let Some(group)=self.native_group_rosters.current_roster{self.native_group_rosters.pool[group].roster[58]=0;}
+  self.consume_native_unload_order(index);
   let carrier=self.units[index].clone();let Some(driver)=carrier.crew.clone()else{return true;};
   let native_carrier=self.owns_native_route(index)&&carrier.native_hardware_slot.is_some();
   let restored_range4=carrier.native_hardware_slot.and_then(|s|self.native_hardware_pool.get(s)).map(|w|w.attributes.byte(39).wrapping_mul(2)as i8).unwrap_or_else(||super::native_ai_scoring::default_input(&driver.kind).map_or(30,|i|i.range.wrapping_mul(2)as i8));
@@ -636,6 +649,52 @@ impl Game{
     let row=&trace[scenario];
     assert_eq!(json!([scenario,apc,animated,inside,retired,g.units[driver].native_phase35,motion]),
      json!([row["scenario"],row["apc"],row["animated"],row["inside"],row["retired"],row["phase"],row["motion"]]));
+   }
+  }
+ }
+ #[test]
+ fn unload_consumes_order_and_icon_before_searching_for_an_exit(){
+  let trace=picture_trace("Z_NATIVE_VEHICLE_UNLOAD_ICON");
+  for scenario in 0..36{
+   let (kind,profile)=[("medium",1),("heavy",5),("light",7),("launcher",9),("jeep",11),("crane",16)][scenario%6];
+   let blocked=scenario/6%2!=0;
+   let role=[-1,1,0][scenario/12];
+   let (mut g,i)=authored_vehicle_exit_field(kind);
+   g.spawn("grunt",0,512.,512.,8,None);
+   g.maintain_native_group_rosters();
+   let slot=g.units[i].native_slot.unwrap();
+   let first=g.units[0].native_slot.unwrap();
+   let last=g.units.last().unwrap().native_slot.unwrap();
+   g.native_group_rosters.observe_unit_context(slot);
+   let group=g.native_group_rosters.current_roster.unwrap();
+   let roster=&mut g.native_group_rosters.pool[group].roster;
+   roster[0x14]=first as u8;
+   roster[0x27]=last as u8;
+   roster[0x3a]=13;
+   let member=g.native_group_rosters.members[slot].as_mut().unwrap();
+   member.role=role;
+   member.flagsb7=0xc7;
+   g.units[i].native_order5c=13;
+   g.units[i].native_flags9c=0x3b;
+   let prior=[0x3210,0x4321,0x5432];
+   let slots=[slot,first,last];
+   for (slot,icon) in slots.into_iter().zip(prior){g.native_selection.contexts[slot].icon_a8=Some(icon);}
+   if blocked{
+    g.map.terrain_codes.fill(32);
+    g.map.native_terrain_plane.fill(32);
+   }
+   assert!(g.unload_native_hardware(i));
+   let u=g.units.iter().find(|u|u.native_slot==Some(slot)).unwrap();
+   let member=g.native_group_rosters.members[slot].as_ref().unwrap();
+   let order=g.native_group_rosters.pool[group].roster[0x3a];
+   let icons=slots.map(|slot|g.native_selection.contexts[slot].icon_a8.unwrap());
+   assert_eq!(icons,if role==-1{[0xabb;3]}else{[0xabb,prior[1],prior[2]]});
+   assert_eq!(u.native_phase35,if blocked{crate::original_animation_game::initial_phase(kind)}else{64});
+   assert_eq!((u.native_order5c,order,u.native_flags9c,member.flagsb7),(0,0,27,198));
+   if let Some(trace)=&trace{
+    let row=&trace[scenario];
+    assert_eq!(json!([scenario,profile,blocked,member.role,u.native_phase35,u.native_order5c,order,u.native_flags9c,member.flagsb7,icons]),
+     json!([row["scenario"],row["profile"],row["blocked"],row["role"],row["phase"],row["order"],row["groupOrder"],row["flags9c"],row["flagsb7"],row["icons"]]));
    }
   }
  }
