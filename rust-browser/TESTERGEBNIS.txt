@@ -1,16 +1,31 @@
 Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.147 Rusttests und 53 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 100/100 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 77 bestanden, einschließlich aller 20 privaten
+1.158 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
+bestanden. Doctests bestanden (0 vorhanden). 101/101 Node-Prüfprogramme im
+Browserstand der Abgleichrunde 78 bestanden, einschließlich aller 20 privaten
 Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 2b5aa7c4fe86af9637b5e18720a933d3b562ba31b9b0340a78d3c4b7035ccd42
+Wasm SHA256: 3341c621687b1e88eb4e7b20719767de151967454a569a72d779eef3442444a1
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- Fahrzeugübernahme erhält die Inline-Linie: 64 echte Originalausführungen
+  von 450be0 einschließlich Konstruktor und Pfadfreigabe.
+- Fahnenabschluss und Zielauftrag geben endliche Pfadköpfe frei, ohne
+  die Inline-Linie zu löschen; Folger starten ihren nativen Formationsweg.
+- Der Leerlaufanschluss setzt bestehende native Köpfe fort und initialisiert
+  nahe und entfernte Formationsziele über ihre getrennten Originalcaller.
+- 64 Originalaufrufe zur Kandidatenkürzung vergleichen 772 physische Bytes,
+  einschließlich der vorher fehlenden 128 Restbytes und des Preisbuffer-Headers.
+- 16 weitere vollständige Original-Wegaufrufe prüfen mittlere Kandidaten
+  nach langen Straßenversuchen.
+- Mission 1 mit acht festen Marschbefehlen: 10.200 native Callbacks ohne
+  Laufzeitgrenze in Rust und Wasm. Zwei frische Wasm-Instanzen liefern
+  dieselben 10.201 beobachteten Zustände. Dies ist kein Originalpartievergleich.
+- Neuer Auftrag während der Fabrikausfahrt: Übergabe an den normalen
+  Dispatcher erhält die aktive Linie bis zur vollständigen Befehlsannahme.
 - 160 lange Straßenvergleiche mit vollständigen Pufferbytes und 56
   vollständige Originalaufrufe zur Übernahme oder Ablehnung der Straße.
 - 48 APC-Einstiegszustände in acht Richtungen und 684 Ausstiegsbilder

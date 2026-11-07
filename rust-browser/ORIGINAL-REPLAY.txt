@@ -1,0 +1,43 @@
+Wiederholbarer Missionsabgleich
+
+tools/mission-replay.cjs führt eine feste Folge von Befehlen in einer frischen
+Wasm-Instanz aus. Jede tick-Anfrage hat dt=0.059 und muss genau einen nativen
+Callback auslösen. Aktionen eines Ticks laufen davor in Dateireihenfolge.
+Das Szenario tools/replays/mission-01-march.json enthält acht selbst definierte
+Marschbefehle und bis zu 10.200 Callbacks auf der lokal bereitgestellten Mission 1.
+Das Szenario enthält keine Originalkarte, Grafik oder Audiodatei.
+
+Beispiel aus dem Projektverzeichnis
+node tools/mission-replay.cjs --script tools/replays/mission-01-march.json --out <lokaler-Ausgabepfad>
+Ein zweiter Aufruf mit --reference <vorheriger-Ausgabepfad> vergleicht jeden
+beobachteten Schritt. --campaign und --wasm erlauben andere lokale Eingaben.
+Vorhandene Ausgabedateien werden nicht überschrieben. Abgebrochene Mitschnitte
+bleiben mit der Endung .partial erhalten und gelten nicht als erfolgreicher Lauf.
+
+Die Referenz muss zum selben Szenario und denselben Missionsdaten passen.
+SHA256-Prüfsummen und Schema werden vor dem Vergleich geprüft. Fehlende oder
+zusätzliche Schritte, eine fehlende Abschlusszeile und die erste Feldabweichung
+brechen den Vergleich ab. Der Bericht nennt bei Feldabweichungen Tick, Feldpfad
+und beide Werte. Zwei Remake-Läufe bleiben ausdrücklich ein Remake-Selbstvergleich.
+
+BEOBACHTETER ZUSTAND
+Die nur lesende Wasm-Anfrage replayCheckpoint gibt die fünf Gameplay-RNG-Wörter,
+den kosmetischen Zufallszustand, die nativen Uhren und ausgewählte Felder aller
+240 UNIT-Plätze aus, einschließlich der vier internen Linienwörter und W17
+des zugeordneten Hardwareplatzes. Nur aktive Plätze erhalten Feldwerte; nicht vollständig
+modellierte Restbytes entfernter Einheiten werden nicht als Nullzustand erfunden.
+Zusätzlich werden FNV32-Hashes für Pfadpool, Konturmaske und Straßen-/Kandidaten-
+puffer ausgegeben. Das Lesen verändert weder Auswahl, Kamera, Audio noch Events.
+
+GRENZEN
+Dies ist kein Originalspielstand und kein vollständiges Prozessabbild. Hardware,
+Gebäude, sämtliche Geschoss-/Audio-/Grafikzustände und alle Speicherüberlappungen
+sind damit nicht vollständig erfasst. Auch ein Hash ist kein vollständiger
+feldweiser Beweis. Ein kompletter GOG-Missionsmitschnitt mit identischen Eingaben
+und passender Initialisierung liegt für dieses Format noch nicht vor.
+Die Quellenkennung gog-executable ist für solche getrennt erhobenen Referenzen
+reserviert; ein Umbenennen von Remake-Daten erzeugt keinen Originalnachweis.
+Das Werkzeug behauptet auch bei übereinstimmenden Beobachtungen keine 1:1-Parität.
+
+Originalmessungen, private Kampagnen und aufgezeichnete Missionszustände werden
+außerhalb des veröffentlichten Quellbaums gehalten.

@@ -464,15 +464,22 @@ impl Game{
         })();
         self.native_group_rosters=state;
         let Some((rejoin,leader,role,layout))=result else{return;};
-        if rejoin.cleared_path{let u=&mut self.units[index];u.path.clear();u.original_motion=None;u.initiative=None;u.march_resume=None;u.moving=false;}
+        let managed=self.owns_native_route(index);
+        if rejoin.cleared_path{
+            //4e910 calls52500: free both finite heads and stop hardware,
+            //but retain the inline525a0 line until its next native writer.
+            if managed{self.clear_native_attack_paths(index);}
+            let u=&mut self.units[index];u.path.clear();if !managed{u.original_motion=None;}u.initiative=None;u.march_resume=None;u.moving=false;
+        }
         if rejoin.special_arrival{
             self.native_group_special_arrival(index,unit_slot);return;
         }
         if let Some(target)=rejoin.target{
             //4e910 always emits a59c60 primary waypoint;52810 subtracts8.
-            let goal=(f64::from(target[0].wrapping_sub(8))*2.,f64::from(target[1].wrapping_sub(8))*2.);let path=self.route_unit(&self.units[index],goal.0,goal.1);
+            let goal=(f64::from(target[0].wrapping_sub(8))*2.,f64::from(target[1].wrapping_sub(8))*2.);
+            if managed{self.prepend_native_walk_claim(index,target);}else{self.units[index].path=self.route_unit(&self.units[index],goal.0,goal.1);}
             let current=self.units[index].formation.clone();let command_goal=current.as_ref().map(|f|f.command_goal).or(leader.dest).unwrap_or(goal);let direction=current.as_ref().map(|f|f.direction).unwrap_or_else(||original_combat::facing(leader.angle));
-            let u=&mut self.units[index];u.path=path;u.dest=Some(goal);u.order="move".into();u.target=None;u.explicit_stop=false;u.hold_position=false;
+            let u=&mut self.units[index];u.dest=Some(goal);u.order="move".into();u.target=None;u.explicit_stop=false;u.hold_position=false;
             if role>0{u.formation=Some(super::original_formation::Follow::new(leader.id,role as usize,layout,command_goal,direction,self.map.revision));}
         }
     }
@@ -498,18 +505,39 @@ impl Game{
         self.follow_native_idle_group_with_force(index,true);
     }
     fn follow_native_idle_group_with_force(&mut self,index:usize,forced:bool){
+        let managed=self.owns_native_route(index);
+        if managed{
+            let Some(slot)=self.units.get(index).and_then(|u|u.native_slot)else{return;};
+            if self.native_group_rosters.members[slot].as_ref().is_some_and(|m|m.flags31&64==0){
+                //4d570 calls52960 before geometry; a live head resumes52810.
+                if self.check_native_reset_path(index)&1!=0{self.resume_native_reset_path(index);return;}
+            }
+        }
         let Some(unit)=self.units.get(index).cloned()else{return;};let Some(slot)=unit.native_slot.filter(|&s|s<240)else{return;};
         let Some(mut member)=self.native_group_rosters.members[slot].clone()else{return;};member=member_from_unit(&unit,Some(&member));
         let Some(context)=self.native_group_rosters.current_roster.filter(|&s|s<240)else{return;};
         let Some(leader_slot)=self.native_group_rosters.pool[context].member(0)else{return;};
         let Some(leader)=self.units.iter().find(|u|u.native_slot==Some(usize::from(leader_slot)))else{return;};
         let layout=self.native_group_rosters.pool[context].roster[8];let offset=super::original_formation::raw_offset(member.role.max(1)as usize,layout);
-        let result=life::idle_follow(&mut member,&mut self.native_group_rosters.pool[context],native_position(leader),!unit.path.is_empty()||unit.native_route_pending.get().is_some(),forced,offset,native_math::sine);
+        let result=life::idle_follow(&mut member,&mut self.native_group_rosters.pool[context],native_position(leader),!managed&&(!unit.path.is_empty()||unit.native_route_pending.get().is_some()),forced,offset,native_math::sine);
         self.native_group_rosters.members[slot]=Some(member);
         if let Some(bonus)=result.motion_bonus{self.units[index].motion_bonus=bonus as i8;}
         if result.special_arrival{self.native_group_special_arrival(index,slot);return;}
         let Some(route)=result.route else{return;};let(target,direct)=match route{life::FollowRoute::Primary(p)=>([p[0].wrapping_sub(8),p[1].wrapping_sub(8)],false),life::FollowRoute::Direct(p)=>(p,true)};
         let goal=(f64::from(target[0])*2.,f64::from(target[1])*2.);let already=native_position(&unit)==target;
+        if managed{
+            if direct{
+                //525a0 leaves its inline words unchanged at an identical goal.
+                if !already{self.start_native_walking_direct(index,target);}
+                //Keep the presentation/fallback mirror separate from native
+                //heads:525a0 creates an inline line, not a59c60 allocation.
+                self.units[index].path=if already{VecDeque::new()}else{VecDeque::from([goal])};
+                self.units[index].native_phase35=7;
+                let remaining=self.units[index].native_remaining48;
+                if let Some(member)=self.native_group_rosters.members[slot].as_mut(){life::finish_idle_follow(member,already,remaining);}
+            }else{self.prepend_native_walk_claim(index,[target[0].wrapping_add(8),target[1].wrapping_add(8)]);}
+            self.units[index].dest=Some(goal);return;
+        }
         let path=if direct{if already{VecDeque::new()}else{VecDeque::from([goal])}}else{self.route_unit(&unit,goal.0,goal.1)};
         if direct&&!already{if !self.prepare_native_line_occupancy(index,target){return;}self.prepare_native_walk(index);}
         let u=&mut self.units[index];u.path=path;u.dest=Some(goal);u.original_motion=None;u.moving=!u.path.is_empty();
@@ -619,6 +647,21 @@ impl Game{
         g.units[1].path.clear();g.native_group_rosters.set_group_angle(1,101,0);let delta=super::super::original_formation::offset_layout(1,0,0);let direct=(g.units[0].x+delta.0,g.units[0].y+delta.1);g.units[1].x=direct.0;g.units[1].y=direct.1;g.units[1].native_remaining48=5;
         g.follow_native_idle_group(1);assert_eq!(g.units[1].dest,Some(direct));assert!(g.units[1].path.is_empty());assert_eq!(g.units[1].native_phase35,7);assert_ne!(g.native_group_rosters.members[slot].as_ref().unwrap().flags31&0x80,0);
     }
+    #[test]fn managed_idle_follow_resumes_the_existing_head_before_recomputing_formation(){
+        let mut g=field();let slot=g.units[1].native_slot.unwrap();g.native_group_rosters.set_current_roster(1,101);g.native_routes.get_mut().managed[slot]=true;g.native_world=None;
+        let head=g.native_routes.get_mut().pool.allocate_goal([208,158]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=head;g.units[1].path=g.native_owned_route_view(1).unwrap();g.units[1].original_motion=None;
+        g.follow_native_idle_group(1);
+        let expected=super::super::original_motion::Segment::new(232.,200.,(400.,300.));assert_eq!(g.units[1].original_motion.as_ref().map(|m|m.source_line_fields()),Some(expected.source_line_fields()));assert_eq!(g.native_routes.borrow().pool.links[slot].primary,head);assert_eq!(g.units[1].native_phase35,2);
+    }
+    #[test]fn managed_idle_follow_initializes_near_and_far_native_lines_without_a_global_route(){
+        for near in [false,true]{
+            let mut g=field();let slot=g.units[1].native_slot.unwrap();g.native_group_rosters.set_current_roster(1,101);g.native_group_rosters.set_group_angle(1,101,0);let group=g.native_group_rosters.current_roster.unwrap();g.native_group_rosters.pool[group].roster[63]=0;g.native_group_rosters.pool[group].roster[9]|=1;g.native_routes.get_mut().managed[slot]=true;g.native_world=None;
+            let delta=super::super::original_formation::offset_layout(1,0,0);let direct=(g.units[0].x+delta.0,g.units[0].y+delta.1);g.units[1].x=direct.0+if near{8.}else{160.};g.units[1].y=direct.1;
+            g.follow_native_idle_group(1);
+            let goal=g.units[1].dest.unwrap();let expected=super::super::original_motion::Segment::new(g.units[1].x,g.units[1].y,goal);assert_eq!(g.units[1].original_motion.as_ref().map(|m|m.source_line_fields()),Some(expected.source_line_fields()));assert_eq!(g.units[1].native_remaining48,expected.remaining());assert_eq!(g.units[1].native_phase35,if near{7}else{2});
+            let p=g.native_routes.borrow();let head=p.pool.links[slot].primary;if near{assert_eq!(goal,direct);assert_eq!(head,0);assert_eq!(g.units[1].path,VecDeque::from([goal]));}else{assert_eq!(goal,(direct.0-16.,direct.1-16.));assert_ne!(head,0);assert_eq!(p.pool.node(head).unwrap().next,0);}
+        }
+    }
     #[test]fn leader_creation_counter_releases_follower_routes_on_the_fourth_callback_and_restores_group_flags(){
         let mut g=field();let group=g.native_group_rosters.group_slot(1,101).unwrap();g.native_group_rosters.current_roster=Some(group);g.native_group_rosters.pool[group].roster[9]=0x56;g.native_group_rosters.pool[group].roster[0x40]=7;g.native_group_rosters.set_group_angle(1,101,0);g.units[1].x=208.;
         for expected in [3,2,1]{g.advance_original_group_leader(0);assert_eq!(g.native_group_rosters.pool[group].roster[0x3f],expected);assert!(g.units[1].path.is_empty());}
@@ -708,6 +751,25 @@ impl Game{
         g.native_group_rosters.set_current_roster(1,101);g.native_group_rosters.set_group_angle(1,101,0);
         let delta=super::super::original_formation::offset_layout(1,0,0);let expected=(g.units[0].x+delta.0-16.,g.units[0].y+delta.1-16.);
         g.rejoin_original_member(slot);assert_eq!(g.units[1].dest,Some(expected));assert!(g.units[1].initiative.is_none());assert!(g.units[1].march_resume.is_none());assert_eq!(g.units[1].formation.as_ref().unwrap().slot,1);
+    }
+    #[test]fn managed_rejoin_stops_hardware_and_releases_both_heads_without_erasing_inline_motion(){
+        let mut g=field();g.units.clear();g.native_group_rosters=State::default();g.spawn("crane",1,200.,200.,101,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(1,101);
+        let slot=g.units[0].native_slot.unwrap();let w=g.units[0].native_hardware_slot.unwrap();
+        let line=super::super::original_motion::Segment::new(200.,200.,(248.,210.));let expected=line.source_line_fields();g.units[0].native_remaining48=line.remaining();g.units[0].original_motion=Some(line);
+        let (primary,secondary)={let p=g.native_routes.get_mut();p.managed[slot]=true;let a=p.pool.allocate_goal([132,113]).unwrap();let b=crate::original_route_pool::SECONDARY;p.pool.nodes[crate::original_route_pool::PRIMARY_COUNT]=crate::original_route_pool::Node{point:[140,120],next:0};p.pool.links[slot]=crate::original_route_pool::Links{primary:a,secondary:b};(a,b)};
+        let mut order=g.native_hardware_pool[w].order;order.field17|=1;g.native_hardware_pool[w].set_order(order);
+        g.rejoin_original_member(slot);
+        assert_eq!(g.units[0].original_motion.as_ref().map(|m|m.source_line_fields()),Some(expected));assert_eq!(g.units[0].native_remaining48,expected[0]);assert_eq!(g.native_hardware_pool[w].order.field17&1,0);
+        let p=g.native_routes.borrow();assert_eq!((p.pool.links[slot].primary,p.pool.links[slot].secondary),(0,0));assert_eq!(p.pool.node(primary).unwrap().next,u32::MAX);assert_eq!(p.pool.node(secondary).unwrap().next,u32::MAX);
+    }
+    #[test]fn managed_rejoin_starts_a_single_native_formation_waypoint(){
+        let mut g=field();g.native_group_rosters.set_current_roster(1,101);g.native_group_rosters.set_group_angle(1,101,0);g.native_world=None;
+        let slot=g.units[1].native_slot.unwrap();g.native_routes.get_mut().managed[slot]=true;
+        let old=g.native_routes.get_mut().pool.allocate_goal([500,500]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=old;
+        g.rejoin_original_member(slot);
+        let goal=g.units[1].dest.unwrap();let expected=super::super::original_motion::Segment::new(g.units[1].x,g.units[1].y,goal);
+        assert_eq!(g.units[1].original_motion.as_ref().map(|m|m.source_line_fields()),Some(expected.source_line_fields()));assert_eq!(g.units[1].native_remaining48,expected.remaining());assert_eq!(g.units[1].native_phase35,2);
+        let p=g.native_routes.borrow();let links=p.pool.links[slot];assert_ne!(links.primary,0);assert_eq!(links.secondary,0);let node=p.pool.node(links.primary).unwrap();assert_eq!(node.point,[(goal.0/2.)as i16+8,(goal.1/2.)as i16+8]);assert_eq!(node.next,0);assert_eq!(g.units[1].path,VecDeque::from([goal]));
     }
     #[test]fn apc_conversion_preserves_native_roster_roles_while_rebinding_the_web_entity(){
         let mut g=field();let slot=g.units[0].native_slot.unwrap();let driver=g.units[0].id;let group=g.native_group_rosters.group_slot(1,101).unwrap();

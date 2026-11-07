@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "mission": 1,
+  "ticks": 10200,
+  "difficulty": 1,
+  "aiTeams": [1],
+  "actions": [
+    {"tick": 1, "request": {"op": "command", "kind": "move", "team": 0, "ids": [5, 6, 7], "x": 400, "y": 2096}},
+    {"tick": 1, "request": {"op": "command", "kind": "move", "team": 0, "ids": [8, 9, 10], "x": 1648, "y": 2096}},
+    {"tick": 1, "request": {"op": "command", "kind": "move", "team": 0, "ids": [11, 12, 13], "x": 1040, "y": 1328}},
+    {"tick": 1200, "request": {"op": "command", "kind": "move", "team": 0, "ids": [5, 6, 7], "x": 560, "y": 1232}},
+    {"tick": 1200, "request": {"op": "command", "kind": "move", "team": 0, "ids": [8, 9, 10], "x": 1712, "y": 1488}},
+    {"tick": 2400, "request": {"op": "command", "kind": "move", "team": 0, "ids": [5, 6, 7], "x": 400, "y": 624}},
+    {"tick": 2400, "request": {"op": "command", "kind": "move", "team": 0, "ids": [8, 9, 10], "x": 1648, "y": 624}},
+    {"tick": 3600, "request": {"op": "command", "kind": "move", "team": 0, "ids": [11, 12, 13], "x": 1040, "y": 592}}
+  ]
+}

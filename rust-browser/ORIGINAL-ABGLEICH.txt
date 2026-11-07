@@ -1,4 +1,4 @@
-Z / Rust-Wasm – aktueller Abgleichstand, 05.11.2026
+Z / Rust-Wasm – aktueller Abgleichstand, 07.11.2026
 
 ERGEBNIS
 Vollständige 1:1-Gleichheit ist nicht erreicht. Dieser Bericht ersetzt die
@@ -793,6 +793,58 @@ Hardwarebit überein. Sieben Fälle lösen die Reaktion aus. Ein weiteres
 Geschoss im selben Schritt verbraucht für denselben Slot keine neuen
 Zufallswerte. Die übrigen Linienbytes des inaktiven Slots werden weiterhin
 nur im Originaltrace geprüft.
+
+KANDIDATENPUFFER UND AUFTRAG NACH FABRIKAUSFAHRT (RUNDE 78)
+Der dritte Konturkandidat endet hinter dem 640-Byte-Straßenpuffer. Dieser
+Rest und der vierte Kandidat werden jetzt als weitere 128 warme Bytes
+erhalten. Beim Entfernen eines Punktes verschiebt 43c1b0 auch unbenutzte
+Wörter bis einschließlich des nächsten Headers. 64 Originalausführungen
+mit kontrollierten Abkürzungsentscheidungen stimmen in allen 772 geprüften
+Bytes überein, einschließlich PreisX/PreisY. FNV32: 2477124827.
+16 weitere vollständige 43e190-Aufrufe prüfen die mittleren Kandidaten
+mit langen Straßen und denselben physischen Restbytes: 2090533439.
+
+Ein aufgezeichneter Marschablauf auf Mission 1 fand einen gekoppelten
+Laufzeitfehler bei Callback 5223: Ein neu gebauter Jeep erhielt während
+der Ausfahrt einen weiteren Gruppenbefehl. Die alte Ausfahrthilfe löschte
+dabei die aktive Bewegungslinie, obwohl Restweg und Bewegungsbit noch
+gesetzt waren. Neue positive Befehle nach angenommener Ausfahrt gehen
+jetzt an den regulären Befehlsdispatcher. Ein gezielter Regressionstest
+prüft die Übergabe von Linie, Restweg, Pfadkopf und neuem Ziel.
+Der aufgezeichnete Ablauf erreicht danach alle 10.200 Callbacks mit
+acht Eingaben ohne nativeRouteBoundary in Rust und im Wasm-Build.
+Dies ist ein Remake-Laufzeittest, kein identischer GOG-Partiemitschnitt.
+Das neue Werkzeug und seine Vergleichsgrenzen stehen in ORIGINAL-REPLAY.txt.
+
+Der anschließende Kampagnenlauf fand auf Mission 20 bei Callback 4738
+einen weiteren Verlust derselben Inline-Daten nach einer Kranübernahme.
+64 neue Originalausführungen von 450be0 einschließlich Allokator,
+Fahrzeugkonstruktor und 452500 erhalten alle vier Linienwörter, geben den
+primären Wegknoten frei und löschen W17:1. Die Web-Identitätsübertragung
+bewahrt deshalb jetzt die Linie des Fahrers. Der spätere Gruppen-/UI-Teil
+von 450cd0 liegt außerhalb dieses neuen Original-Oracles.
+Außerdem verwendet der Zielauftrag 452b70 jetzt die vollständige vorhandene
+Pfadfreigabe: endliche Köpfe und W17:1 werden gelöscht, Inline-Linie und
+Restweg bleiben erhalten. Auch UNIT68 wird wie im Original zurückgesetzt.
+Die bereits erhobenen 16 Originalfälle mit gültiger Fahrzeugausrüstung
+belegen diese Trennung. Regressionstests prüfen beide Übergaben im Game.
+
+Die schrittweise Aufzeichnung grenzte den tatsächlichen Verlust bei Callback
+4738 auf den Fahnenabschluss ein: Der Gruppenanschluss 4e910 löschte im
+Adapter die Inline-Linie, ohne die endlichen Pfadköpfe und das Bewegungsbit
+freizugeben. Er verwendet jetzt die vorhandene 52500-Freigabe. Bei Folgern
+startet die anschließende 59c60-/52810-Kette einen einzelnen originalen
+Formationswegpunkt statt einer unabhängigen globalen Neuberechnung.
+Zwei gezielte Tests prüfen den Kranführer mit beiden Pfadköpfen und W17
+sowie den Folger mit neuem Wegpunkt, Phase und vollständiger Bewegungslinie.
+Die Aufrufkette stützt sich auf den vorhandenen 4e910-Originalvergleich;
+die neuen Integrationstests sind ausdrücklich keine weiteren GOG-Partietraces.
+Auch 4d570 prüft jetzt im nativen Modus zuerst den endlichen Pfadkopf und
+setzt ihn mit 52810 fort. Entfernte Formationsziele werden mit 59c60/52810
+gestartet; nahe Ziele erhalten sofort ihre 525a0-Linie und Phase 7. Zwei
+Integrationstests prüfen vorhandene Köpfe sowie nahe und entfernte Ziele.
+Der vollständige Phase-7-Weiterlauf und die Ablösung des noch vorhandenen
+allgemeinen Formationsadapters sind damit nicht als 1:1 nachgewiesen.
 
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie

@@ -51,7 +51,7 @@ impl Segment {
     ///original dominant-axis length and line error for subsequent stepping.
     pub(crate) fn shorten_for_attack(&mut self){let left=(self.remaining as i16)>>4;self.remaining=i32::from(if left==0{1}else{left});}
     #[cfg(test)]pub(crate) fn set_source_fixture(&mut self,f:[i16;4]){self.remaining=i32::from(f[0]);self.major=i32::from(f[1]);self.error=i32::from(f[2]);self.minor=i32::from(f[3]);}
-    #[cfg(test)]pub(crate) fn source_line_fields(&self)->[i16;4]{[self.remaining as i16,self.major as i16,self.error as i16,self.minor as i16]}
+    pub(crate) fn source_line_fields(&self)->[i16;4]{[self.remaining as i16,self.major as i16,self.error as i16,self.minor as i16]}
     #[cfg(test)]pub(crate) fn source_vertical_sign(&self)->u8{if self.sy<0{255}else{1}}
     fn advance(&mut self,step:u8) {
         for _ in 0..i32::from(step).min(self.remaining) {

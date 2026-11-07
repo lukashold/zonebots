@@ -90,7 +90,10 @@ impl Game{
   if !vehicle{if let Some(slot)=driver.native_slot{self.record_native_selection_saved_class(slot,driver.native_class7c);}}
   let mut order=self.native_hardware_pool[hardware].order;order.selected_target12=255;if vehicle{order.field17=0;}self.native_hardware_pool[hardware].set_order(order);
   let attributes=self.native_hardware_pool[hardware].attributes;let mut state=old;state.fire_rate=controls.fire_rate;state.projectile_speed=Some(controls.projectile_speed);state.movement_control=attributes.byte(7);state.secondary_state=attributes.byte(25)as i8;
-  let u=&mut self.units[index];u.kind=profile.kind.into();u.native_family30=None;u.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});u.hp=f64::from(attributes.word(8));u.max_hp=f64::from(attributes.word(10));u.original_combat=Some(state);u.native_range4=Some(controls.double_range as i8);u.native_reload7b=0;if !vehicle{u.native_counter84=-1;}u.native_class7c=profile.class;u.native_phase35=profile.phase;u.native_frame32=0;u.native_timer3c=profile.timer;u.native_order5c=0;u.cooldown=0.;u.angle=native_math::angle(profile.heading);u.aim=u.angle;u.native_hardware=Some(original_hardware::State::new(profile.heading,attributes.byte(25)as i8));u.native_idle=None;u.native_walk=None;u.native_fire=None;u.native_contact=None;u.native_cover=None;u.path.clear();u.dest=None;u.target=None;u.order="guard".into();u.moving=false;u.initiative=None;u.march_resume=None;u.original_motion=None;u.native_route_pending.set(None);u.native_secondary_route.set(false);u.hold_position=true;
+  let u=&mut self.units[index];u.kind=profile.kind.into();u.native_family30=None;u.crew=Some(Crew{kind:driver.kind.clone(),hp:driver.hp});u.hp=f64::from(attributes.word(8));u.max_hp=f64::from(attributes.word(10));u.original_combat=Some(state);u.native_range4=Some(controls.double_range as i8);u.native_reload7b=0;if !vehicle{u.native_counter84=-1;}u.native_class7c=profile.class;u.native_phase35=profile.phase;u.native_frame32=0;u.native_timer3c=profile.timer;u.native_order5c=0;u.cooldown=0.;u.angle=native_math::angle(profile.heading);u.aim=u.angle;u.native_hardware=Some(original_hardware::State::new(profile.heading,attributes.byte(25)as i8));u.native_idle=None;u.native_walk=None;u.native_fire=None;u.native_contact=None;u.native_cover=None;u.path.clear();u.dest=None;u.target=None;u.order="guard".into();u.moving=false;u.initiative=None;u.march_resume=None;u.native_route_pending.set(None);u.native_secondary_route.set(false);u.hold_position=true;
+  //50be0/52500 preserve the physical UNIT inline line and remaining48.
+  //Only finite heads and W17 are cleared; the renderer identity change
+  //must not discard the driver line that later callbacks can still read.
   //Each ordinary vehicle initializer ends in41b950. Fixed582c0 doesnot.
   if vehicle{self.refresh_native_collision_tables(index,None);}
   if let Some(slot)=driver.native_slot{if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.flags31&=!16;m.contact_order=0;m.flagsb7&=!1;}self.native_group_rosters.record_secondary_path(slot,false);}
@@ -131,6 +134,22 @@ impl Game{
  #[test]fn ordinary_entry_preserves_hull_damage_and_live_w_values_drive_primary_combat_stats(){
   let(mut g,carrier,actor)=field("medium",8,1);g.units[0].hp=75.;g.sync_native_world();let ai=g.units.iter().position(|u|u.id==actor).unwrap();assert!(g.update_native_hardware_entry(ai));let ci=g.units.iter().position(|u|u.id==carrier).unwrap();assert_eq!((g.units[ci].hp,g.units[ci].max_hp),(75.,200.));let w=g.units[ci].native_hardware_slot.unwrap();g.native_hardware_pool[w].attributes.bytes[6]=17;g.native_hardware_pool[w].attributes.bytes[5]=4;g.units[ci].native_range4=Some(8);let d=g.native_unit_stats(&g.units[ci]);assert_eq!((d.damage,d.range),(17.,64.));
   g.spawn("medium",1,840.,g.units[ci].y,9,None);let enemy=g.units.last().unwrap().clone();assert!(!g.native_target_in_range(&g.units[ci],&enemy,d.range));assert!(g.native_target_in_range(&g.units[ci],&enemy,stats("medium").range));
+ }
+ #[test]fn vehicle_takeover_keeps_the_driver_inline_line_after_freeing_its_route(){
+  for(kind,definition,equipment)in[("medium",8,1),("launcher",24,6),("heavy",26,5),("light",29,8),("jeep",33,13),("crane",35,15),("firetruck",37,14)]{
+   let(mut g,carrier,actor)=field(kind,definition,equipment);let ai=g.units.iter().position(|u|u.id==actor).unwrap();let slot=g.units[ai].native_slot.unwrap();
+   g.native_route_mode=true;g.native_routes.get_mut().managed[slot]=true;
+   let head=g.native_routes.get_mut().pool.allocate_goal([352,338]).unwrap();g.native_routes.get_mut().pool.links[slot].primary=head;
+   g.start_native_walking_direct(ai,[344,330]);
+   let line=g.units[ai].original_motion.as_ref().unwrap().source_line_fields();let remaining=g.units[ai].native_remaining48;assert_eq!(remaining,24);
+   let ci=g.units.iter().position(|u|u.id==carrier).unwrap();let object=g.native_object_slot(carrier).unwrap();
+   g.complete_native_hardware_entry(ai,ci,object,definition,[320,320],0x70,true);let u=g.units.iter().find(|u|u.id==carrier).unwrap();
+   assert_eq!(u.original_motion.as_ref().map(|m|m.source_line_fields()),Some(line),"{kind}:50be0/52500 preserve inline UNIT fields");
+   assert_eq!(u.native_remaining48,remaining);assert_eq!(u.native_slot,Some(slot));
+   assert_eq!(g.native_routes.borrow().pool.links[slot],crate::original_route_pool::Links::default());
+   assert_eq!(g.native_routes.borrow().pool.node(head).unwrap().next,u32::MAX);
+   assert_eq!(g.native_hardware_pool[u.native_hardware_slot.unwrap()].order.field17&1,0);
+  }
  }
  #[test]fn managed_entry_leaves_phase2_to_the_native_walker_then_retires_its_pool_links_on_takeover(){
   for(kind,definition,equipment)in[("medium",8,1),("gatling",22,11)]{let(mut g,carrier,actor)=field(kind,definition,equipment);let ai=g.units.iter().position(|u|u.id==actor).unwrap();let slot=g.units[ai].native_slot.unwrap();let head=g.native_routes.get_mut().pool.allocate_goal([328,338]).unwrap();g.native_routes.get_mut().managed[slot]=true;g.native_routes.get_mut().pool.links[slot].primary=head;g.units[ai].native_phase35=2;g.units[ai].native_route_pending.set(None);g.units[ai].path=std::collections::VecDeque::from([(640.,660.)]);let before=(g.units[ai].x,g.units[ai].y);assert!(!g.update_native_hardware_entry(ai));assert_eq!((g.units[ai].x,g.units[ai].y),before);assert_eq!(g.native_routes.borrow().pool.links[slot].primary,head);g.units[ai].native_phase35=0;assert!(g.update_native_hardware_entry(ai));assert_eq!(g.native_routes.borrow().pool.links[slot].primary,0);assert_eq!(g.native_routes.borrow().pool.links[slot].secondary,0);assert_eq!(g.native_routes.borrow().pool.node(head).unwrap().next,crate::original_route_pool::FREE);assert_eq!(g.units.iter().find(|u|u.id==carrier).unwrap().native_slot,Some(slot));}

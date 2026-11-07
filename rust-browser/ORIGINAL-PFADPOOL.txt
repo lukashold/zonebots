@@ -129,7 +129,7 @@ Caller bestätigen den überlappenden WORD-Write an PreisX:FFFF, während das
 warme PreisY=-2000 erhalten bleibt; tatsächliche Gameadoption ist verglichen.
 
 Die Laufzeit prüft jede Allokation/jeden Zugriff vor Komprimierung auf die
-Records0..39 und jede gepackte Eingabe auf den modellierten Preisbuffer.
+Records0..79 und jede gepackte Eingabe auf den modellierten Preisbuffer.
 40 verkettete Punkte werden wie im Original auf39 kopierte Punkte begrenzt;
 ein verlorenes Endziel wird nicht künstlich angehängt. Erste unbekannte
 Scratch-/Buffer-/Regionzugriffe und endliche Kopierfehler melden benannte
@@ -155,10 +155,15 @@ Schreibzugriffen in den überlappenden Bereichen. Bei 56 vollständigen
 Befehlsflags überein. Der Konturabschluss liest nach einem abgelehnten
 Straßenversuch den umgeschriebenen Kandidaten erneut.
 
-Candidate3 liegt außerhalb des Straßenpuffers. Sein PreisX-Write ist
-eigens mit dem Preisbuffer verbunden. Ein überschriebenes Längenbyte,
-das über die modellierten Kandidatenbytes hinausführt, bleibt eine
-Laufzeitgrenze. Die Endpunktsuche des Konturabschlusses liest den
+Die vier vollständigen 100-Byte-Kandidaten überlappen den Straßenpuffer
+und einen weiteren warmen Bereich von 128 Bytes. 64 Originalaufrufe von
+43c1b0 prüfen das Verschieben bis zum nächsten Header einschließlich
+PreisX/PreisY. 16 vollständige 43e190-Aufrufe prüfen zusätzlich den
+Suffix der mittleren Kandidaten bei langen Straßen. Candidate3 endet
+direkt vor dem Preisbuffer; sein Folgeheader-Write verändert PreisX.
+Ein überschriebenes Längenbyte mit mehr als 49 Punkten oder einer
+Nullkodierung bleibt eine benannte Laufzeitgrenze.
+Die Endpunktsuche des Konturabschlusses liest den
 aktuellen Fußabdruck, soweit dessen Tabellenbytes vorliegen.
 Der physische Probeactor führt die in diesem Caller benötigten warmen BC-/67-
 Felder separat; er vereinigt noch nicht alle Benutzer des633950-Dummyrecords.

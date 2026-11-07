@@ -164,13 +164,16 @@ impl Game{
 
  #[test]fn candidate_three_simplification_preserves_warm_price_y_when_roads_are_suppressed(){let native=std::env::var("NATIVE_CANDIDATE_THREE_ALIAS_ORACLE").ok().map(|p|std::fs::read_to_string(p).unwrap().lines().map(|s|serde_json::from_str::<crate::Value>(s).unwrap()).collect::<Vec<_>>());let mut row=0;for warm in 0..2{for kind in["grunt","medium"]{let(mut g,mut paths)=road_fixture(kind,(160,656),(1120,656),0);let slot=g.units[0].native_slot.unwrap();let candidate=paths.candidates[0].take();paths.candidates[3]=candidate;paths.headers.fill((255,-1));paths.headers[3]=(0,-3);g.units[0].native_flags9c=2;if warm!=0{for(i,b)in paths.road_scratch.frame.iter_mut().enumerate(){*b=(0x80+i*13)as u8;}}paths.road_scratch.pairs[0]=[1234,-2000];let old_rng=g.original_rng.words;let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};assert_eq!(env.finish(),Completion::Done);assert_eq!(g.native_route_boundary,None);assert_eq!(paths.road_scratch.pairs[0],[-1,-2000]);assert_eq!(g.original_rng.words,old_rng);assert!(paths.road_scratch.old_price.is_none());assert!(paths.headers[3].1<0);assert_eq!(paths.pool.links[slot].primary,0);if let Some(rs)=&native{let r=&rs[row];assert_eq!(i64::from(paths.road_scratch.pairs[0][0]),r["pricePairX"].as_i64().unwrap());assert_eq!(i64::from(paths.road_scratch.pairs[0][1]),r["pricePairY"].as_i64().unwrap());assert_eq!(serde_json::json!(paths.pool.points(paths.pool.links[slot].secondary)),r["points"]);assert_eq!(u64::from(paths.pool.links[slot].secondary),r["secondary"].as_u64().unwrap());}row+=1;}}assert_eq!(row,4);}
  #[test]fn real_profile_caller_matches_live_scratch_binding_and_real_head_adoption(){run_road_caller_dataset(false,"NATIVE_ROAD_SCRATCH_REAL_PROFILE_ORACLE");}
- #[test]
- fn long_road_caller_keeps_the_native_pool_and_rereads_a_rejected_contour(){
-  let trace=std::env::var_os("Z_NATIVE_LONG_ROAD_CALLER").map(|p|std::fs::read_to_string(p).unwrap());
+ #[test]fn long_road_caller_keeps_the_native_pool_and_rereads_a_rejected_contour(){run_long_road_caller(false);}
+ #[test]fn middle_road_candidates_keep_the_native_physical_suffix(){run_long_road_caller(true);}
+ fn run_long_road_caller(tail:bool){
+  let trace=std::env::var_os(if tail{"Z_NATIVE_CANDIDATE_TAIL"}else{"Z_NATIVE_LONG_ROAD_CALLER"}).map(|p|std::fs::read_to_string(p).unwrap());
   let mut trace=trace.as_deref().map(str::lines);
   let mut digest=2166136261u32;
   let mut rows=0;
-  for hops in [38,39,41,47,60,79,80]{for selected in [0,3]{for warm in [false,true]{for vehicle in [false,true]{
+  let hops:&[usize]=if tail{&[41,60,79,80]}else{&[38,39,41,47,60,79,80]};
+  let warms:&[bool]=if tail{&[true]}else{&[false,true]};
+  for &hops in hops{for selected in if tail{[1,2]}else{[0,3]}{for &warm in warms{for vehicle in [false,true]{
    let start=(136,500);
    let goal=((8+hops as i16)*16+8,500);
    let (mut g,mut paths)=road_fixture(if vehicle{"medium"}else{"grunt"},start,goal,0);
@@ -185,10 +188,10 @@ impl Game{
      }
     }
    }
-   if selected==3{
-    paths.candidates[3]=paths.candidates[0].take();
+   if selected!=0{
+    paths.candidates[selected]=paths.candidates[0].take();
     paths.headers[0]=(255,-1);
-    paths.headers[3]=(0,-3);
+    paths.headers[selected]=(0,-3);
    }
    let slot=g.units[0].native_slot.unwrap();
    g.units[0].native_permission1c=g.units[0].native_footprint18;
@@ -200,8 +203,9 @@ impl Game{
    }
    for token in masks{for code in 0..67{g.native_collision_masks.write(token+code,u8::from(code==40)*255).unwrap();}}
    paths.road_scratch.frame.fill(if warm{255}else{0});
+   paths.road_scratch.candidate_tail.fill(if warm{255}else{0});
    paths.origin=if warm{-1}else{0};
-   for i in 0..3{paths.road_scratch.record_candidate(i,(255,0),&[]);}
+   for i in 0..4{paths.road_scratch.record_candidate(i,(255,0),&[]);}
    paths.road_scratch.record_candidate(selected,(0,-3),&paths.candidates[selected].as_ref().unwrap().points);
    let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};
    assert_eq!(env.finish(),Completion::Done);
@@ -223,6 +227,11 @@ impl Game{
     for (i,&byte) in scratch.frame.iter().enumerate(){
      assert_eq!(byte,u8::from_str_radix(&raw[i*2..i*2+2],16).unwrap(),"scratch byte {i} in case {rows}");
     }
+    if let Some(raw)=row["candidateTail"].as_str(){
+     for (i,&byte) in scratch.candidate_tail.iter().enumerate(){
+      assert_eq!(byte,u8::from_str_radix(&raw[i*2..i*2+2],16).unwrap(),"candidate suffix byte {i} in case {rows}");
+     }
+    }
    }
    for n in fields.into_iter().chain(scratch.frame.iter().copied().map(u32::from)).chain(points.iter().flatten().map(|&p|p as u32)){
     digest=(digest^n).wrapping_mul(16777619);
@@ -230,7 +239,7 @@ impl Game{
    rows+=1;
   }}}}
   assert!(trace.is_none_or(|mut t|t.next().is_none()));
-  assert_eq!((rows,digest),(56,2062151207),"whole 43e190 original caller");
+  assert_eq!((rows,digest),if tail{(16,2090533439)}else{(56,2062151207)},"whole 43e190 original caller");
  }
  #[test]fn primary_and_contour_callers_share_the_game_raster_across_a_near_goal_exit(){
   let(mut g,mut paths)=road_fixture("medium",(160,656),(1120,656),0);

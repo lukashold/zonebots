@@ -12,6 +12,9 @@ const CANDIDATE_BYTES:usize=100;
 #[derive(Clone,Debug)]pub struct State{
  ///Raw bytes preserve warm coordinates and the road list's shared tail.
  pub frame:Box<[u8;640]>,pub pairs:Box<[[i16;2];41]>,pub trace:assembly::Trace,
+ ///The third candidate extends past the 80 road records; the fourth ends
+ ///immediately before pairs[0]. Keep their physical suffix between workers.
+ pub candidate_tail:Box<[u8;128]>,
  pub scratch_mode:u8,pub compare_mode:u8,pub record_cursor:u32,pub price_table:u32,
  pub(crate) raster:road::raster::Raster,
  pub dummy_pause_bc:u8,pub dummy_counter67:i8,pub old_price:Option<i32>,pub new_price:Option<i32>,pub partial_adoption_head:Option<u32>,
@@ -20,31 +23,40 @@ const CANDIDATE_BYTES:usize=100;
  ///not yet one shared authority with other pure ray/geometry ports.
  pub unshared_raster_globals:bool,
 }
-impl Default for State{fn default()->Self{Self{frame:Box::new([0;640]),pairs:Box::new([[0;2];41]),trace:Default::default(),scratch_mode:0,compare_mode:0,record_cursor:0,price_table:0,raster:Default::default(),dummy_pause_bc:0,dummy_counter67:0,old_price:None,new_price:None,partial_adoption_head:None,candidate_writes:[false;3],unshared_raster_globals:false}}}
+impl Default for State{fn default()->Self{Self{frame:Box::new([0;640]),candidate_tail:Box::new([0;128]),pairs:Box::new([[0;2];41]),trace:Default::default(),scratch_mode:0,compare_mode:0,record_cursor:0,price_table:0,raster:Default::default(),dummy_pause_bc:0,dummy_counter67:0,old_price:None,new_price:None,partial_adoption_head:None,candidate_writes:[false;3],unshared_raster_globals:false}}}
 impl State{
  pub fn dword(&self,offset:usize)->u32{u32::from_le_bytes(self.frame[offset..offset+4].try_into().unwrap())}
  fn dword_set(&mut self,offset:usize,n:u32){self.frame[offset..offset+4].copy_from_slice(&n.to_le_bytes());}
  pub fn synchronize_context(&mut self,origin:i16,cursor:u32,vehicle:bool){self.frame[356..358].copy_from_slice(&origin.to_le_bytes());self.dword_set(360,cursor);self.price_table=if vehicle{0x499ec8}else{0x499b98};}
+ fn shared_word(&self,offset:usize)->i16{
+  if offset<640{i16::from_le_bytes(self.frame[offset..offset+2].try_into().unwrap())}
+  else if offset<768{i16::from_le_bytes(self.candidate_tail[offset-640..offset-638].try_into().unwrap())}
+  else{let word=(offset-768)/2;self.pairs[word/2][word%2]}
+ }
+ fn set_shared_word(&mut self,offset:usize,value:i16){
+  if offset<640{self.frame[offset..offset+2].copy_from_slice(&value.to_le_bytes());}
+  else if offset<768{self.candidate_tail[offset-640..offset-638].copy_from_slice(&value.to_le_bytes());}
+  else{let word=(offset-768)/2;self.pairs[word/2][word%2]=value;}
+ }
  pub(crate) fn record_candidate(&mut self,index:usize,(score,count):(u8,i8),points:&[i16]){
+  if index>4{return;}
   let offset=CANDIDATE_BASE+index*CANDIDATE_BYTES;
-  let Some(header)=self.frame.get_mut(offset..offset+2)else{return;};
-  header.copy_from_slice(&[score,count as u8]);
-  for (cell,out) in points.iter().zip(self.frame[offset+2..].chunks_exact_mut(2)){
-   out.copy_from_slice(&cell.to_le_bytes());
+  self.set_shared_word(offset,i16::from_le_bytes([score,count as u8]));
+  for (i,&cell) in points.iter().take((CANDIDATE_BYTES-2)/2).enumerate(){
+   self.set_shared_word(offset+2+i*2,cell);
   }
  }
  pub fn synchronize_candidate(&mut self,selected:usize,price:u8,packed:&[i16],removed:bool){
   self.record_candidate(selected,(price,-(packed.len()as i8)),packed);
   if removed{self.record_candidate(selected+1,(255,-1),&[]);}
-  if removed&&selected==3{self.pairs[0][0]=-1;}
  }
  ///43c1b0 shifts the remaining words through the next candidate header,
  ///including old words beyond the active count.
  pub(crate) fn remove_candidate_point(&mut self,candidate:usize,point:usize){
   let base=CANDIDATE_BASE+candidate*CANDIDATE_BYTES;
   let start=base+2+point*2;
-  let end=(base+CANDIDATE_BYTES+2).min(self.frame.len());
-  if start+2<end{self.frame.copy_within(start+2..end,start);}
+  let end=base+CANDIDATE_BYTES;
+  for offset in (start..end).step_by(2){self.set_shared_word(offset,self.shared_word(offset+2));}
   self.record_candidate(candidate+1,(255,-1),&[]);
  }
  pub(crate) fn changed_candidate_header(&self,index:usize)->Option<(u8,i8)>{
@@ -58,14 +70,14 @@ impl State{
   let Some((_,raw_count))=self.changed_candidate_header(index)else{return Ok(());};
   let offset=CANDIDATE_BASE+index*CANDIDATE_BYTES;
   let count=usize::from(raw_count.wrapping_neg()as u8);
-  let available=((self.frame.len()-offset-2)/2).max(packed.len());
-  if count==0||count>(CANDIDATE_BYTES-2)/2||count>available{
-   let address=BASE+offset as u32+2+(available.min((CANDIDATE_BYTES-2)/2)*2)as u32;
+  let available=(CANDIDATE_BYTES-2)/2;
+  if count==0||count>available{
+   let address=BASE+offset as u32+2+(available*2)as u32;
    return Err(Boundary::ContourBuffer{count:if count==0{256}else{count},address});
   }
   packed.resize(count,0);
-  for (point,raw) in packed.iter_mut().zip(self.frame[offset+2..].chunks_exact(2)){
-   *point=i16::from_le_bytes([raw[0],raw[1]]);
+  for (i,point) in packed.iter_mut().enumerate(){
+   *point=self.shared_word(offset+2+i*2);
   }
   Ok(())
  }
@@ -107,6 +119,38 @@ impl State{
 }
 #[cfg(test)]mod tests{
  use super::*;use road::RoadRegion;
+ #[test]
+ fn candidate_shifts_preserve_physical_suffix_bytes(){
+  let trace=std::env::var_os("Z_NATIVE_CANDIDATE_SHIFT").map(|p|std::fs::read_to_string(p).unwrap());
+  let mut trace=trace.as_deref().map(str::lines);
+  let(mut row,mut digest)=(0,2166136261u32);
+  for selected in 0..4{for count in [3,8,37,49]{for pattern in 0..4{
+   let before=(0..772).map(|i|(i*23+selected*17+31)as u8).collect::<Vec<_>>();
+   let mut s=State::default();s.frame.copy_from_slice(&before[..640]);s.candidate_tail.copy_from_slice(&before[640..768]);
+   s.pairs[0]=[i16::from_le_bytes([before[768],before[769]]),i16::from_le_bytes([before[770],before[771]])];
+   let mut packed=(0..count).map(|i|(1280+i*17)as i16).collect::<Vec<_>>();
+   s.record_candidate(selected,(7,-(count as i8)),&packed);
+   let(mut calls,mut removals)=(0,Vec::new());
+   road::local::simplify_with_removals(&mut packed,|_,_|{calls+=1;pattern==1||(pattern==2&&calls%2==0)||(pattern==3&&calls==count-1)},|i|removals.push(i));
+   for &index in &removals{s.remove_candidate_point(selected,index);}
+   s.synchronize_candidate(selected,7,&packed,!removals.is_empty());
+   s.dword_set(360,BASE+368+selected as u32*100+(packed.len()as u32+1)*2);
+   let actual=s.frame.iter().chain(s.candidate_tail.iter()).copied().chain(s.pairs[0].into_iter().flat_map(i16::to_le_bytes)).collect::<Vec<_>>();
+   if let Some(trace)=&mut trace{
+    let v:serde_json::Value=serde_json::from_str(trace.next().unwrap()).unwrap();
+    assert_eq!(serde_json::json!([selected,count,pattern,calls]),serde_json::json!([v["selected"],v["count"],v["pattern"],v["calls"]]));
+    assert_eq!(serde_json::json!(removals),v["removed"],"removal decisions {row}");
+    let h=v["after"].as_str().unwrap();
+    for i in 0..772{assert_eq!(actual[i],u8::from_str_radix(&h[i*2..i*2+2],16).unwrap(),"row {row}, byte {i}");}
+   }
+   for n in [selected as u32,count as u32,pattern,calls as u32,s.dword(360)].into_iter().chain(actual.into_iter().map(u32::from)){
+    digest=(digest^n).wrapping_mul(16777619);
+   }
+   row+=1;
+  }}}
+  assert!(trace.is_none_or(|mut t|t.next().is_none()));
+  assert_eq!((row,digest),(64,2477124827),"43c1b0 physical shifts; shortcut outcomes are explicit inputs");
+ }
  fn mix(h:&mut u32,n:u32){*h=(*h^n).wrapping_mul(16777619);}fn hash(b:&[u8])->u32{b.iter().fold(2166136261u32,|h,&n|(h^u32::from(n)).wrapping_mul(16777619))}
  fn graph(count:usize,thin:bool)->RoadGraph{let mut regions=vec![RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96];for(i,r)in regions.iter_mut().take(count).enumerate(){let left=if thin{8+i}else{8+i*12};let right=if thin{9+i}else{20+i*12};r.bounds=[left as i16*16,512,right as i16*16-1,800];r.waypoint=((if thin{8+i}else{14+i*12})+40*128)as u16;for j in 0..count{r.next[j]=(if i==j{j}else if j>i{i+1}else{i-1})as u8;}}RoadGraph{regions}}
  fn terrain(mode:usize,p:Point)->u8{let(x,y)=p;if(40..=41).contains(&y)&&(8..=100).contains(&x){7}else if mode==1&&(40..=42).contains(&x){40}else{0}}

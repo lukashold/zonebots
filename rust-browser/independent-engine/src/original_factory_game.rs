@@ -83,6 +83,12 @@ impl Game{
  pub(crate) fn update_native_factory_exit(&mut self,index:usize){
   if !self.map.original{return;}
   let Some(mut exit)=self.units[index].native_factory_exit.take()else{return;};
+  //The factory marker describes its first accepted exit order only. A later
+  //positive command (including 44cac0's group resynchronization) belongs to
+  //54160/53730, which replaces both the finite heads and the inline line.
+  //Reusing the factory destination here used to erase the line while leaving
+  //UNIT+48 and hardware+17 active. Let the normal dispatcher run below Main.
+  if self.native_route_mode&&self.owns_native_route(index)&&exit.order<=0&&self.units[index].native_order5c>0{return;}
   exit.flags9c=self.units[index].native_flags9c;exit.order=self.units[index].native_order5c;exit.protection=self.units[index].native_protectionaa;
   let unit=self.units[index].clone();let role=unit.native_slot.and_then(|slot|self.native_group_rosters.role(slot)).unwrap_or(0);let leader=role==-1;
   let group=self.native_group_rosters.group_slot(unit.team,unit.squad);
@@ -101,6 +107,50 @@ impl Game{
 
 #[cfg(test)]mod tests{
  use super::*;
+ fn moving_factory_vehicle()->Game{
+  let mut g=field();
+  g.map.native_road_graph=Some(super::super::original_route::RoadGraph{regions:vec![super::super::original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});
+  g.map.native_terrain_plane=vec![0;16384];g.import_native_world(&super::super::Value::Null);g.native_route_mode=true;
+  g.spawn("jeep",0,640.,640.,77,None);g.maintain_native_group_rosters();g.native_group_rosters.set_current_roster(0,77);
+  let slot=g.units[0].native_slot.unwrap();
+  let old=g.native_routes.get_mut().pool.allocate_goal([408,328]).unwrap();
+  g.native_routes.get_mut().pool.links[slot].primary=old;g.native_routes.get_mut().managed[slot]=true;
+  g.units[0].path=g.native_owned_route_view(0).unwrap();assert!(!g.resume_native_reset_path(0));
+  let mut exit=FactoryExitState::new([408,328]);exit.path_started(true);g.units[0].native_factory_exit=Some(exit);
+  g
+ }
+ #[test]fn a_new_order_after_factory_acceptance_keeps_the_line_until_the_normal_dispatcher(){
+  let mut g=moving_factory_vehicle();let slot=g.units[0].native_slot.unwrap();let old=g.native_routes.borrow().pool.links[slot].primary;
+  let line=g.units[0].original_motion.as_ref().unwrap().source_line_fields();let remaining=g.units[0].native_remaining48;
+  g.record_native_order_event(0,super::super::original_orders_game::Event::classified(1,[458,328],0));
+  g.update_native_factory_exit(0);
+  assert!(g.units[0].native_factory_exit.is_none(),"the fresh command is no longer the old factory exit");
+  assert_eq!(g.units[0].native_order5c,1);
+  assert_eq!(g.units[0].original_motion.as_ref().unwrap().source_line_fields(),line);
+  assert_eq!(g.units[0].native_remaining48,remaining);
+  assert_eq!(g.native_routes.borrow().pool.links[slot].primary,old);
+  g.dispatch_recorded_native_order(0);
+  assert_eq!(g.units[0].native_order5c,-1);assert!(g.units[0].original_motion.is_some());
+  assert_eq!(g.native_routes.borrow().pool.points(g.native_routes.borrow().pool.links[slot].primary).last(),Some(&[458,328]));
+  assert_eq!(g.native_route_boundary,None);
+ }
+ #[test]fn a_target_order_after_factory_exit_frees_heads_and_stops_the_hardware_without_erasing_inline_motion(){
+  let mut g=moving_factory_vehicle();let slot=g.units[0].native_slot.unwrap();let w=g.units[0].native_hardware_slot.unwrap();
+  let old=g.native_routes.borrow().pool.links[slot].primary;
+  let line=g.units[0].original_motion.as_ref().unwrap().source_line_fields();let remaining=g.units[0].native_remaining48;
+  g.native_hardware_pool[w].order.field17=7;g.native_hardware_pool[w].synchronize_order_bytes();g.units[0].native_counter68=87;
+  g.record_native_order_event(0,super::super::original_orders_game::Event::classified(2,[800,900],0));
+  g.update_native_factory_exit(0);assert!(g.units[0].native_factory_exit.is_none());
+  g.dispatch_recorded_native_order(0);
+  assert_eq!(g.units[0].native_order5c,0);assert_eq!(g.units[0].native_phase35,58);
+  assert_eq!(g.units[0].original_motion.as_ref().unwrap().source_line_fields(),line);
+  assert_eq!(g.units[0].native_remaining48,remaining);
+  assert_eq!(g.units[0].native_counter68,0);
+  assert_eq!(g.native_hardware_pool[w].order.field17,6);
+  let paths=g.native_routes.borrow();assert_eq!(paths.pool.links[slot].primary,0);assert_eq!(paths.pool.links[slot].secondary,0);
+  assert_eq!(paths.pool.node(old).unwrap().next,u32::MAX);
+  assert_eq!(g.native_route_boundary,None);
+ }
  fn field()->Game{let mut g=Game::new(0,1,5299);g.map.original=true;g.map.tiles.fill(0);g.map.terrain_codes=vec![0;g.map.tiles.len()];g.map.bridge_base.fill(-1);g.units.clear();g.sectors.clear();g.crates.clear();g.objects.clear();g.walls.clear();g.buildings.truncate(1);let b=&mut g.buildings[0];b.id=0;b.kind="robot".into();b.team=0;b.x=300.;b.y=200.;b.hp=1000.;b.max_hp=1000.;b.product=Some("grunt".into());b.remaining_work=Some(1.);b.completion_ticks=0;g.ai_teams.clear();g.native_world=None;g.native_strategy=None;g.native_factory_work.clear();g.native_group_rosters.clear();g.sectors.push(super::super::Sector{id:0,x:800.,y:800.,owner:0,home:true,counts_for_production:true});g}
  #[test]fn robot_completion_has_original_vertical_spawns_and_individual_exit_orders(){
   let mut g=field();g.update_original_production(1./17.);assert_eq!(g.units.len(),3,"remaining {:?},clock {},hp {},max {},hold {}",g.buildings[0].remaining_work,g.production_clock,g.buildings[0].hp,g.buildings[0].max_hp,g.buildings[0].completion_ticks);

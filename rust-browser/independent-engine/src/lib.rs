@@ -12,6 +12,7 @@ mod original_terrain;
 mod original_motion;
 mod original_upstream_reactions;
 mod original_clock;
+mod native_replay;
 mod native_math;
 mod original_fire;
 mod original_formation;
@@ -1641,6 +1642,9 @@ pub fn request(v: Value) -> Value {
             *state = Some(g);
         }
         let Some(g) = state.as_mut() else { return json!({"error":"Initialize first"}); };
+        // Diagnostic reads must precede selection, viewport, sound and event
+        // updates. Merely observing a replay cannot change the next callback.
+        if v["op"] == "replayCheckpoint" { return native_replay::checkpoint(g); }
         let requested_team = if matches!(v["op"].as_str(), Some("command" | "produce" | "placeGun" | "previewGun")) {
             match request_team(&v) { Ok(team) => team, Err(error) => return json!({"error":error}) }
         } else { 0 };
