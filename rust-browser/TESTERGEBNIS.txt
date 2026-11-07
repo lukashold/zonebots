@@ -1,24 +1,29 @@
 Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-Abgleichrunde 82: 1.168 Rusttests bestanden, 54 Prüfungen mit externen Daten
+Abgleichrunde 83: 1.169 Rusttests bestanden, 54 Prüfungen mit externen Daten
 im regulären Lauf ausgelassen. Doctests bestanden (0 vorhanden).
 12 gezielte Node-Prüfprogramme bestanden: Wasm, Bewegung, Kampf, Anhalten,
 deaktivierte Einheiten, Fahrzeugbefehle/-eingaben, Befehlsgrenzen,
 Multiplayer-Spiel/-Lebenszyklus/-Audio sowie alle 20 Kampagnenmissionen.
-Der neue Transportabbruchtest vergleicht 512 Originalausführungen; er
-scheiterte vor der Korrektur und besteht mit dem korrigierten Adapter.
+Die Transportabbruchtests vergleichen zusammen 1.024 Originalausführungen.
+Beide gefundenen Fehler wurden zunächst reproduziert; die korrigierten
+Adapter bestehen die Originalvergleiche und prüfen die abgeleiteten Pfade.
 Vorheriger vollständiger Prüfstand (Runde 81): 1.167 Rusttests, 54 separate
 Originaldatenprüfungen und 101 Node-Programme bestanden. Der lange Audiotest
 bestand nach einem parallelen Zeitabbruch separat in 152,5 Sekunden.
 Diese breitere Vorprüfung gehört zum vorherigen Wasm und wird hier nicht als
 erneuter vollständiger Lauf des aktuellen Builds ausgegeben.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: dbb79e691f79df8318d6fad0922d4f397fd3e3f1c99c7f0f318de690eec6617e
+Wasm SHA256: 87dcb551f213eb8d7fd98a2910a010a135c2c4fa5acc62a3b849aa1ffd17aa82
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- Inaktiver Gruppenführer: weitere 512 Originalaufrufe von459d80/57790/52500
+  mit ausgeschaltetem räumlichen Objektzweig (Gruppenbyte58=0). Der primäre
+  Pfad und seine abgeleiteten Leser bleiben in128 betroffenen Fällen erhalten
+  (FNV32 1426481733). Vollständige Weiterläufe sind nicht damit bewiesen.
 - Transportabbruch: 512 echte 459d80/52500-Ausführungen, Folgerrolle 1,
   alle Transport-Flagbytes und aktive/inaktive Zustände. Pfadfreigaben,
   Inline-Wörter und Hardware17 stimmen überein (FNV32 2790577605).

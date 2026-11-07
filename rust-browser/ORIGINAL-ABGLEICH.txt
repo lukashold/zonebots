@@ -920,6 +920,22 @@ Prüfgrenze: Folgerrolle 1, keine überlappenden Pfadlisten. Der separate
 Objektprüfzweig für negative Rollen sowie vollständige Weiterläufe nach
 Transportbereinigung bleiben eigenständige offene Abgleichpunkte.
 
+TRANSPORTABBRUCH DES INAKTIVEN GRUPPENFÜHRERS (RUNDE 83)
+Weitere 512 echte 459d80-Aufrufe führen den Originalzweig 57790 mit
+Gruppenbyte58=0 und anschließend 52500 aus. Geprüft wurden Rolle-1, alle
+256 Transport-Flagbytes und aktive/inaktive Zustände. In den 128 betroffenen
+inaktiven Fällen bleibt der primäre Pfad erhalten, während der sekundäre
+freigegeben wird. Auch Inline-Linienwörter und Hardware17 bleiben erhalten.
+Der endliche Rust-Pfadspeicher behandelte diesen Zweig bereits korrekt;
+der Transportadapter überschrieb anschließend jedoch die abgeleitete
+Pfadmarke und den Pfad für nachfolgende Leser. Beide übernehmen jetzt
+den wirklichen verbleibenden Pfad. Der neue Test reproduzierte den Fehler
+und stimmt nach der Korrektur mit allen 512 Originalzuständen überein
+(FNV32 1426481733). Der Folgervergleich aus Runde82 prüft zusätzlich beide
+abgeleiteten Pfadzustände gegen die tatsächlichen endlichen Pfadköpfe.
+Prüfgrenze: Der räumliche Objektprüfzweig bei Gruppenbyte58=1 und komplette
+Weiterläufe nach Bereinigung sind damit weiterhin nicht allgemein bewiesen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie
