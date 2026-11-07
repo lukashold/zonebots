@@ -90,15 +90,33 @@ impl Env<'_>{
 impl WorkWorld for Env<'_>{
  fn initialize_origin(&mut self){let u=&self.game.units[self.index];self.paths.steps=0;if u.native_class7c!=1{self.paths.origin=u.native_cell10 as i16;return;}let flip=!u.native_route_flip.get();u.native_route_flip.set(flip);let(x,y)=self.position();self.paths.origin=if flip{((i32::from(y)*8-57)&0xff80).wrapping_add((i32::from(x)-7)>>4)as i16}else{(((i32::from(y)+8)*8)&0xff80).wrapping_add((i32::from(x)+8)>>4)as i16};}
  fn clear_mask(&mut self,start:usize,length:usize){self.paths.mask[start..start+length].fill(65);}
- fn reset_candidates(&mut self){self.paths.candidates=std::array::from_fn(|_|None);self.paths.headers.fill((255,-1));}
+ fn reset_candidates(&mut self){
+  self.paths.candidates=std::array::from_fn(|_|None);
+  self.paths.headers.fill((255,-1));
+  for (i,&header) in self.paths.headers.iter().enumerate(){self.paths.road_scratch.record_candidate(i,header,&[]);}
+ }
  fn target_ray(&mut self)->bool{let Some(goal)=self.goal()else{return true;};let u=&self.game.units[self.index];let vehicle=u.native_class7c==1;let marked=route::local::target_mask(self.position(),goal,vehicle,u.native_route_flip.get(),self.grace,|cell|{let code=self.game.route_terrain_code(((cell&127)as i16,(cell>>7)as i16));let admit66=u.native_slot.and_then(|s|self.game.native_group_rosters.members[s].as_ref()).is_some_and(|m|m.flagsb7&1!=0);code==30||(code!=66||admit66)&&self.open(cell)});for(a,b)in self.paths.mask.iter_mut().zip(marked){if b==255{*a=255;}}self.paths.origin<128}
- fn seed(&mut self,d:usize,vehicle:bool)->bool{let slot=self.slot();let contact=self.paths.contact[slot];let origin=i32::from(self.paths.origin);let mut mask=std::mem::take(&mut self.paths.mask);let candidate=route::local::seed(origin,(contact[0]>0).then_some(contact[0]),(contact[1]>0).then_some(contact[1]),d,vehicle,self.paths.steps,&mut mask,|cell|self.open(cell));self.paths.mask=mask;let failed=candidate.is_none();if let Some(c)=&candidate{self.paths.steps=c.steps;self.paths.headers[d]=(c.score,c.count());}else{self.paths.headers[d]=(0,0);}self.paths.candidates[d]=candidate;failed}
- fn walk_pending(&mut self,d:usize,vehicle:bool)->bool{let Some(mut c)=self.paths.candidates[d].take()else{return false;};let mut mask=std::mem::take(&mut self.paths.mask);let progress=if vehicle{c.vehicle(&mut mask,|cell|self.open(cell))}else{c.foot(&mut mask,|cell|self.open(cell))};self.paths.steps=c.steps;self.paths.headers[d]=(c.score,c.count());self.paths.mask=mask;self.paths.candidates[d]=Some(c);progress==route::local::Progress::Pending}
+ fn seed(&mut self,d:usize,vehicle:bool)->bool{let slot=self.slot();let contact=self.paths.contact[slot];let origin=i32::from(self.paths.origin);let mut mask=std::mem::take(&mut self.paths.mask);let candidate=route::local::seed(origin,(contact[0]>0).then_some(contact[0]),(contact[1]>0).then_some(contact[1]),d,vehicle,self.paths.steps,&mut mask,|cell|self.open(cell));self.paths.mask=mask;let failed=candidate.is_none();if let Some(c)=&candidate{self.paths.steps=c.steps;self.paths.headers[d]=(c.score,c.count());}else{self.paths.headers[d]=(0,0);}self.paths.road_scratch.record_candidate(d,self.paths.headers[d],candidate.as_ref().map_or(&[],|c|c.points.as_slice()));self.paths.candidates[d]=candidate;failed}
+ fn walk_pending(&mut self,d:usize,vehicle:bool)->bool{let Some(mut c)=self.paths.candidates[d].take()else{return false;};let mut mask=std::mem::take(&mut self.paths.mask);let progress=if vehicle{c.vehicle(&mut mask,|cell|self.open(cell))}else{c.foot(&mut mask,|cell|self.open(cell))};self.paths.steps=c.steps;self.paths.headers[d]=(c.score,c.count());self.paths.road_scratch.record_candidate(d,self.paths.headers[d],&c.points);self.paths.mask=mask;self.paths.candidates[d]=Some(c);progress==route::local::Progress::Pending}
  fn finish(&mut self)->Completion{let slot=self.slot();if self.game.native_group_rosters.members[slot].as_ref().is_none_or(|m|m.flags31&4==0){self.set_flags(64,0);return Completion::Done;}let vehicle=self.game.units[self.index].native_class7c==1;let Some(selected)=route::choose_local(self.paths.headers)else{return self.finish_without_candidate();};let mut packed=self.paths.candidates[selected].as_ref().unwrap().points.clone();if let Some(goal)=self.goal(){let cell=i32::from(goal.0>>4)+i32::from(goal.1>>4)*128;if[-129,-128,-127,-1,1,127,128,129].into_iter().all(|d|self.open(cell+d)){let cell=cell as i16;if packed.last()!=Some(&cell){if packed.len()>1&&packed[packed.len()-2]==cell{packed.pop();}else{packed.push(cell);}}}}
-  let start=self.position();let unit=self.game.units[self.index].clone();let mut removed=false;let mut shortcut_error=None;route::local::simplify(&mut packed,|from,to|{let from=from.map(|p|route::segment_anchor(route::local_waypoint(p as u16,vehicle))).unwrap_or(start);let to=route::segment_anchor(route::local_waypoint(to as u16,vehicle));if shortcut_error.is_some(){return false;}let clear=match self.game.native_road_shortcut(self.index,to,from,&mut self.paths.road_scratch){Ok(clear)=>clear,Err(e)=>{shortcut_error.get_or_insert(e);false}};removed|=clear;clear});self.paths.headers[selected].1=if shortcut_error.is_some(){packed.len()as i8}else{-(packed.len()as i8)};if removed&&selected<3{self.paths.headers[selected+1]=(255,-1);}self.paths.road_scratch.synchronize_candidate(selected,self.paths.headers[selected].0,&packed,removed);if let Some(e)=shortcut_error{let offset=369+selected*100;if offset<640{self.paths.road_scratch.frame[offset]=packed.len()as u8;}self.game.native_route_boundary=Some(e);return Completion::Done;}let cursor=0x4d15f0+selected as u32*100+(packed.len()as u32+1)*2;self.paths.road_scratch.synchronize_context(self.paths.origin,cursor,vehicle);
+  let start=self.position();let unit=self.game.units[self.index].clone();let mut removals=Vec::new();let mut shortcut_error=None;self.paths.road_scratch.record_candidate(selected,(self.paths.headers[selected].0,-(packed.len()as i8)),&packed);route::local::simplify_with_removals(&mut packed,|from,to|{let from=from.map(|p|route::segment_anchor(route::local_waypoint(p as u16,vehicle))).unwrap_or(start);let to=route::segment_anchor(route::local_waypoint(to as u16,vehicle));if shortcut_error.is_some(){return false;}let clear=match self.game.native_road_shortcut(self.index,to,from,&mut self.paths.road_scratch){Ok(clear)=>clear,Err(e)=>{shortcut_error.get_or_insert(e);false}};clear},|index|removals.push(index));for index in &removals{self.paths.road_scratch.remove_candidate_point(selected,*index);}let removed=!removals.is_empty();self.paths.headers[selected].1=if shortcut_error.is_some(){packed.len()as i8}else{-(packed.len()as i8)};if removed&&selected<3{self.paths.headers[selected+1]=(255,-1);}self.paths.road_scratch.synchronize_candidate(selected,self.paths.headers[selected].0,&packed,removed);if let Some(e)=shortcut_error{let offset=369+selected*100;if offset<640{self.paths.road_scratch.frame[offset]=packed.len()as u8;}self.game.native_route_boundary=Some(e);return Completion::Done;}let cursor=0x4d15f0+selected as u32*100+(packed.len()as u32+1)*2;self.paths.road_scratch.synchronize_context(self.paths.origin,cursor,vehicle);
   let profile=if unit.kind=="apc"&&unit.crew.as_ref().is_some_and(|c|c.kind=="tough"){original_terrain::Profile::Tracked}else{original_terrain::profile(&unit.kind)};let role=self.game.native_group_rosters.members[slot].as_ref().map_or(0,|m|m.role);let allowed=|code|if unit.native_class7c==3&&role<1{route::tough_leader_passable(code)}else{original_terrain::passable(code,self.game.map.world,profile)};
-  let replacement=if let Some(graph)=self.game.map.native_road_graph.as_ref(){self.paths.road_scratch.consider(crate::original_road_scratch::Input{actor:start,actor_token:0x5e30c8+slot as u32*192,vehicle,suppressed:unit.native_flags9c&2!=0,dimensions:((self.game.map.width*16)as i16,(self.game.map.height*16)as i16),level:self.game.map.native_level_record},&packed,graph,|p|self.game.route_terrain_code(p),|c|!allowed(c),|c|if !vehicle&&self.game.map.world==1&&c==9{12}else{original_terrain::route_cost(c,profile)})}else{self.game.native_route_boundary=Some(Boundary::MissingNode(crate::original_road_scratch::BASE));return Completion::Done;};
-  let replacement=match replacement{Ok(crate::original_road_scratch::Decision::Contour)=>None,Ok(crate::original_road_scratch::Decision::Road(points))=>Some(points),Err(boundary)=>{self.game.native_route_boundary=Some(Boundary::RoadScratch(boundary));return Completion::Done;}};
+  let replacement=if let Some(graph)=self.game.map.native_road_graph.as_ref(){self.paths.road_scratch.consider(crate::original_road_scratch::Input{actor:start,actor_token:0x5e30c8+slot as u32*192,vehicle,suppressed:unit.native_flags9c&2!=0,dimensions:((self.game.map.width*16)as i16,(self.game.map.height*16)as i16),level:self.game.map.native_level_record},&packed,graph,|p|self.game.route_terrain_code(p),|c|self.game.native_collision_masks.value(unit.native_footprint18,c).map_or_else(|_|!allowed(c),|mask|mask!=0),|c|if !vehicle&&self.game.map.world==1&&c==9{12}else{original_terrain::route_cost(c,profile)})}else{self.game.native_route_boundary=Some(Boundary::MissingNode(crate::original_road_scratch::BASE));return Completion::Done;};
+  self.paths.origin=self.paths.road_scratch.dword(356) as i16;
+  for (i,header) in self.paths.headers.iter_mut().enumerate(){
+   if let Some(raw)=self.paths.road_scratch.changed_candidate_header(i){*header=raw;}
+  }
+  let replacement=match replacement{
+   Ok(crate::original_road_scratch::Decision::Contour)=>{
+    if let Err(boundary)=self.paths.road_scratch.reread_candidate(selected,&mut packed){
+     self.game.native_route_boundary=Some(Boundary::RoadScratch(boundary));
+     return Completion::Done;
+    }
+    None
+   },
+   Ok(crate::original_road_scratch::Decision::Road(points))=>Some(points),
+   Err(boundary)=>{self.game.native_route_boundary=Some(Boundary::RoadScratch(boundary));return Completion::Done;}
+  };
   if let Some(points)=replacement{let active=self.game.native_path_active_slots();let clear_hardware=self.paths.pool.clear(slot,active[slot],role);self.set_flags(32,0);if clear_hardware{if let Some(w)=unit.native_hardware_slot.and_then(|s|self.game.native_hardware_pool.get_mut(s)){let mut order=w.order;order.field17&=!1;w.set_order(order);}else{self.game.native_hardware_dummy.field17&=!1;self.game.native_hardware_dummy_attributes.bytes[23]=self.game.native_hardware_dummy.field17;}}if !self.paths.pool.copy_replacement(slot,&points){self.paths.road_scratch.partial_adoption_head=Some(self.paths.pool.links[slot].primary);self.paths.pool.links[slot].primary=0;self.game.native_route_boundary=Some(Boundary::RoadScratch(crate::original_road_scratch::Boundary::FiniteAdoption));return Completion::Done;}let head=self.paths.pool.links[slot].primary;self.paths.pool.assign_primary(slot,head,&active);self.set_flags(96,0);let u=&mut self.game.units[self.index];u.native_flags9c|=130;u.native_counter68=100;u.native_secondary_route.set(false);u.native_route_road_replaced.set(true);u.path=anchors(&self.paths.pool,self.paths.pool.links[slot].primary);if role<0{if let Some(g)=self.game.native_group_rosters.current_roster.and_then(|s|self.game.native_group_rosters.pool.get_mut(s)){g.roster[8]=g.roster[60];}}return Completion::Done;}
   let points=packed.into_iter().map(|c|{let p=route::local_waypoint(c as u16,vehicle);[p.0,p.1]}).collect::<Vec<_>>();let success=self.paths.pool.contour(slot,&points);if success{self.set_flags(64,32);let u=&mut self.game.units[self.index];u.native_flags9c&=125;u.native_counter68=100;u.native_secondary_route.set(true);u.native_route_road_replaced.set(false);u.path=anchors(&self.paths.pool,self.paths.pool.links[slot].secondary);if let Some(m)=self.game.native_group_rosters.members[slot].as_ref(){if m.role<0{if let Some(g)=self.game.native_group_rosters.pool.get_mut(usize::from(m.group)){g.roster[8]=255;}}}}else{self.set_flags(64,0);}Completion::Done
  }
@@ -146,6 +164,74 @@ impl Game{
 
  #[test]fn candidate_three_simplification_preserves_warm_price_y_when_roads_are_suppressed(){let native=std::env::var("NATIVE_CANDIDATE_THREE_ALIAS_ORACLE").ok().map(|p|std::fs::read_to_string(p).unwrap().lines().map(|s|serde_json::from_str::<crate::Value>(s).unwrap()).collect::<Vec<_>>());let mut row=0;for warm in 0..2{for kind in["grunt","medium"]{let(mut g,mut paths)=road_fixture(kind,(160,656),(1120,656),0);let slot=g.units[0].native_slot.unwrap();let candidate=paths.candidates[0].take();paths.candidates[3]=candidate;paths.headers.fill((255,-1));paths.headers[3]=(0,-3);g.units[0].native_flags9c=2;if warm!=0{for(i,b)in paths.road_scratch.frame.iter_mut().enumerate(){*b=(0x80+i*13)as u8;}}paths.road_scratch.pairs[0]=[1234,-2000];let old_rng=g.original_rng.words;let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};assert_eq!(env.finish(),Completion::Done);assert_eq!(g.native_route_boundary,None);assert_eq!(paths.road_scratch.pairs[0],[-1,-2000]);assert_eq!(g.original_rng.words,old_rng);assert!(paths.road_scratch.old_price.is_none());assert!(paths.headers[3].1<0);assert_eq!(paths.pool.links[slot].primary,0);if let Some(rs)=&native{let r=&rs[row];assert_eq!(i64::from(paths.road_scratch.pairs[0][0]),r["pricePairX"].as_i64().unwrap());assert_eq!(i64::from(paths.road_scratch.pairs[0][1]),r["pricePairY"].as_i64().unwrap());assert_eq!(serde_json::json!(paths.pool.points(paths.pool.links[slot].secondary)),r["points"]);assert_eq!(u64::from(paths.pool.links[slot].secondary),r["secondary"].as_u64().unwrap());}row+=1;}}assert_eq!(row,4);}
  #[test]fn real_profile_caller_matches_live_scratch_binding_and_real_head_adoption(){run_road_caller_dataset(false,"NATIVE_ROAD_SCRATCH_REAL_PROFILE_ORACLE");}
+ #[test]
+ fn long_road_caller_keeps_the_native_pool_and_rereads_a_rejected_contour(){
+  let trace=std::env::var_os("Z_NATIVE_LONG_ROAD_CALLER").map(|p|std::fs::read_to_string(p).unwrap());
+  let mut trace=trace.as_deref().map(str::lines);
+  let mut digest=2166136261u32;
+  let mut rows=0;
+  for hops in [38,39,41,47,60,79,80]{for selected in [0,3]{for warm in [false,true]{for vehicle in [false,true]{
+   let start=(136,500);
+   let goal=((8+hops as i16)*16+8,500);
+   let (mut g,mut paths)=road_fixture(if vehicle{"medium"}else{"grunt"},start,goal,0);
+   let graph=g.map.native_road_graph.as_mut().unwrap();
+   for (i,region) in graph.regions.iter_mut().enumerate(){
+    region.next.fill(255);
+    if i<=hops{
+     region.bounds=[(8+i as i16)*16,512,(9+i as i16)*16-1,800];
+     region.waypoint=(8+i+40*128)as u16;
+     for (j,next) in region.next.iter_mut().enumerate().take(hops+1){
+      *next=if i==j{j}else if j>i{i+1}else{i-1}as u8;
+     }
+    }
+   }
+   if selected==3{
+    paths.candidates[3]=paths.candidates[0].take();
+    paths.headers[0]=(255,-1);
+    paths.headers[3]=(0,-3);
+   }
+   let slot=g.units[0].native_slot.unwrap();
+   g.units[0].native_permission1c=g.units[0].native_footprint18;
+   let mut masks=vec![g.units[0].native_footprint18];
+   for heading in [0,4]{
+    let mut token=g.units[0].native_permission1c;
+    crate::original_dynamic_collision::select_permission(&mut token,heading);
+    masks.push(token);
+   }
+   for token in masks{for code in 0..67{g.native_collision_masks.write(token+code,u8::from(code==40)*255).unwrap();}}
+   paths.road_scratch.frame.fill(if warm{255}else{0});
+   paths.origin=if warm{-1}else{0};
+   for i in 0..3{paths.road_scratch.record_candidate(i,(255,0),&[]);}
+   paths.road_scratch.record_candidate(selected,(0,-3),&paths.candidates[selected].as_ref().unwrap().points);
+   let mut env=Env{game:&mut g,paths:&mut paths,index:0,grace:1,phase_override:None};
+   assert_eq!(env.finish(),Completion::Done);
+   assert_eq!(g.native_route_boundary,None,"case {rows}, hops {hops}, candidate {selected}");
+   let links=paths.pool.links[slot];
+   let points=paths.pool.points(if links.primary!=0{links.primary}else{links.secondary});
+   let scratch=&paths.road_scratch;
+   let fields=[links.primary,links.secondary,u32::from(g.native_group_rosters.members[slot].as_ref().unwrap().flags31),
+    u32::from(g.units[0].native_flags9c),g.units[0].native_counter68 as u32,
+    scratch.old_price.unwrap_or(-1)as u32,scratch.new_price.unwrap_or(-1)as u32,
+    scratch.trace.recorded as u8 as u32,scratch.record_cursor];
+   if let Some(trace)=&mut trace{
+    let row:crate::Value=serde_json::from_str(trace.next().unwrap()).unwrap();
+    assert_eq!(crate::json!([hops,selected,u8::from(warm),u8::from(vehicle)]),crate::json!([row["hops"],row["selected"],row["warm"],row["vehicle"]]));
+    let keys=["primary","secondary","flags31","flags9c","counter68","oldCost","newCost","recorded","recordCursor"];
+    assert_eq!(fields,keys.map(|key|row[key].as_i64().unwrap()as u32),"fields in case {rows}");
+    assert_eq!(crate::json!(points),row["points"],"adopted path in case {rows}");
+    let raw=row["after"].as_str().unwrap();
+    for (i,&byte) in scratch.frame.iter().enumerate(){
+     assert_eq!(byte,u8::from_str_radix(&raw[i*2..i*2+2],16).unwrap(),"scratch byte {i} in case {rows}");
+    }
+   }
+   for n in fields.into_iter().chain(scratch.frame.iter().copied().map(u32::from)).chain(points.iter().flatten().map(|&p|p as u32)){
+    digest=(digest^n).wrapping_mul(16777619);
+   }
+   rows+=1;
+  }}}}
+  assert!(trace.is_none_or(|mut t|t.next().is_none()));
+  assert_eq!((rows,digest),(56,2062151207),"whole 43e190 original caller");
+ }
  #[test]fn primary_and_contour_callers_share_the_game_raster_across_a_near_goal_exit(){
   let(mut g,mut paths)=road_fixture("medium",(160,656),(1120,656),0);
   paths.road_scratch.frame[..320].fill(0x67);

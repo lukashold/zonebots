@@ -1,31 +1,76 @@
-//!43df20's persistent scratch domain. The allocator can inspect occupied
-//!alias words beyond node39. Writes there still need their own authority.
+//!43df20's persistent scratch domain, including the road allocator's overlap
+//!with the endpoint distances and contour candidate records.
 use crate::original_route::{self as road,Point,RoadGraph};
 use crate::original_route_pool::{Node,FREE,road as assembly};
 #[path="original_road_shortcut_game.rs"]mod shortcut_game;
 pub const BASE:u32=0x4d1480;
+const CANDIDATE_BASE:usize=368;
+const CANDIDATE_BYTES:usize=100;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]pub enum Boundary{ContourBuffer{count:usize,address:u32},ScratchAlias(u32),Region(u8),ScratchCycle(u32),FiniteAdoption}
 #[derive(Clone,Copy,Debug)]pub struct Input{pub actor:Point,pub actor_token:u32,pub vehicle:bool,pub suppressed:bool,pub dimensions:Point,pub level:i16}
 #[derive(Clone,Debug,PartialEq,Eq)]pub enum Decision{Contour,Road(Vec<[i16;2]>)}
 #[derive(Clone,Debug)]pub struct State{
- ///Raw bytes preserve warm coordinates and unowned tail bytes. The tail is
- ///not an authoritative alias resolver for every scheduler/candidate reader.
+ ///Raw bytes preserve warm coordinates and the road list's shared tail.
  pub frame:Box<[u8;640]>,pub pairs:Box<[[i16;2];41]>,pub trace:assembly::Trace,
  pub scratch_mode:u8,pub compare_mode:u8,pub record_cursor:u32,pub price_table:u32,
  pub(crate) raster:road::raster::Raster,
  pub dummy_pause_bc:u8,pub dummy_counter67:i8,pub old_price:Option<i32>,pub new_price:Option<i32>,pub partial_adoption_head:Option<u32>,
+ candidate_writes:[bool;3],
  ///Diagnostic, not a source flag:45cf90/43b950 raster scratch writes are
  ///not yet one shared authority with other pure ray/geometry ports.
  pub unshared_raster_globals:bool,
 }
-impl Default for State{fn default()->Self{Self{frame:Box::new([0;640]),pairs:Box::new([[0;2];41]),trace:Default::default(),scratch_mode:0,compare_mode:0,record_cursor:0,price_table:0,raster:Default::default(),dummy_pause_bc:0,dummy_counter67:0,old_price:None,new_price:None,partial_adoption_head:None,unshared_raster_globals:false}}}
+impl Default for State{fn default()->Self{Self{frame:Box::new([0;640]),pairs:Box::new([[0;2];41]),trace:Default::default(),scratch_mode:0,compare_mode:0,record_cursor:0,price_table:0,raster:Default::default(),dummy_pause_bc:0,dummy_counter67:0,old_price:None,new_price:None,partial_adoption_head:None,candidate_writes:[false;3],unshared_raster_globals:false}}}
 impl State{
  pub fn dword(&self,offset:usize)->u32{u32::from_le_bytes(self.frame[offset..offset+4].try_into().unwrap())}
  fn dword_set(&mut self,offset:usize,n:u32){self.frame[offset..offset+4].copy_from_slice(&n.to_le_bytes());}
  pub fn synchronize_context(&mut self,origin:i16,cursor:u32,vehicle:bool){self.frame[356..358].copy_from_slice(&origin.to_le_bytes());self.dword_set(360,cursor);self.price_table=if vehicle{0x499ec8}else{0x499b98};}
- pub fn synchronize_candidate(&mut self,selected:usize,price:u8,packed:&[i16],removed:bool){let offset=368+selected*100;if offset+2<=640{self.frame[offset]=price;self.frame[offset+1]=(-(packed.len()as i8))as u8;for(i,&cell)in packed.iter().enumerate(){let at=offset+2+i*2;if at+2<=640{self.frame[at..at+2].copy_from_slice(&cell.to_le_bytes());}}}if removed&&offset+102<=640{self.frame[offset+100..offset+102].fill(255);}if removed&&selected==3{self.pairs[0][0]=-1;}}
- fn nodes(&self)->[Node;40]{std::array::from_fn(|i|{let at=i*8;Node{point:[i16::from_le_bytes([self.frame[at],self.frame[at+1]]),i16::from_le_bytes([self.frame[at+2],self.frame[at+3]])],next:self.dword(at+4)}})}
- fn write_nodes(&mut self,nodes:&[Node;40]){for(i,n)in nodes.iter().enumerate(){let at=i*8;self.frame[at..at+2].copy_from_slice(&n.point[0].to_le_bytes());self.frame[at+2..at+4].copy_from_slice(&n.point[1].to_le_bytes());self.dword_set(at+4,n.next);}}
+ pub(crate) fn record_candidate(&mut self,index:usize,(score,count):(u8,i8),points:&[i16]){
+  let offset=CANDIDATE_BASE+index*CANDIDATE_BYTES;
+  let Some(header)=self.frame.get_mut(offset..offset+2)else{return;};
+  header.copy_from_slice(&[score,count as u8]);
+  for (cell,out) in points.iter().zip(self.frame[offset+2..].chunks_exact_mut(2)){
+   out.copy_from_slice(&cell.to_le_bytes());
+  }
+ }
+ pub fn synchronize_candidate(&mut self,selected:usize,price:u8,packed:&[i16],removed:bool){
+  self.record_candidate(selected,(price,-(packed.len()as i8)),packed);
+  if removed{self.record_candidate(selected+1,(255,-1),&[]);}
+  if removed&&selected==3{self.pairs[0][0]=-1;}
+ }
+ ///43c1b0 shifts the remaining words through the next candidate header,
+ ///including old words beyond the active count.
+ pub(crate) fn remove_candidate_point(&mut self,candidate:usize,point:usize){
+  let base=CANDIDATE_BASE+candidate*CANDIDATE_BYTES;
+  let start=base+2+point*2;
+  let end=(base+CANDIDATE_BYTES+2).min(self.frame.len());
+  if start+2<end{self.frame.copy_within(start+2..end,start);}
+  self.record_candidate(candidate+1,(255,-1),&[]);
+ }
+ pub(crate) fn changed_candidate_header(&self,index:usize)->Option<(u8,i8)>{
+  if !self.candidate_writes.get(index).copied()?{return None;}
+  let offset=CANDIDATE_BASE+index*CANDIDATE_BYTES;
+  Some((self.frame[offset],self.frame[offset+1]as i8))
+ }
+ ///43e190 reloads the selected contour from the shared bytes after a rejected
+ ///road. Stop before a corrupt count makes it read beyond the candidate.
+ pub(crate) fn reread_candidate(&self,index:usize,packed:&mut Vec<i16>)->Result<(),Boundary>{
+  let Some((_,raw_count))=self.changed_candidate_header(index)else{return Ok(());};
+  let offset=CANDIDATE_BASE+index*CANDIDATE_BYTES;
+  let count=usize::from(raw_count.wrapping_neg()as u8);
+  let available=((self.frame.len()-offset-2)/2).max(packed.len());
+  if count==0||count>(CANDIDATE_BYTES-2)/2||count>available{
+   let address=BASE+offset as u32+2+(available.min((CANDIDATE_BYTES-2)/2)*2)as u32;
+   return Err(Boundary::ContourBuffer{count:if count==0{256}else{count},address});
+  }
+  packed.resize(count,0);
+  for (point,raw) in packed.iter_mut().zip(self.frame[offset+2..].chunks_exact(2)){
+   *point=i16::from_le_bytes([raw[0],raw[1]]);
+  }
+  Ok(())
+ }
+ fn nodes(&self)->[Node;assembly::SCRATCH_NODES]{std::array::from_fn(|i|{let at=i*8;Node{point:[i16::from_le_bytes([self.frame[at],self.frame[at+1]]),i16::from_le_bytes([self.frame[at+2],self.frame[at+3]])],next:self.dword(at+4)}})}
+ fn write_nodes(&mut self,nodes:&[Node;assembly::SCRATCH_NODES]){for(i,n)in nodes.iter().enumerate(){let at=i*8;self.frame[at..at+2].copy_from_slice(&n.point[0].to_le_bytes());self.frame[at+2..at+4].copy_from_slice(&n.point[1].to_le_bytes());self.dword_set(at+4,n.next);}}
  fn pair(&mut self,index:usize,p:[i16;2],count:usize)->Result<(),Boundary>{let Some(out)=self.pairs.get_mut(index)else{return Err(Boundary::ContourBuffer{count,address:0x4d1780+index as u32*4});};*out=p;Ok(())}
  ///The direct UNIT route and contour replacement share the native scratch
  ///words; the primary call never clears the 40 temporary node records.
@@ -39,19 +84,24 @@ impl State{
  }
  ///No mission reset: known60430 does not clear this scratch domain.
  pub fn consider(&mut self,input:Input,packed:&[i16],graph:&RoadGraph,mut terrain:impl FnMut(Point)->u8,mut flagged:impl FnMut(u8)->bool,mut price:impl FnMut(u8)->u8)->Result<Decision,Boundary>{
-  self.old_price=None;self.new_price=None;self.partial_adoption_head=None;if input.suppressed{return Ok(Decision::Contour);}
+  self.old_price=None;self.new_price=None;self.partial_adoption_head=None;self.candidate_writes.fill(false);if input.suppressed{return Ok(Decision::Contour);}
   self.pair(0,[input.actor.0,input.actor.1],packed.len())?;for(i,&cell)in packed.iter().enumerate(){let p=road::local_waypoint(cell as u16,input.vehicle);self.pair(i+1,[p.0,p.1],packed.len())?;}self.pair(packed.len()+1,[-1,-1],packed.len())?;
   let old_points=self.pairs[..packed.len()+1].iter().map(|p|(p[0],p[1])).collect::<Vec<_>>();let old=self.raster.price(&old_points,&mut terrain,&mut price).cost;self.old_price=Some(old);self.unshared_raster_globals=true;if old<30{return Ok(Decision::Contour);}
-  self.scratch_mode=1;for i in 0..40{self.dword_set(i*8+4,FREE);}let goal=self.pairs[packed.len()];self.frame[..2].copy_from_slice(&goal[0].to_le_bytes());self.frame[2..4].copy_from_slice(&goal[1].to_le_bytes());self.dword_set(4,0);self.compare_mode=1;
+  self.scratch_mode=1;for i in 0..assembly::SCRATCH_CLEARED{self.dword_set(i*8+4,FREE);}let goal=self.pairs[packed.len()];self.frame[..2].copy_from_slice(&goal[0].to_le_bytes());self.frame[2..4].copy_from_slice(&goal[1].to_le_bytes());self.dword_set(4,0);self.compare_mode=1;
   //43bbe0's unconditional prefix precedes distance/endpoint failure.
   self.dword_set(352,input.actor_token);self.dword_set(364,BASE);self.price_table=if input.vehicle{0x499ec8}else{0x499b98};self.record_cursor=0x4d1340;
-  let mut nodes=self.nodes();let alias_next=std::array::from_fn(|i|self.dword((40+i)*8+4));
-  let result=assembly::scratch(&mut nodes,&alias_next,input.actor,graph,input.dimensions,&mut terrain,&mut flagged,&mut price,input.level,&mut self.trace,&mut self.raster);self.write_nodes(&nodes);self.record_cursor=0x4d1340+self.trace.record_cursor as u32*4;
-  if let Some(distances)=self.trace.endpoint_distances{for(i,n)in distances.into_iter().enumerate(){self.dword_set(320+i*4,n as u32);}}
+  let mut nodes=self.nodes();
+  let before=*self.frame;
+  let result=assembly::scratch(&mut nodes,input.actor,graph,input.dimensions,&mut terrain,&mut flagged,&mut price,input.level,&mut self.trace,&mut self.raster);self.write_nodes(&nodes);self.record_cursor=0x4d1340+self.trace.record_cursor as u32*4;
+  for (index,written) in self.candidate_writes.iter_mut().enumerate(){
+   let start=CANDIDATE_BASE+index*CANDIDATE_BYTES;
+   let end=(start+CANDIDATE_BYTES).min(self.frame.len());
+   *written=self.frame[start..end]!=before[start..end];
+  }
   let result=match result{Ok(r)=>r,Err(assembly::Boundary::Node(p))=>return Err(Boundary::ScratchAlias(p)),Err(assembly::Boundary::Region(r))=>return Err(Boundary::Region(r))};self.compare_mode=0;
   if result.failed{self.scratch_mode=0;return Ok(Decision::Contour);}
-  self.pairs[0]=[input.actor.0,input.actor.1];let mut points=Vec::new();let mut link=BASE;let mut seen=[false;40];
-  while link!=0&&points.len()<39{let delta=link.wrapping_sub(BASE);if delta&7!=0||delta/8>=40{return Err(Boundary::ScratchAlias(link));}let i=(delta/8)as usize;if seen[i]{return Err(Boundary::ScratchCycle(link));}seen[i]=true;let n=nodes[i];points.push(n.point);self.pairs[points.len()]=n.point;self.pairs[points.len()+1]=[-1,-1];link=n.next;}
+  self.pairs[0]=[input.actor.0,input.actor.1];let mut points=Vec::new();let mut link=BASE;let mut seen=[false;assembly::SCRATCH_NODES];
+  while link!=0&&points.len()<39{let delta=link.wrapping_sub(BASE);if delta&7!=0||delta/8>=assembly::SCRATCH_NODES as u32{return Err(Boundary::ScratchAlias(link));}let i=(delta/8)as usize;if seen[i]{return Err(Boundary::ScratchCycle(link));}seen[i]=true;let n=nodes[i];points.push(n.point);self.pairs[points.len()]=n.point;self.pairs[points.len()+1]=[-1,-1];link=n.next;}
   let new_points=self.pairs[..points.len()+1].iter().map(|p|(p[0],p[1])).collect::<Vec<_>>();let new=self.raster.price(&new_points,&mut terrain,&mut price).cost;self.new_price=Some(new);self.scratch_mode=0;Ok(if new<old{Decision::Road(points)}else{Decision::Contour})
  }
 }
@@ -89,7 +139,7 @@ impl State{
  }
  #[test]
  #[ignore="requires the original long allocator trace"]
- fn long_road_scans_occupied_aliases_and_only_stops_before_the_first_alias_write(){
+ fn long_road_matches_the_original_allocator_and_shared_tail(){
   let path=std::env::var("NATIVE_LONG_ROAD_ALLOC").unwrap();let trace=std::fs::read_to_string(path).unwrap();
   assert_eq!(trace.lines().count(),160);
   let mut occupied_tail=0;let mut alias_writes=0;
@@ -104,7 +154,7 @@ impl State{
    let decision=s.consider(Input{actor,actor_token:0x1000000,vehicle,suppressed,dimensions:(2048,2048),level:0},
      &packed,&graph,|p|terrain(0,p),|c|c==40,price);
    let first=n("firstAlias")as u32;
-   if first!=0{alias_writes+=1;assert_eq!(decision,Err(Boundary::ScratchAlias(first)),"first write in case {i}");continue;}
+   if first!=0{alias_writes+=1;}
    if !suppressed&&hops>=40{occupied_tail+=1;}
    let decision=decision.unwrap_or_else(|error|panic!("occupied scan {i} stopped: {error:?}"));
    assert_eq!(matches!(decision,Decision::Road(_)),n("use")!=0,"choice {i}");
@@ -113,6 +163,10 @@ impl State{
     assert_eq!(serde_json::json!(points),serde_json::json!(native),"adopted route {i}");
    }
    assert_eq!(s.frame.as_slice(),frame("after"),"all physical bytes for case {i}");
+   for (actual,key) in [(s.old_price.unwrap_or(-1),"oldCost"),(s.new_price.unwrap_or(-1),"newCost"),
+    (i32::from(s.scratch_mode),"scratchMode"),(i32::from(s.compare_mode),"compareMode")]{
+    assert_eq!(i64::from(actual),row[key].as_i64().unwrap(),"{key} in case {i}");
+   }
   }
   assert!(occupied_tail>0&&alias_writes>0);
  }
@@ -121,7 +175,22 @@ impl State{
   for n in[warm as u32,mode as u32,si as u32,gi as u32,u32::from(vehicle),u32::from(suppressed),u32::from(use_road),s.old_price.unwrap_or(-1)as u32,s.new_price.unwrap_or(-1)as u32,hash(s.frame.as_slice()),s.trace.recorded as u8 as u32,s.record_cursor,u32::from(s.scratch_mode),u32::from(s.compare_mode)]{mix(&mut h,n);}row+=1;
  }}}}}}assert_eq!((row,h),(480,3713235901),"real43df20/43bbe0/43b640/43b6f0/43b950, all640 known bytes, no RNG stubs");}
  #[test]fn suppression_and_below30_preserve_previous_modes_records_and_warm_coordinates(){let g=graph(7,false);for old in[0,29,30,31]{let mut s=State::default();s.frame.fill(0xa5);s.scratch_mode=77;s.compare_mode=88;s.record_cursor=0x12345678;s.trace.recorded=12;let before=s.clone();let input=Input{actor:(160,656),actor_token:0x5e30c8,vehicle:false,suppressed:true,dimensions:(2048,2048),level:0};assert_eq!(s.consider(input,&[11+41*128],&g,|_|7,|_|false,|_|old),Ok(Decision::Contour));assert_eq!(s.frame,before.frame);assert_eq!((s.scratch_mode,s.compare_mode,s.record_cursor),(77,88,0x12345678));assert!(s.old_price.is_none());let mut input=input;input.suppressed=false;assert_eq!(s.consider(input,&[11+41*128],&g,|_|7,|_|false,|_|old),Ok(Decision::Contour));assert_eq!(s.old_price,Some(i32::from(old)));if old<30{assert_eq!(s.frame,before.frame);assert_eq!((s.scratch_mode,s.compare_mode),(77,88));}else{assert_eq!((s.scratch_mode,s.compare_mode),(0,0));}}}
- #[test]fn exact40_nodes_copy_only39_and_the_first_unknown_alias_keeps_prefix(){for hops in[38,39]{let g=graph(hops+1,true);let mut s=State::default();if hops==39{s.dword_set(46*8+4,FREE);}let start=(136,500);let goal=((8+hops as i16)*16+8,500);let packed=[8+20*128,(goal.0>>4)+20*128,(goal.0>>4)+31*128];let result=s.consider(Input{actor:start,actor_token:0x5e30c8,vehicle:false,suppressed:false,dimensions:(2048,2048),level:0},&packed,&g,|p|terrain(0,p),|_|false,price);if hops==38{let Decision::Road(points)=result.unwrap()else{panic!()};assert_eq!(points.len(),39);assert_eq!(points.last(),Some(&[751,655]));assert_ne!(points.last(),Some(&[744,502]));}else{assert_eq!(result,Err(Boundary::ScratchAlias(BASE+46*8)));assert_eq!((s.scratch_mode,s.compare_mode),(1,1));assert_eq!(s.record_cursor,0x4d1340+39*4);assert_eq!(s.dword(352),0x5e30c8);assert!(s.old_price.is_some());assert!(s.new_price.is_none());assert_eq!(s.nodes()[39].next,0);}}}
+ #[test]fn road_copies_at_most39_points_even_when_the_list_extends_into_the_shared_tail(){
+  let start=(136,500);
+  for (hops,context_alias) in [(38,false),(39,false),(39,true)]{
+   let mut s=State::default();
+   s.dword_set(46*8+4,FREE);
+   if context_alias{s.dword_set(44*8+4,FREE);}
+   let goal_x=(8+hops as i16)*16+8;
+   let packed=[8+20*128,(goal_x>>4)+20*128,(goal_x>>4)+31*128];
+   let result=s.consider(Input{actor:start,actor_token:0x5e30c8,vehicle:false,suppressed:false,dimensions:(2048,2048),level:0},
+    &packed,&graph(hops+1,true),|p|terrain(0,p),|_|false,price);
+   let Decision::Road(points)=result.unwrap()else{panic!()};
+   assert_eq!(points.len(),39);
+   assert_eq!(points.last(),Some(&[751,655]));
+   if hops==39{assert_eq!(s.nodes()[39].next,BASE+if context_alias{44}else{46}*8);}
+  }
+ }
  #[test]fn contour_buffer_boundary_preserves_known_point_writes_without_pricing_or_mode_reset(){let mut s=State::default();s.scratch_mode=9;s.compare_mode=7;let result=s.consider(Input{actor:(160,656),actor_token:0x5e30c8,vehicle:false,suppressed:false,dimensions:(2048,2048),level:0},&[11+41*128;40],&graph(7,false),|_|7,|_|false,price);assert_eq!(result,Err(Boundary::ContourBuffer{count:40,address:0x4d1780+41*4}));assert_eq!(s.pairs[0],[160,656]);assert_eq!(s.pairs[40],[184,662]);assert_eq!((s.scratch_mode,s.compare_mode),(9,7));assert!(s.old_price.is_none());}
  #[test]fn word_origin_updates_preserve_high_word_and_pool_reset_keeps_process_scratch(){let mut paths=crate::original_route_pool::State::default();paths.road_scratch.frame.fill(0xa5);paths.road_scratch.synchronize_context(-1,0x4d15f4,false);assert_eq!(paths.road_scratch.dword(356),0xa5a5ffff);let old=paths.road_scratch.frame.clone();paths.pool.nodes[0]=Node{point:[42,71],next:0};paths.managed[7]=true;paths.reset_for_mission();assert_eq!(paths.road_scratch.frame,old);assert!(!paths.managed[7]);assert_eq!(paths.pool.nodes[0],Node::default());}
  #[test]fn last_candidate_removal_aliases_only_the_warm_price_x_even_when_road_suppressed(){let mut s=State::default();s.pairs[0]=[1234,-2000];s.synchronize_candidate(3,7,&[123],true);assert_eq!(s.pairs[0],[-1,-2000]);let result=s.consider(Input{actor:(160,656),actor_token:0x5e30c8,vehicle:false,suppressed:true,dimensions:(2048,2048),level:0},&[11+41*128],&graph(7,false),|_|7,|_|false,price);assert_eq!(result,Ok(Decision::Contour));assert_eq!(s.pairs[0],[-1,-2000]);}

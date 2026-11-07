@@ -147,11 +147,19 @@ Die unveränderten natürlichen Main-Tests für Roboter- und Fahrzeugkonturen
 laufen weiter durch Queue, Worker, endliche Veröffentlichung und Kopfverbrauch.
 
 BEGRENZUNG DIESES ADAPTERS
-Die640 Bytes sind keine allgemeine Autorität für jeden nachfolgenden Alias.
-Candidate3 reicht darüber hinaus; sein nachgewiesener PreisX-Write ist eigens
-mit dem Preisbuffer verbunden. Weitere Allokationen ab Record40 bleiben eine
-Grenze. Die ursprüngliche Suchkapazität80 wird dadurch nicht als ungültig
-behauptet. Die initialen Kampagnen-Hopzahlen sind keine Laufzeitfreigabe.
+Der 80 Einträge lange Suchbereich teilt die Pufferbytes mit den
+Endpunktwerten, dem Aufrufer und den ersten Konturkandidaten. 160
+Originalfälle prüfen die vollständigen 640 Bytes, darunter 22 mit
+Schreibzugriffen in den überlappenden Bereichen. Bei 56 vollständigen
+43e190-Aufrufen stimmen zusätzlich die Route, der Wegtyp und die
+Befehlsflags überein. Der Konturabschluss liest nach einem abgelehnten
+Straßenversuch den umgeschriebenen Kandidaten erneut.
+
+Candidate3 liegt außerhalb des Straßenpuffers. Sein PreisX-Write ist
+eigens mit dem Preisbuffer verbunden. Ein überschriebenes Längenbyte,
+das über die modellierten Kandidatenbytes hinausführt, bleibt eine
+Laufzeitgrenze. Die Endpunktsuche des Konturabschlusses liest den
+aktuellen Fußabdruck, soweit dessen Tabellenbytes vorliegen.
 Der physische Probeactor führt die in diesem Caller benötigten warmen BC-/67-
 Felder separat; er vereinigt noch nicht alle Benutzer des633950-Dummyrecords.
 45cf90/43b950-Rasterglobals6330a8..b4,62d5d0/d4/dc,632694/4d2be4 sind noch

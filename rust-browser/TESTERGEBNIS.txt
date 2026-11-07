@@ -1,16 +1,18 @@
-Prüfstand 06.11.2026 – gebauter Rust/Wasm-Release
+Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.146 Rusttests und 53 separat ausgeführte Prüfungen mit lokalen Originaldaten
+1.147 Rusttests und 53 separat ausgeführte Prüfungen mit lokalen Originaldaten
 bestanden. Doctests bestanden (0 vorhanden). 100/100 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 76 bestanden, einschließlich aller 20 privaten
+Browserstand der Abgleichrunde 77 bestanden, einschließlich aller 20 privaten
 Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: b83228d7c4e721ccf163bbaf0e4f27cf2ce2b40717ee603136686213e727f1bb
+Wasm SHA256: 2b5aa7c4fe86af9637b5e18720a933d3b562ba31b9b0340a78d3c4b7035ccd42
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- 160 lange Straßenvergleiche mit vollständigen Pufferbytes und 56
+  vollständige Originalaufrufe zur Übernahme oder Ablehnung der Straße.
 - 48 APC-Einstiegszustände in acht Richtungen und 684 Ausstiegsbilder
   verglichen. Die Ausstiegsprüfung umfasst sechs Fahrzeugtypen,
   Einzel- und Mehrspieler, Pfadfreigabe und die direkte Lauflinie.

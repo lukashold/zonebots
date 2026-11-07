@@ -196,8 +196,9 @@ prüfen Preise, Köpfe, Punkte und UNIT-Flags. Der Probeactor verwendet die
 tatsächlichen UNIT18/1c-Tabellen und dynamische Maskentransaktionen.
 Vier Candidate3-Caller prüfen den warmen Preisbuffer-Alias.40 verkettete
 Straßenpunkte werden wie im Original nur auf39 kopierte Punkte übernommen.
-Allokationen ab Record40 und unmodellierte gemeinsame Raster-/Dummyzustände
-bleiben ausdrücklich begrenzt. Details: ORIGINAL-PFADPOOL.txt.
+Der spätere Langwegabgleich unten erfasst auch Allokationen ab Eintrag 40.
+Gemeinsame Raster- und Dummyzustände anderer Aufrufer bleiben offen.
+Details: ORIGINAL-PFADPOOL.txt.
 
 Die normale Pause trennt jetzt Spiel-, Portrait- und UI-/Audiocallbacks.
 396 tatsächlich ausgeführte Callerfolgen belegen stehende Spielzähler und
@@ -722,13 +723,15 @@ Rasterwörtern überein. 480 vollständige Vergleichsläufe stimmen im
 letzten gemeinsamen Rasterzustand und in der Wegentscheidung überein.
 
 Der Zwischenspeicher überspringt belegte Positionen hinter den ersten
-40 Einträgen. Bei vollständig belegtem Speicher bleibt das originale
-Abbruch- oder Kopierverhalten erhalten. Von 160 langen Testfällen
-stimmen 138 bis zum Ende; bei 22 beginnt das Original an derselben
-nachgewiesenen Stelle, andere Speicherfelder zu überschreiben. Diese
-Schreibfälle bleiben im Nachbau als Grenze markiert. Die 20 unveränderten
-Kampagnen-Straßennetze haben auf einfachen Wegen höchstens 30 Übergänge;
-die langen Fälle sind daher gezielte Grenztests, keine Partievergleiche.
+40 Einträgen und schreibt freie Einträge in denselben Puffer wie das
+Original. Alle 160 langen Testfälle stimmen bis zum Ende überein,
+darunter 22 Schreibfälle im gemeinsam verwendeten Speicher. 56 weitere
+Aufrufe von 43e190 belegen alle 640 Pufferbytes, Wegkosten, gewählte Punkte,
+Listen und Befehlsflags bei Infanterie und Fahrzeugen. Verwirft der
+Vergleich die Straße, liest der Nachbau den ausgewählten Umweg erneut
+aus dem Puffer. Die Endpunktsuche verwendet den aktuellen Fußabdruck
+der Einheit. Die 20 Kampagnen-Straßennetze haben auf einfachen Wegen
+höchstens 30 Übergänge. Die langen Fälle sind gezielte Grenztests.
 
 Auch direkte UNIT-Wegbefehle benutzen jetzt dasselbe Raster wie die
 Umplanung nach einem Hindernis. Die Originalroutine schreibt bereits bei
@@ -797,9 +800,10 @@ NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
    sind noch nicht als identische Eingabespur nachgewiesen. Insbesondere die
    temporäre Straßenliste überlappt schon ab Record40 mit Endpointglobals,
    danach ab44 mit UNIT-/Worker-/Kandidatendaten. Die normale Kontur-zu-Straße-
-   Ersetzung ist für den geprüften Laufzeitumfang angebunden, einschließlich
-   des Lesens belegter Speicherüberlappungen. Schreibende Überlappungen und
-   die Raster-/Dummyautorität der übrigen Kollisionsaufrufer bleiben offen.
+   Ersetzung nutzt im geprüften Umfang die gemeinsamen Bytes auch bei
+   schreibenden Überlappungen. Umweg-Lesezugriffe jenseits der modellierten
+   Kandidatendaten und gemeinsame Raster-/Dummyzustände weiterer
+   Kollisionsaufrufer bleiben offen.
 2. Weitere direkte Kollisions-/Ausweichcaller, räumliche Zielauflöser und
    Weiterlauf nach Transportbereinigung auf einem bereits deaktivierten UNIT-
    Speicher bleiben Grenzen. Die ungewöhnliche Werkstatt-Komplettierung ist

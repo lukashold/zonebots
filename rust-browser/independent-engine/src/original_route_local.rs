@@ -168,10 +168,17 @@ pub fn search_with_steps(start_cell:i32,contact_x:Option<i16>,contact_y:Option<i
 
 ///0043c1b0 greedily removes one middle vertex per successful native dummy
 /// walk, keeping the same preceding vertex for the next comparison.
-pub fn simplify(points:&mut Vec<i16>,mut clear:impl FnMut(Option<i16>,i16)->bool){
+pub fn simplify(points:&mut Vec<i16>,clear:impl FnMut(Option<i16>,i16)->bool){
+ simplify_with_removals(points,clear,|_|{});
+}
+pub(crate) fn simplify_with_removals(points:&mut Vec<i16>,mut clear:impl FnMut(Option<i16>,i16)->bool,mut removed:impl FnMut(usize)){
  if points.len()<3{return;}let mut previous:Option<usize>=None;let mut count=points.len()-1;
  while count>0{let next=previous.map_or(1,|i|i+2);if next>=points.len(){break;}
-  if clear(previous.map(|i|points[i]),points[next]){points.remove(previous.map_or(0,|i|i+1));}else{previous=Some(previous.map_or(0,|i|i+1));}
+  if clear(previous.map(|i|points[i]),points[next]){
+   let index=previous.map_or(0,|i|i+1);
+   points.remove(index);
+   removed(index);
+  }else{previous=Some(previous.map_or(0,|i|i+1));}
   count-=1;
  }
 }
