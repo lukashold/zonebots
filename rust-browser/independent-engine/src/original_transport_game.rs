@@ -199,7 +199,11 @@ impl Game{
   if phase==Some(Phase::Approach){
    let p=group.portal();let goal=(f64::from(p.0)*2.,f64::from(p.1)*2.);
    if (self.units[index].x-goal.0).abs()+(self.units[index].y-goal.1).abs()<=1.{
-    self.units[index].x=goal.0;self.units[index].y=goal.1;self.units[index].path.clear();self.units[index].original_motion=None;self.units[index].moving=false;group.arrive(id);self.units[index].native_phase35=61;
+    self.units[index].x=goal.0;self.units[index].y=goal.1;
+    //50b30 writes the entry pose and B5; it does not clear native heads or
+    //the inline movement words. Later native writers own their replacement.
+    if !self.owns_native_route(index){self.units[index].path.clear();self.units[index].original_motion=None;}
+    self.units[index].moving=false;group.arrive(id);self.units[index].native_phase35=61;
     if let Some(slot)=self.units[index].native_slot.or(self.units[index].native_transport_slot){if let Some(object)=self.native_group_rosters.contact_target(slot).or_else(||self.native_object_slot(carrier)){self.native_group_rosters.record_contact_claim(slot,object);}}
    }else{
     // Group approach is locked to the portal until all members are inside.
@@ -381,7 +385,7 @@ impl Game{
 
 #[cfg(test)]mod tests{
  use super::*;
- fn field()->Game{let mut g=Game::new(0,1,712);g.map.original=true;g.map.tiles.fill(0);g.map.terrain_codes=vec![0;g.map.tiles.len()];g.map.bridge_base.fill(-1);g.units.clear();g.buildings.clear();g.sectors.clear();g.crates.clear();g.objects.clear();g.walls.clear();g.effects.clear();g.events.clear();g.ai_teams.clear();g.ai_clock=10000.;g.winner=None;g.next_id=1;g.spawn("gatling",1,1800.,1200.,9,None);g.units[0].hold_position=true;g.units[0].cooldown=10000.;g}
+ fn field()->Game{let mut g=Game::new(0,1,712);g.map.original=true;g.map.tiles.fill(0);g.map.terrain_codes=vec![0;g.map.tiles.len()];g.map.native_terrain_plane=vec![0;16384];g.map.bridge_base.fill(-1);g.units.clear();g.buildings.clear();g.sectors.clear();g.crates.clear();g.objects.clear();g.walls.clear();g.effects.clear();g.events.clear();g.ai_teams.clear();g.ai_clock=10000.;g.winner=None;g.next_id=1;g.spawn("gatling",1,1800.,1200.,9,None);g.units[0].hold_position=true;g.units[0].cooldown=10000.;g}
  fn board(g:&mut Game)->(usize,Vec<usize>){g.spawn("apc",-1,640.,640.,2,None);let carrier=g.units.last().unwrap().id;let mut ids=Vec::new();for n in 0..3{g.spawn("grunt",0,640.+n as f64*8.,700.,3,None);let u=g.units.last_mut().unwrap();u.hp=20.+n as f64;ids.push(u.id);}g.command(&json!({"kind":"enter","ids":ids,"target":carrier}));(carrier,ids)}
  #[test]fn all_robots_board_before_ownership_changes_and_unload_restores_their_original_ids(){
   let mut g=field();let(carrier,ids)=board(&mut g);let old=ids.iter().map(|id|g.units.iter().find(|u|u.id==*id).unwrap().hp).collect::<Vec<_>>();let mut entered=false;
@@ -408,6 +412,17 @@ impl Game{
  #[test]fn destroying_the_occupied_carrier_removes_its_hidden_roster(){
   let mut g=field();let(carrier,ids)=board(&mut g);for _ in 0..180{g.step(0.059);if g.units.iter().any(|u|u.id==carrier&&u.team==0){break;}}
   g.units.iter_mut().find(|u|u.id==carrier).unwrap().hp=-1.;g.step(0.059);assert!(g.native_transports.is_empty());assert!(ids.iter().all(|id|g.units.iter().all(|u|u.id!=*id)));
+ }
+ #[test]fn native_apc_arrival_preserves_inline_words_and_both_finite_heads(){
+  let mut g=field();let(_carrier,ids)=board(&mut g);let i=g.transport_member_index(ids[0]).unwrap();assert!(g.start_native_transport(i));
+  g.native_route_mode=true;g.map.native_road_graph=Some(original_route::RoadGraph{regions:vec![original_route::RoadRegion{bounds:[0;4],waypoint:0,next:vec![255;96]};96]});
+  let slot=g.units[i].native_slot.unwrap();let portal=g.native_transports[0].portal();
+  {let u=&mut g.units[i];u.x=f64::from(portal.0)*2.;u.y=f64::from(portal.1)*2.;u.native_remaining48=0;let mut line=crate::original_motion::Segment::new(u.x,u.y,(u.x+2.,u.y));line.set_source_fixture([0,123,456,789]);u.original_motion=Some(line);}
+  let paths=g.native_routes.get_mut();paths.managed[slot]=true;let primary=paths.pool.allocate_goal([900,800]).unwrap();let secondary=crate::original_route_pool::SECONDARY;paths.pool.nodes[crate::original_route_pool::PRIMARY_COUNT]=crate::original_route_pool::Node{point:[700,600],next:0};paths.pool.links[slot]=crate::original_route_pool::Links{primary,secondary};
+  g.units[i].path=g.native_owned_route_view(i).unwrap();let before=g.units[i].path.clone();
+  assert!(g.update_native_transport(i));assert_eq!(g.units[i].native_phase35,61);assert_eq!((g.units[i].native_frame32,g.units[i].native_timer3c),(0,2));
+  assert_eq!(g.units[i].original_motion.as_ref().map(|line|line.source_line_fields()),Some([0,123,456,789]),"450b30 preserves all four inline words");
+  assert_eq!(g.units[i].path,before);assert_eq!(g.native_routes.borrow().pool.links[slot].primary,primary);assert_eq!(g.native_routes.borrow().pool.links[slot].secondary,secondary);assert_eq!(g.native_route_boundary,None);
  }
  fn occupied(g:&mut Game,carrier:usize){for _ in 0..240{g.step(0.059);if g.units.iter().any(|u|u.id==carrier&&u.team==0){return;}}panic!("squad never boarded APC");}
  fn authored_exit_field()->(Game,usize){authored_vehicle_exit_field("apc")}

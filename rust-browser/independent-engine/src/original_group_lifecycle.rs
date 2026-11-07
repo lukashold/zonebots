@@ -523,3 +523,17 @@ pub fn clear_personal_capture_in_sector(member:&mut Member,team:u8,actor_sector:
   }
  }
 }
+
+#[cfg(test)]mod arrival_admission_tests{
+ use super::*;
+ #[test]fn original_apc_arrival_admission_matches_signed_claim_scans(){
+  let rows=std::env::var_os("Z_NATIVE_FORMATION_ARRIVAL").map(|p|std::fs::read_to_string(p).unwrap().lines().map(|l|serde_json::from_str::<serde_json::Value>(l).unwrap()).collect::<Vec<_>>());
+  if let Some(rows)=&rows{assert_eq!(rows.len(),512);}
+  let mut hash=2166136261u32;let mut accepted=0;
+  for n in 0..512{let object=[0u8,7,127,128,199][n%5];let claims=[ContactClaim{flags31:4,group:0,object:-1},ContactClaim{flags31:if n&1!=0{4}else{0},group:u8::from(n&2!=0),object:object as i8}];let allowed=special_contact_allowed(&claims,0,object,if n&4!=0{-1}else{400});
+   if let Some(rows)=&rows{assert_eq!(allowed,rows[n]["values"][3]==61,"scenario{n}");if n<256{assert_eq!(serde_json::json!(u8::from(!allowed)),rows[n]["returnAL"]);}}
+   accepted+=usize::from(allowed);for v in[n as u32,u32::from(allowed)]{hash=(hash^v).wrapping_mul(16777619);}
+  }
+  assert_eq!(accepted,218);assert_eq!(hash,2156245605);
+ }
+}

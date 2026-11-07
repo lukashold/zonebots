@@ -888,6 +888,25 @@ andere Phase wird als Übergabezustand verglichen; der fremde Handler läuft
 in dieser Prüfung nicht weiter. Sonderobjektankunft, andere Kontaktarten und
 vollständige gekoppelte Originalpartien werden damit nicht als erledigt gewertet.
 
+APC-EINSTIEG UND ERHALT DES BEWEGUNGSZUSTANDS (RUNDE 81)
+256 echte 450b30-Aufrufe und 256 gekoppelte 4d570-Aufrufe mit echter
+Sonderankunft wurden ausgeführt. Dabei bleiben die vier Inline-Linienwörter
+in allen512 Fällen erhalten; die eigenständige Routine erhält auch beide
+vorbereiteten Pfadköpfe. Die Zulassung wurde für lebende/entfernte Objekte,
+aktive/inaktive Fremdansprüche und Objektplätze0/7/127/128/199 verglichen.
+Der Rust-Zulassungstest stimmt in512 Fällen mit dem Original überein:
+218 angenommen, FNV32 2156245605. Der vorzeichenbehaftete B5-Vergleich gegen
+das unsigned Objektbyte bleibt erhalten.
+Ein Game-Regressionstest reproduzierte den bisherigen Verlust der Inline-Linie
+beim erfolgreichen APC-Einstieg. Der native Eintritt erhält nun Linie und
+Pfadspiegel bis zu deren tatsächlichem nächsten Schreiber, einschließlich
+beider endlicher Pfadköpfe; die Einstiegspose beginnt weiterhin bei0/2.
+Das ältere Testfeld besitzt nun auch seinen vollständigen Gelände-Hintergrund.
+Prüfgrenze: Auswahl-/UIpräfix4396a0 ist ausgeschaltet. Die512 Zulassungen
+beweisen nicht sämtliche Schreibwirkungen aller Transportabbruch-/Gruppen-
+bereinigungswege. Diese und der Hardware-Common-Sonderankunftsadapter bleiben
+weitere Abgleichpunkte.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

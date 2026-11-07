@@ -1,16 +1,24 @@
 Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.165 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
+1.167 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
 bestanden. Doctests bestanden (0 vorhanden). 101/101 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 80 bestanden, einschließlich aller 20 privaten
+Browserstand der Abgleichrunde 81 bestanden, einschließlich aller 20 privaten
 Missionen.
+Der lange Multiplayer-Audiotest überschritt beim parallelen Gesamtlauf sein
+180-Sekunden-Limit. Separat bestand er in152,5 Sekunden; der erste Zeitabbruch
+und die erfolgreiche Wiederholung sind im lokalen Prüfprotokoll erhalten.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: 5019fe8448a18287739f16efa20a4d283ba25c827f2a2f5bc7a49fb1a521cb63
+Wasm SHA256: ee7131287fefa09e1190e116fa21c64d925bad93083ab92ae06d4426961a0270
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- APC-Einstieg: 512 echte Originalaufrufe zeigen den Erhalt der Inline-Wörter.
+  Der Zulassungstest stimmt in512 Fällen einschließlich Fremdansprüchen und
+  Objektplätzen128/199 mit dem Original überein (FNV32 2156245605).
+  Ein Game-Regressionstest prüft den erfolgreichen Übergang mit beiden
+  endlichen Pfadköpfen, erhaltener Linie und Einstiegspose0/2.
 - Gekoppelter Formationsanschluss: 256 Startzustände, 976 Zustände auf freiem
   Gelände, 868 Zustände auf Geländecode19 und 512 direkte Anschlussaufrufe
   (Infanterie/Fahrzeuge) mit echten Original-Unterfunktionen verglichen.
