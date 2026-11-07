@@ -907,6 +907,19 @@ beweisen nicht sämtliche Schreibwirkungen aller Transportabbruch-/Gruppen-
 bereinigungswege. Diese und der Hardware-Common-Sonderankunftsadapter bleiben
 weitere Abgleichpunkte.
 
+TRANSPORTABBRUCH UND INLINE-BEWEGUNGSWERTE (RUNDE 82)
+512 echte 459d80-Aufrufe einschließlich der unveränderten Originalroutine
+52500 wurden ausgeführt: alle 256 Transport-Flagbytes, jeweils mit aktivem
+und inaktivem Folger. Bei gesetztem 8a:10 werden beide endlichen Pfade
+freigegeben; die vier Inline-Linienwörter bleiben auch dabei erhalten.
+Der Game-Adapter löschte diese Wörter zusätzlich. Der neue Vergleichstest
+scheiterte vor der Korrektur und stimmt danach in allen 512 Fällen mit
+Originalwerten, Pfadköpfen, Knotenfreigaben und Hardware17 überein
+(FNV32 2790577605). Ohne 8a:10 bleiben auch die Pfade unverändert.
+Prüfgrenze: Folgerrolle 1, keine überlappenden Pfadlisten. Der separate
+Objektprüfzweig für negative Rollen sowie vollständige Weiterläufe nach
+Transportbereinigung bleiben eigenständige offene Abgleichpunkte.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

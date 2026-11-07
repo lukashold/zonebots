@@ -108,7 +108,9 @@ impl Game{
    //The52500 call precedes clearing8a18 and releases both finite lists.
    self.clear_native_owned_paths(i);
    self.native_group_rosters.record_secondary_path(slot,false);if let Some(m)=self.native_group_rosters.members[slot].as_mut(){m.primary_path=false;m.secondary_path=false;m.flags8a&=!0x18;}
-   let u=&mut self.units[i];u.path.clear();u.native_secondary_route.set(false);u.native_route_pending.set(None);u.original_motion=None;u.native_transport=None;u.transport_carrier=None;cleared.push(u.id);
+   //59d80/52500 free the finite paths, retaining48..4e until a line writer.
+   let managed=self.owns_native_route(i);
+   let u=&mut self.units[i];u.path.clear();u.native_secondary_route.set(false);u.native_route_pending.set(None);if !managed{u.original_motion=None;}u.native_transport=None;u.transport_carrier=None;cleared.push(u.id);
   }
   for group in &mut self.native_transports{group.members.retain(|m|!cleared.contains(&m.id));}self.native_transports.retain(|g|!g.members.is_empty());
  }
@@ -749,6 +751,27 @@ impl Game{
   g.cleanup_native_order_transports(leader);assert_eq!(g.native_routes.borrow().pool.links[leader_slot].primary,0);assert_eq!(g.native_routes.borrow().pool.node(node).unwrap().next,crate::original_route_pool::FREE,"59d80's52500 frees the owned original node, not just its Web path mirror");
   for id in ids.iter().take(2){let u=&g.units[g.transport_member_index(*id).unwrap()];let m=g.native_group_rosters.members[u.native_slot.unwrap()].as_ref().unwrap();assert_eq!((u.native_order5c,u.order.as_str(),u.dest),(4,"stop",Some((1000.,800.))));assert!(u.native_transport.is_none());assert_eq!(m.flags8a&24,0);}
   let u=&g.units[g.transport_member_index(ids[2]).unwrap()];assert!(u.native_transport.is_some());assert_eq!(g.native_group_rosters.members[untouched].as_ref().unwrap().flags8a&24,8);
+ }
+ #[test]fn native_order_transport_cleanup_matches_original_inline_and_path_state(){
+  use crate::original_route_pool::{Pool,Node,Links,PRIMARY,SECONDARY,PRIMARY_COUNT};
+  let trace=std::env::var("Z_NATIVE_TRANSPORT_CLEANUP").ok().map(|p|serde_json::from_str::<Vec<Value>>(&std::fs::read_to_string(p).unwrap()).unwrap());
+  let mut hash=2166136261u32;
+  for scenario in 0..512usize{
+   let mut g=field();let(_carrier,ids)=board(&mut g);let i=g.transport_member_index(ids[1]).unwrap();let slot=g.units[i].native_slot.unwrap();
+   let group=usize::from(g.native_group_rosters.members[slot].as_ref().unwrap().group);
+   g.native_group_rosters.pool[group].roster[19..40].fill(255);g.native_group_rosters.pool[group].roster[19]=slot as u8;
+   {let m=g.native_group_rosters.members[slot].as_mut().unwrap();m.role=1;m.flags31=if scenario<256{36}else{32};m.flags8a=scenario as u8;}
+   {let u=&mut g.units[i];u.native_hardware_slot=None;u.native_remaining48=scenario as i16;let mut line=crate::original_motion::Segment::new(u.x,u.y,(u.x+2.,u.y));line.set_source_fixture([scenario as i16,123,456,789]);u.original_motion=Some(line);u.path=std::collections::VecDeque::from([(1800.,1600.)]);}
+   g.native_hardware_dummy.field17=255;
+   {let paths=g.native_routes.get_mut();paths.pool=Pool::default();paths.managed[slot]=true;paths.pool.nodes[0]=Node{point:[900,800],next:0};paths.pool.nodes[PRIMARY_COUNT]=Node{point:[700,600],next:0};paths.pool.links[slot]=Links{primary:PRIMARY,secondary:SECONDARY};}
+   g.cleanup_native_order_transports(i);
+   let line=g.units[i].original_motion.as_ref().expect("59d80 preserves inline movement words").source_line_fields();let m=g.native_group_rosters.members[slot].as_ref().unwrap();let paths=g.native_routes.borrow();let links=paths.pool.links[slot];
+   let values=[i64::from(line[0]),i64::from(line[1]),i64::from(line[2]),i64::from(line[3]),i64::from(m.flags31),i64::from(m.flags8a),i64::from(links.primary),i64::from(links.secondary),i64::from(paths.pool.nodes[0].next),i64::from(paths.pool.nodes[PRIMARY_COUNT].next),i64::from(g.native_hardware_dummy.field17)];
+   if let Some(rows)=&trace{assert_eq!(rows[scenario]["scenario"],json!(scenario));assert_eq!(rows[scenario]["values"],json!(values),"original59d80 scenario{scenario}");}
+   for v in std::iter::once(scenario as i64).chain(values){hash=(hash^v as u32).wrapping_mul(16777619);}
+   assert_eq!(g.units[i].path.is_empty(),scenario&16!=0);assert_eq!(g.native_route_boundary,None);
+  }
+  assert_eq!(hash,2790577605,"512 actual59d80/52500 outputs");
  }
  #[test]fn failed_transport_removes_the_input_actor_when_a_follower_has_inside20(){
   let mut g=field();let(_carrier,ids)=board(&mut g);let actor=g.transport_member_index(ids[0]).unwrap();assert!(!g.remove_native_failed_transport_actor(actor));let follower=g.transport_member_index(ids[1]).unwrap();let slot=g.units[follower].native_slot.unwrap();g.native_group_rosters.members[slot].as_mut().unwrap().flags8a|=32;g.native_deaths=Default::default();assert!(g.remove_native_failed_transport_actor(actor));assert!(g.units[actor].hp<0.);for id in &ids[1..]{assert!(g.units[g.transport_member_index(*id).unwrap()].hp>0.,"59e60 passes the input actor, not the roster candidate, to58ec0");}assert_eq!(g.native_deaths.records.iter().filter(|r|r.sprite!=-1).count(),1);assert!(!g.remove_native_failed_transport_actor(actor),"inactive31:4 guard prevents duplicate removals");

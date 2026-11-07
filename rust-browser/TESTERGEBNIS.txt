@@ -1,19 +1,27 @@
 Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.167 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
-bestanden. Doctests bestanden (0 vorhanden). 101/101 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 81 bestanden, einschließlich aller 20 privaten
-Missionen.
-Der lange Multiplayer-Audiotest überschritt beim parallelen Gesamtlauf sein
-180-Sekunden-Limit. Separat bestand er in152,5 Sekunden; der erste Zeitabbruch
-und die erfolgreiche Wiederholung sind im lokalen Prüfprotokoll erhalten.
+Abgleichrunde 82: 1.168 Rusttests bestanden, 54 Prüfungen mit externen Daten
+im regulären Lauf ausgelassen. Doctests bestanden (0 vorhanden).
+12 gezielte Node-Prüfprogramme bestanden: Wasm, Bewegung, Kampf, Anhalten,
+deaktivierte Einheiten, Fahrzeugbefehle/-eingaben, Befehlsgrenzen,
+Multiplayer-Spiel/-Lebenszyklus/-Audio sowie alle 20 Kampagnenmissionen.
+Der neue Transportabbruchtest vergleicht 512 Originalausführungen; er
+scheiterte vor der Korrektur und besteht mit dem korrigierten Adapter.
+Vorheriger vollständiger Prüfstand (Runde 81): 1.167 Rusttests, 54 separate
+Originaldatenprüfungen und 101 Node-Programme bestanden. Der lange Audiotest
+bestand nach einem parallelen Zeitabbruch separat in 152,5 Sekunden.
+Diese breitere Vorprüfung gehört zum vorherigen Wasm und wird hier nicht als
+erneuter vollständiger Lauf des aktuellen Builds ausgegeben.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: ee7131287fefa09e1190e116fa21c64d925bad93083ab92ae06d4426961a0270
+Wasm SHA256: dbb79e691f79df8318d6fad0922d4f397fd3e3f1c99c7f0f318de690eec6617e
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- Transportabbruch: 512 echte 459d80/52500-Ausführungen, Folgerrolle 1,
+  alle Transport-Flagbytes und aktive/inaktive Zustände. Pfadfreigaben,
+  Inline-Wörter und Hardware17 stimmen überein (FNV32 2790577605).
 - APC-Einstieg: 512 echte Originalaufrufe zeigen den Erhalt der Inline-Wörter.
   Der Zulassungstest stimmt in512 Fällen einschließlich Fremdansprüchen und
   Objektplätzen128/199 mit dem Original überein (FNV32 2156245605).
