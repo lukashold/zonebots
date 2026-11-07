@@ -1,16 +1,24 @@
 Prüfstand 07.11.2026 – gebauter Rust/Wasm-Release
 
 ERGEBNIS
-1.161 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
+1.165 Rusttests und 54 separat ausgeführte Prüfungen mit lokalen Originaldaten
 bestanden. Doctests bestanden (0 vorhanden). 101/101 Node-Prüfprogramme im
-Browserstand der Abgleichrunde 79 bestanden, einschließlich aller 20 privaten
+Browserstand der Abgleichrunde 80 bestanden, einschließlich aller 20 privaten
 Missionen.
 Der Rust/Wasm-Release wurde mit --locked gebaut.
-Wasm SHA256: d44f1a7080735a5be9f51142ac6849e01040116993722dbb83da6991a934412a
+Wasm SHA256: 5019fe8448a18287739f16efa20a4d283ba25c827f2a2f5bc7a49fb1a521cb63
 Dieser Stand belegt den geprüften Umfang, keine vollständige Fehlerfreiheit oder
 1:1-Gleichheit mit Z. Offene Grenzen stehen in ORIGINAL-ABGLEICH.txt.
 
 UMFANG
+- Gekoppelter Formationsanschluss: 256 Startzustände, 976 Zustände auf freiem
+  Gelände, 868 Zustände auf Geländecode19 und 512 direkte Anschlussaufrufe
+  (Infanterie/Fahrzeuge) mit echten Original-Unterfunktionen verglichen.
+  Keine Blattrückgaben ersetzt; feste erste Folgerposition, Gruppenwinkel0,
+  Modus0 und deaktivierte Suchen. Vier Tests prüfen numerische Originaldigests
+  sowie lokal sämtliche aufgezeichneten Felder.
+- Korrigiert: Anschlussbeschleunigung bleibt nach der Wegübernahme erhalten;
+  die Fahrzeug-Ankunftsmarke wird erst bei tatsächlich erreichtem Ziel gesetzt.
 - Formationslauf Phase 7: 1.024 echte 457590-Aufrufe mit kontrollierten
   Blattfunktionen prüfen Reihenfolge, Abbruchzweige, Animationsrücksetzung
   und erneut gelesenen Gruppenzeiger (FNV32 3261265149).

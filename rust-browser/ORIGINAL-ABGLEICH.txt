@@ -864,6 +864,30 @@ wird für Einheiten mit nativ verwalteten Wegen nicht zusätzlich ausgeführt.
 Die Genauigkeit weiterer Blattadapter und vollständiger gekoppelter Partien
 bleibt Gegenstand des Abgleichs; diese Änderung erklärt sie nicht für bewiesen.
 
+GEKOPPELTER FORMATIONSANSCHLUSS (RUNDE 80)
+Der Abgleich führt 457590/4d570 mit den echten Original-Unterfunktionen aus:
+52960, 59c60, 52810, 525a0 sowie bei Bewegung 4502f0 und den erreichten
+Kontakt-/Ankunftswegen. Keine Blattrückgaben werden ersetzt. Die lokale
+Original-SINCOS-Tabelle und originale Kollisionsinitialisierung werden benutzt.
+256 Startzustände, 976 Callbackzustände auf freiem Gelände, 868 Zustände auf
+Geländecode19 und 512 direkte Anschlussaufrufe stimmen in Position, Frame,
+Phase, Timer, Richtung, Flags, vier Linienwörtern, Achse, Bewegungsbonus,
+Richtungswort, Pfadkopf, dessen Record und Dummy-Hardware17 überein.
+Die direkten Fälle enthalten je256 Infanterie- und Fahrzeugzustände.
+FNV32: 3464735893 / 467180558 / 2836574662 / 284322126.
+
+Zwei dabei gefundene Fehler sind korrigiert: Der entfernte Formationsanschluss
+stellt seinen 8c-Bonus4 nach der Wegübernahme wieder her. Zuvor wurde dieser
+vom Wegstart gelöscht. Der Hardware-Commonadapter setzt die Ankunftsmarke80
+nur bei bereits erreichtem Ziel und Restweg<6; die vorher vertauschte Bedingung
+markierte kurze, noch nicht abgeschlossene Wege und übersah echte Ankünfte.
+
+Prüfgrenze: feste erste Folgerposition, Gruppenwinkel0, aktivierter Gruppenlauf,
+Modus0, deaktivierte Suchen und höchstens12 Folgeschritte. Ein Wechsel in eine
+andere Phase wird als Übergabezustand verglichen; der fremde Handler läuft
+in dieser Prüfung nicht weiter. Sonderobjektankunft, andere Kontaktarten und
+vollständige gekoppelte Originalpartien werden damit nicht als erledigt gewertet.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

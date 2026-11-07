@@ -535,7 +535,13 @@ impl Game{
                 self.units[index].native_phase35=7;
                 let remaining=self.units[index].native_remaining48;
                 if let Some(member)=self.native_group_rosters.members[slot].as_mut(){life::finish_idle_follow(member,already,remaining);}
-            }else{self.prepend_native_walk_claim(index,[target[0].wrapping_add(8),target[1].wrapping_add(8)]);}
+            }else{
+                self.prepend_native_walk_claim(index,[target[0].wrapping_add(8),target[1].wrapping_add(8)]);
+                //4d570 writes these after59c60/52810: starting the route clears
+                //8c, so the formation catch-up bonus must be restored here.
+                if let Some(member)=self.native_group_rosters.members[slot].as_mut(){member.flags31&=!128;}
+                self.units[index].motion_bonus=4;
+            }
             self.units[index].dest=Some(goal);return;
         }
         let path=if direct{if already{VecDeque::new()}else{VecDeque::from([goal])}}else{self.route_unit(&unit,goal.0,goal.1)};
