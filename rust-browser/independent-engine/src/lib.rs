@@ -13,6 +13,7 @@ mod original_motion;
 mod original_upstream_reactions;
 mod original_clock;
 mod native_replay;
+mod original_follow;
 mod native_math;
 mod original_fire;
 mod original_formation;
@@ -1187,7 +1188,7 @@ impl Game {
             self.refresh_native_main_pattern_step(i,first_motion_tick);self.native_grenade_contact(i);self.native_workshop_contact(i);if let Some(sector)=self.native_flag_contact(i){let team=self.units[i].team;self.capture_sector(team,sector);self.finish_native_flag_contact(i);}
             if native_display_slot.is_some()&&self.units[i].native_reload7b!=0{self.units[i].native_reload7b=self.units[i].native_reload7b.wrapping_sub(1);}
             self.update_native_factory_exit(i);
-            if self.map.original&&self.units[i].native_contact.is_none() {self.update_native_follower(i);}
+            if self.map.original&&self.units[i].native_contact.is_none()&&!self.owns_native_route(i) {self.update_native_follower(i);}
             if self.update_workshop(i,dt) { break 'unit; }
             let mut u = self.units[i].clone();
             if !original_combat::alive(self.map.original,u.hp) || u.team < 0 {
@@ -1220,7 +1221,7 @@ impl Game {
             if self.update_native_contact_state(i){break 'unit;}
             if self.update_native_cover(i){break 'unit;}
             if self.update_native_crane_building(i,first_motion_tick,motion_ticks){break 'unit;}
-            if self.update_native_route_wait(i)||self.update_native_attack_phase(i)||self.update_native_walk(i)||self.update_native_walk_idle_entry(i){break 'unit;}
+            if self.dispatch_native_follow(i)||self.update_native_route_wait(i)||self.update_native_attack_phase(i)||self.update_native_walk(i)||self.update_native_walk_idle_entry(i){break 'unit;}
             if self.units[i].native_route_pending.get().is_none()&&self.update_native_idle_handler(i){break 'unit;}
             self.update_native_hardware(i);
             if self.update_native_hardware_fire(i){break 'unit;}

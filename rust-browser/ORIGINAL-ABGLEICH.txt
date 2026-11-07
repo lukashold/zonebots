@@ -846,6 +846,24 @@ Integrationstests prüfen vorhandene Köpfe sowie nahe und entfernte Ziele.
 Der vollständige Phase-7-Weiterlauf und die Ablösung des noch vorhandenen
 allgemeinen Formationsadapters sind damit nicht als 1:1 nachgewiesen.
 
+FORMATIONSLAUF PHASE 7 (RUNDE 79)
+Der eigene 457590-Dispatcher führt Bewegung, Animationszähler, wechselnde
+Gegner-/Objektsuche und erneuten Gruppenanschluss in Originalreihenfolge aus.
+Der temporäre Gruppenstatus wird nach dem Anschluss am erneut gelesenen
+globalen Gruppenzeiger zurückgeschrieben. Frame32 wird dabei aus seinem
+vorher gespeicherten, vorzeichenbehafteten Lowbyte wiederhergestellt;
+Timer und die asymmetrische Richtungsberuhigung bleiben getrennt.
+1.024 echte 457590-Ausführungen stimmen in Endfeldern und Reihenfolge der
+Blattaufrufe überein: FNV32 3261265149. Bewegung, Suchen und Anschluss sind
+in diesem Oracle ausdrücklich kontrollierte Blätter; es ist kein ganzer
+Originalpartievergleich. Zwei zusätzliche Game-Tests prüfen einmalige
+Positionsänderung und den Animationsweiterlauf bei bereits beendetem Weg.
+Im Spiel verwendet Phase 7 nun diesen Dispatcher mit den vorhandenen
+Bewegungs-/Kontakt-/Suchadaptern. Der allgemeine Browser-Formationsplaner
+wird für Einheiten mit nativ verwalteten Wegen nicht zusätzlich ausgeführt.
+Die Genauigkeit weiterer Blattadapter und vollständiger gekoppelter Partien
+bleibt Gegenstand des Abgleichs; diese Änderung erklärt sie nicht für bewiesen.
+
 NOCH OFFEN – NICHT ALS ERLEDIGT GEWERTET
 1. Die vollständige gekoppelte globale Straßen-/Konturabschlusslogik sowie
    alle Poolüberlauf- und Wiederverwendungswechselwirkungen einer ganzen Partie

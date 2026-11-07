@@ -7,6 +7,7 @@ fn point(u:&crate::Unit)->[i16;2]{[(u.x/2.).floor()as i16,(u.y/2.).floor()as i16
 #[derive(Clone,Copy,PartialEq,Eq)]enum Hardware{Pool(usize),Dummy}
 struct Env<'a>{game:&'a mut Game,index:usize,movement:Hardware,#[cfg(test)]probe_crt:bool}
 impl Game{
+ pub(crate)fn native_preserved_inline_motion(&mut self,index:usize)->Result<(),Boundary>{Env{game:self,index,movement:Hardware::Dummy,#[cfg(test)]probe_crt:false}.leaf(true)}
  pub(crate)fn native_hardware_common_body(&mut self,index:usize)->Result<(),Boundary>{if let Some(u)=self.units.get_mut(index){u.native_common_callback=Some(self.motion_tick);}let mut e=Env{game:self,index,movement:Hardware::Dummy,#[cfg(test)]probe_crt:false};super::run(&mut e)}
  ///44fa40's terminal suffix, after its actual queue/audio prefix has returned.
  pub(crate)fn native_common_work_terminal(&mut self,index:usize,terminal:bool)->bool{if terminal{let(camera,size)=self.native_view.unwrap_or(([0,0],[(self.map.width*16)as i16,(self.map.height*16)as i16]));if super::expanded_view(point(&self.units[index]),camera,size){self.native_hardware_common.movement_byte=6;}}terminal}

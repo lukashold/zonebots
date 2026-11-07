@@ -59,7 +59,7 @@ impl Game{
  fn start_native_idle_path(&mut self,index:usize,point:[i16;2]){
   let goal=(f64::from(point[0])*2.,f64::from(point[1])*2.);let path=self.route_unit(&self.units[index],goal.0,goal.1);if (self.units[index].x,self.units[index].y)!=goal{self.prepare_native_walk(index);}let u=&mut self.units[index];u.path=path;u.dest=Some(goal);u.order="move".into();u.original_motion=None;u.native_idle=None;u.native_fire=None;
  }
- fn react_native_idle_group(&mut self,index:usize,target:Option<u8>,context:Option<usize>){
+ pub(crate) fn react_native_idle_group(&mut self,index:usize,target:Option<u8>,context:Option<usize>){
   let Some(raw_target)=target else{return;};if let Err(b)=self.native_idle_reaction_prefix(index,raw_target){self.native_route_boundary=Some(crate::original_path_contact::game::Boundary::UpstreamReaction(b));return;}
   if !self.units.iter().any(|u|u.native_slot==Some(usize::from(raw_target))){if let Some(g)=context.and_then(|g|self.native_group_rosters.pool.get_mut(g)){g.roster[59]=255;}return;}
   let Some(target)=target.and_then(|slot|self.units.iter().rev().find(|v|v.native_slot==Some(usize::from(slot)))).cloned()else{return;};
